@@ -1,0 +1,4 @@
+noinst_LIBRARIES = libnative.a
+libnative_a_SOURCES = init.c dll_md.c callNative.S
+
+AM_CPPFLAGS = -I$(top_builddir)/src
