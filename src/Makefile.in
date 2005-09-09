@@ -97,7 +97,7 @@ jamvm_SOURCES = alloc.c alloc.h cast.c class.c dll.c excep.c execute.c frame.h \
                 interp-direct.h interp-indirect.h natives.h dll_ffi.c
 
 
-LDADD = os/@os@/@arch@/libnative.a
+LDADD = os/@os@/@arch@/libnative.a os/@os@/libos.a
 
 AM_CPPFLAGS = -DINSTALL_DIR=\"${prefix}\" -DCLASSPATH_INSTALL_DIR=\"${with_classpath_install_dir}\"
 
@@ -116,7 +116,7 @@ am_jamvm_OBJECTS = alloc.$(OBJEXT) cast.$(OBJEXT) class.$(OBJEXT) \
 	properties.$(OBJEXT) direct.$(OBJEXT) dll_ffi.$(OBJEXT)
 jamvm_OBJECTS = $(am_jamvm_OBJECTS)
 jamvm_LDADD = $(LDADD)
-jamvm_DEPENDENCIES = os/@os@/@arch@/libnative.a
+jamvm_DEPENDENCIES = os/@os@/@arch@/libnative.a os/@os@/libos.a
 jamvm_LDFLAGS =
 
 DEFS = @DEFS@

@@ -25,7 +25,6 @@
 #include "jam.h"
 
 #ifndef NO_JNI
-#include <dlfcn.h>
 #include "hash.h"
 #include "jni.h"
 #include "natives.h"
@@ -253,14 +252,14 @@ int resolveDll(char *name) {
 
     if(dll == NULL) {
         DllEntry *dll2;
-        void *onload, *handle = dlopen(name, RTLD_LAZY);
+        void *onload, *handle = nativeLibOpen(name);
 
         if(handle == NULL)
             return 0;
 
         TRACE(("<DLL: Successfully opened library %s>\n",name));
 
-        if((onload = dlsym(handle, "JNI_OnLoad")) != NULL) {
+        if((onload = nativeLibSym(handle, "JNI_OnLoad")) != NULL) {
             int ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 
             if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4) {
@@ -287,7 +286,7 @@ int resolveDll(char *name) {
 }
 
 char *getDllPath() {
-    char *env = getenv("LD_LIBRARY_PATH");
+    char *env = nativeLibPath();
     return env ? env : "";
 }
 
@@ -295,20 +294,17 @@ char *getBootDllPath() {
     return CLASSPATH_INSTALL_DIR"/lib/classpath";
 }
 
-char *getDllName(char *path, char *name) {
-   char *buff = sysMalloc(strlen(path) + strlen(name) + 8);
-
-   sprintf(buff, "%s/lib%s.so", path, name);
-   return buff;
+char *getDllName(char *name) {
+   return nativeLibMapName(name);
 }
 
 void *lookupLoadedDlls0(char *name) {
     TRACE(("<DLL: Looking up %s in loaded DLL's>\n", name));
 
-#define ITERATE(ptr)                                   \
-{                                                      \
-    void *sym = dlsym(((DllEntry*)ptr)->handle, name); \
-    if(sym) return sym;                                \
+#define ITERATE(ptr)                                          \
+{                                                             \
+    void *sym = nativeLibSym(((DllEntry*)ptr)->handle, name); \
+    if(sym) return sym;                                       \
 }
 
     hashIterate(hash_table);

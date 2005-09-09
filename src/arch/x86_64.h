@@ -51,5 +51,5 @@ extern void setDoublePrecision();
 #define UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define JMM_LOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define JMM_UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
-//#define MBARRIER() __asm__ __volatile__ ("lock; addl $0,0(%%esp)" ::: "memory")
+#define MBARRIER() __asm__ __volatile__ ("lock; addl $0,0(%%rsp)" ::: "memory")
 #define MBARRIER() __asm__ __volatile__ ("" ::: "memory")

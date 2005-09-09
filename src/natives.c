@@ -216,14 +216,14 @@ uintptr_t *nativeLoad(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack+1;
 }
 
-uintptr_t *nativeGetLibname(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    char *path = String2Cstr((Object*)ostack[0]);
-    char *name = String2Cstr((Object*)ostack[1]);
-    char *lib = getDllName(path, name);
-    free(path);
+uintptr_t *mapLibraryName(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    char *name = String2Cstr((Object*)ostack[0]);
+    char *lib = getDllName(name);
     free(name);
+
     *ostack++ = (uintptr_t)Cstr2String(lib);
     free(lib);
+
     return ostack;
 }
 
@@ -961,7 +961,7 @@ VMMethod vm_runtime[] = {
     {"runFinalization",             runFinalization},
     {"exit",                        exitInternal},
     {"nativeLoad",                  nativeLoad},
-    {"nativeGetLibname",            nativeGetLibname},
+    {"mapLibraryName",              mapLibraryName},
     {NULL,                          NULL}
 };
 

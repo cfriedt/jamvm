@@ -704,10 +704,17 @@ extern void *resolveNativeMethod(MethodBlock *mb);
 extern int resolveDll(char *name);
 extern char *getDllPath();
 extern char *getBootDllPath();
-extern char *getDllName(char *path, char *name);
+extern char *getDllName(char *name);
 extern void initialiseDll(int verbose);
 
 extern uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack);
+
+/* Dll OS */
+
+extern char *nativeLibPath();
+extern void *nativeLibOpen(char *path);
+extern char *nativeLibMapName(char *name);
+extern void *nativeLibSym(void *handle, char *symbol);
 
 /* Threading */
 
