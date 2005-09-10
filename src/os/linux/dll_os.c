@@ -37,7 +37,7 @@ void *nativeLibSym(void *handle, char *symbol) {
     return dlsym(handle, symbol);
 }
 
-char *nativeMapLibName(char *name) {
+char *nativeLibMapName(char *name) {
    char *buff = sysMalloc(strlen(name) + sizeof("lib.so") + 1);
 
    sprintf(buff, "lib%s.so", name);
