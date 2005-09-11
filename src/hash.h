@@ -36,7 +36,7 @@ extern void resizeHash(HashTable *table, int new_size);
 
 #define initHashTable(table, initial_size, create_lock)                            \
 {                                                                                  \
-    table.hash_table = (HashEntry*)malloc(sizeof(HashEntry)*initial_size);         \
+    table.hash_table = (HashEntry*)sysMalloc(sizeof(HashEntry)*initial_size);      \
     memset(table.hash_table, 0, sizeof(HashEntry)*initial_size);                   \
     table.hash_size = initial_size;                                                \
     table.hash_count = 0;                                                          \

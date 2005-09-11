@@ -134,7 +134,7 @@ void allocMarkBits() {
     int no_of_bits = (heaplimit-heapbase)>>LOG_BYTESPERBIT;
     markBitSize = (no_of_bits+MARKSIZEBITS-1)>>LOG_MARKSIZEBITS;
 
-    markBits = (unsigned int *) malloc(markBitSize*sizeof(*markBits));
+    markBits = (unsigned int *) sysMalloc(markBitSize*sizeof(*markBits));
 
     TRACE_GC(("Allocated mark bits - size is %d\n", markBitSize));
 }
