@@ -1,4 +1,5 @@
-GLIBJ_ZIP = ${with_classpath_install_dir}/share/classpath/glibj.zip
+@use_zip_yes@ GLIBJ_ZIP = ${with_classpath_install_dir}/share/classpath/glibj.zip
+@use_zip_no@ GLIBJ_ZIP = ${with_classpath_install_dir}/share/classpath/
 
 SUBDIRS = jamvm java gnu
 EXTRA_DIST = classes.zip README
