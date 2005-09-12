@@ -455,17 +455,6 @@ uintptr_t *forName(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
     return forName0(ostack, init, loader);
 }
 
-uintptr_t *loadArrayClass(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
-    Object *loader = (Object*)ostack[1];
-    return forName0(ostack, FALSE, loader);
-}
-
-uintptr_t *initialize(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
-    initClass(clazz);
-    return ostack;
-}
-
 uintptr_t *throwException(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *excep = (Object *)ostack[0];
     setException(excep);
@@ -986,8 +975,6 @@ VMMethod vm_class[] = {
     {"getClassLoader",              getClassLoader},
     {"getModifiers",                getClassModifiers},
     {"forName",                     forName},
-    {"loadArrayClass",              loadArrayClass},
-    {"initialize",                  initialize},
     {"throwException",              throwException},
     {"hasClassInitializer",         hasClassInitializer},
     {NULL,                          NULL}
