@@ -1,3 +1,46 @@
+JamVM 1.3.3 released on 12th September 2005
+===========================================
+
+A summary of changes since 1.3.2:
+
+- JamVM is now 64-bit "clean".
+
+- As part of the changes above, JamVM has been ported to:
+
+    - AMD64 under Linux:
+        - JamVM should also work on Pentium 4 with EM64T technology.
+
+    - PowerPC64 under Mac OS X:
+        - to build a 64-bit executable CFLAGS must include the flag -arch
+          ppc64.  If no option is given a 32-bit executable is built by
+          default.
+
+    - JamVM should also work on PowerPC64 under Linux, if the --enable-ffi
+      flag is given to configure, but I have been unable to test.
+
+- LibFFI is now supported.  Upto now, all ports required the native
+  calling convention to be written "by hand" for each new architecture/
+  platform.  Generic calling-convention code is now supported via libffi.
+  Currently this is only used for AMD64/Linux, but can be enabled for
+  all platforms using --enable-ffi.  The "hand-written" routines should
+  be faster, and are used by default, but this will make porting to new
+  architectures/platforms easier.
+
+- Bug-fix enabling heaps larger than 2Gb to be specified on 32-bit
+  architectures.  On 64-bit machines, heap sizes > 4Gb are now
+  supported.
+
+- Bug-fix for JNI return values smaller than 4 bytes (e.g.  byte, short,
+  etc.) on big-endian machines.
+
+- Under Mac OS X multiple DLL extensions will now be tried.  Classpath
+  libraries end in .dylib, but native JNI libraries end in .jnilib.
+  Both are now supported.
+
+- Backwards compatibility workarounds for Classpath-0.17 removed.  JamVM
+  will now only work with Classpath-0.18 and CVS (as of 12th September).
+
+
 JamVM 1.3.2 released on 29th July 2005
 ======================================
 

@@ -29,13 +29,18 @@ char *nativeLibPath() {
     return getenv("LD_LIBRARY_PATH");
 }
 
+/* GNU Classpath's libraries end in .dylib because it
+   uses libtool, but JNI libraries normally end in
+   .jnilib under Mac OS X.  We try both.
+*/
+
 void *nativeLibOpen(char *path) {
     void *handle;
     int len = strlen(path);
-    char buff[len + sizeof(".0.0.0.dylib") + 1];
+    char buff[len + sizeof(".jnilib") + 1];
      
     strcpy(buff, path);
-    strcpy(buff + len, ".0.0.0.dylib");
+    strcpy(buff + len, ".dylib");
 
     if((handle = dlopen(buff, RTLD_LAZY)) == NULL) {
         strcpy(buff + len, ".jnilib");

@@ -56,6 +56,7 @@ AC_CANONICAL_HOST
 
 case "$host" in
 i[[456]]86-*-linux*) host_cpu=i386 host_os=linux ;;
+i[[456]]86-*-openbsd*) host_cpu=i386 host_os=linux libdl_needed=no ;;
 x86_64-*-linux*) host_os=linux ;;
 arm*-*-linux*) host_cpu=arm host_os=linux ;;
 powerpc-*-linux*) host_os=linux ;;
@@ -126,8 +127,11 @@ AM_PROG_AS
 dnl Checks for libraries.
 
 AC_CHECK_LIB(pthread,pthread_self,,AC_MSG_ERROR(libpthread is missing))
-AC_CHECK_LIB(dl,dlopen,,AC_MSG_ERROR(libdl is missing))
 AC_CHECK_LIB(m,fmod,,AC_MSG_ERROR(libm is missing))
+
+if test "$libdl_needed" != no; then
+    AC_CHECK_LIB(dl,dlopen,,AC_MSG_ERROR(libdl is missing))
+fi
 
 AC_CHECK_LIB(z,inflate,,
     [if test "$enable_zip" != no; then
@@ -181,6 +185,8 @@ AC_FUNC_ALLOCA
 AC_FUNC_MMAP
 AC_CHECK_FUNCS(gettimeofday strtol setlocale)
 AM_LC_MESSAGES
+
+AM_MAINTAINER_MODE
 
 AC_CONFIG_LINKS(src/arch.h:src/arch/$arch.h)
 
