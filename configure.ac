@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.3.3)
+AM_INIT_AUTOMAKE(jamvm, 1.3.3+cvs)
 
 AC_ARG_ENABLE(tracegc,
     [  --enable-tracegc add gc tracing (for debugging)],
