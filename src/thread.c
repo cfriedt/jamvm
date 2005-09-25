@@ -28,8 +28,7 @@
 #include "thread.h"
 #include "lock.h"
 
-//#ifdef TRACETHREAD
-#if 0
+#ifdef TRACETHREAD
 #define TRACE(x) printf x
 #else
 #define TRACE(x)
