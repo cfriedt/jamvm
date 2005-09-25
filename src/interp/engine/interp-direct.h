@@ -120,7 +120,7 @@ label(opcode, level)
 #endif
 
 #define PREPARE_MB(mb)                  \
-    if((uintptr_t)mb->code & 0x3)    \
+    if((uintptr_t)mb->code & 0x3)       \
         prepare(mb, handlers)
 
 #define ARRAY_TYPE(pc)        pc->operand.i
