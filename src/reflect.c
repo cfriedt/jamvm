@@ -394,7 +394,7 @@ Object *createWrapperObject(Class *type, uintptr_t *pntr) {
     ClassBlock *type_cb = CLASS_CB(type);
 
     if(IS_PRIMITIVE(type_cb)) {
-        int idx = type_cb->flags - CLASS_PRIM - 1;
+        int idx = type_cb->state - CLASS_PRIM - 1;
         if(idx == -1) /* void */
             return NULL;
         else {

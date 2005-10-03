@@ -451,7 +451,7 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
     if(exceptionOccured())
        return NULL;
 
-    classblock->flags = CLASS_LOADED;
+    classblock->state = CLASS_LOADED;
 
     if((found = addClassToHash(class)) != class) {
         freeClassData(class);
@@ -483,7 +483,7 @@ createArrayClass(char *classname, Object *class_loader) {
     classblock->interfaces[0] = findSystemClass("java/lang/Cloneable");
     classblock->interfaces[1] = findSystemClass("java/io/Serializable");
 
-    classblock->flags = CLASS_ARRAY;
+    classblock->state = CLASS_ARRAY;
 
     /* Find the array element class and the dimension --
        this is used to speed up type checking (instanceof) */
@@ -530,7 +530,7 @@ createPrimClass(char *classname, int index) {
     classblock = CLASS_CB(class);
     classblock->name = strcpy((char*)sysMalloc(strlen(classname)+1), classname);
     classblock->access_flags = ACC_PUBLIC | ACC_FINAL | ACC_ABSTRACT;
-    classblock->flags = CLASS_PRIM + index;
+    classblock->state = CLASS_PRIM + index;
 
     prepareClass(class);
 
@@ -588,12 +588,12 @@ void linkClass(Class *class) {
 
    Class *super = (cb->access_flags & ACC_INTERFACE) ? NULL : cb->super;
 
-   if(cb->flags >= CLASS_LINKED)
+   if(cb->state >= CLASS_LINKED)
        return;
 
    objectLock((Object *)class);
 
-   if(cb->flags >= CLASS_LINKED)
+   if(cb->state >= CLASS_LINKED)
        goto unlock;
 
    if(verbose)
@@ -601,7 +601,7 @@ void linkClass(Class *class) {
 
    if(super) {
       ClassBlock *super_cb = CLASS_CB(super);
-      if(super_cb->flags < CLASS_LINKED)
+      if(super_cb->state < CLASS_LINKED)
           linkClass(super);
 
       field_offset = super_cb->object_size;
@@ -835,7 +835,7 @@ void linkClass(Class *class) {
    cb->method_table = method_table;
    cb->method_table_size = method_table_size;
 
-   /* handle finalizer */
+   /* Handle finalizer */
 
    /* If this is Object find the finalize method.  All subclasses will
       have it in the same place in the method table.  Note, Object
@@ -856,7 +856,9 @@ void linkClass(Class *class) {
    else
        cb->finalizer = NULL;
 
-   cb->flags = CLASS_LINKED;
+   /* Handle reference classes */
+
+   cb->state = CLASS_LINKED;
 
 unlock:
    objectUnlock((Object *)class);
@@ -873,33 +875,33 @@ Class *initClass(Class *class) {
    linkClass(class);
    objectLock((Object *)class);
 
-   while(cb->flags == CLASS_INITING)
+   while(cb->state == CLASS_INITING)
       if(cb->initing_tid == threadSelf()->id)
           goto unlock;
       else
           objectWait((Object *)class, 0, 0);
 
-   if(cb->flags >= CLASS_INITED)
+   if(cb->state >= CLASS_INITED)
       goto unlock;
 
-   if(cb->flags == CLASS_BAD) {
+   if(cb->state == CLASS_BAD) {
        objectUnlock((Object *)class);
        signalException("java/lang/NoClassDefFoundError", cb->name);
        return class;
    }
 
-   cb->flags = CLASS_INITING;
+   cb->state = CLASS_INITING;
 
    cb->initing_tid = threadSelf()->id;
 
    objectUnlock((Object *)class);
 
    if(!(cb->access_flags & ACC_INTERFACE) && cb->super
-              && (CLASS_CB(cb->super)->flags != CLASS_INITED)) {
+              && (CLASS_CB(cb->super)->state != CLASS_INITED)) {
       initClass(cb->super);
       if(exceptionOccured()) {
           objectLock((Object *)class);
-          cb->flags = CLASS_BAD;
+          cb->state = CLASS_BAD;
           goto notify;
       }
    }
@@ -938,10 +940,10 @@ Class *initClass(Class *class) {
            setException(excep);
 
        objectLock((Object *)class);
-       cb->flags = CLASS_BAD;
+       cb->state = CLASS_BAD;
    } else {
        objectLock((Object *)class);
-       cb->flags = CLASS_INITED;
+       cb->state = CLASS_INITED;
    }
    
 notify:

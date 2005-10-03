@@ -438,8 +438,9 @@ typedef struct classblock {
    char *super_name;
    char *source_file_name;
    Class *super;
+   u1 state;
+   u1 flags;
    u2 access_flags;
-   u2 flags;
    u2 interfaces_count;
    u2 fields_count;
    u2 methods_count;
@@ -509,8 +510,8 @@ typedef struct prop {
 #define IS_SYNTHETIC(cb)                (cb->access_flags & ACC_SYNTHETIC)
 #define IS_ANNOTATION(cb)               (cb->access_flags & ACC_ANNOTATION)
 #define IS_ENUM(cb)                     (cb->access_flags & ACC_ENUM)
-#define IS_ARRAY(cb)                    (cb->flags == CLASS_ARRAY)
-#define IS_PRIMITIVE(cb)                (cb->flags >= CLASS_PRIM)
+#define IS_ARRAY(cb)                    (cb->state == CLASS_ARRAY)
+#define IS_PRIMITIVE(cb)                (cb->state >= CLASS_PRIM)
 
 /* Macros for accessing constant pool entries */
 
@@ -752,7 +753,7 @@ extern Object *createReflectMethodObject(MethodBlock *mb);
 extern Object *createReflectFieldObject(FieldBlock *fb);
 extern Class *getReflectMethodClass();
 
-#define getPrimTypeIndex(cb) (cb->flags - CLASS_PRIM)
+#define getPrimTypeIndex(cb) (cb->state - CLASS_PRIM)
 
 /* jni */
 
