@@ -49,6 +49,7 @@ typedef struct bcp_entry {
 static BCPEntry *bootclasspath;
 static int bcp_entries;
 
+int ref_referent_offset = -1;
 Class *java_lang_Class = NULL;
 
 /* Method table index of ClassLoader.loadClass - used when
@@ -569,22 +570,28 @@ createPrimClass(char *classname, int index) {
 }
 
 void linkClass(Class *class) {
+   static MethodBlock *obj_fnlzr_mthd = NULL;
+
    ClassBlock *cb = CLASS_CB(class);
-   MethodBlock *mb = cb->methods;
-   FieldBlock *fb = cb->fields;
-   int spr_mthd_tbl_sze = 0;
    MethodBlock **method_table = NULL;
    MethodBlock **spr_mthd_tbl;
+   ITableEntry *spr_imthd_tbl;
    int new_methods_count = 0;
    int spr_imthd_tbl_sze = 0;
+   int itbl_offset_count = 0;
+   int spr_mthd_tbl_sze = 0;
    int method_table_size;
    int new_itable_count;
-   ITableEntry *spr_imthd_tbl;
-   int field_offset = 0;
-   int itbl_offset_count = 0;
+   int spr_obj_sze = 0;
+   int refs_end_offset;
    int itbl_idx, i, j;
+   int spr_flags = 0;
+   int field_offset;
    MethodBlock *finalizer;
-   static MethodBlock *obj_fnlzr_mthd = NULL;
+   MethodBlock *mb;
+   FieldBlock *fb;
+   RefsOffsetsEntry *spr_rfs_offsts_tbl;
+   int spr_rfs_offsts_sze = 0;
 
    Class *super = (cb->access_flags & ACC_INTERFACE) ? NULL : cb->super;
 
@@ -604,16 +611,21 @@ void linkClass(Class *class) {
       if(super_cb->state < CLASS_LINKED)
           linkClass(super);
 
-      field_offset = super_cb->object_size;
+      spr_flags = super_cb->flags;
+      spr_obj_sze = super_cb->object_size;
       spr_mthd_tbl = super_cb->method_table;
       spr_imthd_tbl = super_cb->imethod_table;
       spr_mthd_tbl_sze = super_cb->method_table_size;
       spr_imthd_tbl_sze = super_cb->imethod_table_size;
+      spr_rfs_offsts_sze = super_cb->refs_offsets_size;
+      spr_rfs_offsts_tbl = super_cb->refs_offsets_table;
    }
 
    /* prepare fields */
 
-   for(i = 0; i < cb->fields_count; i++,fb++) {
+   field_offset = spr_obj_sze;
+
+   for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++) {
       if(fb->access_flags & ACC_STATIC) {
          /* init to default value */
          if((*fb->type == 'J') || (*fb->type == 'D'))
@@ -622,20 +634,30 @@ void linkClass(Class *class) {
             fb->static_value = 0;
       } else {
          /* calc field offset */
+         if((*fb->type == 'L') || (*fb->type == '['))
+            fb->offset = field_offset++;
+      }
+      fb->class = class;
+   }
+
+   refs_end_offset = field_offset;
+
+   for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++)
+      if(!(fb->access_flags & ACC_STATIC) &&
+                 (*fb->type != 'L') && (*fb->type != '[')) {
+         /* calc field offset */
          fb->offset = field_offset;
          if((*fb->type == 'J') || (*fb->type == 'D'))
              field_offset += 2;
          else
              field_offset += 1;
       }
-      fb->class = class;
-   }
 
    cb->object_size = field_offset;
 
    /* prepare methods */
 
-   for(i = 0; i < cb->methods_count; i++,mb++) {
+   for(mb = cb->methods, i = 0; i < cb->methods_count; i++,mb++) {
 
        /* calculate argument count from signature */
 
@@ -732,11 +754,13 @@ void linkClass(Class *class) {
    for(i = 0; i < cb->interfaces_count; i++) {
        Class *intf = cb->interfaces[i];
        ClassBlock *intf_cb = CLASS_CB(intf);
+
        cb->imethod_table[itbl_idx++].interface = intf;
        itbl_offset_count += intf_cb->method_table_size;
 
        for(j = 0; j < intf_cb->imethod_table_size; j++) {
            Class *spr_intf = intf_cb->imethod_table[j].interface;
+
            cb->imethod_table[itbl_idx++].interface = spr_intf;
            itbl_offset_count += CLASS_CB(spr_intf)->method_table_size;
        }
@@ -857,6 +881,61 @@ void linkClass(Class *class) {
        cb->finalizer = NULL;
 
    /* Handle reference classes */
+
+   if(ref_referent_offset == -1 && strcmp(cb->name, "java/lang/ref/Reference") == 0) {
+       FieldBlock *ref_fb = findField(class, "referent", "Ljava/lang/Object;");
+
+       for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++)
+           if(fb->offset > ref_fb->offset)
+               fb->offset--;
+
+       ref_referent_offset = ref_fb->offset = field_offset - 1;
+       refs_end_offset--;
+
+       cb->flags |= REFERENCE;
+   }
+
+   if(spr_flags & REFERENCE) {
+       if(strcmp(cb->name, "java/lang/ref/SoftReference") == 0)
+           cb->flags |= SOFT_REFERENCE;
+       else
+           if(strcmp(cb->name, "java/lang/ref/WeakReference") == 0)
+               cb->flags |= WEAK_REFERENCE;
+           else
+               if(strcmp(cb->name, "java/lang/ref/PhantomReference") == 0)
+                   cb->flags |= PHANTOM_REFERENCE;
+   }
+
+   /* Construct the reference offsets list.  This is used to speed up
+      scanning of an objects references during the mark phase of GC. */
+
+   if(refs_end_offset > spr_obj_sze) {
+       int new_offset, new_size;
+       int new_refs = refs_end_offset - spr_obj_sze;
+
+       if(spr_rfs_offsts_sze > 0 && (spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].offset + 
+                                     spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].size) == spr_obj_sze) {
+
+           cb->refs_offsets_size = spr_rfs_offsts_sze;
+           new_offset = spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].offset;
+           new_size = spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].size + new_refs;
+       } else {
+           cb->refs_offsets_size = spr_rfs_offsts_sze + 1;
+           new_offset = spr_obj_sze;
+           new_size = new_refs;
+      }
+
+      cb->refs_offsets_table = sysMalloc(cb->refs_offsets_size * sizeof(RefsOffsetsEntry));
+
+      memcpy(cb->refs_offsets_table, spr_rfs_offsts_tbl,
+                                     spr_rfs_offsts_sze * sizeof(RefsOffsetsEntry));
+
+      cb->refs_offsets_table[cb->refs_offsets_size-1].offset = new_offset;
+      cb->refs_offsets_table[cb->refs_offsets_size-1].size = new_size;
+   } else {
+       cb->refs_offsets_size = spr_rfs_offsts_sze;
+       cb->refs_offsets_table = spr_rfs_offsts_tbl;
+   }
 
    cb->state = CLASS_LINKED;
 

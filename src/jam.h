@@ -298,6 +298,8 @@
 #define T_INT                   10
 #define T_LONG                  11
 
+/* Class states */
+
 #define CLASS_LOADED            0
 #define CLASS_LINKED            1
 #define CLASS_BAD               2
@@ -306,6 +308,13 @@
 
 #define CLASS_ARRAY             5
 #define CLASS_PRIM              6
+
+/* Class flags */
+
+#define REFERENCE               1
+#define SOFT_REFERENCE          2
+#define WEAK_REFERENCE          4
+#define PHANTOM_REFERENCE       8
 
 typedef unsigned char           u1;
 typedef unsigned short          u2;
@@ -430,6 +439,11 @@ typedef struct itable_entry {
    int *offsets;
 } ITableEntry;
 
+typedef struct refs_offsets_entry {
+    int offset;
+    int size;
+} RefsOffsetsEntry;
+
 #define CLASS_PAD_SIZE 4
 
 typedef struct classblock {
@@ -465,6 +479,8 @@ typedef struct classblock {
    u2 inner_access_flags;
    u2 inner_class_count;
    u2 *inner_classes;
+   int refs_offsets_size;
+   RefsOffsetsEntry *refs_offsets_table;
 } ClassBlock;
 
 typedef struct frame {
