@@ -406,6 +406,9 @@ uintptr_t *forName0(uintptr_t *ostack, int resolve, Object *loader) {
     cstr = String2Cstr(string);
     len = strlen(cstr);
 
+    /* Check the classname to see if it's valid.  It can be
+       a 'normal' class or an array class, starting with a [ */
+
     if(cstr[0] == '[') {
         for(; cstr[i] == '['; i++);
         switch(cstr[i]) {
@@ -421,7 +424,7 @@ uintptr_t *forName0(uintptr_t *ostack, int resolve, Object *loader) {
                     goto out;
                 break;
             case 'L':
-                if(cstr[len-1] != ';')
+                if(cstr[i+1] == '[' || cstr[len-1] != ';')
                     goto out;
                 break;
             default:
@@ -430,8 +433,16 @@ uintptr_t *forName0(uintptr_t *ostack, int resolve, Object *loader) {
         }
     }
 
-    for(; i < len; i++)
-        if(cstr[i]=='.') cstr[i]='/';
+    /* Scan the classname and convert it to internal form
+       by converting dots to slashes.  Reject classnames
+       containing slashes, as this is an invalid character */
+
+    for(; i < len; i++) {
+        if(cstr[i] == '/')
+            goto out;
+        if(cstr[i] == '.')
+            cstr[i] = '/';
+    }
 
     class = findClassFromClassLoader(cstr, loader);
 
