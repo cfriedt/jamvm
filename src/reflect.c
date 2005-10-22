@@ -338,7 +338,7 @@ Object *getClassClasses(Class *class, int public) {
         Class *iclass;
         if((iclass = resolveClass(class, cb->inner_classes[i], FALSE)) == NULL)
             return NULL;
-        if(!public || (CLASS_CB(iclass)->access_flags & ACC_PUBLIC))
+        if(!public || (CLASS_CB(iclass)->inner_access_flags & ACC_PUBLIC))
             count++;
     }
 
@@ -348,7 +348,7 @@ Object *getClassClasses(Class *class, int public) {
     classes = ARRAY_DATA(array);
     for(i = 0, j = 0; j < count; i++) {
         Class *iclass = resolveClass(class, cb->inner_classes[i], FALSE);
-        if(!public || (CLASS_CB(iclass)->access_flags & ACC_PUBLIC))
+        if(!public || (CLASS_CB(iclass)->inner_access_flags & ACC_PUBLIC))
             classes[j++] = iclass;
     }
 
