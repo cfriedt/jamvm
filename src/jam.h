@@ -315,6 +315,7 @@
 #define SOFT_REFERENCE          2
 #define WEAK_REFERENCE          4
 #define PHANTOM_REFERENCE       8
+#define FINALIZED               16 
 
 typedef unsigned char           u1;
 typedef unsigned short          u2;
@@ -440,8 +441,8 @@ typedef struct itable_entry {
 } ITableEntry;
 
 typedef struct refs_offsets_entry {
-    int offset;
-    int size;
+    int start;
+    int end;
 } RefsOffsetsEntry;
 
 #define CLASS_PAD_SIZE 4
@@ -468,7 +469,6 @@ typedef struct classblock {
    MethodBlock **method_table;
    int imethod_table_size;
    ITableEntry *imethod_table;
-   MethodBlock *finalizer;
    Class *element_class;
    int initing_tid;
    int dim;
@@ -528,6 +528,12 @@ typedef struct prop {
 #define IS_ENUM(cb)                     (cb->access_flags & ACC_ENUM)
 #define IS_ARRAY(cb)                    (cb->state == CLASS_ARRAY)
 #define IS_PRIMITIVE(cb)                (cb->state >= CLASS_PRIM)
+
+#define IS_FINALIZED(cb)                (cb->flags & FINALIZED)
+#define IS_REFERENCE(cb)		(cb->flags & REFERENCE)
+#define IS_SOFT_REFERENCE(cb)		(cb->flags & SOFT_REFERENCE)
+#define IS_WEAK_REFERENCE(cb)		(cb->flags & WEAK_REFERENCE)
+#define IS_PHANTOM_REFERENCE(cb)	(cb->flags & PHANTOM_REFERENCE)
 
 /* Macros for accessing constant pool entries */
 

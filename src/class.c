@@ -50,12 +50,16 @@ static BCPEntry *bootclasspath;
 static int bcp_entries;
 
 int ref_referent_offset = -1;
+int ref_queue_offset;
+
 Class *java_lang_Class = NULL;
 
 /* Method table index of ClassLoader.loadClass - used when
    requesting a Java-level class loader to load a class.
    Cached on first use. */
 static int loadClass_mtbl_idx = -1;
+int finalize_mtbl_idx;
+int enqueue_mtbl_idx;
 
 /* hash table containing loaded classes and internally
    created arrays */
@@ -89,7 +93,9 @@ static Class *addClassToHash(Class *class) {
 #define HASH(ptr) utf8Hash(CLASS_CB((Class *)ptr)->name)
 #define COMPARE(ptr1, ptr2, hash1, hash2) (hash1 == hash2) && \
                      utf8Comp(CLASS_CB((Class *)ptr1)->name, CLASS_CB((Class *)ptr2)->name) && \
-                     (CLASS_CB((Class*)ptr1)->class_loader == CLASS_CB((Class *)ptr2)->class_loader)
+                     ((CLASS_CB((Class*)ptr1)->class_loader == CLASS_CB((Class *)ptr2)->class_loader) || \
+                     ((CLASS_CB((Class*)ptr1)->class_loader != NULL) && \
+                     searchClassInitiatingLoaders(CLASS_CB((Class*)ptr1)->class_loader, (Class *)ptr2)))
 
     /* Add if absent, no scavenge, locked */
     findHashEntry(loaded_classes, class, entry, TRUE, FALSE, TRUE);
@@ -456,6 +462,10 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
 
     if((found = addClassToHash(class)) != class) {
         freeClassData(class);
+        if(class_loader != NULL) {
+            signalException("java/lang/LinkageError", "duplicate class definition");
+            return NULL;
+        }
         return found;
     }
 
@@ -859,6 +869,8 @@ void linkClass(Class *class) {
    cb->method_table = method_table;
    cb->method_table_size = method_table_size;
 
+   cb->flags = spr_flags;
+
    /* Handle finalizer */
 
    /* If this is Object find the finalize method.  All subclasses will
@@ -867,29 +879,35 @@ void linkClass(Class *class) {
 
    if(cb->super == NULL) {
        finalizer = findMethod(class, "finalize", "()V");
-       if(finalizer && !(finalizer->access_flags & (ACC_STATIC | ACC_PRIVATE)))
+       if(finalizer && !(finalizer->access_flags & (ACC_STATIC | ACC_PRIVATE))) {
+           finalize_mtbl_idx = finalizer->method_table_index;
            obj_fnlzr_mthd = finalizer;
+       }
    }
+
+   cb->flags = spr_flags;
 
    /* Store the finalizer only if it's overridden Object's.  We don't
       want to finalize every object, and Object's imp is empty */
 
    if(super && obj_fnlzr_mthd && (finalizer =
                method_table[obj_fnlzr_mthd->method_table_index]) != obj_fnlzr_mthd)
-       cb->finalizer = finalizer;
-   else
-       cb->finalizer = NULL;
+       cb->flags |= FINALIZED;
 
    /* Handle reference classes */
 
    if(ref_referent_offset == -1 && strcmp(cb->name, "java/lang/ref/Reference") == 0) {
        FieldBlock *ref_fb = findField(class, "referent", "Ljava/lang/Object;");
+       FieldBlock *queue_fb = findField(class, "queue", "Ljava/lang/ref/ReferenceQueue;");
+       MethodBlock *enqueue_mb = findMethod(class, "enqueue", "()Z");
 
        for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++)
            if(fb->offset > ref_fb->offset)
                fb->offset--;
 
        ref_referent_offset = ref_fb->offset = field_offset - 1;
+       enqueue_mtbl_idx = enqueue_mb->method_table_index;
+       ref_queue_offset = queue_fb->offset;
        refs_end_offset--;
 
        cb->flags |= REFERENCE;
@@ -910,19 +928,14 @@ void linkClass(Class *class) {
       scanning of an objects references during the mark phase of GC. */
 
    if(refs_end_offset > spr_obj_sze) {
-       int new_offset, new_size;
-       int new_refs = refs_end_offset - spr_obj_sze;
+       int new_start;
 
-       if(spr_rfs_offsts_sze > 0 && (spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].offset + 
-                                     spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].size) == spr_obj_sze) {
-
+       if(spr_rfs_offsts_sze > 0 && spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].end == spr_obj_sze) {
            cb->refs_offsets_size = spr_rfs_offsts_sze;
-           new_offset = spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].offset;
-           new_size = spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].size + new_refs;
+           new_start = spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].start;
        } else {
            cb->refs_offsets_size = spr_rfs_offsts_sze + 1;
-           new_offset = spr_obj_sze;
-           new_size = new_refs;
+           new_start = spr_obj_sze;
       }
 
       cb->refs_offsets_table = sysMalloc(cb->refs_offsets_size * sizeof(RefsOffsetsEntry));
@@ -930,8 +943,8 @@ void linkClass(Class *class) {
       memcpy(cb->refs_offsets_table, spr_rfs_offsts_tbl,
                                      spr_rfs_offsts_sze * sizeof(RefsOffsetsEntry));
 
-      cb->refs_offsets_table[cb->refs_offsets_size-1].offset = new_offset;
-      cb->refs_offsets_table[cb->refs_offsets_size-1].size = new_size;
+      cb->refs_offsets_table[cb->refs_offsets_size-1].start = new_start;
+      cb->refs_offsets_table[cb->refs_offsets_size-1].end = refs_end_offset;
    } else {
        cb->refs_offsets_size = spr_rfs_offsts_sze;
        cb->refs_offsets_table = spr_rfs_offsts_tbl;
@@ -1168,6 +1181,7 @@ Class *findArrayClassFromClassLoader(char *classname, Object *class_loader) {
    if(class == NULL)
        class = createArrayClass(classname, class_loader);
 
+        addInitiatingLoaderToClass(class_loader, class);
    return class;
 }
 

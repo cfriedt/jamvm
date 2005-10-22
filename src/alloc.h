@@ -24,13 +24,13 @@
 
 #define clearFlcBit(obj) {                                             \
 	uintptr_t *hdr = (uintptr_t*)(((char*)obj)-HEADER_SIZE);       \
-        *hdr  &= ~FLC_BIT;                                             \
+        *hdr &= ~FLC_BIT;                                              \
 	MBARRIER();                                                    \
 }
 
 #define setFlcBit(obj) {                                               \
 	uintptr_t *hdr = (uintptr_t*)(((char*)obj)-HEADER_SIZE);       \
-        *hdr  |= FLC_BIT;                                              \
+        *hdr |= FLC_BIT;                                               \
 	MBARRIER();                                                    \
 }
 
