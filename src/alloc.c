@@ -128,8 +128,6 @@ extern int ref_queue_offset;
 extern int finalize_mtbl_idx;
 extern int enqueue_mtbl_idx;
 
-static int mark_soft_refs = TRUE;
-
 #define HARD_MARK               3
 #define FINALIZER_MARK          2
 #define PHANTOM_MARK            1
@@ -212,6 +210,7 @@ void initialiseAlloc(unsigned long min, unsigned long max, int verbose) {
 }
 
 #define ADD_TO_OBJECT_LIST(list, ob)                                     \
+{                                                                        \
     if(list##_start == list##_end) {                                     \
         list##_end = list##_size;                                        \
         list##_start = list##_size += LIST_INCREMENT;                    \
@@ -219,15 +218,16 @@ void initialiseAlloc(unsigned long min, unsigned long max, int verbose) {
                                            list##_size*sizeof(Object*)); \
     }                                                                    \
     list##_end = list##_end%list##_size;                                 \
-    list##_list[list##_end++] = ob;
+    list##_list[list##_end++] = ob;                                      \
+}
 
 extern void markInternedStrings();
 extern void markClasses();
 extern void markJNIGlobalRefs();
 extern void scanThreads();
-void markChildren(Object *ob, int mark);
+void markChildren(Object *ob, int mark, int mark_soft_refs);
 
-static void doMark(Thread *self) {
+static void doMark(Thread *self, int mark_soft_refs) {
     char *ptr;
     int i, j;
 
@@ -263,7 +263,7 @@ static void doMark(Thread *self) {
             Object *ob = (Object*)(ptr+HEADER_SIZE);
 
             if(IS_HARD_MARKED(ob))
-                markChildren(ob, HARD_MARK);
+                markChildren(ob, HARD_MARK, mark_soft_refs);
         }
 
         /* Skip to next block */
@@ -308,12 +308,12 @@ static void doMark(Thread *self) {
 
     if(run_finaliser_end > run_finaliser_start)
         for(i = run_finaliser_start; i < run_finaliser_end; i++)
-            markChildren(run_finaliser_list[i], FINALIZER_MARK);
+            markChildren(run_finaliser_list[i], FINALIZER_MARK, mark_soft_refs);
     else {
         for(i = run_finaliser_start; i < run_finaliser_size; i++)
-            markChildren(run_finaliser_list[i], FINALIZER_MARK);
+            markChildren(run_finaliser_list[i], FINALIZER_MARK, mark_soft_refs);
         for(i = 0; i < run_finaliser_end; i++)
-            markChildren(run_finaliser_list[i], FINALIZER_MARK);
+            markChildren(run_finaliser_list[i], FINALIZER_MARK, mark_soft_refs);
     }
 
     unlockVMWaitLock(run_finaliser_lock, self);
@@ -417,7 +417,8 @@ marked:
                 int ref_mark = IS_MARKED(referent);
                 ClassBlock *cb = CLASS_CB(ob->class);
 
-                TRACE_GC(("FREE: found Reference Object flags %d referent: %x mark: %d\n", cb->flags, referent, ref_mark));
+                TRACE_GC(("FREE: found Reference Object @%p class %s flags %d referent %x mark %d\n",
+                          ob, cb->name, cb->flags, referent, ref_mark));
 
                 if(IS_PHANTOM_REFERENCE(cb)) {
                     if(ref_mark != PHANTOM_MARK)
@@ -425,13 +426,16 @@ marked:
                 } else {
                     if(ref_mark == HARD_MARK)
                         goto out;
+
+                    TRACE_GC("Clearing the referent field.\n");
                     INST_DATA(ob)[ref_referent_offset] = 0;
                 }
 
-                /* Add to reference queue */
+                /* If the reference has a queue, add it to the list for enqueuing
+                   by the Reference Handler thread. */
 
                 if((Object *)INST_DATA(ob)[ref_queue_offset] != NULL) {
-                    TRACE_GC("adding to list for enqueuing...\n");
+                    TRACE_GC("Adding to list for enqueuing.\n");
                     ADD_TO_OBJECT_LIST(reference, ob);
                 }
             }
@@ -448,7 +452,7 @@ out:
 out_last_free:
 
     /* Last chunk is free - need to check if
-       argest */
+       largest */
     if(curr->header > largest)
         largest = curr->header;
 
@@ -565,7 +569,7 @@ static long endTime(struct timeval *start) {
     return secs * 1000000 + usecs;
 }
 
-unsigned long gc0() {
+unsigned long gc0(int mark_soft_refs) {
     Thread *self = threadSelf();
     uintptr_t largest;
 
@@ -578,7 +582,7 @@ unsigned long gc0() {
         float mark_time;
 
         getTime(&start);
-        doMark(self);
+        doMark(self, mark_soft_refs);
         scan_time = endTime(&start)/1000000.0;
 
         getTime(&start);
@@ -587,7 +591,7 @@ unsigned long gc0() {
 
         printf("<GC: Mark took %f seconds, scan took %f seconds>\n", scan_time, mark_time);
     } else {
-        doMark(self);
+        doMark(self, mark_soft_refs);
         largest = doSweep(self);
     }
 
@@ -602,7 +606,7 @@ void gc1() {
     disableSuspend(self = threadSelf());
     lockVMLock(heap_lock, self);
     enableSuspend(self);
-    gc0();
+    gc0(TRUE);
     unlockVMLock(heap_lock, self);
 }
 
@@ -718,7 +722,7 @@ void *gcMalloc(int len) {
                    allocation if the largest block satisfies the request.
                    Attempt to ensure heap is at least 25% free, to stop
                    rapid gc cycles */
-                largest = gc0();
+                largest = gc0(TRUE);
                 if(n <= largest && (heapfree * 4 >= (heaplimit - heapbase)))
                     break;
 
@@ -744,7 +748,7 @@ void *gcMalloc(int len) {
                     break;
 
                 /* Retry gc (as above) */
-                largest = gc0();
+                largest = gc0(TRUE);
                 if(n <= largest && (heapfree * 4 >= (heaplimit - heapbase))) {
                     state = gc;
                     break;
@@ -761,11 +765,13 @@ void *gcMalloc(int len) {
                 }
 
                 if(verbosegc)
-                    printf("<GC: Stack at maximum already>\n");
+                    printf("<GC: Stack at maximum already.  Clearing Soft References>\n");
 
-                /* Can't expand the heap, but we may have been able to
-                   satisfy the request all along, but with nothing spare.
-                   We may thrash, but it's better than throwing OOM */
+                /* Can't expand the heap any more.  Try GC again but this time
+                   clearing all soft references.  Note we succeed if we can satisfy
+                   the request -- we may have been able to all along, but with
+                   nothing spare.  We may thrash, but it's better than throwing OOM */
+                largest = gc0(FALSE);
                 if(n <= largest) {
                     state = gc;
                     break;
@@ -832,7 +838,7 @@ got_it:
             - globals
 */
 
-void markClassStatics(Class *class) {
+void markClassStatics(Class *class, int mark_soft_refs) {
     ClassBlock *cb = CLASS_CB(class);
     FieldBlock *fb = cb->fields;
     int i;
@@ -846,7 +852,7 @@ void markClassStatics(Class *class) {
             TRACE_GC(("Field %s %s\n", fb->name, fb->type));
             TRACE_GC(("Object @%p is valid %d\n", ob, IS_OBJECT(ob)));
             if(IS_OBJECT(ob) && !IS_HARD_MARKED(ob))
-                markChildren(ob, HARD_MARK);
+                markChildren(ob, HARD_MARK, mark_soft_refs);
         }
 }
 
@@ -896,7 +902,7 @@ void markObject(Object *object) {
         MARK(object, HARD_MARK);
 }
 
-void markChildren(Object *ob, int mark) {
+void markChildren(Object *ob, int mark, int mark_soft_refs) {
 
     SET_MARK(ob, mark);
 
@@ -905,7 +911,7 @@ void markChildren(Object *ob, int mark) {
  
     if(IS_CLASS(ob)) {
         TRACE_GC(("Found class object @%p name is %s\n", ob, CLASS_CB(ob)->name));
-        markClassStatics((Class*)ob);
+        markClassStatics((Class*)ob, mark_soft_refs);
     } else {
         Class *class = ob->class;
         ClassBlock *cb = CLASS_CB(class);
@@ -922,7 +928,7 @@ void markChildren(Object *ob, int mark) {
                     TRACE_GC(("Object at index %d is @%p is valid %d\n", i, ob, IS_OBJECT(ob)));
 
                     if(IS_OBJECT(ob) && mark > IS_MARKED(ob))
-                        markChildren(ob, mark);
+                        markChildren(ob, mark, mark_soft_refs);
                 }
             } else {
                 TRACE_GC(("Array object @%p class is %s  - Not Scanning...\n", ob, cb->name));
@@ -933,8 +939,9 @@ void markChildren(Object *ob, int mark) {
 
             if(IS_REFERENCE(cb)) {
                 Object *referent = (Object *)body[ref_referent_offset];
-                TRACE_GC(("Mark found Reference object @%p flags %d referent %p\n", ob, cb->flags, referent));
-                TRACE_GC(("%s\n",cb->name));
+
+                TRACE_GC(("Mark found Reference object @%p class %s flags %d referent %p\n",
+                         ob, cb->name, cb->flags, referent));
 
                 if(!IS_WEAK_REFERENCE(cb) && referent != NULL) {
                     int ref_mark = IS_MARKED(referent);
@@ -949,9 +956,9 @@ void markChildren(Object *ob, int mark) {
                             new_mark = 0;
 
                     if(new_mark > ref_mark) {
-                        TRACE_GC(("Marking referent object @%p mark %d ref_mark %d new_mark %d\n",
-                                                                     referent, mark, ref_mark, new_mark));
-                        markChildren(referent, new_mark);
+                       TRACE_GC(("Marking referent object @%p mark %d ref_mark %d new_mark %d\n",
+                                                            referent, mark, ref_mark, new_mark));
+                        markChildren(referent, new_mark, mark_soft_refs);
                     }
                 }
             }
@@ -971,7 +978,7 @@ void markChildren(Object *ob, int mark) {
                     TRACE_GC(("Object @%p is valid %d\n", ob, IS_OBJECT(ob)));
 
                     if(IS_OBJECT(ob) && mark > IS_MARKED(ob))
-                        markChildren(ob, mark);
+                        markChildren(ob, mark, mark_soft_refs);
                 }
             }
         }
@@ -1006,6 +1013,7 @@ void asyncGCThreadLoop(Thread *self) {
 }
 
 #define PROCESS_OBJECT_LIST(list, method_idx, verbose_message)               \
+{                                                                            \
     disableSuspend0(self, &self);                                            \
     lockVMWaitLock(list##_lock, self);                                       \
                                                                              \
@@ -1047,7 +1055,8 @@ void asyncGCThreadLoop(Thread *self) {
         list##_end = 0;                                                      \
                                                                              \
         notifyAllVMWaitLock(list##_lock, self);                              \
-    }
+    }                                                                        \
+}
 
 /* The finalizer thread waits for notification
  * of new finalizers (by the thread doing gc)
@@ -1124,7 +1133,7 @@ Object *allocObject(Class *class) {
            mark it by setting the bit in the chunk header */
 
         if(IS_REFERENCE(cb)) {
-          uintptr_t *hdr = (uintptr_t*)(((char*)ob)-HEADER_SIZE);
+            uintptr_t *hdr = (uintptr_t*)(((char*)ob)-HEADER_SIZE);
             *hdr |= REFERENCE_BIT;
         }
 
@@ -1302,7 +1311,7 @@ Object *cloneObject(Object *ob) {
             ADD_FINALIZED_OBJECT(clone);
 
         if(IS_REFERENCE(CLASS_CB(clone->class))) {
-          uintptr_t *hdr = (uintptr_t*)(((char*)clone)-HEADER_SIZE);
+            uintptr_t *hdr = (uintptr_t*)(((char*)clone)-HEADER_SIZE);
             *hdr |= REFERENCE_BIT;
         }
 
