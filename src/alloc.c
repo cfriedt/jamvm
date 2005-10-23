@@ -1012,50 +1012,50 @@ void asyncGCThreadLoop(Thread *self) {
     }
 }
 
-#define PROCESS_OBJECT_LIST(list, method_idx, verbose_message)               \
-{                                                                            \
-    disableSuspend0(self, &self);                                            \
-    lockVMWaitLock(list##_lock, self);                                       \
-                                                                             \
-    for(;;) {                                                                \
-        waitVMWaitLock(list##_lock, self);                                   \
-                                                                             \
-        if((list##_start == list##_size) && (list##_end == 0))               \
-            continue;                                                        \
-                                                                             \
-        if(verbosegc) {                                                      \
-            int diff = list##_end - list##_start;                            \
-            printf(verbose_message, diff > 0 ? diff : diff + list##_size);   \
-        }                                                                    \
-                                                                             \
-        do {                                                                 \
-            Object *ob;                                                      \
-            list##_start %= list##_size;                                     \
-            ob = list##_list[list##_start];                                  \
-                                                                             \
-            unlockVMWaitLock(list##_lock, self);                             \
-            enableSuspend(self);                                             \
-                                                                             \
-            /* Run the process method */                                     \
-            executeMethod(ob, CLASS_CB(ob->class)->method_table[method_idx]);\
-                                                                             \
-            /* Should be nothing interesting on stack or in                  \
-             * registers so use same stack top as thread start. */           \
-                                                                             \
-            disableSuspend0(self, &self);                                    \
-            lockVMWaitLock(list##_lock, self);                               \
-                                                                             \
-            /* Clear any exceptions - exceptions thrown in finalizers are    \
-               silently ignored */                                           \
-                                                                             \
-            clearException();                                                \
-        } while(++list##_start != list##_end);                               \
-                                                                             \
-        list##_start = list##_size;                                          \
-        list##_end = 0;                                                      \
-                                                                             \
-        notifyAllVMWaitLock(list##_lock, self);                              \
-    }                                                                        \
+#define PROCESS_OBJECT_LIST(list, method_idx, verbose_message, self, stack_top) \
+{                                                                               \
+    disableSuspend0(self, stack_top);                                           \
+    lockVMWaitLock(list##_lock, self);                                          \
+                                                                                \
+    for(;;) {                                                                   \
+        waitVMWaitLock(list##_lock, self);                                      \
+                                                                                \
+        if((list##_start == list##_size) && (list##_end == 0))                  \
+            continue;                                                           \
+                                                                                \
+        if(verbosegc) {                                                         \
+            int diff = list##_end - list##_start;                               \
+            printf(verbose_message, diff > 0 ? diff : diff + list##_size);      \
+        }                                                                       \
+                                                                                \
+        do {                                                                    \
+            Object *ob;                                                         \
+            list##_start %= list##_size;                                        \
+            ob = list##_list[list##_start];                                     \
+                                                                                \
+            unlockVMWaitLock(list##_lock, self);                                \
+            enableSuspend(self);                                                \
+                                                                                \
+            /* Run the process method */                                        \
+            executeMethod(ob, CLASS_CB(ob->class)->method_table[method_idx]);   \
+                                                                                \
+            /* Should be nothing interesting on stack or in                     \
+             * registers so use same stack top as thread start. */              \
+                                                                                \
+            disableSuspend0(self, stack_top);                                   \
+            lockVMWaitLock(list##_lock, self);                                  \
+                                                                                \
+            /* Clear any exceptions - exceptions thrown in finalizers are       \
+               silently ignored */                                              \
+                                                                                \
+            clearException();                                                   \
+        } while(++list##_start != list##_end);                                  \
+                                                                                \
+        list##_start = list##_size;                                             \
+        list##_end = 0;                                                         \
+                                                                                \
+        notifyAllVMWaitLock(list##_lock, self);                                 \
+    }                                                                           \
 }
 
 /* The finalizer thread waits for notification
@@ -1064,12 +1064,17 @@ void asyncGCThreadLoop(Thread *self) {
 
 void finalizerThreadLoop(Thread *self) {
     finalizer_thread = self;
-
-    PROCESS_OBJECT_LIST(run_finaliser, finalize_mtbl_idx, "running %d finalisers\n");
+    PROCESS_OBJECT_LIST(run_finaliser, finalize_mtbl_idx,
+                        "<GC: running %d finalisers>\n", self, &self);
 }
 
+/* The reference handler thread waits for notification
+   by the GC of new reference objects, and enqueues
+   them */
+
 void referenceHandlerThreadLoop(Thread *self) {
-    PROCESS_OBJECT_LIST(reference, enqueue_mtbl_idx, "enqueuing %d references\n");
+    PROCESS_OBJECT_LIST(reference, enqueue_mtbl_idx,
+                        "<GC: enqueuing %d references>\n", self, &self);
 }
 
 void initialiseGC(int noasyncgc) {
@@ -1087,10 +1092,11 @@ void initialiseGC(int noasyncgc) {
     oom = allocObject(oom_clazz);
     executeMethod(oom, init, NULL);
 
-    /* Create and start VM threads for the async gc and finalizer */
+    /* Create and start VM threads for the reference handler and finalizer */
     createVMThread("Finalizer", finalizerThreadLoop);
     createVMThread("Reference Handler", referenceHandlerThreadLoop);
 
+    /* Create and start VM thread for asynchronous GC */
     if(!noasyncgc)
         createVMThread("Async GC", asyncGCThreadLoop);
 }
