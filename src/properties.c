@@ -119,11 +119,12 @@ void addDefaultProperties(Object *properties) {
     uname(&info);
     setProperty(properties, "java.vm.name", "JamVM");
     setProperty(properties, "java.vm.version", VERSION);
+    setProperty(properties, "java.runtime.version", VERSION);
     setProperty(properties, "java.vm.vendor", "Robert Lougher");
     setProperty(properties, "java.vm.vendor.url", "http://jamvm.sourceforge.net");
     setProperty(properties, "java.version", "1.4.2");
     setProperty(properties, "java.vendor", "GNU Classpath");
-    setProperty(properties, "java.vendor.url", "http://gnu.classpath.org");
+    setProperty(properties, "java.vendor.url", "http://www.classpath.org");
     setProperty(properties, "java.home", INSTALL_DIR);
     setProperty(properties, "java.specification.version", "1.4");
     setProperty(properties, "java.specification.vendor", "Sun Microsystems, Inc.");
