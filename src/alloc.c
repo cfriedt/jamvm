@@ -53,14 +53,17 @@
 #define TRACE_FNLZ(x)
 #endif
 
+/* Object alignment */
 #define OBJECT_GRAIN            8
+
+/* Bits used within the chunk header (see also alloc.h) */
 #define ALLOC_BIT               1
 #define REFERENCE_BIT           4
 
+/* Macros for getting values from the chunk header */
 #define HEADER(ptr)             *((uintptr_t*)ptr)
 #define HDR_SIZE(hdr)           (hdr & ~(ALLOC_BIT|FLC_BIT|REFERENCE_BIT))
 #define HDR_ALLOCED(hdr)        (hdr & ALLOC_BIT)
-
 #define HDR_REF_OBJ(hdr)        (hdr & REFERENCE_BIT)
 
 /* 1 word header format
@@ -75,42 +78,54 @@
 
 static int verbosegc;
 
+/* Format of an unallocated chunk */
 typedef struct chunk {
     uintptr_t header;
     struct chunk *next;
 } Chunk;
 
+/* The free list head, and next allocation pointer */
 static Chunk *freelist;
 static Chunk **chunkpp = &freelist;
 
+/* Heap limits */
 static char *heapbase;
 static char *heaplimit;
 static char *heapmax;
 
 static unsigned long heapfree;
 
+/* The mark bit array, used for marking objects during
+   the mark phase.  Allocated on start-up. */
 static unsigned int *markBits;
 static int markBitSize;
 
+/* List holding objects which need to be finalized */
 static Object **has_finaliser_list = NULL;
-static int has_finaliser_count    = 0;
-static int has_finaliser_size     = 0;
+static int has_finaliser_count     = 0;
+static int has_finaliser_size      = 0;
 
+/* The circular list holding finalized objects waiting for
+   their finalizer to be ran by the finalizer thread */
 static Object **run_finaliser_list = NULL;
-static int run_finaliser_start    = 0;
-static int run_finaliser_end      = 0;
-static int run_finaliser_size     = 0;
+static int run_finaliser_start     = 0;
+static int run_finaliser_end       = 0;
+static int run_finaliser_size      = 0;
 
+/* The circular list holding references to be enqueued
+   by the reference handler thread */
 static Object **reference_list = NULL;
-static int reference_start    = 0;
-static int reference_end      = 0;
-static int reference_size     = 0;
+static int reference_start     = 0;
+static int reference_end       = 0;
+static int reference_size      = 0;
 
+/* Internal locks protecting the GC lists and heap */
 static VMLock heap_lock;
 static VMLock has_fnlzr_lock;
 static VMWaitLock run_finaliser_lock;
 static VMWaitLock reference_lock;
 
+/* A pointer to the finalizer thread. */
 static Thread *finalizer_thread;
 
 /* Pre-allocated OutOfMemoryError */
@@ -123,11 +138,15 @@ static Class *char_array_class = NULL, *short_array_class = NULL;
 static Class *int_array_class = NULL, *float_array_class = NULL;
 static Class *double_array_class = NULL, *long_array_class = NULL;
 
+/* Field offsets and method table indexes used for finalization and
+   reference handling. Cached in class.c */
 extern int ref_referent_offset;
 extern int ref_queue_offset;
 extern int finalize_mtbl_idx;
 extern int enqueue_mtbl_idx;
 
+/* The possible ways in which a reference may be marked in
+   the mark bit array */
 #define HARD_MARK               3
 #define FINALIZER_MARK          2
 #define PHANTOM_MARK            1
@@ -139,6 +158,8 @@ extern int enqueue_mtbl_idx;
 #define LOG_BITSPERMARK         1
 #define LOG_MARKSIZEBITS        5
 #define MARKSIZEBITS            32
+
+/* Macros for manipulating the mark bit array */
 
 #define MARKENTRY(ptr)     ((((char*)ptr)-heapbase)>>(LOG_BYTESPERMARK+LOG_MARKSIZEBITS-LOG_BITSPERMARK))
 #define MARKOFFSET(ptr)    ((((((char*)ptr)-heapbase)>>LOG_BYTESPERMARK)& \
@@ -329,10 +350,14 @@ static uintptr_t doSweep(Thread *self) {
     uintptr_t largest = 0;
 
     /* Variables used to store verbose gc info */
-    uintptr_t marked = 0, unmarked = 0, freed = 0;
+    uintptr_t marked = 0, unmarked = 0, freed = 0, cleared = 0;
 
     /* Amount of free heap is re-calculated during scan */
     heapfree = 0;
+
+    /* Grab the reference list lock.  This ensures the reference
+       handler isn't in the middle of modifying the list */
+    lockVMWaitLock(reference_lock, self);
 
     /* Scan the heap and free all unmarked objects by reconstructing
        the freelist.  Add all free chunks and unmarked objects and
@@ -360,7 +385,7 @@ static uintptr_t doSweep(Thread *self) {
         
         curr = (Chunk *) ptr;
 
-        /* Clear the alloc and flc bits in the header */
+        /* Clear any set bits within the header */
         curr->header &= ~(ALLOC_BIT|FLC_BIT|REFERENCE_BIT);
 
         /* Scan the next chunks - while they are
@@ -429,6 +454,7 @@ marked:
 
                     TRACE_GC("Clearing the referent field.\n");
                     INST_DATA(ob)[ref_referent_offset] = 0;
+                    cleared++;
                 }
 
                 /* If the reference has a queue, add it to the list for enqueuing
@@ -482,8 +508,9 @@ out_last_marked:
         printf("Chunk @%p size: %d\n", c, c->header);
 }
 #endif
-
-    lockVMWaitLock(reference_lock, self);
+ 
+    /* Notify the reference handler.  If there's no
+       work to be done it'll go back to sleep */
     notifyAllVMWaitLock(reference_lock, self);
     unlockVMWaitLock(reference_lock, self);
 
@@ -491,9 +518,11 @@ out_last_marked:
         long long size = heaplimit-heapbase;
         long long pcnt_used = ((long long)heapfree)*100/size;
         printf("<GC: Allocated objects: %lld>\n", (long long)marked);
-        printf("<GC: Freed %lld objects using %lld bytes>\n",
+        printf("<GC: Freed %lld object(s) using %lld bytes",
 			(long long)unmarked, (long long)freed);
-        printf("<GC: Largest block is %lld total free is %lld out of %lld (%lld%%)>\n",
+        if(cleared)
+            printf(" cleared %d reference(s)", cleared);
+        printf(">\n<GC: Largest block is %lld total free is %lld out of %lld (%lld%%)>\n",
                          (long long)largest, (long long)heapfree, size, pcnt_used);
     }
 
@@ -1348,3 +1377,4 @@ void *sysRealloc(void *ptr, int n) {
 
     return mem;
 }
+
