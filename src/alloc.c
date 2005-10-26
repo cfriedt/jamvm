@@ -521,7 +521,7 @@ out_last_marked:
         printf("<GC: Freed %lld object(s) using %lld bytes",
 			(long long)unmarked, (long long)freed);
         if(cleared)
-            printf(" cleared %d reference(s)", cleared);
+            printf(", cleared %d reference(s)", cleared);
         printf(">\n<GC: Largest block is %lld total free is %lld out of %lld (%lld%%)>\n",
                          (long long)largest, (long long)heapfree, size, pcnt_used);
     }
