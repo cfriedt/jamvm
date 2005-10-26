@@ -2129,7 +2129,8 @@ rewrite_lock:
         else
             strcat(strcat(strcpy(ac_name, "[L"), name), ";");
 
-        array_class = findArrayClassFromClass(ac_name, class);
+//        array_class = findArrayClassFromClass(ac_name, class);
+        array_class = findArrayClassFromClass(ac_name, mb->class);
         free(ac_name);
 
         if(exceptionOccured0(ee))

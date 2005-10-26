@@ -474,11 +474,9 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
 
 Class *
 createArrayClass(char *classname, Object *class_loader) {
-    Class *class;
-    ClassBlock *elem_cb, *classblock;
+    Class *class, *found = NULL;
     int len = strlen(classname);
-    char element_name[len], *ptr;
-    int dim;
+    ClassBlock *elem_cb, *classblock;
 
     if((class = allocClass()) == NULL)
         return NULL;
@@ -499,18 +497,29 @@ createArrayClass(char *classname, Object *class_loader) {
     /* Find the array element class and the dimension --
        this is used to speed up type checking (instanceof) */
 
-    for(ptr = classname; *ptr == '['; ptr++);
-    dim = ptr - classname;
+    if(classname[1] == '[') {
+        Class *comp_class = findArrayClassFromClassLoader(classname + 1, class_loader);
 
-    if(classname[len-1] == ';') {
-        strcpy(element_name, ++ptr);
-        element_name[len-dim-2] = '\0';
-        classblock->element_class = findClassFromClassLoader(element_name, class_loader);
-    } else
-        classblock->element_class = findPrimitiveClass(*ptr);
+        if(comp_class == NULL)
+            goto error;
 
-    if(classblock->element_class == NULL)
-        return NULL;
+        classblock->element_class = CLASS_CB(comp_class)->element_class;
+        classblock->dim = CLASS_CB(comp_class)->dim + 1;
+    } else { 
+        if(classname[1] == 'L') {
+            char element_name[len-2];
+
+            strcpy(element_name, classname + 2);
+            element_name[len-3] = '\0';
+            classblock->element_class = findClassFromClassLoader(element_name, class_loader);
+        } else
+            classblock->element_class = findPrimitiveClass(classname[1]);
+
+        if(classblock->element_class == NULL)
+            goto error;
+
+         classblock->dim = 1;
+    }
 
     elem_cb = CLASS_CB(classblock->element_class);
 
@@ -520,14 +529,19 @@ createArrayClass(char *classname, Object *class_loader) {
     /* The array's visibility (i.e. public, etc.) is that of the element */
     classblock->access_flags = (elem_cb->access_flags & ~ACC_INTERFACE) |
                                ACC_FINAL | ACC_ABSTRACT;
-    classblock->dim = dim;
 
     prepareClass(class);
 
-    if(verbose)
-        printf("[Created array class %s]\n", classname);
+    if((found = addClassToHash(class)) == class) {
+        if(verbose)
+            printf("[Created array class %s]\n", classname);
+        return class;
+    }
 
-    return addClassToHash(class);
+error:
+    free(classblock->name);
+    free(classblock->interfaces);
+    return found;
 }
 
 Class *
@@ -1178,10 +1192,10 @@ Class *findSystemClass(char *classname) {
 Class *findArrayClassFromClassLoader(char *classname, Object *class_loader) {
    Class *class = findHashedClass(classname, class_loader);
 
-   if(class == NULL)
-       class = createArrayClass(classname, class_loader);
-
-        addInitiatingLoaderToClass(class_loader, class);
+   if(class == NULL) {
+       if((class = createArrayClass(classname, class_loader)) != NULL)
+           addInitiatingLoaderToClass(class_loader, class);
+   }
    return class;
 }
 
