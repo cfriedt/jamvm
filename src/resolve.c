@@ -117,6 +117,11 @@ retry:
             if(resolved_class == NULL)
                 return NULL;
 
+            if(!checkClassAccess(resolved_class, class)) {
+                signalException("java/lang/IllegalAccessException", "class is not accessible");
+                return NULL;
+            }
+
             CP_TYPE(cp, cp_index) = CONSTANT_Locked;
             MBARRIER();
             CP_INFO(cp, cp_index) = (uintptr_t)resolved_class;
@@ -175,6 +180,11 @@ retry:
                 if((mb->access_flags & ACC_ABSTRACT) &&
                        !(resolved_cb->access_flags & ACC_ABSTRACT)) {
                     signalException("java/lang/AbstractMethodError", methodname);
+                    return NULL;
+                }
+
+                if(!checkMethodAccess(mb, class)) {
+                    signalException("java/lang/IllegalAccessException", "method is not accessible");
                     return NULL;
                 }
 

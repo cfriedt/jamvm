@@ -352,14 +352,15 @@ extends AccessibleObject implements Member
   public Object invoke(Object o, Object[] args)
     throws IllegalAccessException, InvocationTargetException
   {
-    return invokeNative(o, args, declaringClass, parameterTypes, returnType, slot);
+    return invokeNative(o, args, declaringClass, parameterTypes, returnType, slot, flag);
   }
 
   /*
    * NATIVE HELPERS
    */
 
-  private native Object invokeNative(Object o, Object[] args,
-                    Class declaringClass, Class[] parameterTypes, Class returnType, Object slot)
+  private native Object invokeNative(Object o, Object[] args, Class declaringClass,
+                                     Class[] parameterTypes, Class returnType,
+                                     Object slot, boolean noAccessCheck)
     throws IllegalAccessException, InvocationTargetException;
 }

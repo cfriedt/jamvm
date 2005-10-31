@@ -491,7 +491,9 @@ uintptr_t *unwrapAndWidenObject(Class *type, Object *arg, uintptr_t *pntr) {
     return NULL;
 }
 
-Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_types) {
+Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_types,
+               int check_access) {
+
     Object **args = ARRAY_DATA(arg_array);
     Class **types = ARRAY_DATA(param_types);
     int args_len = arg_array ? ARRAY_LEN(arg_array) : 0;
@@ -503,6 +505,11 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
     int i;
 
     Object *excep;
+
+    if(check_access && !checkMethodAccess(mb, getCallingClass0())) {
+        signalException("java/lang/IllegalAccessException", "method is not accessible");
+        return NULL;
+    }
 
     if(args_len != types_len) {
         signalException("java/lang/IllegalArgumentException", "wrong number of args");

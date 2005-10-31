@@ -676,11 +676,12 @@ uintptr_t *getBootClassPathResource(Class *class, MethodBlock *mb, uintptr_t *os
 
 uintptr_t *constructNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Object *array = (Object*)ostack[1]; 
-    Object *paramTypes = (Object*)ostack[3];
+    Object *param_types = (Object*)ostack[3];
     MethodBlock *mb = (MethodBlock*)ostack[4]; 
+    int no_access_check = ostack[5]; 
     Object *ob = allocObject(mb->class);
 
-    if(ob) invoke(ob, mb, array, paramTypes);
+    if(ob) invoke(ob, mb, array, param_types, !no_access_check);
 
     *ostack++ = (uintptr_t) ob;
     return ostack;
@@ -716,7 +717,13 @@ Object *getAndCheckObject(uintptr_t *ostack, Class *type) {
 uintptr_t *getPntr2Field(uintptr_t *ostack) {
     Class *decl_class = (Class *)ostack[2];
     FieldBlock *fb = (FieldBlock*)ostack[4]; 
+    int no_access_check = ostack[5];
     Object *ob;
+
+    if(!no_access_check && !checkFieldAccess(fb, getCallingClass0())) {
+        signalException("java/lang/IllegalAccessException", "field is not accessible");
+        return NULL;
+    }
 
     if(fb->access_flags & ACC_STATIC) {
         initClass(decl_class);
@@ -741,7 +748,7 @@ uintptr_t *getField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *getPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *field_type = (Class *)ostack[3];
-    int type_no = ostack[5]; 
+    int type_no = ostack[6]; 
 
     ClassBlock *type_cb = CLASS_CB(field_type);
     uintptr_t *field;
@@ -755,7 +762,7 @@ uintptr_t *getPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *setField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *field_type = (Class *)ostack[3];
-    Object *value = (Object*)ostack[5];
+    Object *value = (Object*)ostack[6];
     uintptr_t *field;
 
     /* If field is static, getPntr2Field also initialises the field's declaring class */
@@ -768,14 +775,14 @@ uintptr_t *setField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *setPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *field_type = (Class *)ostack[3];
-    int type_no = ostack[5]; 
+    int type_no = ostack[6]; 
 
     ClassBlock *type_cb = CLASS_CB(field_type);
     uintptr_t *field;
 
     /* If field is static, getPntr2Field also initialises the field's declaring class */
     if(((field = getPntr2Field(ostack)) != NULL) && (!(IS_PRIMITIVE(type_cb)) ||
-                 (widenPrimitiveValue(type_no, getPrimTypeIndex(type_cb), &ostack[6], field) == NULL)))
+                 (widenPrimitiveValue(type_no, getPrimTypeIndex(type_cb), &ostack[7], field) == NULL)))
         signalException("java/lang/IllegalArgumentException", "field type mismatch");
     return ostack;
 }
@@ -784,9 +791,10 @@ uintptr_t *setPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *invokeNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Object *array = (Object*)ostack[2]; 
-    Object *paramTypes = (Object*)ostack[4];
-    Class *retType = (Class*)ostack[5];
+    Object *param_types = (Object*)ostack[4];
+    Class *ret_type = (Class*)ostack[5];
     MethodBlock *mb = (MethodBlock*)ostack[6]; 
+    int no_access_check = ostack[7]; 
     Object *ob = NULL;
     uintptr_t *ret;
 
@@ -797,8 +805,8 @@ uintptr_t *invokeNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
                                      ((mb = lookupVirtualMethod(ob, mb)) == NULL))
             return ostack;
  
-    if((ret = (uintptr_t*) invoke(ob, mb, array, paramTypes)) != NULL)
-        *ostack++ = (uintptr_t) createWrapperObject(retType, ret);
+    if((ret = (uintptr_t*) invoke(ob, mb, array, param_types, !no_access_check)) != NULL)
+        *ostack++ = (uintptr_t) createWrapperObject(ret_type, ret);
 
     return ostack;
 }

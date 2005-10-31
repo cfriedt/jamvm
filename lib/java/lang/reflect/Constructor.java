@@ -262,11 +262,12 @@ extends AccessibleObject implements Member
     throws InstantiationException, IllegalAccessException,
            InvocationTargetException
   {
-    return constructNative(args, clazz, parameterTypes, slot);
+    return constructNative(args, clazz, parameterTypes, slot, flag);
   }
 
   private native Object constructNative(Object[] args, Class declaringClass,
-                                        Class[] parameterTypes, Object slot)
+                                        Class[] parameterTypes, Object slot,
+                                        boolean noAccessCheck)
     throws InstantiationException, IllegalAccessException,
            InvocationTargetException;
 }

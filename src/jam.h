@@ -765,7 +765,8 @@ extern Class *getDeclaringClass(Class *class);
 extern Object *createWrapperObject(Class *type, uintptr_t *pntr);
 extern uintptr_t *widenPrimitiveValue(int src_idx, int dest_idx, uintptr_t *src, uintptr_t *dest);
 extern uintptr_t *unwrapAndWidenObject(Class *type, Object *arg, uintptr_t *pntr);
-extern Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_types);
+extern Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_types,
+                      int check_access);
 
 extern MethodBlock *mbFromReflectObject(Object *reflect_ob);
 extern FieldBlock *fbFromReflectObject(Object *reflect_ob);

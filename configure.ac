@@ -3,7 +3,7 @@ AC_INIT(src/jam.c)
 AM_INIT_AUTOMAKE(jamvm, 1.3.3+cvs)
 
 AC_ARG_ENABLE(tracegc,
-    [  --enable-tracegc add gc tracing (for debugging)],
+    [  --enable-tracegc         add gc tracing (for debugging)],
     [if test "$enableval" != no; then
         AC_DEFINE(TRACEGC)
     fi],)
@@ -39,7 +39,7 @@ AC_ARG_ENABLE(tracethread,
     fi],)
 
 AC_ARG_ENABLE(trace,
-    [  --enable-trace   add all tracing (for debugging)],
+    [  --enable-trace           add all tracing (for debugging)],
     [if test "$enableval" != no; then
         AC_DEFINE(TRACEGC)
         AC_DEFINE(TRACEALLOC)
