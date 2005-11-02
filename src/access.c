@@ -20,7 +20,7 @@
 
 #include "jam.h"
 
-int isSameRuntimePackage(Class *class1, Class *class2) {
+static int isSameRuntimePackage(Class *class1, Class *class2) {
     if(class1 != class2) {
         ClassBlock *cb1 = CLASS_CB(class1);
         ClassBlock *cb2 = CLASS_CB(class2);
@@ -68,7 +68,7 @@ int checkClassAccess(Class *class1, Class *class2) {
     return isSameRuntimePackage(class1, class2);
 }
 
-int checkMethodOrFieldAccess(int access_flags, Class *decl_class, Class *class) {
+static int checkMethodOrFieldAccess(int access_flags, Class *decl_class, Class *class) {
 
     if(access_flags & ACC_PUBLIC)
         return TRUE;

@@ -493,49 +493,13 @@ uintptr_t *getStackTrace(Class *class, MethodBlock *m, uintptr_t *ostack) {
 
 /* gnu.classpath.VMStackWalker */
 
-Frame *skipFrames(Frame *last) {
-
-loop:
-    /* Skip the frame with the found class, and
-       check if the previous is a dummy frame */
-    if((last = last->prev)->mb == NULL) {
-
-        /* Skip the dummy frame, and check if
-         * we're at the top of the stack */
-        if((last = last->prev)->prev == NULL)
-            return NULL;
-
-        /* Check if we were invoked via reflection */
-        if(last->mb->class == getReflectMethodClass()) {
-
-            /* There will be two frames for invoke.  Skip
-               the first, and jump back.  This also handles
-               recursive invocation via reflection. */
-
-            last = last->prev;
-            goto loop;
-        }
-    }
-    return last;
-}
-
-Class *getCallingClass0() {
-    Frame *last = getExecEnv()->last_frame->prev;
-
-    if((last->mb == NULL && (last = last->prev)->prev == NULL) ||
-             (last = skipFrames(last)) == NULL)
-        return NULL;
-
-    return last->mb->class;
-}
-
 uintptr_t *getCallingClass(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    *ostack++ = (uintptr_t) getCallingClass0();
+    *ostack++ = (uintptr_t) getCallerCallerClass();
     return ostack;
 }
 
 uintptr_t *getCallingClassLoader(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
-    Class *class = getCallingClass0();
+    Class *class = getCallerCallerClass();
 
     *ostack++ = (uintptr_t) (class ? CLASS_CB(class)->class_loader : NULL);
     return ostack;
@@ -549,7 +513,7 @@ uintptr_t *getClassContext(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(class_class == NULL)
         return ostack;
 
-    if((last = skipFrames(getExecEnv()->last_frame)) == NULL)
+    if((last = getCallerFrame(getExecEnv()->last_frame)) == NULL)
         array = allocArray(class_class, 0, sizeof(Class*)); 
     else {
         Frame *bottom = last;
@@ -720,7 +684,7 @@ uintptr_t *getPntr2Field(uintptr_t *ostack) {
     int no_access_check = ostack[5];
     Object *ob;
 
-    if(!no_access_check && !checkFieldAccess(fb, getCallingClass0())) {
+    if(!no_access_check && !checkFieldAccess(fb, getCallerCallerClass())) {
         signalException("java/lang/IllegalAccessException", "field is not accessible");
         return NULL;
     }

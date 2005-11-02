@@ -788,6 +788,17 @@ extern void *getJNIInterface();
 extern void addCommandLineProperties(Object *properties);
 extern void addDefaultProperties(Object *properties);
 
+/* access */
+
+extern int checkClassAccess(Class *class1, Class *class2);
+extern int checkMethodAccess(MethodBlock *mb, Class *class);
+extern int checkFieldAccess(FieldBlock *fb, Class *class);
+
+/* frame */
+
+extern Frame *getCallerFrame(Frame *last);
+extern Class *getCallerCallerClass();
+
 /* native */
 
 extern void initialiseNatives();

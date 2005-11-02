@@ -506,7 +506,7 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
 
     Object *excep;
 
-    if(check_access && !checkMethodAccess(mb, getCallingClass0())) {
+    if(check_access && !checkMethodAccess(mb, getCallerCallerClass())) {
         signalException("java/lang/IllegalAccessException", "method is not accessible");
         return NULL;
     }
