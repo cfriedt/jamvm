@@ -31,26 +31,39 @@ static int isSameRuntimePackage(Class *class1, Class *class2) {
         else {
             /* And the package name */
 
-            char *ptr1 = cb1->name;
-            char *ptr2 = cb2->name;
+            /* If either class is an array compare the element
+               name to get rid of leading array characters (the
+               class loaders are the same) */
 
-            /* Names must match at least up to the last slash
-               in each.  Note, we do not need to check for NULLs
-               because names _must_ be different (same loader). */
+            if(IS_ARRAY(cb1))
+                cb1 = CLASS_CB(cb1->element_class);
 
-            while(*ptr1++ == *ptr2++);
+            if(IS_ARRAY(cb2))
+                cb2 = CLASS_CB(cb2->element_class);
 
-            for(ptr1--; *ptr1 && *ptr1 != '/'; ptr1++);
+            if(cb1 != cb2) {
+                char *ptr1 = cb1->name;
+                char *ptr2 = cb2->name;
 
-            /* Didn't match to last slash in ptr1 */
-            if(*ptr1)
-                return FALSE;
+                /* Names must match at least up to the last slash
+                   in each.  Note, we do not need to check for NULLs
+                   because names _must_ be different (same loader,
+                   but different class). */
 
-            for(ptr2--; *ptr2 && *ptr2 != '/'; ptr2++);
+                while(*ptr1++ == *ptr2++);
 
-            /* Didn't match to last slash in ptr2 */
-            if(*ptr2)
-                return FALSE;
+                for(ptr1--; *ptr1 && *ptr1 != '/'; ptr1++);
+
+                /* Didn't match to last slash in ptr1 */
+                if(*ptr1)
+                    return FALSE;
+
+                for(ptr2--; *ptr2 && *ptr2 != '/'; ptr2++);
+
+                /* Didn't match to last slash in ptr2 */
+                if(*ptr2)
+                    return FALSE;
+            }
         }
     }
     return TRUE;
@@ -64,23 +77,29 @@ int checkClassAccess(Class *class1, Class *class2) {
         return TRUE;
 
     /* Or if they're members of the same runtime package */
-
     return isSameRuntimePackage(class1, class2);
 }
 
 static int checkMethodOrFieldAccess(int access_flags, Class *decl_class, Class *class) {
 
+    /* Public methods and fields are always accessible */
     if(access_flags & ACC_PUBLIC)
         return TRUE;
 
+    /* If the method or field is protected it must be declared in the
+       accessing class or in a super-class */
     if((access_flags & ACC_PROTECTED) && isSubClassOf(decl_class, class))
         return TRUE;
 
+    /* Or if it is protected or package private the declaring class must be
+       in the same runtime paackage as the accessing class */
     if(((access_flags & ACC_PROTECTED) ||
        !(access_flags & (ACC_PUBLIC|ACC_PROTECTED|ACC_PRIVATE))) &&
             isSameRuntimePackage(decl_class, class))
         return TRUE;
 
+    /* Finally if the method or field is private, it must be declared in
+       the accessing class */
     return (access_flags & ACC_PRIVATE) && decl_class == class;
 }
 
