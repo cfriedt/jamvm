@@ -242,6 +242,21 @@ void initialiseAlloc(unsigned long min, unsigned long max, int verbose) {
     list##_list[list##_end++] = ob;                                      \
 }
 
+#define ITERATE_OBJECT_LIST(list, action)                                \
+{                                                                        \
+    int i;                                                               \
+                                                                         \
+    if(list##_end > list##_start)                                        \
+        for(i = list##_start; i < list##_end; i++)                       \
+            action(list##_list[i]);                                      \
+    else {                                                               \
+        for(i = list##_start; i < list##_size; i++)                      \
+            action(list##_list[i]);                                      \
+        for(i = 0; i < list##_end; i++)                                  \
+            action(list##_list[i]);                                      \
+    }                                                                    \
+}
+
 extern void markInternedStrings();
 extern void markClasses();
 extern void markJNIGlobalRefs();
@@ -327,17 +342,27 @@ static void doMark(Thread *self, int mark_soft_refs) {
        to be garbage on a previous gc but we haven't got round to
        finalizing them yet. */
 
-    if(run_finaliser_end > run_finaliser_start)
-        for(i = run_finaliser_start; i < run_finaliser_end; i++)
-            markChildren(run_finaliser_list[i], FINALIZER_MARK, mark_soft_refs);
-    else {
-        for(i = run_finaliser_start; i < run_finaliser_size; i++)
-            markChildren(run_finaliser_list[i], FINALIZER_MARK, mark_soft_refs);
-        for(i = 0; i < run_finaliser_end; i++)
-            markChildren(run_finaliser_list[i], FINALIZER_MARK, mark_soft_refs);
-    }
+#define RUN_MARK(element) \
+         markChildren(element, FINALIZER_MARK, mark_soft_refs)
 
+    ITERATE_OBJECT_LIST(run_finaliser, RUN_MARK);
+
+    /* Release the run finaliser lock.  Thread must be suspended */
     unlockVMWaitLock(run_finaliser_lock, self);
+
+    /* Grab the reference list lock.  This ensures the reference
+       handler isn't in the middle of modifying the list */
+    lockVMWaitLock(reference_lock, self);
+
+    /* There may be references still waiting to be enqueued by the
+       reference handler (from a previous GC).  Remove them if
+       they're now unreachable as they will be collected */
+
+#define CLEAR_UNMARKED(element) \
+         if(element && !IS_MARKED(element)) element = NULL
+
+    ITERATE_OBJECT_LIST(reference, CLEAR_UNMARKED);
+
 }
 
 static uintptr_t doSweep(Thread *self) {
@@ -354,10 +379,6 @@ static uintptr_t doSweep(Thread *self) {
 
     /* Amount of free heap is re-calculated during scan */
     heapfree = 0;
-
-    /* Grab the reference list lock.  This ensures the reference
-       handler isn't in the middle of modifying the list */
-    lockVMWaitLock(reference_lock, self);
 
     /* Scan the heap and free all unmarked objects by reconstructing
        the freelist.  Add all free chunks and unmarked objects and
@@ -426,8 +447,9 @@ static uintptr_t doSweep(Thread *self) {
         /* Add onto total count of free chunks */
         heapfree += curr->header;
 
+    /* Add chunk onto the freelist only if it's
+       large enough to hold an object */
         if(curr->header >= MIN_OBJECT_SIZE) {
-            /* Add chunk onto the freelist */
             last->next = curr;
             last = curr;
         }
@@ -484,8 +506,9 @@ out_last_free:
 
     heapfree += curr->header;
 
+    /* Add chunk onto the freelist only if it's
+       large enough to hold an object */
     if(curr->header >= MIN_OBJECT_SIZE) {
-        /* Add chunk onto the freelist */
         last->next = curr;
         last = curr;
     }
@@ -727,6 +750,8 @@ void *gcMalloc(int len) {
                 rem = (Chunk*)((char*)found + n);
                 rem->header = len - n;
 
+                /* Chain the remainder onto the freelist only
+                   if it's large enough to hold an object */
                 if(rem->header >= MIN_OBJECT_SIZE) {
                     rem->next = found->next;
                     *chunkpp = rem;
@@ -1060,7 +1085,8 @@ void asyncGCThreadLoop(Thread *self) {
         do {                                                                    \
             Object *ob;                                                         \
             list##_start %= list##_size;                                        \
-            ob = list##_list[list##_start];                                     \
+	    if((ob = list##_list[list##_start]) == NULL)                        \
+                continue;                                                       \
                                                                                 \
             unlockVMWaitLock(list##_lock, self);                                \
             enableSuspend(self);                                                \
