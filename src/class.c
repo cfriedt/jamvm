@@ -728,7 +728,8 @@ void linkClass(Class *class) {
 
        for(j = 0; j < spr_mthd_tbl_sze; j++)
            if(strcmp(mb->name, spr_mthd_tbl[j]->name) == 0 &&
-                        strcmp(mb->type, spr_mthd_tbl[j]->type) == 0) {
+                        strcmp(mb->type, spr_mthd_tbl[j]->type) == 0 &&
+                        checkMethodAccess(spr_mthd_tbl[j], class)) {
                mb->method_table_index = spr_mthd_tbl[j]->method_table_index;
                break;
            }
@@ -814,7 +815,10 @@ void linkClass(Class *class) {
                       (intf_mb->name[0] == '<'))
                    continue;
 
-               for(mtbl_idx = 0; mtbl_idx < method_table_size; mtbl_idx++)
+               /* We scan backwards so that we find methods defined in sub-classes
+                  before super-classes.  This ensures we find non-overridden
+                  methods before the inherited non-accessible method */
+               for(mtbl_idx = method_table_size - 1; mtbl_idx >= 0; mtbl_idx--)
                    if(strcmp(intf_mb->name, method_table[mtbl_idx]->name) == 0 &&
                            strcmp(intf_mb->type, method_table[mtbl_idx]->type) == 0) {
                        *offsets_pntr++ = mtbl_idx;
@@ -914,6 +918,11 @@ void linkClass(Class *class) {
        FieldBlock *ref_fb = findField(class, "referent", "Ljava/lang/Object;");
        FieldBlock *queue_fb = findField(class, "queue", "Ljava/lang/ref/ReferenceQueue;");
        MethodBlock *enqueue_mb = findMethod(class, "enqueue", "()Z");
+
+       if(ref_fb == NULL || queue_fb == NULL || enqueue_mb == NULL) {
+           printf("Expected fields/methods missing in java.lang.ref.Reference\n");
+           exitVM(1);
+       }
 
        for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++)
            if(fb->offset > ref_fb->offset)

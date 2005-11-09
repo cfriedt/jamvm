@@ -762,12 +762,18 @@ uintptr_t *invokeNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Object *ob = NULL;
     uintptr_t *ret;
 
+    /* If it's a static method, class may not be initialised */
     if(mb->access_flags & ACC_STATIC)
         initClass(mb->class);
-    else
+    else {
+        /* Interfaces are not normally initialsed. */
+        if(IS_INTERFACE(CLASS_CB(mb->class)))
+            initClass(mb->class);
+
         if(((ob = getAndCheckObject(ostack, mb->class)) == NULL) ||
                                      ((mb = lookupVirtualMethod(ob, mb)) == NULL))
             return ostack;
+    }
  
     if((ret = (uintptr_t*) invoke(ob, mb, array, param_types, !no_access_check)) != NULL)
         *ostack++ = (uintptr_t) createWrapperObject(ret_type, ret);
