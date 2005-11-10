@@ -41,7 +41,7 @@ ffi_type *sig2ffi(char sig) {
 	    type = &ffi_type_float;
             break;
 	default:
-	    type = &ffi_type_uint;
+	    type = &ffi_type_pointer;
             break;
     }
 
@@ -75,10 +75,10 @@ uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int num_args, uintp
     void **values_pntr = &values[2];
     ffi_type **types_pntr = &types[2];
 
-    types[0] = &ffi_type_uint;
+    types[0] = &ffi_type_pointer;
     values[0] = &env;
 
-    types[1] = &ffi_type_uint;
+    types[1] = &ffi_type_pointer;
     values[1] = class ? &class : (void*)opntr++;
 
     SCAN_SIG(sig, DOUBLE, SINGLE);

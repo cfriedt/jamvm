@@ -815,10 +815,7 @@ void linkClass(Class *class) {
                       (intf_mb->name[0] == '<'))
                    continue;
 
-               /* We scan backwards so that we find methods defined in sub-classes
-                  before super-classes.  This ensures we find non-overridden
-                  methods before the inherited non-accessible method */
-               for(mtbl_idx = method_table_size - 1; mtbl_idx >= 0; mtbl_idx--)
+               for(mtbl_idx = 0; mtbl_idx < method_table_size; mtbl_idx++)
                    if(strcmp(intf_mb->name, method_table[mtbl_idx]->name) == 0 &&
                            strcmp(intf_mb->type, method_table[mtbl_idx]->type) == 0) {
                        *offsets_pntr++ = mtbl_idx;
