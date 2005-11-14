@@ -903,9 +903,8 @@ void markClassStatics(Class *class, int mark_soft_refs) {
         if((fb->access_flags & ACC_STATIC) &&
                     ((*fb->type == 'L') || (*fb->type == '['))) {
             Object *ob = (Object *)fb->static_value;
-            TRACE_GC(("Field %s %s\n", fb->name, fb->type));
-            TRACE_GC(("Object @%p is valid %d\n", ob, IS_OBJECT(ob)));
-            if(IS_OBJECT(ob) && !IS_HARD_MARKED(ob))
+            TRACE_GC(("Field %s %s object @%p\n", fb->name, fb->type, ob));
+            if(ob != NULL && !IS_HARD_MARKED(ob))
                 markChildren(ob, HARD_MARK, mark_soft_refs);
         }
 }
@@ -979,9 +978,9 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
 
                 for(i = 0; i < len; i++) {
                     Object *ob = *body++;
-                    TRACE_GC(("Object at index %d is @%p is valid %d\n", i, ob, IS_OBJECT(ob)));
+                    TRACE_GC(("Object at index %d is @%p\n", i, ob));
 
-                    if(IS_OBJECT(ob) && mark > IS_MARKED(ob))
+                    if(ob != NULL && mark > IS_MARKED(ob))
                         markChildren(ob, mark, mark_soft_refs);
                 }
             } else {
@@ -1029,9 +1028,9 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
 
                 while(offset < end) {
                     Object *ob = (Object *)body[offset++];
-                    TRACE_GC(("Object @%p is valid %d\n", ob, IS_OBJECT(ob)));
+                    TRACE_GC(("Offset offset %d Object @%p%d\n", offset-1, ob));
 
-                    if(IS_OBJECT(ob) && mark > IS_MARKED(ob))
+                    if(ob != NULL && mark > IS_MARKED(ob))
                         markChildren(ob, mark, mark_soft_refs);
                 }
             }
