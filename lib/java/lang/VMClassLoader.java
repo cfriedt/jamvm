@@ -107,7 +107,6 @@ final class VMClassLoader
       }
   }
 
-  
   /**
    * Helper to define a class using a string of bytes. This assumes that
    * the security checks have already been performed, if necessary.
