@@ -31,9 +31,11 @@ static Class *class_array_class, *cons_array_class, *cons_reflect_class, *method
 static Class *method_reflect_class, *field_array_class, *field_reflect_class;
 static MethodBlock *cons_init_mb, *method_init_mb, *field_init_mb;
 static int cons_slot_offset, method_slot_offset, field_slot_offset;
+static int cons_class_offset, method_class_offset, field_class_offset;
 
 static int initReflection() {
     FieldBlock *cons_slot_fb, *mthd_slot_fb, *fld_slot_fb;
+    FieldBlock *cons_class_fb, *mthd_class_fb, *fld_class_fb;
 
     class_array_class = findArrayClass("[Ljava/lang/Class;");
     cons_array_class = findArrayClass("[Ljava/lang/reflect/Constructor;");
@@ -48,25 +50,32 @@ static int initReflection() {
         return FALSE;
 
     cons_init_mb = findMethod(cons_reflect_class, "<init>",
-               "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;Ljava/lang/Object;)V");
+               "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;I)V");
 
     method_init_mb = findMethod(method_reflect_class, "<init>",
-          "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Object;)V");
+          "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;I)V");
 
     field_init_mb = findMethod(field_reflect_class, "<init>",
-                        "(Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Object;)V");
+                        "(Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;I)V");
 
-    cons_slot_fb = findField(cons_reflect_class, "slot", "Ljava/lang/Object;");
-    mthd_slot_fb = findField(method_reflect_class, "slot", "Ljava/lang/Object;");
-    fld_slot_fb = findField(field_reflect_class, "slot", "Ljava/lang/Object;");
+    cons_slot_fb = findField(cons_reflect_class, "slot", "I");
+    mthd_slot_fb = findField(method_reflect_class, "slot", "I");
+    fld_slot_fb = findField(field_reflect_class, "slot", "I");
+    cons_class_fb = findField(cons_reflect_class, "declaringClass", "Ljava/lang/Class;");
+    mthd_class_fb = findField(method_reflect_class, "declaringClass", "Ljava/lang/Class;");
+    fld_class_fb = findField(field_reflect_class, "declaringClass", "Ljava/lang/Class;");
 
     if(!cons_init_mb || ! method_init_mb || !field_init_mb ||
-           !cons_slot_fb || !mthd_slot_fb || !fld_slot_fb)
+           !cons_slot_fb || !mthd_slot_fb || !fld_slot_fb ||
+           !cons_class_fb || !mthd_class_fb || !fld_class_fb)
         return FALSE;
 
     cons_slot_offset = cons_slot_fb->offset; 
     method_slot_offset = mthd_slot_fb->offset; 
     field_slot_offset = fld_slot_fb->offset; 
+    cons_class_offset = cons_class_fb->offset; 
+    method_class_offset = mthd_class_fb->offset; 
+    field_class_offset = fld_class_fb->offset; 
 
     return inited = TRUE;
 }
@@ -161,7 +170,8 @@ Object *createConstructorObject(MethodBlock *mb) {
         if((classes == NULL) || (exceps == NULL))
             return NULL;
 
-        executeMethod(reflect_ob, cons_init_mb, mb->class, classes, exceps, mb);
+        executeMethod(reflect_ob, cons_init_mb, mb->class, classes, exceps,
+                      mb - CLASS_CB(mb->class)->methods);
     }
 
     return reflect_ob;
@@ -218,7 +228,8 @@ Object *createMethodObject(MethodBlock *mb) {
         if((classes == NULL) || (exceps == NULL) || (name == NULL) || (ret == NULL))
             return NULL;
 
-        executeMethod(reflect_ob, method_init_mb, mb->class, classes, exceps, ret, name, mb);
+        executeMethod(reflect_ob, method_init_mb, mb->class, classes, exceps, ret, name,
+                      mb - CLASS_CB(mb->class)->methods);
     }
 
     return reflect_ob;
@@ -274,7 +285,8 @@ Object *createFieldObject(FieldBlock *fb) {
         if((type == NULL) || (name == NULL))
             return NULL;
 
-        executeMethod(reflect_ob, field_init_mb, fb->class, type, name, fb);
+        executeMethod(reflect_ob, field_init_mb, fb->class, type, name,
+                      fb - CLASS_CB(fb->class)->fields);
     }
 
     return reflect_ob;
@@ -583,14 +595,16 @@ Object *createReflectFieldObject(FieldBlock *fb) {
 }
 
 MethodBlock *mbFromReflectObject(Object *reflect_ob) {
-    if(reflect_ob->class == cons_reflect_class)
-        return (MethodBlock*)INST_DATA(reflect_ob)[cons_slot_offset];
+    int slot = reflect_ob->class == cons_reflect_class ? cons_slot_offset : method_slot_offset;
+    int class = reflect_ob->class == cons_reflect_class ? cons_class_offset : method_class_offset;
+    Class *decl_class = (Class*)INST_DATA(reflect_ob)[class];
 
-    return (MethodBlock*)INST_DATA(reflect_ob)[method_slot_offset];
+    return &(CLASS_CB(decl_class)->methods[INST_DATA(reflect_ob)[slot]]);
 }
 
 FieldBlock *fbFromReflectObject(Object *reflect_ob) {
-    return (FieldBlock*)INST_DATA(reflect_ob)[field_slot_offset];
+    Class *decl_class = (Class*)INST_DATA(reflect_ob)[field_class_offset];
+    return &(CLASS_CB(decl_class)->fields[INST_DATA(reflect_ob)[field_slot_offset]]);
 }
 
 /* Needed for stack walking */

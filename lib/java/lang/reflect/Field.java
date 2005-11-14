@@ -82,12 +82,12 @@ extends AccessibleObject implements Member
   private Class declaringClass;
   private Class type;
   private String name;
-  private Object slot;
+  private int slot;
 
   /**
    * This class is uninstantiable except natively.
    */
-  private Field(Class declaringClass, Class type, String name, Object slot)
+  private Field(Class declaringClass, Class type, String name, int slot)
   {
     this.declaringClass = declaringClass;
     this.type = type;
@@ -124,10 +124,10 @@ extends AccessibleObject implements Member
    * @see Modifier
    */
   public int getModifiers() {
-      return getFieldModifiers(slot);
+      return getFieldModifiers(declaringClass, slot);
   }
 
-  public native int getFieldModifiers(Object slot);
+  public native int getFieldModifiers(Class declaringClass, int slot);
 
   /**
    * Gets the type of this field.
@@ -234,7 +234,7 @@ extends AccessibleObject implements Member
     return getField(o, declaringClass, type, slot, flag);
   }
 
-  private native Object getField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck)
+  private native Object getField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck)
       throws IllegalAccessException;
   /**
    * Get the value of this boolean Field. If the field is static,
@@ -460,7 +460,7 @@ extends AccessibleObject implements Member
     setField(o, declaringClass, type, slot, flag, value);
   }
 
-  private native void setField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, Object value)
+  private native void setField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, Object value)
       throws IllegalAccessException;
   /**
    * Set this boolean Field. If the field is static, <code>o</code> will be
@@ -630,21 +630,21 @@ extends AccessibleObject implements Member
       setDField(o, declaringClass, type, slot, flag, 8, value);
   }
 
-  private native double getDField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no);
-  private native int getIField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no);
-  private native long getJField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no);
-  private native boolean getZField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no);
-  private native float getFField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no);
-  private native char getCField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no);
-  private native short getSField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no);
-  private native byte getBField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no);
+  private native double getDField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no);
+  private native int getIField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no);
+  private native long getJField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no);
+  private native boolean getZField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no);
+  private native float getFField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no);
+  private native char getCField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no);
+  private native short getSField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no);
+  private native byte getBField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no);
 
-  private native void setDField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no, double v);
-  private native void setIField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no, int i);
-  private native void setJField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no, long j);
-  private native void setZField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no, boolean z);
-  private native void setFField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no, float f);
-  private native void setCField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no, char c);
-  private native void setSField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no, short s);
-  private native void setBField(Object o, Class declaringClass, Class type, Object slot, boolean noAccessCheck, int type_no, byte b);
+  private native void setDField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no, double v);
+  private native void setIField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no, int i);
+  private native void setJField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no, long j);
+  private native void setZField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no, boolean z);
+  private native void setFField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no, float f);
+  private native void setCField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no, char c);
+  private native void setSField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no, short s);
+  private native void setBField(Object o, Class declaringClass, Class type, int slot, boolean noAccessCheck, int type_no, byte b);
 }

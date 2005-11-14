@@ -640,8 +640,9 @@ uintptr_t *getBootClassPathResource(Class *class, MethodBlock *mb, uintptr_t *os
 
 uintptr_t *constructNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Object *array = (Object*)ostack[1]; 
+    Class *decl_class = (Class*)ostack[2];
     Object *param_types = (Object*)ostack[3];
-    MethodBlock *mb = (MethodBlock*)ostack[4]; 
+    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[4]]); 
     int no_access_check = ostack[5]; 
     Object *ob = allocObject(mb->class);
 
@@ -652,13 +653,15 @@ uintptr_t *constructNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
 }
 
 uintptr_t *getMethodModifiers(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
-    MethodBlock *mb = (MethodBlock*)ostack[1]; 
+    Class *decl_class = (Class*)ostack[1];
+    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
     *ostack++ = (uintptr_t) mb->access_flags;
     return ostack;
 }
 
 uintptr_t *getFieldModifiers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    FieldBlock *fb = (FieldBlock*)ostack[1]; 
+    Class *decl_class = (Class*)ostack[1];
+    FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[2]]); 
     *ostack++ = (uintptr_t) fb->access_flags;
     return ostack;
 }
@@ -680,7 +683,7 @@ Object *getAndCheckObject(uintptr_t *ostack, Class *type) {
 
 uintptr_t *getPntr2Field(uintptr_t *ostack) {
     Class *decl_class = (Class *)ostack[2];
-    FieldBlock *fb = (FieldBlock*)ostack[4]; 
+    FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[4]]); 
     int no_access_check = ostack[5];
     Object *ob;
 
@@ -755,22 +758,23 @@ uintptr_t *setPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *invokeNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Object *array = (Object*)ostack[2]; 
+    Class *decl_class = (Class*)ostack[3];
     Object *param_types = (Object*)ostack[4];
     Class *ret_type = (Class*)ostack[5];
-    MethodBlock *mb = (MethodBlock*)ostack[6]; 
+    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[6]]); 
     int no_access_check = ostack[7]; 
     Object *ob = NULL;
     uintptr_t *ret;
 
     /* If it's a static method, class may not be initialised */
     if(mb->access_flags & ACC_STATIC)
-        initClass(mb->class);
+        initClass(decl_class);
     else {
         /* Interfaces are not normally initialsed. */
-        if(IS_INTERFACE(CLASS_CB(mb->class)))
-            initClass(mb->class);
+        if(IS_INTERFACE(CLASS_CB(decl_class)))
+            initClass(decl_class);
 
-        if(((ob = getAndCheckObject(ostack, mb->class)) == NULL) ||
+        if(((ob = getAndCheckObject(ostack, decl_class)) == NULL) ||
                                      ((mb = lookupVirtualMethod(ob, mb)) == NULL))
             return ostack;
     }

@@ -81,17 +81,17 @@ import java.util.Arrays;
 public final class Constructor
 extends AccessibleObject implements Member
 {
-  private Class clazz;
-  private Object slot;
+  private Class declaringClass;
+  private int slot;
   private Class[] parameterTypes;
   private Class[] exceptionTypes;
   
   /**
    * This class is uninstantiable except from native code.
    */
-  private Constructor(Class declaringClass, Class[] parameterTypes, Class[] exceptionTypes, Object slot)
+  private Constructor(Class declaringClass, Class[] parameterTypes, Class[] exceptionTypes, int slot)
   {
-    this.clazz = declaringClass;
+    this.declaringClass = declaringClass;
     this.parameterTypes = parameterTypes;
     this.exceptionTypes = exceptionTypes;
     this.slot = slot;
@@ -107,7 +107,7 @@ extends AccessibleObject implements Member
    */
   public Class getDeclaringClass()
   {
-    return clazz;
+    return declaringClass;
   }
 
   /**
@@ -129,10 +129,10 @@ extends AccessibleObject implements Member
    * @see Modifier
    */
   public int getModifiers() {
-      return getConstructorModifiers(slot);
+      return getConstructorModifiers(declaringClass, slot);
   }
 
-  private native int getConstructorModifiers(Object slot);
+  private native int getConstructorModifiers(Class declaringClass, int slot);
 
   /**
    * Get the parameter list for this constructor, in declaration order. If the
@@ -262,11 +262,11 @@ extends AccessibleObject implements Member
     throws InstantiationException, IllegalAccessException,
            InvocationTargetException
   {
-    return constructNative(args, clazz, parameterTypes, slot, flag);
+    return constructNative(args, declaringClass, parameterTypes, slot, flag);
   }
 
   private native Object constructNative(Object[] args, Class declaringClass,
-                                        Class[] parameterTypes, Object slot,
+                                        Class[] parameterTypes, int slot,
                                         boolean noAccessCheck)
     throws InstantiationException, IllegalAccessException,
            InvocationTargetException;

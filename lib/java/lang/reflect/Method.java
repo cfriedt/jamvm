@@ -85,12 +85,12 @@ extends AccessibleObject implements Member
   private Class[] exceptionTypes;
   private Class returnType;
   String name;
-  Object slot;
+  int slot;
 
   /**
    * This class is uninstantiable.
    */
-  private Method(Class declaringClass, Class[] parameterTypes, Class[] exceptionTypes, Class returnType, String name, Object slot)
+  private Method(Class declaringClass, Class[] parameterTypes, Class[] exceptionTypes, Class returnType, String name, int slot)
   {
     this.declaringClass = declaringClass;
     this.parameterTypes = parameterTypes;
@@ -129,10 +129,10 @@ extends AccessibleObject implements Member
    * @see Modifier
    */
   public int getModifiers() {
-      return getMethodModifiers(slot);
+      return getMethodModifiers(declaringClass, slot);
   }
 
-  private native int getMethodModifiers(Object slot);
+  private native int getMethodModifiers(Class declaringClass, int slot);
 
   /**
    * Gets the return type of this method.
@@ -361,6 +361,6 @@ extends AccessibleObject implements Member
 
   private native Object invokeNative(Object o, Object[] args, Class declaringClass,
                                      Class[] parameterTypes, Class returnType,
-                                     Object slot, boolean noAccessCheck)
+                                     int slot, boolean noAccessCheck)
     throws IllegalAccessException, InvocationTargetException;
 }
