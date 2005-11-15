@@ -1026,9 +1026,9 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
                 int offset = cb->refs_offsets_table[i].start;
                 int end = cb->refs_offsets_table[i].end;
 
-                while(offset < end) {
-                    Object *ob = (Object *)body[offset++];
-                    TRACE_GC(("Offset offset %d Object @%p%d\n", offset-1, ob));
+                for(; offset < end; offset++) {
+                    Object *ob = (Object *)body[offset];
+                    TRACE_GC(("Offset %d reference @%p\n", offset, ob));
 
                     if(ob != NULL && mark > IS_MARKED(ob))
                         markChildren(ob, mark, mark_soft_refs);
