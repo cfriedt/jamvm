@@ -131,11 +131,17 @@ int threadIsInterrupted(Thread *thread) {
 }
 
 void threadSleep(Thread *thread, long long ms, int ns) {
-    if(ms > 0 || ns > 0) {
-        monitorLock(&sleep_mon, thread);
-        monitorWait(&sleep_mon, thread, ms, ns);
-        monitorUnlock(&sleep_mon, thread);
-    }
+
+   /* A sleep of zero should just yield, but a wait
+      of zero is "forever".  Therefore wait for a tiny
+      amount -- this should yield and we also get the
+      interrupted checks. */
+    if(ms == 0 &&  ns == 0)
+        ns = 1;
+
+    monitorLock(&sleep_mon, thread);
+    monitorWait(&sleep_mon, thread, ms, ns);
+    monitorUnlock(&sleep_mon, thread);
 }
 
 void threadYield(Thread *thread) {
