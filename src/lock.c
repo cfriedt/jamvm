@@ -18,11 +18,13 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+//#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <limits.h>
 
 #include "jam.h"
 #include "thread.h"
@@ -149,16 +151,21 @@ int monitorWait(Monitor *mon, Thread *self, long long ms, int ns) {
 
     if(timed) {
         struct timeval tv;
+        long long seconds;
 
         gettimeofday(&tv, 0);
 
-        ts.tv_sec = tv.tv_sec + ms/1000;
+        seconds = tv.tv_sec + ms/1000;
         ts.tv_nsec = (tv.tv_usec + ((ms%1000)*1000))*1000 + ns;
 
         if(ts.tv_nsec > 999999999L) {
-            ts.tv_sec++;
+            seconds++;
             ts.tv_nsec -= 1000000000L;
         }
+
+        /* If the number of seconds is too large just set
+           it to the max value, else we won't wait at all */
+       ts.tv_sec = seconds > LONG_MAX ? LONG_MAX : seconds;
     }
 
     self->wait_mon = mon;
