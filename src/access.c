@@ -86,21 +86,21 @@ static int checkMethodOrFieldAccess(int access_flags, Class *decl_class, Class *
     if(access_flags & ACC_PUBLIC)
         return TRUE;
 
-    /* If the method or field is protected it must be declared in the
+    /* If the method or field is private, it must be declared in
+       the accessing class */
+    if(access_flags & ACC_PRIVATE)
+        return decl_class == class;
+
+    /* The method or field must be protected or package-private */
+       
+    /* If it is protected it is accessible if it is declared in the
        accessing class or in a super-class */
     if((access_flags & ACC_PROTECTED) && isSubClassOf(decl_class, class))
         return TRUE;
 
-    /* Or if it is protected or package private the declaring class must be
-       in the same runtime paackage as the accessing class */
-    if(((access_flags & ACC_PROTECTED) ||
-       !(access_flags & (ACC_PUBLIC|ACC_PROTECTED|ACC_PRIVATE))) &&
-            isSameRuntimePackage(decl_class, class))
-        return TRUE;
-
-    /* Finally if the method or field is private, it must be declared in
-       the accessing class */
-    return (access_flags & ACC_PRIVATE) && decl_class == class;
+    /* Lastly protected and package-private methods/fields are accessible
+       if they are in the same runtime package as the accessing class */
+    return isSameRuntimePackage(decl_class, class);
 }
 
 int checkMethodAccess(MethodBlock *mb, Class *class) {
