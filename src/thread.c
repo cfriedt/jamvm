@@ -690,7 +690,6 @@ void dumpThreadsLoop(Thread *self) {
 static void initialiseSignals() {
     struct sigaction act;
     sigset_t mask;
-    pthread_t tid;
 
     act.sa_handler = suspendHandler;
     sigemptyset(&act.sa_mask);
