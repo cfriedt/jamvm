@@ -164,7 +164,8 @@ int monitorWait(Monitor *mon, Thread *self, long long ms, int ns) {
         }
 
         /* If the number of seconds is too large just set
-           it to the max value, else we won't wait at all */
+           it to the max value instead of truncating.
+           Depending on result, we may not wait at all */
        ts.tv_sec = seconds > LONG_MAX ? LONG_MAX : seconds;
     }
 

@@ -544,7 +544,7 @@ out_last_marked:
         printf("<GC: Freed %lld object(s) using %lld bytes",
 			(long long)unmarked, (long long)freed);
         if(cleared)
-            printf(", cleared %d reference(s)", cleared);
+            printf(", cleared %lld reference(s)", (long long)cleared);
         printf(">\n<GC: Largest block is %lld total free is %lld out of %lld (%lld%%)>\n",
                          (long long)largest, (long long)heapfree, size, pcnt_used);
     }
@@ -599,7 +599,7 @@ static void runFinalizers0(Thread *self, int max_wait) {
 /* Called by VMRuntime.runFinalization() -- runFinalizers0
    is entered with suspension disabled. */
 
-int runFinalizers() {
+void runFinalizers() {
     Thread *self = threadSelf();
     disableSuspend(self);
     runFinalizers0(self, 100000);
@@ -680,7 +680,7 @@ void expandHeap(int min) {
     delta = (delta&~(OBJECT_GRAIN-1));
 
     if(verbosegc)
-        printf("<GC: Expanding heap by %d bytes>\n", delta);
+        printf("<GC: Expanding heap by %lld bytes>\n", (long long)delta);
 
     /* The freelist is in address order - find the last
        free chunk and add the new area to the end.  */

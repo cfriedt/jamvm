@@ -86,6 +86,8 @@ static Class *prim_classes[MAX_PRIM_CLASSES];
 #define READ_INDEX(v,p,l)               READ_U2(v,p,l)
 #define READ_TYPE_INDEX(v,cp,t,p,l)     READ_U2(v,p,l)
 
+/* Forward declarations */
+int searchClassInitiatingLoaders(Object *class_loader, Class *class);
 
 static Class *addClassToHash(Class *class) {
     Class *entry;
