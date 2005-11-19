@@ -597,7 +597,7 @@ extern Object *cloneObject(Object *ob);
 extern void markObject(Object *ob);
 
 extern void gc1();
-extern int runFinalizers();
+extern void runFinalizers();
 
 extern unsigned long freeHeapMem();
 extern unsigned long totalHeapMem();
@@ -654,6 +654,7 @@ extern int peekIsFieldLong(Class *class, int index);
 
 /* cast */
 
+extern char isSubClassOf(Class *class, Class *test);
 extern char isInstanceOf(Class *class, Class *test);
 extern char arrayStoreCheck(Class *class, Class *test);
 
