@@ -832,7 +832,7 @@ void *gcMalloc(int len) {
                 }
 
                 if(verbosegc)
-                    printf("<GC: completely out of heap space - throwing OutOfMemoryException>\n");
+                    printf("<GC: completely out of heap space - throwing OutOfMemoryError>\n");
 
                 state = throw_oom;
                 unlockVMLock(heap_lock, self);
@@ -848,7 +848,7 @@ void *gcMalloc(int len) {
                  */
 
                 if(verbosegc)
-                    printf("<GC: completely out of heap space - throwing prepared OutOfMemoryException>\n");
+                    printf("<GC: completely out of heap space - throwing prepared OutOfMemoryError>\n");
 
                 state = gc;
                 unlockVMLock(heap_lock, self);

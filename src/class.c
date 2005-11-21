@@ -922,7 +922,7 @@ void linkClass(Class *class) {
        MethodBlock *enqueue_mb = findMethod(class, "enqueue", "()Z");
 
        if(ref_fb == NULL || queue_fb == NULL || enqueue_mb == NULL) {
-           printf("Expected fields/methods missing in java.lang.ref.Reference\n");
+           fprintf(stderr, "Expected fields/methods missing in java.lang.ref.Reference\n");
            exitVM(1);
        }
 
@@ -1465,7 +1465,7 @@ void initialiseClass(char *classpath, char *bootpath, char bootpathopt, int verb
     char *bcp = setBootClassPath(bootpath, bootpathopt);
 
     if(!(bcp && parseBootClassPath(bcp))) {
-        printf("bootclasspath is empty!\n");
+        fprintf(stderr, "bootclasspath is empty!\n");
         exitVM(1);
     }
 
