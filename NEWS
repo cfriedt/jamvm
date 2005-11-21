@@ -1,3 +1,55 @@
+JamVM 1.4.0 released on 20th November 2005
+==========================================
+
+A summary of changes since 1.3.3:
+
+- Support for Soft/Weak/Phantom References
+    - As specified in the specification, Weak and Phantom References are
+      cleared as soon as they become weakly or phantom reachable.  It is
+      left up to the VM when Soft References (which are softly reachable)
+      are cleared; only they must be cleared before throwing OutOfMemoryError.
+      JamVM clears them as a last resort, when the heap is fully expanded,
+      and insufficient memory can be reclaimed.
+
+    - To support Soft/Weak/Phantom references a Reference Handler thread
+      is now created on VM start-up.  This is additional to the Finaliser
+      thread.
+
+- Garbage Collector optimisations
+    - Re-implementation of object reference scanning via reference offset
+      lists.  Previously, references were scanned by finding references
+      by following the class hierarchy.
+
+    - As part of this the object layout has changed.
+
+- Added Java language-level access checks (e.g. access to private/protected
+  and package-private methods and fields).  This includes access via
+  reflection.
+
+- Fix for inheritance of inaccessible methods.
+
+- Linux PowerPC build fix (this was quickly fixed in CVS).
+
+- FFI fix.  The size of ffi-type-uint on 64-bit platforms has changed between
+  libffi 2.00-beta and later versions.  This only affected AMD64, as this
+  is the only platform that uses libffi.
+
+- Fix for initiating loaders and array classes.
+
+- Mauve tests.  Many extra VM-level Mauve tests now pass (35+).  These
+  are mostly concerned with testing boundary-conditions in class-loading,
+  Class.forName() and Thread.sleep().  Extra tests pass due to the
+  implementation of Soft/Weak/PhantomReferences and access checks.
+
+- Classpath-0.19 merge.
+    - Merged in changes to GNU Classpath's VM reference classes and
+      JamVM's classes.
+
+- Support for kfreebsd and Linux-powerpc64.
+
+- Many other code tidy-ups.
+
+
 JamVM 1.3.3 released on 12th September 2005
 ===========================================
 
