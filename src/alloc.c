@@ -897,6 +897,9 @@ void markClassStatics(Class *class, int mark_soft_refs) {
     FieldBlock *fb = cb->fields;
     int i;
 
+   if(cb->state < CLASS_LINKED)
+       return;
+
     TRACE_GC(("Marking static fields for class %s\n", cb->name));
 
     for(i = 0; i < cb->fields_count; i++, fb++)
@@ -1307,8 +1310,9 @@ Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
 
     if(dim > 1) {
         Class *aclass = findArrayClassFromClass(element_name, array_class);
-        array = allocArray(array_class, *count, sizeof(Object*));
         Object **body;
+
+        array = allocArray(array_class, *count, sizeof(Object*));
 
         if(array == NULL)
             return NULL;
