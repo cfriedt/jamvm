@@ -1,7 +1,7 @@
-JamVM 1.4.0
+JamVM 1.4.1
 ===========
 
-Welcome to the seventeenth release of JamVM!
+Welcome to the eighteenth release of JamVM!
 
 JamVM is a new Java Virtual Machine which conforms to the JVM
 specification version 2 (blue book).  In comparison to most other
@@ -52,6 +52,13 @@ Mac OS X/Darwin
            the flag -arch ppc64.  If no option is given a 32-bit
            executable is built by default.
 
+BSD Variants
+------------
+
+OpenBSD  : i386
+FreeBSD  : i386
+KFreeBSD : i386
+
 
 Class Libraries
 ===============
@@ -59,13 +66,13 @@ Class Libraries
 JamVM is designed to use the GNU classpath Java class library (see
 http://www.gnu.org/software/classpath).  A number of classes are
 reference classes which must be modified for a particular VM.  These are
-provided and built along with JamVM (see INSTALL).  JamVM 1.4.0 works with
+provided and built along with JamVM (see INSTALL).  JamVM 1.4.1 works with
 Classpath version 0.19 (the latest development snapshot).  It should
 also work with the latest version direct from CVS (but check the
 Classpath mailing lists for possible patches).  Later snapshots of Classpath
 may also work, if no modifications have been made to the VM interface.
 
-Note, JamVM 1.4.0 will not work with versions of Classpath earlier than
+Note, JamVM 1.4.1 will not work with versions of Classpath earlier than
 0.18, nor will it work with the class library from Sun or IBM's Virtual
 Machines.
 
@@ -167,4 +174,4 @@ particular order, is given below.
 That's it!
 
 Robert Lougher <rob@lougher.demon.co.uk>
-20th November 2005.
+28th November 2005.
