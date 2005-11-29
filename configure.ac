@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.4.0)
+AM_INIT_AUTOMAKE(jamvm, 1.4.1)
 
 AC_ARG_ENABLE(tracegc,
     [  --enable-tracegc         add gc tracing (for debugging)],
@@ -58,6 +58,7 @@ case "$host" in
 i[[456]]86-*-linux*) host_cpu=i386 host_os=linux ;;
 i[[456]]86-*-kfreebsd*) host_cpu=i386 host_os=linux ;;
 i[[456]]86-*-openbsd*) host_cpu=i386 host_os=linux libdl_needed=no ;;
+i[[456]]86-*-freebsd*) host_cpu=i386 host_os=linux libdl_needed=no ;;
 x86_64-*-linux*) host_os=linux ;;
 arm*-*-linux*) host_cpu=arm host_os=linux ;;
 powerpc*-*-linux*) host_cpu=powerpc host_os=linux ;;
