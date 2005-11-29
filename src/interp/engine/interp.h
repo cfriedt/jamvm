@@ -18,6 +18,18 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include <limits.h>
+
+/* _GNU_SOURCE doesn't bring in C99 long long constants,
+   but we do get the GNU constants */
+#ifndef LLONG_MAX
+#define LLONG_MAX LONG_LONG_MAX
+#endif
+
+#ifndef LLONG_MIN
+#define LLONG_MIN LONG_LONG_MIN
+#endif
+
 #ifdef HAVE_ENDIAN_H
 #include <endian.h>
 #elif HAVE_SYS_PARAM_H

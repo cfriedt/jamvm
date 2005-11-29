@@ -24,7 +24,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <limits.h>
 
 #include "jam.h"
 #include "thread.h"
@@ -1222,23 +1221,23 @@ rewrite_lock:
     DEF_OPC_210(OPC_D2I)
         OPC_fp2int(double);
 
-#define OPC_fp2long(SRC_TYPE)                  \
-{                                              \
-    long long res;                             \
-    SRC_TYPE value;                            \
-    ostack -= sizeof(SRC_TYPE)/4;              \
-    value = *(SRC_TYPE *)ostack;               \
-                                               \
-    if(value >= (SRC_TYPE)LONG_LONG_MAX)       \
-        res = LONG_LONG_MAX;                   \
-    else if(value <= (SRC_TYPE)LONG_LONG_MIN)  \
-        res = LONG_LONG_MIN;                   \
-    else if(value != value)                    \
-        res = 0;                               \
-    else                                       \
-        res = (long long) value;               \
-                                               \
-    PUSH_LONG(res, 1);                         \
+#define OPC_fp2long(SRC_TYPE)              \
+{                                          \
+    long long res;                         \
+    SRC_TYPE value;                        \
+    ostack -= sizeof(SRC_TYPE)/4;          \
+    value = *(SRC_TYPE *)ostack;           \
+                                           \
+    if(value >= (SRC_TYPE)LLONG_MAX)       \
+        res = LLONG_MAX;                   \
+    else if(value <= (SRC_TYPE)LLONG_MIN)  \
+        res = LLONG_MIN;                   \
+    else if(value != value)                \
+        res = 0;                           \
+    else                                   \
+        res = (long long) value;           \
+                                           \
+    PUSH_LONG(res, 1);                     \
 }
 
     DEF_OPC_210(OPC_F2L)
