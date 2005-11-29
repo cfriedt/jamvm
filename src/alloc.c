@@ -897,8 +897,10 @@ void markClassStatics(Class *class, int mark_soft_refs) {
     FieldBlock *fb = cb->fields;
     int i;
 
-   if(cb->state < CLASS_LINKED)
-       return;
+    /* Class has not linked and so is not in-use (and
+       statics have not been initialised) */
+    if(cb->state < CLASS_LINKED)
+        return;
 
     TRACE_GC(("Marking static fields for class %s\n", cb->name));
 
