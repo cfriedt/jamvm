@@ -285,6 +285,10 @@ void *threadStart(void *arg) {
     /* remove thread from thread group */
     executeMethod(group, (CLASS_CB(group->class))->method_table[rmveThrd_mtbl_idx], jThread);
 
+    /* set VMThread ref in Thread object to null - operations after this
+       point will result in an IllegalThreadStateException */
+    INST_DATA(jThread)[vmthread_offset] = 0;
+
     /* notify any threads waiting on VMThread object -
        these are joining this thread */
 
