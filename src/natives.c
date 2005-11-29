@@ -528,10 +528,9 @@ uintptr_t *getClassContext(Class *class, MethodBlock *mb, uintptr_t *ostack) {
         if(array != NULL) {
             Class **data = ARRAY_DATA(array);
 
-            depth = 0;
             do {
                 for(; bottom->mb != NULL; bottom = bottom->prev)
-                    data[depth++] = bottom->mb->class;
+                    *data++ = bottom->mb->class;
             } while((bottom = bottom->prev)->prev != NULL);
         }
     }
@@ -883,37 +882,38 @@ uintptr_t *getStack(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *string_class = findArrayClass("[Ljava/lang/String;");
     Object *stack, *names, *classes;
     Frame *frame;
-    int depth = 0;
+    int depth;
 
     if(object_class == NULL || class_class == NULL || string_class == NULL)
       return ostack;
 
     frame = getExecEnv()->last_frame;
+    depth = 0;
 
     do {
         for(; frame->mb != NULL; frame = frame->prev, depth++);
     } while((frame = frame->prev)->prev != NULL);
 
-    stack = allocArray(object_class, 2, 4);
-    classes = allocArray(class_class, depth, 4);
-    names = allocArray(string_class, depth, 4);
+    stack = allocArray(object_class, 2, sizeof(Object*));
+    classes = allocArray(class_class, depth, sizeof(Object*));
+    names = allocArray(string_class, depth, sizeof(Object*));
 
     if(stack != NULL && names != NULL && classes != NULL) {
-        uintptr_t *dcl = INST_DATA(classes);
-        uintptr_t *dnm = INST_DATA(names);
+        Class **dcl = ARRAY_DATA(classes);
+        Object **dnm = ARRAY_DATA(names);
+        Object **stk = ARRAY_DATA(stack);
 
         frame = getExecEnv()->last_frame;
-        depth = 1;
 
         do {
-            for(; frame->mb != NULL; frame = frame->prev, depth++) {
-                dcl[depth] = (uintptr_t) frame->mb->class;
-                dnm[depth] = (uintptr_t) createString(frame->mb->name);
+            for(; frame->mb != NULL; frame = frame->prev) {
+                *dcl++ = frame->mb->class;
+                *dnm++ = createString(frame->mb->name);
             }
         } while((frame = frame->prev)->prev != NULL);
 
-        INST_DATA(stack)[1] = (uintptr_t) classes;
-        INST_DATA(stack)[2] = (uintptr_t) names;
+        stk[0] = classes;
+        stk[1] = names;
     }
 
     *ostack++ = (uintptr_t) stack;
