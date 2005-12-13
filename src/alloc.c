@@ -58,13 +58,13 @@
 
 /* Bits used within the chunk header (see also alloc.h) */
 #define ALLOC_BIT               1
-#define REFERENCE_BIT           4
+#define SPECIAL_BIT             4
 
 /* Macros for getting values from the chunk header */
 #define HEADER(ptr)             *((uintptr_t*)ptr)
-#define HDR_SIZE(hdr)           (hdr & ~(ALLOC_BIT|FLC_BIT|REFERENCE_BIT))
+#define HDR_SIZE(hdr)           (hdr & ~(ALLOC_BIT|FLC_BIT|SPECIAL_BIT))
 #define HDR_ALLOCED(hdr)        (hdr & ALLOC_BIT)
-#define HDR_REF_OBJ(hdr)        (hdr & REFERENCE_BIT)
+#define HDR_SPECIAL_OBJ(hdr)    (hdr & SPECIAL_BIT)
 
 /* 1 word header format
   31                                       210
@@ -258,7 +258,8 @@ void initialiseAlloc(unsigned long min, unsigned long max, int verbose) {
 }
 
 extern void markInternedStrings();
-extern void markClasses();
+extern void markBootClasses();
+extern void markLoaderClasses(Object *loader, int mark, int mark_soft_refs);
 extern void markJNIGlobalRefs();
 extern void scanThreads();
 void markChildren(Object *ob, int mark, int mark_soft_refs);
@@ -270,7 +271,7 @@ static void doMark(Thread *self, int mark_soft_refs) {
     clearMarkBits();
 
     if(oom) MARK(oom, HARD_MARK);
-    markClasses();
+    markBootClasses();
     markInternedStrings();
     markJNIGlobalRefs();
     scanThreads();
@@ -398,6 +399,21 @@ static uintptr_t doSweep(Thread *self) {
             freed += size;
             unmarked++;
 
+            if(HDR_SPECIAL_OBJ(hdr)) {
+                if(IS_CLASS(ob)) {
+                    if(verbosegc) {
+                        ClassBlock *cb = CLASS_CB(ob);
+                        if(!IS_CLASS_DUP(cb))
+                            printf("<GC: Unloading class %s>\n", cb->name);
+                    }
+                    freeClassData((Class*)ob);
+                } else
+                    if(IS_CLASS_LOADER(CLASS_CB(ob->class))) {
+                        TRACE_GC(("FREE: Freeing class loader object\n"));
+                        freeClassLoaderData(ob);
+                    }
+            }
+
             TRACE_GC(("FREE: Freeing ob @%p class %s - start of block\n", ob,
                                     ob->class ? CLASS_CB(ob->class)->name : "?"));
         }
@@ -407,7 +423,7 @@ static uintptr_t doSweep(Thread *self) {
         curr = (Chunk *) ptr;
 
         /* Clear any set bits within the header */
-        curr->header &= ~(ALLOC_BIT|FLC_BIT|REFERENCE_BIT);
+        curr->header &= ~(ALLOC_BIT|FLC_BIT|SPECIAL_BIT);
 
         /* Scan the next chunks - while they are
            free, merge them onto the first free
@@ -429,6 +445,21 @@ static uintptr_t doSweep(Thread *self) {
 
                 freed += size;
                 unmarked++;
+
+                if(HDR_SPECIAL_OBJ(hdr)) {
+                    if(IS_CLASS(ob)) {
+                        if(verbosegc) {
+                            ClassBlock *cb = CLASS_CB(ob);
+                            if(!IS_CLASS_DUP(cb))
+                                printf("<GC: Unloading class %s>\n", cb->name);
+                        }
+                        freeClassData((Class*)ob);
+                    } else
+                        if(IS_CLASS_LOADER(CLASS_CB(ob->class))) {
+                            TRACE_GC(("FREE: Freeing class loader object\n"));
+                            freeClassLoaderData(ob);
+                        }
+                }
 
                 TRACE_GC(("FREE: Freeing object @%p class %s - merging onto block @%p\n",
                                        ob, ob->class ? CLASS_CB(ob->class)->name : "?", curr));
@@ -457,34 +488,37 @@ static uintptr_t doSweep(Thread *self) {
 marked:
         marked++;
 
-        if(HDR_REF_OBJ(hdr)) {
-            Object *referent = (Object *)INST_DATA(ob)[ref_referent_offset];
+        if(HDR_SPECIAL_OBJ(hdr)) {
+            ClassBlock *cb = CLASS_CB(ob->class);
 
-            if(referent != NULL) {
-                int ref_mark = IS_MARKED(referent);
-                ClassBlock *cb = CLASS_CB(ob->class);
+            if(IS_REFERENCE(cb)) {
+                Object *referent = (Object *)INST_DATA(ob)[ref_referent_offset];
 
-                TRACE_GC(("FREE: found Reference Object @%p class %s flags %d referent %x mark %d\n",
-                          ob, cb->name, cb->flags, referent, ref_mark));
+                if(referent != NULL) {
+                    int ref_mark = IS_MARKED(referent);
 
-                if(IS_PHANTOM_REFERENCE(cb)) {
-                    if(ref_mark != PHANTOM_MARK)
-                        goto out;
-                } else {
-                    if(ref_mark == HARD_MARK)
-                        goto out;
+                    TRACE_GC(("FREE: found Reference Object @%p class %s flags %d referent %x mark %d\n",
+                              ob, cb->name, cb->flags, referent, ref_mark));
 
-                    TRACE_GC("Clearing the referent field.\n");
-                    INST_DATA(ob)[ref_referent_offset] = 0;
-                    cleared++;
-                }
+                    if(IS_PHANTOM_REFERENCE(cb)) {
+                        if(ref_mark != PHANTOM_MARK)
+                            goto out;
+                    } else {
+                        if(ref_mark == HARD_MARK)
+                            goto out;
 
-                /* If the reference has a queue, add it to the list for enqueuing
-                   by the Reference Handler thread. */
+                        TRACE_GC("FREE: Clearing the referent field.\n");
+                        INST_DATA(ob)[ref_referent_offset] = 0;
+                        cleared++;
+                    }
 
-                if((Object *)INST_DATA(ob)[ref_queue_offset] != NULL) {
-                    TRACE_GC("Adding to list for enqueuing.\n");
-                    ADD_TO_OBJECT_LIST(reference, ob);
+                    /* If the reference has a queue, add it to the list for enqueuing
+                       by the Reference Handler thread. */
+
+                    if((Object *)INST_DATA(ob)[ref_queue_offset] != NULL) {
+                        TRACE_GC("FREE: Adding to list for enqueuing.\n");
+                        ADD_TO_OBJECT_LIST(reference, ob);
+                    }
                 }
             }
         }
@@ -892,15 +926,20 @@ got_it:
             - globals
 */
 
-void markClassStatics(Class *class, int mark_soft_refs) {
+void markClassData(Class *class, int mark, int mark_soft_refs) {
     ClassBlock *cb = CLASS_CB(class);
     FieldBlock *fb = cb->fields;
     int i;
 
-    /* Class has not linked and so is not in-use (and
+    /* Class has not been linked and so is not in-use (and
        statics have not been initialised) */
     if(cb->state < CLASS_LINKED)
         return;
+
+    TRACE_GC(("Marking class %s\n", cb->name));
+
+    if(cb->class_loader != NULL && mark > IS_MARKED(cb->class_loader))
+        markChildren(cb->class_loader, mark, mark_soft_refs);
 
     TRACE_GC(("Marking static fields for class %s\n", cb->name));
 
@@ -909,8 +948,8 @@ void markClassStatics(Class *class, int mark_soft_refs) {
                     ((*fb->type == 'L') || (*fb->type == '['))) {
             Object *ob = (Object *)fb->static_value;
             TRACE_GC(("Field %s %s object @%p\n", fb->name, fb->type, ob));
-            if(ob != NULL && !IS_HARD_MARKED(ob))
-                markChildren(ob, HARD_MARK, mark_soft_refs);
+            if(ob != NULL && mark > IS_MARKED(ob))
+                markChildren(ob, mark, mark_soft_refs);
         }
 }
 
@@ -955,89 +994,96 @@ void scanThread(Thread *thread) {
     }
 }
 
-void markObject(Object *object) {
-    if(IS_OBJECT(object))
+void markObject(Object *object, int mark, int mark_soft_refs) {
+    if(object != NULL && mark > IS_MARKED(object))
+        markChildren(object, mark, mark_soft_refs);
+}
+
+void markRoot(Object *object) {
+    if(object != NULL)
         MARK(object, HARD_MARK);
 }
 
 void markChildren(Object *ob, int mark, int mark_soft_refs) {
+    Class *class = ob->class;
+    ClassBlock *cb = CLASS_CB(class);
 
     SET_MARK(ob, mark);
 
-    if(ob->class == NULL)
+    if(class == NULL)
         return;
  
-    if(IS_CLASS(ob)) {
-        TRACE_GC(("Found class object @%p name is %s\n", ob, CLASS_CB(ob)->name));
-        markClassStatics((Class*)ob, mark_soft_refs);
-    } else {
-        Class *class = ob->class;
-        ClassBlock *cb = CLASS_CB(class);
+    if(cb->name[0] == '[') {
+        if((cb->name[1] == 'L') || (cb->name[1] == '[')) {
+            Object **body = ARRAY_DATA(ob);
+            int len = ARRAY_LEN(ob);
+            int i;
+            TRACE_GC(("Scanning Array object @%p class is %s len is %d\n", ob, cb->name, len));
 
-        if(cb->name[0] == '[') {
-            if((cb->name[1] == 'L') || (cb->name[1] == '[')) {
-                Object **body = ARRAY_DATA(ob);
-                int len = ARRAY_LEN(ob);
-                int i;
-                TRACE_GC(("Scanning Array object @%p class is %s len is %d\n", ob, cb->name, len));
+            for(i = 0; i < len; i++) {
+                Object *ob = *body++;
+                TRACE_GC(("Object at index %d is @%p\n", i, ob));
 
-                for(i = 0; i < len; i++) {
-                    Object *ob = *body++;
-                    TRACE_GC(("Object at index %d is @%p\n", i, ob));
-
-                    if(ob != NULL && mark > IS_MARKED(ob))
-                        markChildren(ob, mark, mark_soft_refs);
-                }
-            } else {
-                TRACE_GC(("Array object @%p class is %s  - Not Scanning...\n", ob, cb->name));
+                if(ob != NULL && mark > IS_MARKED(ob))
+                    markChildren(ob, mark, mark_soft_refs);
             }
         } else {
-            uintptr_t *body = INST_DATA(ob);
-            int i;
+            TRACE_GC(("Array object @%p class is %s  - Not Scanning...\n", ob, cb->name));
+        }
+    } else {
+        uintptr_t *body = INST_DATA(ob);
+        int i;
 
-            if(IS_REFERENCE(cb)) {
-                Object *referent = (Object *)body[ref_referent_offset];
+        if(IS_CLASS(ob)) {
+            TRACE_GC(("Found class object @%p name is %s\n", ob, CLASS_CB(ob)->name));
+            markClassData((Class*)ob, mark, mark_soft_refs);
+        } else
+            if(IS_CLASS_LOADER(cb)) {
+                TRACE_GC(("Mark found class loader @%p class %s\n", ob, cb->name));
+                markLoaderClasses(ob, mark, mark_soft_refs);
+            } else
+                if(IS_REFERENCE(cb)) {
+                    Object *referent = (Object *)body[ref_referent_offset];
 
-                TRACE_GC(("Mark found Reference object @%p class %s flags %d referent %p\n",
-                         ob, cb->name, cb->flags, referent));
+                    TRACE_GC(("Mark found Reference object @%p class %s flags %d referent %p\n",
+                             ob, cb->name, cb->flags, referent));
 
-                if(!IS_WEAK_REFERENCE(cb) && referent != NULL) {
-                    int ref_mark = IS_MARKED(referent);
-                    int new_mark;
+                    if(!IS_WEAK_REFERENCE(cb) && referent != NULL) {
+                        int ref_mark = IS_MARKED(referent);
+                        int new_mark;
 
-                    if(IS_PHANTOM_REFERENCE(cb))
-                        new_mark = PHANTOM_MARK;
-                    else
-                        if(!IS_SOFT_REFERENCE(cb) || mark_soft_refs)
-                            new_mark = mark;
+                        if(IS_PHANTOM_REFERENCE(cb))
+                            new_mark = PHANTOM_MARK;
                         else
-                            new_mark = 0;
+                            if(!IS_SOFT_REFERENCE(cb) || mark_soft_refs)
+                                new_mark = mark;
+                            else
+                                new_mark = 0;
 
-                    if(new_mark > ref_mark) {
-                       TRACE_GC(("Marking referent object @%p mark %d ref_mark %d new_mark %d\n",
-                                                            referent, mark, ref_mark, new_mark));
-                        markChildren(referent, new_mark, mark_soft_refs);
+                        if(new_mark > ref_mark) {
+                            TRACE_GC(("Marking referent object @%p mark %d ref_mark %d new_mark %d\n",
+                                                                    referent, mark, ref_mark, new_mark));
+                            markChildren(referent, new_mark, mark_soft_refs);
+                        }
                     }
                 }
-            }
 
-            TRACE_GC(("Scanning object @%p class is %s\n", ob, cb->name));
+        TRACE_GC(("Scanning object @%p class is %s\n", ob, cb->name));
 
-            /* The reference offsets table consists of a list of start and
-               end offsets corresponding to the references within the object's
-               instance data.  Scan the list, and mark all references. */
+        /* The reference offsets table consists of a list of start and
+           end offsets corresponding to the references within the object's
+           instance data.  Scan the list, and mark all references. */
 
-            for(i = 0; i < cb->refs_offsets_size; i++) {
-                int offset = cb->refs_offsets_table[i].start;
-                int end = cb->refs_offsets_table[i].end;
+        for(i = 0; i < cb->refs_offsets_size; i++) {
+            int offset = cb->refs_offsets_table[i].start;
+            int end = cb->refs_offsets_table[i].end;
 
-                for(; offset < end; offset++) {
-                    Object *ob = (Object *)body[offset];
-                    TRACE_GC(("Offset %d reference @%p\n", offset, ob));
+            for(; offset < end; offset++) {
+                Object *ob = (Object *)body[offset];
+                TRACE_GC(("Offset %d reference @%p\n", offset, ob));
 
-                    if(ob != NULL && mark > IS_MARKED(ob))
-                        markChildren(ob, mark, mark_soft_refs);
-                }
+                if(ob != NULL && mark > IS_MARKED(ob))
+                    markChildren(ob, mark, mark_soft_refs);
             }
         }
     }
@@ -1197,9 +1243,9 @@ Object *allocObject(Class *class) {
         /* If the object is an instance of a Reference class
            mark it by setting the bit in the chunk header */
 
-        if(IS_REFERENCE(cb)) {
+        if(IS_SPECIAL(cb)) {
             uintptr_t *hdr = (uintptr_t*)(((char*)ob)-HEADER_SIZE);
-            *hdr |= REFERENCE_BIT;
+            *hdr |= SPECIAL_BIT;
         }
 
         TRACE_ALLOC(("<ALLOC: allocated %s object @%p>\n", cb->name, ob));
@@ -1358,6 +1404,9 @@ Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
 
 Class *allocClass() {
     Class *class = (Class*)gcMalloc(sizeof(ClassBlock)+sizeof(Class));
+    uintptr_t *hdr = (uintptr_t*)(((char*)class)-HEADER_SIZE);
+    *hdr |= SPECIAL_BIT;
+
     TRACE_ALLOC(("<ALLOC: allocated class object @%p>\n", class));
     return class; 
 }
@@ -1378,7 +1427,7 @@ Object *cloneObject(Object *ob) {
 
         if(IS_REFERENCE(CLASS_CB(clone->class))) {
             uintptr_t *hdr = (uintptr_t*)(((char*)clone)-HEADER_SIZE);
-            *hdr |= REFERENCE_BIT;
+            *hdr |= SPECIAL_BIT;
         }
 
         TRACE_ALLOC(("<ALLOC: cloned object @%p clone @%p>\n", ob, clone));

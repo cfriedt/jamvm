@@ -258,7 +258,7 @@ void markJNIGlobalRefs() {
 
     for(i = 0; i < global_ref_next; i++)
         if(global_ref_table[i])
-            markObject(global_ref_table[i]);
+            markRoot(global_ref_table[i]);
 
     unlockVMLock(global_ref_lock, self);
 }

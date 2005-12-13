@@ -52,6 +52,8 @@ static int bcp_entries;
 int ref_referent_offset = -1;
 int ref_queue_offset;
 
+int ldr_vmdata_offset = -1;
+
 Class *java_lang_Class = NULL;
 
 /* Method table index of ClassLoader.loadClass - used when
@@ -86,21 +88,37 @@ static Class *prim_classes[MAX_PRIM_CLASSES];
 #define READ_INDEX(v,p,l)               READ_U2(v,p,l)
 #define READ_TYPE_INDEX(v,cp,t,p,l)     READ_U2(v,p,l)
 
-/* Forward declarations */
-int searchClassInitiatingLoaders(Object *class_loader, Class *class);
-
-static Class *addClassToHash(Class *class) {
+static Class *addClassToHash(Class *class, Object *class_loader) {
+    HashTable *table;
     Class *entry;
 
 #define HASH(ptr) utf8Hash(CLASS_CB((Class *)ptr)->name)
 #define COMPARE(ptr1, ptr2, hash1, hash2) (hash1 == hash2) && \
-                     utf8Comp(CLASS_CB((Class *)ptr1)->name, CLASS_CB((Class *)ptr2)->name) && \
-                     ((CLASS_CB((Class*)ptr1)->class_loader == CLASS_CB((Class *)ptr2)->class_loader) || \
-                     ((CLASS_CB((Class*)ptr1)->class_loader != NULL) && \
-                     searchClassInitiatingLoaders(CLASS_CB((Class*)ptr1)->class_loader, (Class *)ptr2)))
+                     utf8Comp(CLASS_CB((Class *)ptr1)->name, CLASS_CB((Class *)ptr2)->name)
+
+    if(class_loader == NULL)
+        table = &loaded_classes;
+    else {
+        Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+
+        if(vmdata == NULL) {
+            HashTable **array_data;
+
+            if((vmdata = allocTypeArray(sizeof(uintptr_t) == 4 ? T_INT : T_LONG, 1)) == NULL)
+                return NULL;
+
+            table = sysMalloc(sizeof(HashTable));
+            initHashTable((*table), INITSZE, TRUE);
+
+            array_data = ARRAY_DATA(vmdata);
+            *array_data = table;
+            INST_DATA(class_loader)[ldr_vmdata_offset] = (uintptr_t)vmdata;
+        } else
+            table = *(HashTable**)ARRAY_DATA(vmdata);
+    }
 
     /* Add if absent, no scavenge, locked */
-    findHashEntry(loaded_classes, class, entry, TRUE, FALSE, TRUE);
+    findHashEntry((*table), class, entry, TRUE, FALSE, TRUE);
 
     return entry;
 }
@@ -115,28 +133,6 @@ static void prepareClass(Class *class) {
           findSystemClass0("java/lang/Class");
        class->class = java_lang_Class;
     }
-}
-
-static void freeClassData(Class *class) {
-    ClassBlock *cb = CLASS_CB(class);
-    int i;
-
-    free((void*)cb->constant_pool.type);
-    free(cb->constant_pool.info);
-    free(cb->interfaces);
-    free(cb->fields);
-
-    for(i = 0; i < cb->methods_count; i++) {
-        MethodBlock *mb = &cb->methods[i];
-
-        free(mb->code);
-        free(mb->exception_table);
-        free(mb->line_no_table);
-        free(mb->throw_table);
-    }
-
-    free(cb->methods);
-    free(cb->inner_classes);
 }
 
 Class *defineClass(char *classname, char *data, int offset, int len, Object *class_loader) {
@@ -462,8 +458,8 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
 
     classblock->state = CLASS_LOADED;
 
-    if((found = addClassToHash(class)) != class) {
-        freeClassData(class);
+    if((found = addClassToHash(class, class_loader)) != class) {
+        classblock->flags = CLASS_CLASH;
         if(class_loader != NULL) {
             signalException("java/lang/LinkageError", "duplicate class definition");
             return NULL;
@@ -534,15 +530,14 @@ createArrayClass(char *classname, Object *class_loader) {
 
     prepareClass(class);
 
-    if((found = addClassToHash(class)) == class) {
+    if((found = addClassToHash(class, classblock->class_loader)) == class) {
         if(verbose)
             printf("[Created array class %s]\n", classname);
         return class;
     }
 
 error:
-    free(classblock->name);
-    free(classblock->interfaces);
+    classblock->flags = CLASS_CLASH;
     return found;
 }
 
@@ -616,7 +611,7 @@ void linkClass(Class *class) {
    MethodBlock *finalizer;
    MethodBlock *mb;
    FieldBlock *fb;
-   RefsOffsetsEntry *spr_rfs_offsts_tbl;
+   RefsOffsetsEntry *spr_rfs_offsts_tbl = NULL;
    int spr_rfs_offsts_sze = 0;
 
    Class *super = (cb->access_flags & ACC_INTERFACE) ? NULL : cb->super;
@@ -949,6 +944,20 @@ void linkClass(Class *class) {
                    cb->flags |= PHANTOM_REFERENCE;
    }
 
+   /* Handle class loader classes */
+
+   if(ldr_vmdata_offset == -1 && strcmp(cb->name, "java/lang/ClassLoader") == 0) {
+       FieldBlock *ldr_fb = findField(class, "vmdata", "Ljava/lang/Object;");
+
+       if(ldr_fb == NULL) {
+           fprintf(stderr, "Expected vmdata field missing in java.lang.ClassLoader\n");
+           exitVM(1);
+       }
+
+       ldr_vmdata_offset = ldr_fb->offset;
+       cb->flags |= CLASS_LOADER;
+   }
+
    /* Construct the reference offsets list.  This is used to speed up
       scanning of an objects references during the mark phase of GC. */
 
@@ -1125,56 +1134,38 @@ Class *loadSystemClass(char *classname) {
     return class;
 }
 
-#define INIT_LDR_CACHE_INC 4
-
-/* The initiating loaders list for a class is scanned while searching
-   the loaded class hash table.  This means the hash table lock is held.  
-   Therefore, use the hash table lock to protect the lists when
-   adding an initiating loader to the class. */
-
 void addInitiatingLoaderToClass(Object *class_loader, Class *class) {
     ClassBlock *cb = CLASS_CB(class);
 
     /* The defining class loader is automatically an initiating
        loader so don't add again */
-    if(cb->class_loader != class_loader) {
-        lockHashTable(loaded_classes);
-        if((cb->init_loaders_count % INIT_LDR_CACHE_INC) == 0) {
-            int new_size = cb->init_loaders_count + INIT_LDR_CACHE_INC;
-            cb->initiating_loaders = sysRealloc(cb->initiating_loaders,
-                                                new_size * sizeof(Object *));
-        }
-
-        cb->initiating_loaders[cb->init_loaders_count++] = class_loader;
-        unlockHashTable(loaded_classes);
-    }
-}
-
-int searchClassInitiatingLoaders(Object *class_loader, Class *class) {
-    ClassBlock *cb = CLASS_CB(class);
-    int i;
-
-    for(i = 0; i < cb->init_loaders_count; i++)
-        if(cb->initiating_loaders[i] == class_loader)
-            return TRUE;
-
-    return FALSE;
+    if(cb->class_loader != class_loader)
+        addClassToHash(class, class_loader);
 }
 
 Class *findHashedClass(char *classname, Object *class_loader) {
+   HashTable *table;
    Class *class;
 
 #undef HASH
 #undef COMPARE
 #define HASH(ptr) utf8Hash(ptr)
 #define COMPARE(ptr1, ptr2, hash1, hash2) (hash1 == hash2) && \
-                     utf8Comp(ptr1, CLASS_CB((Class *)ptr2)->name) && \
-                     ((CLASS_CB((Class *)ptr2)->class_loader == class_loader) || \
-                     ((class_loader != NULL) && \
-                     searchClassInitiatingLoaders(class_loader, (Class *)ptr2)))
+                     utf8Comp(ptr1, CLASS_CB((Class *)ptr2)->name)
+
+    if(class_loader == NULL)
+        table = &loaded_classes;
+    else {
+        Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+
+        if(vmdata == NULL)
+            return NULL;
+
+        table = *(HashTable**)ARRAY_DATA(vmdata);
+    }
 
     /* Do not add if absent, no scavenge, locked */
-   findHashEntry(loaded_classes, classname, class, FALSE, FALSE, TRUE);
+   findHashEntry((*table), classname, class, FALSE, FALSE, TRUE);
 
    return class;
 }
@@ -1320,30 +1311,87 @@ Object *getSystemClassLoader() {
 
 /* gc support for marking classes */
 
-void markClass(Class *class) {
-    ClassBlock *cb = CLASS_CB(class);
-    int i;
+#define ITERATE(ptr)  markRoot(ptr)
 
-    markObject((Object*)class);
-    markObject(cb->class_loader);
-
-    for(i = 0; i < cb->init_loaders_count; i++)
-        markObject(cb->initiating_loaders[i]);
-
-    for(i = 0; i < CLASS_PAD_SIZE; i++)
-        markObject((Object*)(cb->pad[i]));
-}
-
-#define ITERATE(ptr)  markClass(ptr)
-
-void markClasses() {
+void markBootClasses() {
    int i;
 
    hashIterate(loaded_classes);
 
    for(i = 0; i < MAX_PRIM_CLASSES; i++)
        if(prim_classes[i] != NULL)
-           markClass(prim_classes[i]);
+           markRoot((Object*)prim_classes[i]);
+}
+
+#undef ITERATE
+#define ITERATE(ptr)                                         \
+    if(CLASS_CB((Class *)ptr)->class_loader == class_loader) \
+        markObject(ptr, mark, mark_soft_refs)
+
+void markLoaderClasses(Object *class_loader, int mark, int mark_soft_refs) {
+    Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+
+    if(vmdata != NULL) {
+        HashTable **table = ARRAY_DATA(vmdata);
+        hashIterate((**table));
+    }
+}
+
+void freeClassData(Class *class) {
+    ClassBlock *cb = CLASS_CB(class);
+    int i;
+
+    if(IS_ARRAY(cb)) {
+        free(cb->name);
+        free(cb->interfaces);
+        return;
+    }
+
+    free((void*)cb->constant_pool.type);
+    free(cb->constant_pool.info);
+    free(cb->interfaces);
+    free(cb->fields);
+
+    for(i = 0; i < cb->methods_count; i++) {
+        MethodBlock *mb = &cb->methods[i];
+
+        free((void*)((uintptr_t)mb->code & ~1));
+        free(mb->exception_table);
+        free(mb->line_no_table);
+        free(mb->throw_table);
+    }
+
+    free(cb->methods);
+    free(cb->inner_classes);
+
+   if(cb->state >= CLASS_LINKED) {
+        ClassBlock *super_cb = CLASS_CB(cb->super);
+
+        /* interfaces do not have a method table, or 
+            imethod table offsets  */
+        if(!IS_INTERFACE(cb)) {
+             int spr_imthd_sze = super_cb->imethod_table_size;
+
+            free(cb->method_table);
+            if(cb->imethod_table_size > spr_imthd_sze)
+                free(cb->imethod_table[spr_imthd_sze].offsets);
+        }
+
+        free(cb->imethod_table);
+
+        if(cb->refs_offsets_table != super_cb->refs_offsets_table)
+            free(cb->refs_offsets_table);
+    }
+}
+
+void freeClassLoaderData(Object *class_loader) {
+    Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+
+    if(vmdata != NULL) {
+        HashTable **table = ARRAY_DATA(vmdata);
+        freeHashTable((**table));
+        free(*table);
+    }
 }
 
 int parseBootClassPath(char *cp_var) {

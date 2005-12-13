@@ -300,14 +300,14 @@
 
 /* Class states */
 
-#define CLASS_LOADED            0
-#define CLASS_LINKED            1
-#define CLASS_BAD               2
-#define CLASS_INITING           3
-#define CLASS_INITED            4
+#define CLASS_LOADED            1
+#define CLASS_LINKED            2
+#define CLASS_BAD               3
+#define CLASS_INITING           4
+#define CLASS_INITED            5
 
-#define CLASS_ARRAY             5
-#define CLASS_PRIM              6
+#define CLASS_ARRAY             6
+#define CLASS_PRIM              7
 
 /* Class flags */
 
@@ -316,6 +316,8 @@
 #define WEAK_REFERENCE          4
 #define PHANTOM_REFERENCE       8
 #define FINALIZED               16 
+#define CLASS_LOADER            32
+#define CLASS_CLASH             64
 
 typedef unsigned char           u1;
 typedef unsigned short          u2;
@@ -473,8 +475,6 @@ typedef struct classblock {
    int initing_tid;
    int dim;
    Object *class_loader;
-   int init_loaders_count;
-   Object **initiating_loaders;
    u2 declaring_class;
    u2 inner_access_flags;
    u2 inner_class_count;
@@ -534,6 +534,10 @@ typedef struct prop {
 #define IS_SOFT_REFERENCE(cb)		(cb->flags & SOFT_REFERENCE)
 #define IS_WEAK_REFERENCE(cb)		(cb->flags & WEAK_REFERENCE)
 #define IS_PHANTOM_REFERENCE(cb)	(cb->flags & PHANTOM_REFERENCE)
+#define IS_CLASS_LOADER(cb)		(cb->flags & CLASS_LOADER)
+#define IS_CLASS_DUP(cb)		(cb->flags & CLASS_CLASH)
+
+#define IS_SPECIAL(cb)			(cb->flags & (REFERENCE | CLASS_LOADER))
 
 /* Macros for accessing constant pool entries */
 
@@ -594,7 +598,8 @@ extern Object *allocTypeArray(int type, int size);
 extern Object *allocArray(Class *class, int size, int el_size);
 extern Object *allocMultiArray(Class *array_class, int dim, intptr_t *count);
 extern Object *cloneObject(Object *ob);
-extern void markObject(Object *ob);
+extern void markRoot(Object *ob);
+extern void markObject(Object *ob, int mark, int mark_soft_refs);
 
 extern void gc1();
 extern void runFinalizers();
@@ -633,6 +638,9 @@ extern Object *bootClassPathResource(char *filename, int index);
 extern Class *findClassFromClassLoader(char *, Object *);
 #define findClassFromClass(name, class) \
                     findClassFromClassLoader(name, CLASS_CB(class)->class_loader)
+
+extern void freeClassData(Class *class);
+extern void freeClassLoaderData(Object *class_loader);
 
 extern char *getClassPath();
 extern char *getBootClassPath();

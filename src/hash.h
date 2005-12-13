@@ -130,3 +130,7 @@ extern void resizeHash(HashTable *table, int new_size);
             ITERATE(data);                                                         \
     }                                                                              \
 }
+
+#define freeHashTable(table)                                                       \
+    free(table.hash_table);
+

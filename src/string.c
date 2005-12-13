@@ -28,7 +28,7 @@
 #define HASH(ptr) stringHash(ptr)
 #define COMPARE(ptr1, ptr2, hash1, hash2) (ptr1 == ptr2) || \
                   ((hash1 == hash2) && stringComp(ptr1, ptr2))
-#define ITERATE(ptr)  markObject(ptr)
+#define ITERATE(ptr)  markRoot(ptr)
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
 #define FOUND(ptr)
