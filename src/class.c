@@ -41,6 +41,7 @@ static char *bootpath;
 static char *classpath;
 static int max_cp_element_len;
 
+/* Structures holding the boot loader classpath */
 typedef struct bcp_entry {
     char *path;
     ZipFile *zip;
@@ -49,10 +50,12 @@ typedef struct bcp_entry {
 static BCPEntry *bootclasspath;
 static int bcp_entries;
 
+/* Cached offsets of fields in java.lang.ref.Reference objects */
 int ref_referent_offset = -1;
 int ref_queue_offset;
 
-int ldr_vmdata_offset = -1;
+/* Cached offset of vmdata field in java.lang.ClassLoader objects */
+static int ldr_vmdata_offset = -1;
 
 Class *java_lang_Class = NULL;
 
@@ -60,11 +63,14 @@ Class *java_lang_Class = NULL;
    requesting a Java-level class loader to load a class.
    Cached on first use. */
 static int loadClass_mtbl_idx = -1;
+
+/* Method table index of finalizer method and ClassLoader.enqueue.
+   Used by finalizer and reference handler threads */
 int finalize_mtbl_idx;
 int enqueue_mtbl_idx;
 
-/* hash table containing loaded classes and internally
-   created arrays */
+/* hash table containing classes loaded by the boot loader and
+   internally created arrays */
 
 #define INITSZE 1<<8
 static HashTable loaded_classes;
@@ -1368,7 +1374,7 @@ void freeClassData(Class *class) {
         ClassBlock *super_cb = CLASS_CB(cb->super);
 
         /* interfaces do not have a method table, or 
-            imethod table offsets  */
+            imethod table offsets */
         if(!IS_INTERFACE(cb)) {
              int spr_imthd_sze = super_cb->imethod_table_size;
 
@@ -1523,3 +1529,4 @@ void initialiseClass(char *classpath, char *bootpath, char bootpathopt, int verb
     /* Init hash table, and create lock */
     initHashTable(loaded_classes, INITSZE, TRUE);
 }
+

@@ -961,6 +961,7 @@ void scanThread(Thread *thread) {
     TRACE_GC(("Scanning stacks for thread 0x%x\n", thread));
 
     MARK(ee->thread, HARD_MARK);
+//    MARK(ee->exception, HARD_MARK);
 
     slot = (uintptr_t*)getStackTop(thread);
     end = (uintptr_t*)getStackBase(thread);
@@ -1012,7 +1013,10 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
 
     if(class == NULL)
         return;
- 
+
+    if(mark > IS_MARKED(class))
+        markChildren((Object*)class, mark, mark_soft_refs);
+
     if(cb->name[0] == '[') {
         if((cb->name[1] == 'L') || (cb->name[1] == '[')) {
             Object **body = ARRAY_DATA(ob);
