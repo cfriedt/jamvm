@@ -318,6 +318,7 @@
 #define FINALIZED               16 
 #define CLASS_LOADER            32
 #define CLASS_CLASH             64
+#define VMTHROWABLE             128
 
 typedef unsigned char           u1;
 typedef unsigned short          u2;
@@ -536,6 +537,7 @@ typedef struct prop {
 #define IS_PHANTOM_REFERENCE(cb)	(cb->flags & PHANTOM_REFERENCE)
 #define IS_CLASS_LOADER(cb)		(cb->flags & CLASS_LOADER)
 #define IS_CLASS_DUP(cb)		(cb->flags & CLASS_CLASH)
+#define IS_VMTHROWABLE(cb)		(cb->flags & VMTHROWABLE)
 
 #define IS_SPECIAL(cb)			(cb->flags & (REFERENCE | CLASS_LOADER))
 

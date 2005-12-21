@@ -55,8 +55,9 @@ int ref_referent_offset = -1;
 int ref_queue_offset;
 
 /* Cached offset of vmdata field in java.lang.ClassLoader objects */
-static int ldr_vmdata_offset = -1;
+int ldr_vmdata_offset = -1;
 
+/* Instance of java.lang.Class for java.lang.Class */
 Class *java_lang_Class = NULL;
 
 /* Method table index of ClassLoader.loadClass - used when

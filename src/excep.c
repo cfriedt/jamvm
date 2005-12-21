@@ -46,6 +46,7 @@ void initialiseException() {
             fprintf(stderr, "Error initialising VM (initialiseException)\n");
             exitVM(1);
         }
+        CLASS_CB(vmthrow_class)->flags |= VMTHROWABLE;
         backtrace_offset = bcktrce->offset;
         inited = TRUE;
     }
@@ -266,4 +267,18 @@ Object *convertStackTrace(Object *vmthrwble) {
     }
 
     return ste_array;
+}
+
+void *markVMThrowable(Object *vmthrwble, int mark, int mark_soft_refs) {
+    Object *array;
+
+    if((array = (Object *)INST_DATA(vmthrwble)[backtrace_offset]) != NULL) {
+        uintptr_t *src = ARRAY_DATA(array);
+        int i, depth = ARRAY_LEN(array);
+
+        for(i = 0; i < depth; i += 2) {
+            MethodBlock *mb = (MethodBlock*)src[i];
+            markObject((Object*)mb->class, mark, mark_soft_refs);
+        }
+    }
 }

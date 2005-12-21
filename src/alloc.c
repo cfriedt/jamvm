@@ -144,6 +144,7 @@ extern int ref_referent_offset;
 extern int ref_queue_offset;
 extern int finalize_mtbl_idx;
 extern int enqueue_mtbl_idx;
+extern int ldr_vmdata_offset;
 
 /* The possible ways in which a reference may be marked in
    the mark bit array */
@@ -363,7 +364,6 @@ static void doMark(Thread *self, int mark_soft_refs) {
          if(element && !IS_MARKED(element)) element = NULL
 
     ITERATE_OBJECT_LIST(reference, CLEAR_UNMARKED);
-
 }
 
 static uintptr_t doSweep(Thread *self) {
@@ -958,10 +958,14 @@ void scanThread(Thread *thread) {
     Frame *frame = ee->last_frame;
     uintptr_t *end, *slot;
 
-    TRACE_GC(("Scanning stacks for thread 0x%x\n", thread));
+    TRACE_GC(("Scanning stacks for thread 0x%x id %d\n", thread, thread->id));
 
     MARK(ee->thread, HARD_MARK);
-//    MARK(ee->exception, HARD_MARK);
+
+    /* If there's a pending exception raised
+       on this thread mark it */
+    if(ee->exception)
+        MARK(ee->exception, HARD_MARK);
 
     slot = (uintptr_t*)getStackTop(thread);
     end = (uintptr_t*)getStackBase(thread);
@@ -979,6 +983,10 @@ void scanThread(Thread *thread) {
         if(frame->mb != NULL) {
             TRACE_GC(("Scanning %s.%s\n", CLASS_CB(frame->mb->class)->name, frame->mb->name));
             TRACE_GC(("lvars @%p ostack @%p\n", frame->lvars, frame->ostack));
+
+            /* Mark the method's defining class.  This should always
+               be reachable otherwise, but mark to be safe */
+            MARK(frame->mb->class, HARD_MARK);
         }
 
         end = frame->ostack;
@@ -1043,34 +1051,38 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
             markClassData((Class*)ob, mark, mark_soft_refs);
         } else
             if(IS_CLASS_LOADER(cb)) {
-                TRACE_GC(("Mark found class loader @%p class %s\n", ob, cb->name));
+                TRACE_GC(("Mark found class loader object @%p class %s\n", ob, cb->name));
                 markLoaderClasses(ob, mark, mark_soft_refs);
             } else
-                if(IS_REFERENCE(cb)) {
-                    Object *referent = (Object *)body[ref_referent_offset];
+                if(IS_VMTHROWABLE(cb)) {
+                    TRACE_GC(("Mark found VMThrowable object @%p\n", ob));
+                    markVMThrowable(ob, mark, mark_soft_refs);
+                } else
+                    if(IS_REFERENCE(cb)) {
+                        Object *referent = (Object *)body[ref_referent_offset];
 
-                    TRACE_GC(("Mark found Reference object @%p class %s flags %d referent %p\n",
-                             ob, cb->name, cb->flags, referent));
+                        TRACE_GC(("Mark found Reference object @%p class %s flags %d referent %p\n",
+                                 ob, cb->name, cb->flags, referent));
 
-                    if(!IS_WEAK_REFERENCE(cb) && referent != NULL) {
-                        int ref_mark = IS_MARKED(referent);
-                        int new_mark;
+                        if(!IS_WEAK_REFERENCE(cb) && referent != NULL) {
+                            int ref_mark = IS_MARKED(referent);
+                            int new_mark;
 
-                        if(IS_PHANTOM_REFERENCE(cb))
-                            new_mark = PHANTOM_MARK;
-                        else
-                            if(!IS_SOFT_REFERENCE(cb) || mark_soft_refs)
-                                new_mark = mark;
+                            if(IS_PHANTOM_REFERENCE(cb))
+                                new_mark = PHANTOM_MARK;
                             else
-                                new_mark = 0;
+                                if(!IS_SOFT_REFERENCE(cb) || mark_soft_refs)
+                                    new_mark = mark;
+                                else
+                                    new_mark = 0;
 
-                        if(new_mark > ref_mark) {
-                            TRACE_GC(("Marking referent object @%p mark %d ref_mark %d new_mark %d\n",
-                                                                    referent, mark, ref_mark, new_mark));
-                            markChildren(referent, new_mark, mark_soft_refs);
+                            if(new_mark > ref_mark) {
+                                TRACE_GC(("Marking referent object @%p mark %d ref_mark %d new_mark %d\n",
+                                                                        referent, mark, ref_mark, new_mark));
+                                markChildren(referent, new_mark, mark_soft_refs);
+                            }
                         }
                     }
-                }
 
         TRACE_GC(("Scanning object @%p class is %s\n", ob, cb->name));
 
@@ -1244,7 +1256,7 @@ Object *allocObject(Class *class) {
         if(IS_FINALIZED(cb))
             ADD_FINALIZED_OBJECT(ob);
 
-        /* If the object is an instance of a Reference class
+        /* If the object is an instance of a special class
            mark it by setting the bit in the chunk header */
 
         if(IS_SPECIAL(cb)) {
@@ -1429,9 +1441,12 @@ Object *cloneObject(Object *ob) {
         if(IS_FINALIZED(CLASS_CB(clone->class)))
             ADD_FINALIZED_OBJECT(clone);
 
-        if(IS_REFERENCE(CLASS_CB(clone->class))) {
-            uintptr_t *hdr = (uintptr_t*)(((char*)clone)-HEADER_SIZE);
-            *hdr |= SPECIAL_BIT;
+        if(HDR_SPECIAL_OBJ(hdr)) {
+            uintptr_t *clone_hdr = (uintptr_t*)(((char*)clone)-HEADER_SIZE);
+            *clone_hdr |= SPECIAL_BIT;
+
+            if(IS_CLASS_LOADER(CLASS_CB(clone->class)))
+                INST_DATA(clone)[ldr_vmdata_offset] = 0;
         }
 
         TRACE_ALLOC(("<ALLOC: cloned object @%p clone @%p>\n", ob, clone));
