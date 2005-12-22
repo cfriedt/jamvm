@@ -1,0 +1,7 @@
+.deps
+dll_md.o
+init.o
+libnative.a
+Makefile
+Makefile.in
+libnative.a

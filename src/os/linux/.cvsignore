@@ -1,0 +1,5 @@
+.deps
+dll_os.o
+libos.a
+Makefile
+Makefile.in
