@@ -289,33 +289,41 @@ void *threadStart(void *arg) {
        point will result in an IllegalThreadStateException */
     INST_DATA(jThread)[vmthread_offset] = 0;
 
+    /* Disable suspend to protect lock operation */
+    disableSuspend0(thread, &group);
+
+    /* Grab global lock, and update thread structures protected by
+       it (thread list, thread ID and number of daemon threads) */
+    pthread_mutex_lock(&lock);
+
+    /* remove from thread list... */
+    if((thread->prev->next = thread->next))
+        thread->next->prev = thread->prev;
+
+    /* Recycle the threads thread ID */
+    freeThreadID(thread->id);
+
+    /* Handle daemon thread status */
+    if(!INST_DATA(jThread)[daemon_offset])
+        non_daemon_thrds--;
+
+    pthread_mutex_unlock(&lock);
+
     /* notify any threads waiting on VMThread object -
        these are joining this thread */
-
     objectLock(vmthread);
     objectNotifyAll(vmthread);
     objectUnlock(vmthread);
 
-    disableSuspend0(thread, &group);
-    pthread_mutex_lock(&lock);
-
-    /* remove from thread list... */
-
-    if((thread->prev->next = thread->next))
-        thread->next->prev = thread->prev;
-
-    if(!INST_DATA(jThread)[daemon_offset])
-        non_daemon_thrds--;
-
-    freeThreadID(thread->id);
-
-    pthread_mutex_unlock(&lock);
-    enableSuspend(thread);
-
+    /* Free structures */
     INST_DATA(vmthread)[vmData_offset] = 0;
     free(thread);
     free(ee->stack);
     free(ee);
+
+    /* If no more daemon threads notify the main thread (which
+       may be waiting to exit VM).  Note, this is not protected
+       by lock, but main thread checks again */
 
     if(non_daemon_thrds == 0) {
         /* No need to bother with disabling suspension

@@ -507,7 +507,7 @@ marked:
                         if(ref_mark == HARD_MARK)
                             goto out;
 
-                        TRACE_GC("FREE: Clearing the referent field.\n");
+                        TRACE_GC(("FREE: Clearing the referent field.\n"));
                         INST_DATA(ob)[ref_referent_offset] = 0;
                         cleared++;
                     }
@@ -516,7 +516,7 @@ marked:
                        by the Reference Handler thread. */
 
                     if((Object *)INST_DATA(ob)[ref_queue_offset] != NULL) {
-                        TRACE_GC("FREE: Adding to list for enqueuing.\n");
+                        TRACE_GC(("FREE: Adding to list for enqueuing.\n"));
                         ADD_TO_OBJECT_LIST(reference, ob);
                     }
                 }
