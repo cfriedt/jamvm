@@ -931,17 +931,17 @@ void markClassData(Class *class, int mark, int mark_soft_refs) {
     FieldBlock *fb = cb->fields;
     int i;
 
-    /* Class has not been linked and so is not in-use (and
-       statics have not been initialised) */
-    if(cb->state < CLASS_LINKED)
-        return;
-
     TRACE_GC(("Marking class %s\n", cb->name));
 
     if(cb->class_loader != NULL && mark > IS_MARKED(cb->class_loader))
         markChildren(cb->class_loader, mark, mark_soft_refs);
 
     TRACE_GC(("Marking static fields for class %s\n", cb->name));
+
+    /* If the class has not been linked it's
+       statics will not be initialised */
+    if(cb->state < CLASS_LINKED)
+        return;
 
     for(i = 0; i < cb->fields_count; i++, fb++)
         if((fb->access_flags & ACC_STATIC) &&
