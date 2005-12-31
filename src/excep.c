@@ -269,6 +269,10 @@ Object *convertStackTrace(Object *vmthrwble) {
     return ste_array;
 }
 
+/* GC support for marking classes referenced by a VMThrowable.
+   In rare circumstances a stack backtrace may hold the only
+   reference to a class */
+
 void *markVMThrowable(Object *vmthrwble, int mark, int mark_soft_refs) {
     Object *array;
 
