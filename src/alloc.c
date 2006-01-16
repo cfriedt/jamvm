@@ -399,7 +399,7 @@ static uintptr_t doSweep(Thread *self) {
             freed += size;
             unmarked++;
 
-            if(HDR_SPECIAL_OBJ(hdr)) {
+            if(HDR_SPECIAL_OBJ(hdr) && ob->class != NULL) {
                 if(IS_CLASS(ob)) {
                     if(verbosegc) {
                         ClassBlock *cb = CLASS_CB(ob);
@@ -446,7 +446,7 @@ static uintptr_t doSweep(Thread *self) {
                 freed += size;
                 unmarked++;
 
-                if(HDR_SPECIAL_OBJ(hdr)) {
+                if(HDR_SPECIAL_OBJ(hdr) && ob->class != NULL) {
                     if(IS_CLASS(ob)) {
                         if(verbosegc) {
                             ClassBlock *cb = CLASS_CB(ob);
@@ -488,7 +488,7 @@ static uintptr_t doSweep(Thread *self) {
 marked:
         marked++;
 
-        if(HDR_SPECIAL_OBJ(hdr)) {
+        if(HDR_SPECIAL_OBJ(hdr) && ob->class != NULL) {
             ClassBlock *cb = CLASS_CB(ob->class);
 
             if(IS_REFERENCE(cb)) {
