@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005 Robert Lougher <rob@lougher.demon.co.uk>.
+ * Copyright (C) 2003, 2004, 2005, 2006 Robert Lougher <rob@lougher.demon.co.uk>.
  *
  * This file is part of JamVM.
  *
@@ -114,7 +114,7 @@ void showUsage(char *name) {
 
 void showVersionAndCopyright() {
     printf("JamVM version %s\n", VERSION);
-    printf("Copyright (C) 2003-2005 Robert Lougher <rob@lougher.demon.co.uk>\n\n");
+    printf("Copyright (C) 2003-2006 Robert Lougher <rob@lougher.demon.co.uk>\n\n");
     printf("This program is free software; you can redistribute it and/or\n");
     printf("modify it under the terms of the GNU General Public License\n");
     printf("as published by the Free Software Foundation; either version 2,\n");
