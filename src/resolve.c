@@ -34,8 +34,9 @@ MethodBlock *findMethod(Class *class, char *methodname, char *type) {
    return NULL;
 }
 
-/* A class can't have two fields with the same name but different types - 
-   so we give up if we find a field with the right name but wrong type...
+/* As a Java program can't have two fields with the same name but different types,
+   we used to give up if we found a field with the right name but wrong type.
+   However, obfuscators rename fields, breaking this optimisation.
 */
 FieldBlock *findField(Class *class, char *fieldname, char *type) {
     ClassBlock *cb = CLASS_CB(class);
@@ -43,12 +44,8 @@ FieldBlock *findField(Class *class, char *fieldname, char *type) {
     int i;
 
     for(i = 0; i < cb->fields_count; i++,fb++)
-        if(strcmp(fb->name, fieldname) == 0) {
-           if(strcmp(fb->type, type) == 0)
-               return fb;
-           else
-               return NULL;
-        }
+        if(strcmp(fb->name, fieldname) == 0 && (strcmp(fb->type, type) == 0))
+            return fb;
 
     return NULL;
 }
