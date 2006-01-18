@@ -12,6 +12,16 @@ test -z "$srcdir" && srcdir=.
   echo "Install the appropriate package for your distribution,"
   echo "or get the source tarball at http://ftp.gnu.org/gnu/autoconf"
   DIE=1
+  NO_AUTOCONF=yes
+}
+
+# autoheader is part of autoconf, but check it's present anyway
+test -n "$NO_AUTOCONF" || (autoheader --version) < /dev/null > /dev/null 2>&1 || {
+  echo
+  echo "**Error**: Missing \`autoheader'. This should be part of \'autoconf'."
+  echo "Install the appropriate package for your distribution,"
+  echo "or get the source tarball at http://ftp.gnu.org/gnu/autoconf"
+  DIE=1
 }
 
 (automake --version) < /dev/null > /dev/null 2>&1 || {
@@ -61,6 +71,8 @@ automake --add-missing --gnu ||
   { echo "**Error**: automake failed."; exit 1; }
 echo "Running autoconf ..."
 autoconf || { echo "**Error**: autoconf failed."; exit 1; }
+echo "Running autoheader ..."
+autoheader || { echo "**Error**: autoheader failed."; exit 1; }
 
 if test x$NOCONFIGURE = x; then
   echo Running $srcdir/configure --enable-maintainer-mode "$@" ...
