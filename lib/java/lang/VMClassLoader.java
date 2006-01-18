@@ -1,6 +1,6 @@
 /* VMClassLoader.java -- Reference implementation of native interface
    required by ClassLoader
-   Copyright (C) 1998, 2001, 2002, 2004, 2005 Free Software Foundation
+   Copyright (C) 1998, 2001, 2002, 2004, 2005, 2006 Free Software Foundation
 
 This file is part of GNU Classpath.
 
@@ -123,6 +123,27 @@ final class VMClassLoader
                                  byte[] data, int offset, int len,
                                  ProtectionDomain pd)
     throws ClassFormatError;
+
+  /**
+   * Call the transformers of the possible Instrumentation object. This
+   * implementation assumes the instrumenter is a
+   * <code>InstrumentationImpl</code> object. VM implementors would
+   * have to redefine this method if they provide their own implementation
+   * of the <code>Instrumentation</code> interface.
+   *
+   * @param loader the initiating loader
+   * @param name the name of the class
+   * @param data the data representing the classfile, in classfile format
+   * @param offset the offset into the data where the classfile starts
+   * @param len the length of the classfile data in the array
+   * @param pd the protection domain
+   * @return the new data representing the classfile
+   */
+  static final Class defineClassWithTransformers(ClassLoader loader,
+      String name, byte[] data, int offset, int len, ProtectionDomain pd)
+  {
+    return defineClass(loader, name, data, offset, len, pd);
+  }
 
   /**
    * Helper to resolve all references to other classes from this class.
@@ -296,6 +317,8 @@ final class VMClassLoader
    * for this class.
    */
   static native Class findLoadedClass(ClassLoader cl, String name);
+
+  /* Native helper functions */
 
   private static native int getBootClassPathSize();
   private static native String getBootClassPathResource(String name, int index);
