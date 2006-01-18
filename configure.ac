@@ -1,52 +1,53 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.4.1)
+AM_INIT_AUTOMAKE(jamvm, 1.4.2)
+AC_CONFIG_HEADERS([src/config.h])
 
 AC_ARG_ENABLE(tracegc,
     [  --enable-tracegc         add gc tracing (for debugging)],
     [if test "$enableval" != no; then
-        AC_DEFINE(TRACEGC)
+        AC_DEFINE([TRACEGC],1,[defined if gc tracing enabled for debugging])
     fi],)
 
 AC_ARG_ENABLE(tracealloc,
     [  --enable-tracealloc      add object allocation tracing (for debugging)],
     [if test "$enableval" != no; then
-        AC_DEFINE(TRACEALLOC)
+        AC_DEFINE([TRACEALLOC],1,[defined if object allocation tracing enabled for debugging])
     fi],)
 
 AC_ARG_ENABLE(tracefnlz,
     [  --enable-tracefnlz       add object finalisation tracing (for debugging)],
     [if test "$enableval" != no; then
-        AC_DEFINE(TRACEFNLZ)
+        AC_DEFINE([TRACEFNLZ],1,[defined if object finalisation tracing enabled for debugging])
     fi],)
 
 AC_ARG_ENABLE(tracedll,
     [  --enable-tracedll        add library loading/lookup tracing (for debugging)],
     [if test "$enableval" != no; then
-        AC_DEFINE(TRACEDLL)
+        AC_DEFINE([TRACEDLL],1,[defined if library loading/unloading tracing enabled for debugging])
     fi],)
 
 AC_ARG_ENABLE(tracelock,
     [  --enable-tracelock       add object locking tracing (for debugging)],
     [if test "$enableval" != no; then
-        AC_DEFINE(TRACELOCK)
+        AC_DEFINE([TRACELOCK],1,[defined if object locking tracing enabled for debugging])
     fi],)
 
 AC_ARG_ENABLE(tracethread,
     [  --enable-tracethread     add thread creation tracing (for debugging)],
     [if test "$enableval" != no; then
-        AC_DEFINE(TRACETHREAD)
+        AC_DEFINE([TRACETHREAD],1,[defined if thread creation tracing enabled for debugging])
     fi],)
 
 AC_ARG_ENABLE(trace,
     [  --enable-trace           add all tracing (for debugging)],
     [if test "$enableval" != no; then
-        AC_DEFINE(TRACEGC)
-        AC_DEFINE(TRACEALLOC)
-        AC_DEFINE(TRACEFNLZ)
-        AC_DEFINE(TRACEDLL)
-        AC_DEFINE(TRACELOCK)
-        AC_DEFINE(TRACETHREAD)
+        AC_DEFINE([TRACEGC],1,[defined if gc tracing enabled for debugging])
+        AC_DEFINE([TRACEALLOC],1,[defined if object allocation tracing enabled for debugging])
+        AC_DEFINE([TRACEFNLZ],1,[defined if object finalisation tracing enabled for debugging])
+        AC_DEFINE([TRACEDLL],1,[defined if library loading/unloading tracing enabled for debugging])
+        AC_DEFINE([TRACELOCK],1,[defined if object locking tracing enabled for debugging])
+        AC_DEFINE([TRACETHREAD],1,[defined if thread creation tracing enabled for debugging])
     fi],)
 
 AC_ARG_ENABLE(zip,
@@ -57,11 +58,17 @@ AC_CANONICAL_HOST
 case "$host" in
 i[[456]]86-*-linux*) host_cpu=i386 host_os=linux ;;
 i[[456]]86-*-kfreebsd*) host_cpu=i386 host_os=linux ;;
-i[[456]]86-*-openbsd*) host_cpu=i386 host_os=linux libdl_needed=no ;;
-i[[456]]86-*-freebsd*) host_cpu=i386 host_os=linux libdl_needed=no ;;
+i386-*-openbsd*) host_os=linux libdl_needed=no ;;
+i386-*-freebsd*) host_os=linux libdl_needed=no ;;
 x86_64-*-linux*) host_os=linux ;;
+amd64-*-openbsd*) host_os=linux libdl_needed=no ;;
+amd64-*-freebsd*) host_os=linux libdl_needed=no ;;
 arm*-*-linux*) host_cpu=arm host_os=linux ;;
+arm*-*-openbsd*) host_cpu=arm host_os=linux libdl_needed=no ;;
+arm*-*-freebsd*) host_cpu=arm host_os=linux libdl_needed=no ;;
 powerpc*-*-linux*) host_cpu=powerpc host_os=linux ;;
+powerpc*-*-openbsd*) host_cpu=powerpc host_os=linux libdl_needed=no ;;
+powerpc*-*-freebsd*) host_cpu=powerpc host_os=linux libdl_needed=no ;;
 powerpc-*-darwin*) host_os=darwin ;;
 *) AC_MSG_ERROR($host not supported) ;;
 esac
@@ -92,18 +99,18 @@ AC_ARG_ENABLE(int-prefetch,
      fi])
 
 if test "$enable_int_threading" != no; then
-    AC_DEFINE(THREADED)
+    AC_DEFINE([THREADED],1,[interpreter threaded])
 
     if test "$enable_int_direct" != no; then
-        AC_DEFINE(DIRECT)
+        AC_DEFINE([DIRECT],1,[interpreter direct])
     fi
 
     if test "$enable_int_caching" != no; then
-        AC_DEFINE(USE_CACHE)
+        AC_DEFINE([USE_CACHE],1,[interpreter uses caching])
     fi
 
     if test "$enable_int_prefetch" != no; then
-        AC_DEFINE(PREFETCH)
+        AC_DEFINE([PREFETCH],1,[interpreter uses prefetching])
     fi
 fi
 
@@ -125,6 +132,8 @@ AC_PROG_CC
 AC_PROG_RANLIB
 
 AM_PROG_AS
+
+AC_CHECK_PROGS(JAVAC, ecj jikes "gcj -C" javac)
 
 dnl Checks for libraries.
 
@@ -161,7 +170,7 @@ AC_CHECK_HEADER(ffi.h,,
     fi])
 
 if test "$enable_zip" != no; then
-    AC_DEFINE(USE_ZIP)
+    AC_DEFINE([USE_ZIP],1,[use zip])
     use_zip_yes=
     use_zip_no='#'
 else
@@ -173,7 +182,7 @@ AC_SUBST(use_zip_yes)
 AC_SUBST(use_zip_no)
 
 if test "$enable_ffi" != no; then
-    AC_DEFINE(USE_FFI)
+    AC_DEFINE([USE_FFI],1,[use FFI])
 fi
 
 AC_CHECK_HEADERS(sys/time.h unistd.h endian.h sys/param.h locale.h)
