@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <sys/utsname.h>
 
+#include "jam.h"
+
 /* If we have endian.h include it.  Otherwise, include sys/param.h
    if we have it. If the BYTE_ORDER macro is still undefined, we
    fall-back, and work out the endianness ourselves at runtime --
@@ -36,8 +38,6 @@
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
 #endif
-
-#include "jam.h"
 
 extern Property *commandline_props;
 extern int commandline_props_count;

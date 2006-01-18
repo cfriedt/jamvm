@@ -781,8 +781,8 @@ rewrite_lock:
 #define ARRAY_LOAD_IDX cache.i.v2
 #define ARRAY_LOAD_ARY cache.i.v1
 #else
-#define ARRAY_LOAD_IDX *--ostack;
-#define ARRAY_LOAD_ARY *--ostack;
+#define ARRAY_LOAD_IDX *--ostack
+#define ARRAY_LOAD_ARY *--ostack
 #endif
 
 #define ARRAY_LOAD(TYPE)                              \

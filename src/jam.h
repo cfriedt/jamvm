@@ -19,8 +19,13 @@
  */
 
 #include <stdarg.h>
-#include <stdint.h>
+#include <inttypes.h>
+
+/* Architecture dependent definitions */
 #include "arch.h"
+
+/* Configure options */
+#include "config.h"
 
 #ifndef TRUE
 #define         TRUE    1

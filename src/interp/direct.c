@@ -18,11 +18,13 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/* Must be included first to get configure options */
+#include "jam.h"
+
 #ifdef DIRECT
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <string.h>
-#include "jam.h"
 
 #include "thread.h"
 #include "interp.h"
