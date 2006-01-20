@@ -48,7 +48,7 @@ if test "$DIE" -eq 1; then
   exit 1
 fi
 
-if test -z "$*"; then
+if test -z "$*" -a x$NOCONFIGURE = x; then
   echo "**Warning**: I am going to run \`configure' with no arguments."
   echo "If you wish to pass any to it, please specify them on the"
   echo \`$0\'" command line."
@@ -66,13 +66,13 @@ aclocal $ACLOCAL_FLAGS || {
   exit 1
 }
 
+echo "Running autoheader ..."
+autoheader || { echo "**Error**: autoheader failed."; exit 1; }
 echo "Running automake --gnu ..."
 automake --add-missing --gnu ||
   { echo "**Error**: automake failed."; exit 1; }
 echo "Running autoconf ..."
 autoconf || { echo "**Error**: autoconf failed."; exit 1; }
-echo "Running autoheader ..."
-autoheader || { echo "**Error**: autoheader failed."; exit 1; }
 
 if test x$NOCONFIGURE = x; then
   echo Running $srcdir/configure --enable-maintainer-mode "$@" ...
