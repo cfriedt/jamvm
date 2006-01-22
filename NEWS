@@ -1,3 +1,36 @@
+JamVM 1.4.2 released on 21st January 2006
+=========================================
+
+A summary of changes since 1.4.1:
+
+- JamVM now supports class garbage-collection and unloading.  It is
+  implemented according to the clarifications to the JLS.  This states
+  that a class can not be unloaded while its class loader is reachable.
+  As the loader is reachable while any classes defined by it are
+  reachable, the class loader and all its classes will be collected
+  together.
+
+- Bug-fix for field name/type lookup and obfuscated code.  Previously
+  a minor optimisation halted the search if a name was found with the
+  wrong type (as a class cannot have two fields with the same name).
+  However, this breaks obfuscated code which renames variables.  With 
+  field resolution the optimisation is redundant, as fields are only
+  looked up once.
+
+- Added stub for VMClassLoader.defineClassWithTransformers.  This is
+  a change in the VM interface in the generics branch of Classpath
+  0.20.
+
+- Various build changes :
+    - fix errors/warnings on Open/Free BSD.  Part of this is a move
+      to using config.h.
+
+    - find Java compiler via path (try ecj, then jikes, gcj, javac).
+
+- Fixed a minor garbage-collector bug.  Scan phase could SEGV if a GC
+  occurred when a reference class was partially created.
+
+
 JamVM 1.4.1 released on 28th November 2005
 ==========================================
 

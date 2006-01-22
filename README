@@ -1,4 +1,4 @@
-JamVM 1.4.1
+JamVM 1.4.2
 ===========
 
 Welcome to the eighteenth release of JamVM!
@@ -55,8 +55,8 @@ Mac OS X/Darwin
 BSD Variants
 ------------
 
-OpenBSD  : i386
-FreeBSD  : i386
+OpenBSD  : i386, powerpc, ARM, AMD64 (x86_64).
+FreeBSD  : i386, powerpc, ARM, AMD64 (x86_64).
 KFreeBSD : i386
 
 
@@ -66,8 +66,8 @@ Class Libraries
 JamVM is designed to use the GNU classpath Java class library (see
 http://www.gnu.org/software/classpath).  A number of classes are
 reference classes which must be modified for a particular VM.  These are
-provided and built along with JamVM (see INSTALL).  JamVM 1.4.1 works with
-Classpath version 0.19 (the latest development snapshot).  It should
+provided and built along with JamVM (see INSTALL).  JamVM 1.4.2 works with
+Classpath version 0.20 (the latest development snapshot).  It should
 also work with the latest version direct from CVS (but check the
 Classpath mailing lists for possible patches).  Later snapshots of Classpath
 may also work, if no modifications have been made to the VM interface.
@@ -155,6 +155,8 @@ particular order, is given below.
 - Full GC support for Soft, Weak and Phantom References.  References
   are enqueued using a seperate thread (the reference handler)
 
+- Full GC support for class-unloading
+
 - Garbage collector can run synchronously or asynchronously within its
   own thread
 
@@ -174,4 +176,4 @@ particular order, is given below.
 That's it!
 
 Robert Lougher <rob@lougher.demon.co.uk>
-28th November 2005.
+21st January 2006.
