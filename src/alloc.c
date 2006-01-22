@@ -73,7 +73,7 @@
    -------------------------------------------
                                              ^ alloc bit
                                             ^ flc bit
-                                           ^ reference bit
+                                           ^ special bit
 */
 
 static int verbosegc;
