@@ -18,10 +18,12 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/* Must be included first to get configure options */
+#include "jam.h"
+
 #ifdef USE_FFI
 #include <ffi.h>
 #include <stdio.h>
-#include "jam.h"
 #include "sig.h"
 
 ffi_type *sig2ffi(char sig) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005 Robert Lougher <rob@lougher.demon.co.uk>.
+ * Copyright (C) 2003, 2004, 2005, 2006 Robert Lougher <rob@lougher.demon.co.uk>.
  *
  * This file is part of JamVM.
  *
@@ -18,9 +18,10 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include "../../../jam.h"
+
 #ifndef USE_FFI
 #include <stdio.h>
-#include "../../../jam.h"
 
 /*
  This function calculates the size of the params area needed
