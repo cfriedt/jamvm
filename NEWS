@@ -5,10 +5,10 @@ A summary of changes since 1.4.1:
 
 - JamVM now supports class garbage-collection and unloading.  It is
   implemented according to the clarifications to the JLS.  This states
-  that a class can not be unloaded while its class loader is reachable.
-  As the loader is reachable while any classes defined by it are
-  reachable, the class loader and all its classes will be collected
-  together.
+  that a class may be unloaded if and only if its class loader is
+  unreachable.  As the loader is reachable while any classes defined
+  by it are reachable, the class loader and all its classes will be
+  collected together.
 
 - Bug-fix for field name/type lookup and obfuscated code.  Previously
   a minor optimisation halted the search if a name was found with the
