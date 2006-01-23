@@ -55,7 +55,7 @@ make install
 
 This installs an executable of JamVM with debug information (-g).
 Alternatively, to install a version with no symbols (which is much
-smaller, around 135K on PowerPC and 100K on Intel) type :-
+smaller, around 150K on PowerPC and 110K on Intel) type :-
 
 make install-strip
 
