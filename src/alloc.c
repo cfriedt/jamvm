@@ -938,8 +938,9 @@ void markClassData(Class *class, int mark, int mark_soft_refs) {
 
     TRACE_GC(("Marking static fields for class %s\n", cb->name));
 
-    /* If the class has not been linked it's
-       statics will not be initialised */
+    /* Static fields are initialised to default values during
+       preparation (done in the link phase).  Therefore, don't
+       scan if the class hasn't been linked */
     if(cb->state < CLASS_LINKED)
         return;
 
