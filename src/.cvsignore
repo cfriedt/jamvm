@@ -1,6 +1,8 @@
 .deps
 arch.h
+config.h*
 *.o
 jamvm
 Makefile
 Makefile.in
+stamp-h1
