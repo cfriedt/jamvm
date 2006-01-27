@@ -275,6 +275,8 @@
 #define CONSTANT_NameAndType            12
 
 #define CONSTANT_Resolved               20
+#define CONSTANT_ResolvedClass          25
+#define CONSTANT_ResolvedString         26
 #define CONSTANT_Locked                 21
 
 #define ACC_PUBLIC              0x0001
@@ -606,6 +608,7 @@ extern Object *allocArray(Class *class, int size, int el_size);
 extern Object *allocMultiArray(Class *array_class, int dim, intptr_t *count);
 extern Object *cloneObject(Object *ob);
 extern void markRoot(Object *ob);
+extern void markConservativeRoot(Object *ob);
 extern void markObject(Object *ob, int mark, int mark_soft_refs);
 
 extern void gc1();
@@ -617,6 +620,11 @@ extern unsigned long maxHeapMem();
 
 extern void *sysMalloc(int n);
 extern void *sysRealloc(void *ptr, int n);
+
+extern void registerStaticObjectRef(Object **ob);
+
+#define registerStaticClassRef(ref) \
+    registerStaticObjectRef((Object**)ref);
 
 /* Class */
 

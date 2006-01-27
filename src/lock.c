@@ -477,3 +477,11 @@ void initialiseMonitor() {
     initHashTable(mon_cache, HASHTABSZE, TRUE);
 }
 
+/* GC support */
+
+//#define ITERATE(ptr)  threadReference(&((Monitor *)ptr)->obj)
+#define ITERATE(ptr)  markConservativeRoot(((Monitor *)ptr)->obj)
+
+void threadMonitorCache() {
+   hashIterate(mon_cache);
+}

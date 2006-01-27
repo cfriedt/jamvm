@@ -66,6 +66,9 @@ void initialiseJNI() {
     rawdata_class = findSystemClass0(sizeof(uintptr_t) == 4 ? "gnu/classpath/Pointer32"
                                                             : "gnu/classpath/Pointer64");
 
+    registerStaticClassRef(&buffImpl_class);
+    registerStaticClassRef(&rawdata_class);
+
     buffImpl_init_mb = findMethod(buffImpl_class, "<init>",
                       "(Ljava/lang/Object;Lgnu/classpath/Pointer;III)V");
 
@@ -258,7 +261,7 @@ void markJNIGlobalRefs() {
 
     for(i = 0; i < global_ref_next; i++)
         if(global_ref_table[i])
-            markRoot(global_ref_table[i]);
+            markConservativeRoot(global_ref_table[i]);
 
     unlockVMLock(global_ref_lock, self);
 }

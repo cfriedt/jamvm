@@ -300,7 +300,7 @@ void *threadStart(void *arg) {
     if((thread->prev->next = thread->next))
         thread->next->prev = thread->prev;
 
-    /* Recycle the threads thread ID */
+    /* Recycle the thread's thread ID */
     freeThreadID(thread->id);
 
     /* Handle daemon thread status */
@@ -818,6 +818,7 @@ void initialiseMainThread(int stack_size) {
 
     /* As we're initialising, VM will abort if Thread can't be found */
     thread_class = findSystemClass0("java/lang/Thread");
+    registerStaticClassRef(&thread_class);
 
     vmThread = findField(thread_class, "vmThread", "Ljava/lang/VMThread;");
     daemon = findField(thread_class, "daemon", "Z");
@@ -828,6 +829,8 @@ void initialiseMainThread(int stack_size) {
     run = findMethod(thread_class, "run", "()V");
 
     vmthread_class = findSystemClass0("java/lang/VMThread");
+    registerStaticClassRef(&vmthread_class);
+
     thread = findField(vmthread_class, "thread", "Ljava/lang/Thread;");
     vmData = findField(vmthread_class, "vmData", "I");
 

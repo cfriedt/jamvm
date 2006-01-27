@@ -49,6 +49,14 @@ static int initReflection() {
           !method_reflect_class || !field_array_class || !field_reflect_class)
         return FALSE;
 
+    registerStaticClassRef(&class_array_class);
+    registerStaticClassRef(&cons_array_class);
+    registerStaticClassRef(&method_array_class);
+    registerStaticClassRef(&field_array_class);
+    registerStaticClassRef(&cons_reflect_class);
+    registerStaticClassRef(&method_reflect_class);
+    registerStaticClassRef(&field_reflect_class);
+
     cons_init_mb = findMethod(cons_reflect_class, "<init>",
                "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;I)V");
 

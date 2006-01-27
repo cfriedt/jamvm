@@ -48,6 +48,12 @@ void initialiseException() {
         }
         CLASS_CB(vmthrow_class)->flags |= VMTHROWABLE;
         backtrace_offset = bcktrce->offset;
+
+        registerStaticClassRef(&ste_class);
+        registerStaticClassRef(&ste_array_class);
+        registerStaticClassRef(&vmthrow_class);
+        registerStaticClassRef(&throw_class);
+
         inited = TRUE;
     }
 }

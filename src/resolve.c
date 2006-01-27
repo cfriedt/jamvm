@@ -94,7 +94,7 @@ retry:
         case CONSTANT_Locked:
             goto retry;
 
-        case CONSTANT_Resolved:
+        case CONSTANT_ResolvedClass:
             resolved_class = (Class *)CP_INFO(cp, cp_index);
             break;
 
@@ -123,7 +123,7 @@ retry:
             MBARRIER();
             CP_INFO(cp, cp_index) = (uintptr_t)resolved_class;
             MBARRIER();
-            CP_TYPE(cp, cp_index) = CONSTANT_Resolved;
+            CP_TYPE(cp, cp_index) = CONSTANT_ResolvedClass;
 
             break;
         }
@@ -342,7 +342,7 @@ retry:
                 MBARRIER();
                 CP_INFO(cp, cp_index) = (uintptr_t)findInternedString(string);
                 MBARRIER();
-                CP_TYPE(cp, cp_index) = CONSTANT_Resolved;
+                CP_TYPE(cp, cp_index) = CONSTANT_ResolvedString;
             }
 
             break;

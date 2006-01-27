@@ -131,6 +131,17 @@ extern void resizeHash(HashTable *table, int new_size);
     }                                                                              \
 }
 
+#define hashIterateP(table)                                                        \
+{                                                                                  \
+    int i;                                                                         \
+                                                                                   \
+    for(i = table.hash_size-1; i >= 0; i--) {                                      \
+        void **data = &table.hash_table[i].data;                                   \
+        if(*data)                                                                  \
+            ITERATE(data);                                                         \
+    }                                                                              \
+}
+
 #define freeHashTable(table)                                                       \
     free(table.hash_table);
 

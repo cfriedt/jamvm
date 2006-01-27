@@ -28,7 +28,7 @@
 #define HASH(ptr) stringHash(ptr)
 #define COMPARE(ptr1, ptr2, hash1, hash2) (ptr1 == ptr2) || \
                   ((hash1 == hash2) && stringComp(ptr1, ptr2))
-#define ITERATE(ptr)  markRoot(ptr)
+#define ITERATE(ptr)  markConservativeRoot(ptr)
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
 #define FOUND(ptr)
@@ -131,6 +131,7 @@ void initialiseString() {
 
         /* As we're initialising, VM will abort if String can't be found */
         string_class = findSystemClass0("java/lang/String");
+        registerStaticClassRef(&string_class);
 
         count = findField(string_class, "count", "I");
         value = findField(string_class, "value", "[C");

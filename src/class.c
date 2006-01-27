@@ -279,6 +279,7 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
     interfaces = classblock->interfaces =
                       (Class **)sysMalloc(intf_count * sizeof(Class *));
 
+    memset(interfaces, 0, intf_count * sizeof(Class *));
     for(i = 0; i < intf_count; i++) {
        u2 index;
        READ_TYPE_INDEX(index, constant_pool, CONSTANT_Class, ptr, len);
@@ -1331,6 +1332,19 @@ void markBootClasses() {
 }
 
 #undef ITERATE
+#define ITERATE(ptr)  threadReference(ptr)
+
+void threadBootClasses() {
+   int i;
+
+   hashIterateP(loaded_classes);
+
+   for(i = 0; i < MAX_PRIM_CLASSES; i++)
+       if(prim_classes[i] != NULL)
+           threadReference((Object**)&prim_classes[i]);
+}
+
+#undef ITERATE
 #define ITERATE(ptr)                                         \
     if(CLASS_CB((Class *)ptr)->class_loader == class_loader) \
         markObject(ptr, mark, mark_soft_refs)
@@ -1341,6 +1355,18 @@ void markLoaderClasses(Object *class_loader, int mark, int mark_soft_refs) {
     if(vmdata != NULL) {
         HashTable **table = ARRAY_DATA(vmdata);
         hashIterate((**table));
+    }
+}
+
+#undef ITERATE
+#define ITERATE(ptr)  threadReference(ptr)
+
+void threadLoaderClasses(Object *class_loader, int mark, int mark_soft_refs) {
+    Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+
+    if(vmdata != NULL) {
+        HashTable **table = ARRAY_DATA(vmdata);
+        hashIterateP((**table));
     }
 }
 
@@ -1529,5 +1555,7 @@ void initialiseClass(char *classpath, char *bootpath, char bootpathopt, int verb
 
     /* Init hash table, and create lock */
     initHashTable(loaded_classes, INITSZE, TRUE);
+
+    registerStaticClassRef(&java_lang_Class);
 }
 
