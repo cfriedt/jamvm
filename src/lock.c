@@ -40,8 +40,8 @@
 #define UN_USED -1
 
 #define HASHTABSZE 1<<5
-#define HASH(obj) ((uintptr_t) obj >> LOG_OBJECT_GRAIN)
-#define COMPARE(obj, mon, hash1, hash2) hash1 == hash2
+#define HASH(obj) (getObjectHashcode(obj) >> LOG_OBJECT_GRAIN)
+#define COMPARE(obj, mon, hash1, hash2) hash1 == hash2 && mon->obj == obj
 #define PREPARE(obj) allocMonitor(obj)
 #define FOUND(ptr) COMPARE_AND_SWAP(&ptr->entering, UN_USED, 0)
 
@@ -477,10 +477,13 @@ void initialiseMonitor() {
     initHashTable(mon_cache, HASHTABSZE, TRUE);
 }
 
-/* GC support */
+/* Heap compaction support */
 
-//#define ITERATE(ptr)  threadReference(&((Monitor *)ptr)->obj)
-#define ITERATE(ptr)  markConservativeRoot(((Monitor *)ptr)->obj)
+#define ITERATE(ptr) {               \
+    Monitor *mon = (Monitor*)ptr;    \
+    if(isMarked(mon->obj))           \
+         threadReference(&mon->obj); \
+}
 
 void threadMonitorCache() {
    hashIterate(mon_cache);

@@ -243,8 +243,8 @@ void *threadStart(void *arg) {
      * be waiting on lock when we're added to the thread
      * list, and now liable for suspension */
 
-    thread->stack_base = &group;
-    disableSuspend0(thread, &group);
+    thread->stack_base = &thread;
+    disableSuspend0(thread, &excep);
 
     pthread_mutex_lock(&lock);
     thread->id = genThreadID();
@@ -290,7 +290,7 @@ void *threadStart(void *arg) {
     INST_DATA(jThread)[vmthread_offset] = 0;
 
     /* Disable suspend to protect lock operation */
-    disableSuspend0(thread, &group);
+    disableSuspend0(thread, &excep);
 
     /* Grab global lock, and update thread structures protected by
        it (thread list, thread ID and number of daemon threads) */

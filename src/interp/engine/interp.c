@@ -2121,6 +2121,8 @@ rewrite_lock:
             goto throwException;
         }
 
+ //       if((array_class = CLASS_CB(class)->array_class) == NULL)
+        {
         ac_name = sysMalloc(strlen(name) + 4);
 
         if(name[0] == '[')
@@ -2134,6 +2136,11 @@ rewrite_lock:
         if(exceptionOccured0(ee))
             goto throwException;
 
+//        if(CLASS_CB(class)->array_class && CLASS_CB(class)->array_class != array_class)
+//            printf("DIFFERENT??\n");
+//        CLASS_CB(class)->array_class = array_class;
+        }
+        
         if((obj = allocArray(array_class, count, sizeof(Object*))) == NULL)
             goto throwException;
 

@@ -489,21 +489,22 @@ typedef struct classblock {
    u2 *inner_classes;
    int refs_offsets_size;
    RefsOffsetsEntry *refs_offsets_table;
+   Class *array_class;
 } ClassBlock;
 
 typedef struct frame {
-   MethodBlock *mb;
    CodePntr last_pc;
    uintptr_t *lvars;
    uintptr_t *ostack;
+   MethodBlock *mb;
    struct frame *prev;
 } Frame;
 
 typedef struct jni_frame {
-   MethodBlock *mb;
    Object **next_ref;
    Object **lrefs;
    uintptr_t *ostack;
+   MethodBlock *mb;
    struct frame *prev;
 } JNIFrame;
 
@@ -600,7 +601,7 @@ typedef struct prop {
 /* Alloc */
 
 extern void initialiseAlloc(unsigned long min, unsigned long max, int verbose);
-extern void initialiseGC(int noasyncgc);
+extern void initialiseGC(int noasyncgc, int compact_override, int compact_value);
 extern Class *allocClass();
 extern Object *allocObject(Class *class);
 extern Object *allocTypeArray(int type, int size);
@@ -610,6 +611,7 @@ extern Object *cloneObject(Object *ob);
 extern void markRoot(Object *ob);
 extern void markConservativeRoot(Object *ob);
 extern void markObject(Object *ob, int mark, int mark_soft_refs);
+extern int getObjectHashcode(Object *ob);
 
 extern void gc1();
 extern void runFinalizers();

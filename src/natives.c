@@ -29,6 +29,7 @@
 #include <errno.h>
 
 #include "jam.h"
+#include "alloc.h"
 #include "thread.h"
 #include "lock.h"
 #include "natives.h"
@@ -172,6 +173,9 @@ storeExcep:
 }
 
 uintptr_t *identityHashCode(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Object *ob = (Object*)*ostack;
+    *ostack = getObjectHashcode(ob);
+
     return ++ostack;
 }
 
