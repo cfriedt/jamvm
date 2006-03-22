@@ -215,12 +215,12 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
 
            case CONSTANT_Long:
                READ_U8(*(u8 *)&(CP_INFO(constant_pool,i)), ptr, len);
-               i++;
+               CP_TYPE(constant_pool,++i) = 0;
                break;
                
            case CONSTANT_Double:
                READ_DBL(*(u8 *)&(CP_INFO(constant_pool,i)), ptr, len);
-               i++;
+               CP_TYPE(constant_pool,++i) = 0;
                break;
 
            case CONSTANT_Utf8:
