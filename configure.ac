@@ -70,6 +70,7 @@ powerpc*-*-linux*) host_cpu=powerpc host_os=linux ;;
 powerpc*-*-openbsd*) host_cpu=powerpc host_os=linux libdl_needed=no ;;
 powerpc*-*-freebsd*) host_cpu=powerpc host_os=linux libdl_needed=no ;;
 powerpc-*-darwin*) host_os=darwin ;;
+i[[456]]86-*-darwin*) host_cpu=i386 host_os=darwin ;;
 *) AC_MSG_ERROR($host not supported) ;;
 esac
 
@@ -212,6 +213,7 @@ AC_CONFIG_FILES(
     src/os/linux/arm/Makefile \
     src/os/linux/i386/Makefile \
     src/os/linux/x86_64/Makefile \
+    src/os/darwin/i386/Makefile \
     src/os/darwin/powerpc/Makefile \
     lib/Makefile \
     lib/java/Makefile \
