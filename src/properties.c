@@ -20,6 +20,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/utsname.h>
 
 #include "jam.h"
@@ -113,10 +114,25 @@ void setEndianProperty(Object *properties) {
 #endif
 }
 
-void addDefaultProperties(Object *properties) {
+void setUserDirProperty(Object *properties) {
+    char *cwd = getcwd(NULL, 0);
+
+    setProperty(properties, "user.dir", cwd);
+
+    if(cwd != NULL)
+        free(cwd);
+}
+
+void setOSProperties(Object *properties) {
     struct utsname info;
 
     uname(&info);
+    setProperty(properties, "os.arch", OS_ARCH);
+    setProperty(properties, "os.name", info.sysname);
+    setProperty(properties, "os.version", info.release);
+}
+
+void addDefaultProperties(Object *properties) {
     setProperty(properties, "java.vm.name", "JamVM");
     setProperty(properties, "java.vm.version", VERSION);
     setProperty(properties, "java.runtime.version", VERSION);
@@ -140,17 +156,15 @@ void addDefaultProperties(Object *properties) {
     setProperty(properties, "java.io.tmpdir", "/tmp");
     setProperty(properties, "java.compiler", "");
     setProperty(properties, "java.ext.dirs", "");
-    setProperty(properties, "os.name", info.sysname);
-    setProperty(properties, "os.arch", OS_ARCH);
-    setProperty(properties, "os.version", info.release);
     setProperty(properties, "file.separator", "/");
     setProperty(properties, "path.separator", ":");
     setProperty(properties, "line.separator", "\n");
     setProperty(properties, "user.name", getenv("USER"));
     setProperty(properties, "user.home", getenv("HOME"));
-    setProperty(properties, "user.dir", getenv("PWD"));
 
+    setOSProperties(properties);
     setEndianProperty(properties);
+    setUserDirProperty(properties);
     setLocaleProperties(properties);
 }
 
