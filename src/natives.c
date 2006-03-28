@@ -564,7 +564,7 @@ uintptr_t *defineClass0(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
     Object *array = (Object *)ostack[2];
     int offset = ostack[3];
     int data_len = ostack[4];
-    int pd = ostack[5];
+    Object *pd = ostack[5];
     Class *class = NULL;
 
     if(array == NULL)
