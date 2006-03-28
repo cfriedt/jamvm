@@ -41,6 +41,7 @@
 
 /* Trace GC Compaction phase */
 #ifdef TRACECOMPACT
+//#if 1
 #define TRACE_COMPACT(fmt, ...) printf(fmt, ## __VA_ARGS__)
 #else
 #define TRACE_COMPACT(fmt, ...)
@@ -981,7 +982,7 @@ void threadClassData(Class *class, Class *new_addr) {
 
     TRACE_COMPACT("Threading constant pool references for class %s\n", cb->name);
 
-    for(i = 0; i < cb->constant_pool_count; i++)
+    for(i = 1; i < cb->constant_pool_count; i++)
         if(CP_TYPE(cp, i) == CONSTANT_ResolvedClass || CP_TYPE(cp, i) == CONSTANT_ResolvedString) {
             TRACE_COMPACT("Constant pool ref idx %d type %d object @%p\n", i, CP_TYPE(cp, i), CP_INFO(cp, i));
             threadReference((Object**)&(CP_INFO(cp, i)));
