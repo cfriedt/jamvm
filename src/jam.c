@@ -120,7 +120,7 @@ void showUsage(char *name) {
 }
 
 void showVersionAndCopyright() {
-   printf("java version \"1.4.2\"\n");
+    printf("java version \"1.4.2\"\n");
     printf("JamVM version %s\n", VERSION);
     printf("Copyright (C) 2003-2006 Robert Lougher <rob@lougher.org.uk>\n\n");
     printf("This program is free software; you can redistribute it and/or\n");
