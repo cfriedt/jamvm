@@ -87,7 +87,7 @@ FieldBlock *lookupField(Class *class, char *fieldname, char *fieldtype) {
 
 Class *resolveClass(Class *class, int cp_index, int init) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
-    Class *resolved_class;
+    Class *resolved_class = NULL;
 
 retry:
     switch(CP_TYPE(cp, cp_index)) {
@@ -137,7 +137,7 @@ retry:
 
 MethodBlock *resolveMethod(Class *class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
-    MethodBlock *mb;
+    MethodBlock *mb = NULL;
 
 retry:
     switch(CP_TYPE(cp, cp_index)) {
@@ -204,7 +204,7 @@ retry:
 
 MethodBlock *resolveInterfaceMethod(Class *class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
-    MethodBlock *mb;
+    MethodBlock *mb = NULL;
 
 retry:
     switch(CP_TYPE(cp, cp_index)) {
@@ -264,7 +264,7 @@ retry:
 
 FieldBlock *resolveField(Class *class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
-    FieldBlock *fb;
+    FieldBlock *fb = NULL;
 
 retry:
     switch(CP_TYPE(cp, cp_index)) {
@@ -395,7 +395,7 @@ MethodBlock *lookupVirtualMethod(Object *ob, MethodBlock *mb) {
 #ifdef DIRECT
 int peekIsFieldLong(Class *class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
-    char *type;
+    char *type = NULL;
 
 retry:
     switch(CP_TYPE(cp, cp_index)) {
