@@ -1237,21 +1237,25 @@ struct _JNINativeInterface Jam_JNINativeInterface = {
 jint Jam_DestroyJavaVM(JavaVM *vm) {
     fprintf(stderr, "JNI - FatalError: DestroyJavaVM unimplemented.\n");
     exitVM(1);
+    return 0;
 }
 
 jint Jam_AttachCurrentThread(JavaVM *vm, void **penv, void *args) {
     fprintf(stderr, "JNI - FatalError: AttachCurrentThread unimplemented.\n");
     exitVM(1);
+    return 0;
 }
 
 jint Jam_AttachCurrentThreadAsDaemon(JavaVM *vm, void **penv, void *args) {
     fprintf(stderr, "JNI - FatalError: AttachCurrentThreadAsDaemon unimplemented.\n");
     exitVM(1);
+    return 0;
 }
 
 jint Jam_DetachCurrentThread(JavaVM *vm) {
     fprintf(stderr, "JNI - FatalError: DetachCurrentThread unimplemented.\n");
     exitVM(1);
+    return 0;
 }
 
 struct _JNINativeInterface Jam_JNINativeInterface;

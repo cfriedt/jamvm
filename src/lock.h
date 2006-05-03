@@ -33,3 +33,4 @@ extern void objectNotify(Object *ob);
 extern void objectNotifyAll(Object *ob);
 extern void objectWait(Object *ob, long long ms, int ns);
 extern int objectLockedByCurrent(Object *ob);
+extern void threadMonitorCache();
