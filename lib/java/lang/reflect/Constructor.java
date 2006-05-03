@@ -42,6 +42,7 @@ This Classpath reference implementation has been modified to work with JamVM.
 
 package java.lang.reflect;
 
+import gnu.java.lang.ClassHelper;
 import java.util.Arrays;
 
 /**
@@ -135,6 +136,27 @@ extends AccessibleObject implements Member
   private native int getConstructorModifiers(Class declaringClass, int slot);
 
   /**
+   * Return true if this constructor is synthetic, false otherwise.
+   * A synthetic member is one which is created by the compiler,
+   * and which does not appear in the user's source code.
+   * @since 1.5
+   */
+  public boolean isSynthetic()
+  {
+    return (getConstructorModifiers(declaringClass, slot) & Modifier.SYNTHETIC) != 0;
+  }
+
+  /**
+   * Return true if this is a varargs constructor, that is if
+   * the constructor takes a variable number of arguments.
+   * @since 1.5
+   */
+  public boolean isVarArgs()
+  {
+    return (getConstructorModifiers(declaringClass, slot) & Modifier.VARARGS) != 0;
+  }
+
+  /**
    * Get the parameter list for this constructor, in declaration order. If the
    * constructor takes no parameters, returns a 0-length array (not null).
    *
@@ -213,9 +235,9 @@ extends AccessibleObject implements Member
     Class[] c = getParameterTypes();
     if (c.length > 0)
       {
-        sb.append(c[0].getName());
+        sb.append(ClassHelper.getUserName(c[0]));
         for (int i = 1; i < c.length; i++)
-          sb.append(',').append(c[i].getName());
+          sb.append(',').append(ClassHelper.getUserName(c[i]));
       }
     sb.append(')');
     c = getExceptionTypes();
@@ -227,7 +249,7 @@ extends AccessibleObject implements Member
       }
     return sb.toString();
   }
- 
+
   /**
    * Create a new instance by invoking the constructor. Arguments are
    * automatically unwrapped and widened, if needed.<p>

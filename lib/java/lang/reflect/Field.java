@@ -42,6 +42,7 @@ This Classpath reference implementation has been modified to work with JamVM.
 
 
 package java.lang.reflect;
+import gnu.java.lang.ClassHelper;
 
 /**
  * The Field class represents a member variable of a class. It also allows
@@ -130,6 +131,25 @@ extends AccessibleObject implements Member
   public native int getFieldModifiers(Class declaringClass, int slot);
 
   /**
+   * Return true if this field is synthetic, false otherwise.
+   * @since 1.5
+   */
+  public boolean isSynthetic()
+  {
+    return (getFieldModifiers(declaringClass, slot) & Modifier.SYNTHETIC) != 0;
+  }
+
+  /**
+   * Return true if this field represents an enum constant,
+   * false otherwise.
+   * @since 1.5
+   */
+  public boolean isEnumConstant()
+  {
+    return (getFieldModifiers(declaringClass, slot) & Modifier.ENUM) != 0;
+  }
+
+  /**
    * Gets the type of this field.
    * @return the type of this field
    */
@@ -184,12 +204,12 @@ extends AccessibleObject implements Member
     // 64 is a reasonable buffer initial size for field
     StringBuffer sb = new StringBuffer(64);
     Modifier.toString(getModifiers(), sb).append(' ');
-    sb.append(getType().getName()).append(' ');
+    sb.append(ClassHelper.getUserName(getType())).append(' ');
     sb.append(getDeclaringClass().getName()).append('.');
     sb.append(getName());
     return sb.toString();
   }
- 
+
   /**
    * Get the value of this Field.  If it is primitive, it will be wrapped
    * in the appropriate wrapper type (boolean = java.lang.Boolean).<p>
