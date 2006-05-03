@@ -302,8 +302,8 @@
 #define T_DOUBLE                7
 #define T_BYTE                  8
 #define T_SHORT                 9
-#define T_INT                   10
-#define T_LONG                  11
+#define T_INT                  10
+#define T_LONG                 11
 
 /* Class states */
 
@@ -318,14 +318,15 @@
 
 /* Class flags */
 
-#define REFERENCE               1
-#define SOFT_REFERENCE          2
-#define WEAK_REFERENCE          4
-#define PHANTOM_REFERENCE       8
-#define FINALIZED               16 
-#define CLASS_LOADER            32
-#define CLASS_CLASH             64
-#define VMTHROWABLE             128
+#define CLASS_CLASS             1
+#define REFERENCE               2
+#define SOFT_REFERENCE          4
+#define WEAK_REFERENCE          8
+#define PHANTOM_REFERENCE      16
+#define FINALIZED              32 
+#define CLASS_LOADER           64 
+#define CLASS_CLASH           128
+#define VMTHROWABLE           256 
 
 typedef unsigned char           u1;
 typedef unsigned short          u2;
@@ -351,14 +352,11 @@ typedef struct line_no_table_entry {
     u2 line_no;
 } LineNoTableEntry;
 
-typedef struct class {
-   uintptr_t lock;
-   struct class *class;
-} Class;
+typedef struct object Class;
 
 typedef struct object {
    uintptr_t lock;
-   struct class *class;
+   Class *class;
 } Object;
 
 #ifdef DIRECT
@@ -464,7 +462,7 @@ typedef struct classblock {
    char *source_file_name;
    Class *super;
    u1 state;
-   u1 flags;
+   u2 flags;
    u2 access_flags;
    u2 interfaces_count;
    u2 fields_count;
@@ -529,7 +527,7 @@ typedef struct prop {
 #define ARRAY_DATA(arrayRef)            ((void*)(((u4*)(arrayRef+1))+1))
 #define ARRAY_LEN(arrayRef)             *(u4*)(arrayRef+1)
 
-#define IS_CLASS(object)                (!object->class || (object->class == java_lang_Class))
+#define IS_CLASS(object)                (object->class && IS_CLASS_CLASS(CLASS_CB(object->class)))
 
 #define IS_INTERFACE(cb)                (cb->access_flags & ACC_INTERFACE)
 #define IS_SYNTHETIC(cb)                (cb->access_flags & ACC_SYNTHETIC)
@@ -545,6 +543,7 @@ typedef struct prop {
 #define IS_PHANTOM_REFERENCE(cb)	(cb->flags & PHANTOM_REFERENCE)
 #define IS_CLASS_LOADER(cb)		(cb->flags & CLASS_LOADER)
 #define IS_CLASS_DUP(cb)		(cb->flags & CLASS_CLASH)
+#define IS_CLASS_CLASS(cb)		(cb->flags & CLASS_CLASS)
 #define IS_VMTHROWABLE(cb)		(cb->flags & VMTHROWABLE)
 
 #define IS_SPECIAL(cb)			(cb->flags & (REFERENCE | CLASS_LOADER))
@@ -611,7 +610,7 @@ extern Object *cloneObject(Object *ob);
 extern void markRoot(Object *ob);
 extern void markConservativeRoot(Object *ob);
 extern void markObject(Object *ob, int mark, int mark_soft_refs);
-extern int getObjectHashcode(Object *ob);
+extern uintptr_t getObjectHashcode(Object *ob);
 
 extern void gc1();
 extern void runFinalizers();
@@ -626,7 +625,11 @@ extern void *sysRealloc(void *ptr, int n);
 extern void registerStaticObjectRef(Object **ob);
 
 #define registerStaticClassRef(ref) \
-    registerStaticObjectRef((Object**)ref);
+    registerStaticObjectRef(ref);
+
+/* GC support */
+extern void threadReference(Object **ref);
+extern int isMarked(Object *ob);
 
 /* Class */
 
@@ -661,6 +664,12 @@ extern void freeClassLoaderData(Object *class_loader);
 
 extern char *getClassPath();
 extern char *getBootClassPath();
+
+extern void markBootClasses();
+extern void markLoaderClasses(Object *loader, int mark, int mark_soft_refs);
+extern void threadBootClasses();
+extern void threadLoaderClasses(Object *class_loader);
+
 extern void initialiseClass(char *classpath, char *bootpath, char bootpathopt, int verbose);
 
 /* resolve */
@@ -706,6 +715,7 @@ extern CodePntr findCatchBlock(Class *exception);
 extern Object *setStackTrace();
 extern Object *convertStackTrace(Object *vmthrwble);
 extern int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr);
+extern void markVMThrowable(Object *vmthrwble, int mark, int mark_soft_refs);
 extern void initialiseException();
 
 #define exceptionOccured0(ee) \
@@ -731,6 +741,8 @@ extern Object *getStringCharsArray(Object *string);
 extern int getStringUtf8Len(Object *string);
 extern char *String2Utf8(Object *string);
 extern char *StringRegion2Utf8(Object *string, int start, int len, char *utf8);
+extern void freeInternedStrings();
+extern void threadInternedStrings();
 extern void initialiseString();
 
 #define Cstr2String(cstr) createString(cstr)
@@ -774,6 +786,7 @@ extern void createJavaThread(Object *jThread, long long stack_size);
 extern void mainThreadSetContextClassLoader(Object *loader);
 extern void mainThreadWaitToExitVM();
 extern void exitVM(int status);
+extern void scanThreads();
 
 /* Monitors */
 
@@ -808,6 +821,7 @@ extern Class *getReflectMethodClass();
 
 extern void initialiseJNI();
 extern void *getJNIInterface();
+extern void markJNIGlobalRefs();
 
 /* properties */
 
