@@ -133,9 +133,10 @@ static Class *addClassToHash(Class *class, Object *class_loader) {
 static void prepareClass(Class *class) {
     ClassBlock *cb = CLASS_CB(class);
 
-    if(strcmp(cb->name, "java/lang/Class") == 0)
+    if(strcmp(cb->name, "java/lang/Class") == 0) {
        java_lang_Class = class->class = class;
-    else {
+       cb->flags |= CLASS_CLASS;
+    } else {
        if(java_lang_Class == NULL)
           findSystemClass0("java/lang/Class");
        class->class = java_lang_Class;
@@ -168,7 +169,7 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
         return NULL;
 
     classblock = CLASS_CB(class);
-    READ_U2(cp_count = classblock->constant_pool_count, ptr, len);
+    READ_U2(cp_count, ptr, len);
 
     constant_pool = &classblock->constant_pool;
     constant_pool->type = (u1 *)sysMalloc(cp_count);
@@ -248,6 +249,10 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
                return NULL;
         }
     }
+
+    /* Set count after constant pool has been initialised -- it is now
+       safe to be scanned by GC */
+    classblock->constant_pool_count = cp_count;
 
     READ_U2(classblock->access_flags, ptr, len);
 
@@ -603,8 +608,8 @@ void linkClass(Class *class) {
 
    ClassBlock *cb = CLASS_CB(class);
    MethodBlock **method_table = NULL;
-   MethodBlock **spr_mthd_tbl;
-   ITableEntry *spr_imthd_tbl;
+   MethodBlock **spr_mthd_tbl = NULL;
+   ITableEntry *spr_imthd_tbl = NULL;
    int new_methods_count = 0;
    int spr_imthd_tbl_sze = 0;
    int itbl_offset_count = 0;
@@ -892,8 +897,6 @@ void linkClass(Class *class) {
    cb->method_table = method_table;
    cb->method_table_size = method_table_size;
 
-   cb->flags = spr_flags;
-
    /* Handle finalizer */
 
    /* If this is Object find the finalize method.  All subclasses will
@@ -908,7 +911,7 @@ void linkClass(Class *class) {
        }
    }
 
-   cb->flags = spr_flags;
+   cb->flags |= spr_flags;
 
    /* Store the finalizer only if it's overridden Object's.  We don't
       want to finalize every object, and Object's imp is empty */
@@ -1332,7 +1335,7 @@ void markBootClasses() {
 }
 
 #undef ITERATE
-#define ITERATE(ptr)  threadReference(ptr)
+#define ITERATE(ptr)  threadReference((Object**)ptr)
 
 void threadBootClasses() {
    int i;
@@ -1359,9 +1362,9 @@ void markLoaderClasses(Object *class_loader, int mark, int mark_soft_refs) {
 }
 
 #undef ITERATE
-#define ITERATE(ptr)  threadReference(ptr)
+#define ITERATE(ptr)  threadReference((Object**)ptr)
 
-void threadLoaderClasses(Object *class_loader, int mark, int mark_soft_refs) {
+void threadLoaderClasses(Object *class_loader) {
     Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
 
     if(vmdata != NULL) {
