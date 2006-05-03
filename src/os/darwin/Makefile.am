@@ -1,4 +1,5 @@
-SUBDIRS = powerpc
+SUBDIRS = @arch@
+DIST_SUBDIRS = powerpc i386
 
 noinst_LIBRARIES = libos.a
 libos_a_SOURCES = dll_os.c
