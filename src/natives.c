@@ -134,6 +134,7 @@ uintptr_t *arraycopy(Class *class, MethodBlock *mb, uintptr_t *ostack) {
                     break;
                 case 'J':
                 case 'D':
+		default:
                     size = 8;
                     break;
             } 
@@ -174,9 +175,10 @@ storeExcep:
 
 uintptr_t *identityHashCode(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *ob = (Object*)*ostack;
-    *ostack = getObjectHashcode(ob);
+    uintptr_t addr = getObjectHashcode(ob);
 
-    return ++ostack;
+    *ostack++ = addr & 0xffffffff;
+    return ostack;
 }
 
 /* java.lang.VMRuntime */
@@ -407,7 +409,7 @@ uintptr_t *forName0(uintptr_t *ostack, int resolve, Object *loader) {
         return ostack;
     }
 
-    cstr = String2Cstr(string);
+    cstr = String2Utf8(string);
     len = strlen(cstr);
 
     /* Check the classname to see if it's valid.  It can be
@@ -564,7 +566,7 @@ uintptr_t *defineClass0(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
     Object *array = (Object *)ostack[2];
     int offset = ostack[3];
     int data_len = ostack[4];
-    Object *pd = ostack[5];
+    uintptr_t pd = ostack[5];
     Class *class = NULL;
 
     if(array == NULL)
@@ -575,7 +577,7 @@ uintptr_t *defineClass0(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
             signalException("java/lang/ArrayIndexOutOfBoundsException", NULL);
         else {
             char *data = ARRAY_DATA(array);
-            char *cstr = string ? String2Cstr(string) : NULL;
+            char *cstr = string ? String2Utf8(string) : NULL;
             int len = string ? strlen(cstr) : 0;
             int i;
 
@@ -676,11 +678,13 @@ Object *getAndCheckObject(uintptr_t *ostack, Class *type) {
         signalException("java/lang/NullPointerException", NULL);
         return NULL;
     }
+
     if(!isInstanceOf(type, ob->class)) {
         signalException("java/lang/IllegalArgumentException",
                         "object is not an instance of declaring class");
         return NULL;
     }
+
     return ob;
 }
 
@@ -713,6 +717,7 @@ uintptr_t *getField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     /* If field is static, getPntr2Field also initialises the field's declaring class */
     if((field = getPntr2Field(ostack)) != NULL)
         *ostack++ = (uintptr_t) createWrapperObject(field_type, field);
+
     return ostack;
 }
 
@@ -727,6 +732,7 @@ uintptr_t *getPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(((field = getPntr2Field(ostack)) != NULL) && (!(IS_PRIMITIVE(type_cb)) ||
                  ((ostack = widenPrimitiveValue(getPrimTypeIndex(type_cb), type_no, field, ostack)) == NULL)))
         signalException("java/lang/IllegalArgumentException", "field type mismatch");
+
     return ostack;
 }
 
@@ -754,6 +760,7 @@ uintptr_t *setPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(((field = getPntr2Field(ostack)) != NULL) && (!(IS_PRIMITIVE(type_cb)) ||
                  (widenPrimitiveValue(type_no, getPrimTypeIndex(type_cb), &ostack[7], field) == NULL)))
         signalException("java/lang/IllegalArgumentException", "field type mismatch");
+
     return ostack;
 }
 
