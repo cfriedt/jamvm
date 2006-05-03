@@ -28,7 +28,6 @@
 #define HASH(ptr) stringHash(ptr)
 #define COMPARE(ptr1, ptr2, hash1, hash2) (ptr1 == ptr2) || \
                   ((hash1 == hash2) && stringComp(ptr1, ptr2))
-#define ITERATE(ptr)  markConservativeRoot(ptr)
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
 #define FOUND(ptr)
@@ -107,8 +106,38 @@ Object *findInternedString(Object *string) {
     return interned;
 }
  
-void markInternedStrings() {
-    hashIterate(hash_table);
+#define ITERATE(ptr)          \
+    if(!isMarked(*ptr)) {     \
+        *ptr = NULL;          \
+        unmarked++;           \
+    }
+
+void freeInternedStrings() {
+    int unmarked = 0;
+
+    hashIterateP(hash_table);
+
+    if(unmarked) {
+        int size;
+
+        /* Update count to remaining number of strings */
+        hash_table.hash_count -= unmarked;
+
+        /* Calculate nearest multiple of 2 larger than count */
+        for(size = 1; size < hash_table.hash_count; size <<= 1);
+
+        /* Ensure new table is less than 2/3 full */
+        size = hash_table.hash_count*3 > size*2 ? size<< 1 : size;
+
+        resizeHash(&hash_table, size);
+    }
+}
+
+#undef ITERATE
+#define ITERATE(ptr) threadReference((Object**)ptr);
+
+void threadInternedStrings() {
+    hashIterateP(hash_table);
 }
 
 char *String2Cstr(Object *string) {
