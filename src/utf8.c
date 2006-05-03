@@ -100,7 +100,7 @@ char *findUtf8String(char *string) {
 }
 
 char *slash2dots(char *utf8) {
-    int len = utf8Len(utf8);
+    int len = strlen(utf8);
     char *conv = (char*)sysMalloc(len+1);
     int i;
 
