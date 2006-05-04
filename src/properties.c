@@ -132,6 +132,11 @@ void setOSProperties(Object *properties) {
     setProperty(properties, "os.version", info.release);
 }
 
+char *getJavaHome() {
+    char *env = getenv("JAVA_HOME");
+    return env ? env : INSTALL_DIR;
+}
+
 void addDefaultProperties(Object *properties) {
     setProperty(properties, "java.vm.name", "JamVM");
     setProperty(properties, "java.vm.version", VERSION);
@@ -141,7 +146,7 @@ void addDefaultProperties(Object *properties) {
     setProperty(properties, "java.version", "1.4.2");
     setProperty(properties, "java.vendor", "GNU Classpath");
     setProperty(properties, "java.vendor.url", "http://www.classpath.org");
-    setProperty(properties, "java.home", INSTALL_DIR);
+    setProperty(properties, "java.home", getJavaHome());
     setProperty(properties, "java.specification.version", "1.4");
     setProperty(properties, "java.specification.vendor", "Sun Microsystems, Inc.");
     setProperty(properties, "java.specification.name", "Java Platform API Specification");
