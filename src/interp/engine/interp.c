@@ -542,15 +542,10 @@ rewrite_lock:
 #endif
 
 #ifdef DIRECT
-#define ALOAD_THIS(level)                                  \
-    if(handlers[pc->operand.uui.u1]                        \
-               [OPC_GETFIELD_QUICK] == pc[1].handler) {    \
-        OPCODE_REWRITE(OPC_GETFIELD_THIS,                  \
-                       pc->operand.uui.i, pc->operand);    \
-            REDISPATCH                                     \
-    }
+#define ALOAD_THIS(level)
+
 #define GETFIELD_THIS(level)                               \
-    PUSH_##level(INST_DATA(this)[(pc)->operand.i], 4);
+    PUSH_##level(INST_DATA(this)[pc->operand.i], 4);
 #else /* DIRECT */
 #define ALOAD_THIS(level)                                  \
     if(pc[1] == OPC_GETFIELD_QUICK) {                      \
