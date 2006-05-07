@@ -56,8 +56,8 @@ AC_ARG_ENABLE(zip,
 AC_CANONICAL_HOST
 
 case "$host" in
-i[[456]]86-*-linux*) host_cpu=i386 host_os=linux ;;
-i[[456]]86-*-kfreebsd*) host_cpu=i386 host_os=linux ;;
+i[[3456]]86-*-linux*) host_cpu=i386 host_os=linux ;;
+i[[3456]]86-*-kfreebsd*) host_cpu=i386 host_os=linux ;;
 i386-*-openbsd*) host_os=linux libdl_needed=no ;;
 i386-*-freebsd*) host_os=linux libdl_needed=no ;;
 x86_64-*-linux*) host_os=linux ;;
@@ -70,7 +70,7 @@ powerpc*-*-linux*) host_cpu=powerpc host_os=linux ;;
 powerpc*-*-openbsd*) host_cpu=powerpc host_os=linux libdl_needed=no ;;
 powerpc*-*-freebsd*) host_cpu=powerpc host_os=linux libdl_needed=no ;;
 powerpc-*-darwin*) host_os=darwin ;;
-i[[456]]86-*-darwin*) host_cpu=i386 host_os=darwin ;;
+i[[3456]]86-*-darwin*) host_cpu=i386 host_os=darwin ;;
 *) AC_MSG_ERROR($host not supported) ;;
 esac
 
