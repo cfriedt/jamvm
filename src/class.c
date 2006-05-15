@@ -386,9 +386,9 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
                  u2 attr_name_idx;
                  u4 attr_length;
 
-                 READ_U2(attr_name_idx, ptr, len);
-                 READ_U4(attr_length, ptr, len);
+                 READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
                  attr_name = CP_UTF8(constant_pool, attr_name_idx);
+                 READ_U4(attr_length, ptr, len);
 
                  if(strcmp(attr_name, "LineNumberTable") == 0) {
                      READ_U2(method->line_no_table_size, ptr, len);
@@ -424,13 +424,13 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
        char *attr_name;
        u4 attr_length;
 
-       READ_U2(attr_name_idx, ptr, len);
-       READ_U4(attr_length, ptr, len);
+       READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
        attr_name = CP_UTF8(constant_pool, attr_name_idx);
+       READ_U4(attr_length, ptr, len);
 
        if(strcmp(attr_name, "SourceFile") == 0) {
            u2 file_name_idx;
-           READ_U2(file_name_idx, ptr, len);
+           READ_TYPE_INDEX(file_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
            classblock->source_file_name = CP_UTF8(constant_pool, file_name_idx);
        } else
            if(strcmp(attr_name, "InnerClasses") == 0) {
@@ -440,28 +440,48 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
                    u2 inner_classes[size];
                    for(j = 0; j < size; j++) {
                        int inner, outer;
-                       READ_U2(inner, ptr, len);
-                       READ_U2(outer, ptr, len);
-                       ptr += 2;
+                       READ_TYPE_INDEX(inner, constant_pool, CONSTANT_Class, ptr, len);
+                       READ_TYPE_INDEX(outer, constant_pool, CONSTANT_Class, ptr, len);
+
                        if(inner == this_idx) {
-                           classblock->declaring_class = outer;
+                           int inner_name_idx;
+
+                           /* A member class doesn't have an EnclosingMethod attribute, so set
+                              the enclosing class to be the same as the declaring class */
+                           if(outer)
+                               classblock->declaring_class = classblock->enclosing_class = outer;
+
+                           READ_TYPE_INDEX(inner_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                           if(inner_name_idx == 0)
+                               classblock->flags |= ANONYMOUS;
+
                            READ_U2(classblock->inner_access_flags, ptr, len);
                        } else {
-                           ptr += 2;
+                           ptr += 4;
                            if(outer == this_idx)
                                inner_classes[classblock->inner_class_count++] = inner;
                        }
                    }
                    if(classblock->inner_class_count) {
-                       classblock->inner_classes = (u2 *)sysMalloc(classblock->inner_class_count*sizeof(u2));
-                       memcpy(classblock->inner_classes, &inner_classes[0], classblock->inner_class_count*sizeof(u2));
+                       classblock->inner_classes = sysMalloc(classblock->inner_class_count*sizeof(u2));
+                       memcpy(classblock->inner_classes, &inner_classes[0],
+                                                         classblock->inner_class_count*sizeof(u2));
                    }
                }
            } else
-               if(strcmp(attr_name, "Synthetic") == 0)
-                   classblock->access_flags |= ACC_SYNTHETIC;
-               else 
-                   ptr += attr_length;
+               if(strcmp(attr_name, "EnclosingMethod") == 0) {
+                   READ_TYPE_INDEX(classblock->enclosing_class, constant_pool, CONSTANT_Class, ptr, len);
+                   READ_TYPE_INDEX(classblock->enclosing_method, constant_pool, CONSTANT_NameAndType, ptr, len);
+               } else 
+                   if(strcmp(attr_name, "Signature") == 0) {
+                       u2 signature_idx;
+                       READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                       classblock->signature = CP_UTF8(constant_pool, signature_idx);
+                   } else
+                       if(strcmp(attr_name, "Synthetic") == 0)
+                           classblock->access_flags |= ACC_SYNTHETIC;
+                       else
+                           ptr += attr_length;
     }
 
     classblock->super = super_idx ? resolveClass(class, super_idx, FALSE) : NULL;

@@ -287,6 +287,56 @@ uintptr_t *isArray(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
+uintptr_t *isMember(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    *ostack++ = IS_MEMBER(cb) ? TRUE : FALSE;
+    return ostack;
+}
+
+uintptr_t *isLocal(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    *ostack++ = IS_LOCAL(cb) ? TRUE : FALSE;
+    return ostack;
+}
+
+uintptr_t *isAnonymous(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    *ostack++ = IS_ANONYMOUS(cb) ? TRUE : FALSE;
+    return ostack;
+}
+
+uintptr_t *getEnclosingClass0(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Class *clazz = GET_CLASS(ostack[0]);
+    *ostack++ = (uintptr_t) getEnclosingClass(clazz);
+    return ostack;
+}
+
+uintptr_t *getEnclosingMethod0(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Class *clazz = GET_CLASS(ostack[0]);
+    *ostack++ = (uintptr_t) getEnclosingMethodObject(clazz);
+    return ostack;
+}
+
+uintptr_t *getEnclosingConstructor(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Class *clazz = GET_CLASS(ostack[0]);
+    *ostack++ = (uintptr_t) getEnclosingConstructorObject(clazz);
+    return ostack;
+}
+
+uintptr_t *getClassSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    Object *string = NULL;
+
+    if(cb->signature != NULL) {
+        char *dot_name = slash2dots(cb->signature);
+        string = createString(dot_name);
+        free(dot_name);
+    }
+
+    *ostack++ = (uintptr_t)string;
+    return ostack;
+}
+
 uintptr_t *isSynthetic(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
     *ostack++ = IS_SYNTHETIC(cb) ? TRUE : FALSE;
@@ -967,6 +1017,13 @@ VMMethod vm_class[] = {
     {"isSynthetic",                 isSynthetic},
     {"isAnnotation",                isAnnotation},
     {"isEnum",                      isEnum},
+    {"isMemberClass",               isMember},
+    {"isLocalClass",                isLocal},
+    {"isAnonymousClass",            isAnonymous},
+    {"getEnclosingClass",           getEnclosingClass0},
+    {"getEnclosingMethod",          getEnclosingMethod0},
+    {"getEnclosingConstructor",     getEnclosingConstructor},
+    {"getClassSignature",           getClassSignature},
     {"getSuperclass",               getSuperclass},
     {"getComponentType",            getComponentType},
     {"getName",                     getName},

@@ -327,6 +327,7 @@
 #define CLASS_LOADER           64 
 #define CLASS_CLASH           128
 #define VMTHROWABLE           256 
+#define ANONYMOUS             512
 
 typedef unsigned char           u1;
 typedef unsigned short          u2;
@@ -458,6 +459,7 @@ typedef struct refs_offsets_entry {
 typedef struct classblock {
    uintptr_t pad[CLASS_PAD_SIZE];
    char *name;
+   char *signature;
    char *super_name;
    char *source_file_name;
    Class *super;
@@ -488,6 +490,8 @@ typedef struct classblock {
    int refs_offsets_size;
    RefsOffsetsEntry *refs_offsets_table;
    Class *array_class;
+   u2 enclosing_class;
+   u2 enclosing_method;
 } ClassBlock;
 
 typedef struct frame {
@@ -545,8 +549,11 @@ typedef struct prop {
 #define IS_CLASS_DUP(cb)		(cb->flags & CLASS_CLASH)
 #define IS_CLASS_CLASS(cb)		(cb->flags & CLASS_CLASS)
 #define IS_VMTHROWABLE(cb)		(cb->flags & VMTHROWABLE)
-
+#define IS_ANONYMOUS(cb)		(cb->flags & ANONYMOUS)
 #define IS_SPECIAL(cb)			(cb->flags & (REFERENCE | CLASS_LOADER))
+
+#define IS_MEMBER(cb)			cb->declaring_class
+#define IS_LOCAL(cb)			(cb->enclosing_method && !IS_ANONYMOUS(cb))
 
 /* Macros for accessing constant pool entries */
 
@@ -800,6 +807,9 @@ extern Object *getClassFields(Class *class, int public);
 extern Object *getClassInterfaces(Class *class);
 extern Object *getClassClasses(Class *class, int public);
 extern Class *getDeclaringClass(Class *class);
+extern Class *getEnclosingClass(Class *class);
+extern Object *getEnclosingMethodObject(Class *class);
+extern Object *getEnclosingConstructorObject(Class *class);
 
 extern Object *createWrapperObject(Class *type, uintptr_t *pntr);
 extern uintptr_t *widenPrimitiveValue(int src_idx, int dest_idx, uintptr_t *src, uintptr_t *dest);

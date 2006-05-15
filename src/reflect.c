@@ -380,6 +380,53 @@ Class *getDeclaringClass(Class *class) {
     return cb->declaring_class ? resolveClass(class, cb->declaring_class, FALSE) : NULL;
 }
 
+Class *getEnclosingClass(Class *class) {
+    ClassBlock *cb = CLASS_CB(class);
+    return cb->enclosing_class ? resolveClass(class, cb->enclosing_class, FALSE) : NULL;
+}
+
+MethodBlock *getEnclosingMethod(Class *class) {
+    Class *enclosing_class = getEnclosingClass(class);
+
+    if(enclosing_class != NULL) {
+        ClassBlock *cb = CLASS_CB(class);
+
+        if(cb->enclosing_method) {
+            ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
+            char *methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, cb->enclosing_method));
+            char *methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, cb->enclosing_method));
+            MethodBlock *mb = findMethod(enclosing_class, methodname, methodtype);
+
+            if(mb != NULL)
+                return mb;
+
+            /* The "reference implementation" throws an InternalError if a method
+               with the name and type cannot be found in the enclosing class */
+            signalException("java/lang/InternalError", "Enclosing method doesn't exist");
+        }
+    }
+
+    return NULL;
+}
+
+Object *getEnclosingMethodObject(Class *class) {
+    MethodBlock *mb = getEnclosingMethod(class);
+
+    if(mb != NULL && strcmp(mb->name, "<init>") != 0)
+        return createMethodObject(mb);
+
+    return NULL;
+}
+
+Object *getEnclosingConstructorObject(Class *class) {
+    MethodBlock *mb = getEnclosingMethod(class);
+
+    if(mb != NULL && strcmp(mb->name, "<init>") == 0)
+        return createConstructorObject(mb);
+
+    return NULL;
+}
+
 int getWrapperPrimTypeIndex(Object *arg) {
     ClassBlock *cb;
 
