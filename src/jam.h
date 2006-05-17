@@ -417,6 +417,7 @@ typedef struct methodblock {
    Class *class;
    char *name;
    char *type;
+   char *signature;
    u2 access_flags;
    u2 max_stack;
    u2 max_locals;
@@ -438,6 +439,7 @@ typedef struct fieldblock {
    Class *class;
    char *name;
    char *type;
+   char *signature;
    u2 access_flags;
    u2 constant;
    uintptr_t static_value;
