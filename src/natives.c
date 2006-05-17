@@ -337,24 +337,6 @@ uintptr_t *getClassSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *isSynthetic(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
-    *ostack++ = IS_SYNTHETIC(cb) ? TRUE : FALSE;
-    return ostack;
-}
-
-uintptr_t *isAnnotation(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
-    *ostack++ = IS_ANNOTATION(cb) ? TRUE : FALSE;
-    return ostack;
-}
-
-uintptr_t *isEnum(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
-    *ostack++ = IS_ENUM(cb) ? TRUE : FALSE;
-    return ostack;
-}
-
 uintptr_t *getSuperclass(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
     *ostack++ = (uintptr_t) (IS_PRIMITIVE(cb) || IS_INTERFACE(cb) ? NULL : cb->super);
@@ -714,10 +696,40 @@ uintptr_t *getMethodModifiers(Class *class, MethodBlock *mb2, uintptr_t *ostack)
     return ostack;
 }
 
+uintptr_t *getMethodSignature(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
+    Class *decl_class = (Class*)ostack[1];
+    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
+    Object *string = NULL;
+
+    if(mb->signature != NULL) {
+        char *dot_name = slash2dots(mb->signature);
+        string = createString(dot_name);
+        free(dot_name);
+    }
+
+    *ostack++ = (uintptr_t)string;
+    return ostack;
+}
+
 uintptr_t *getFieldModifiers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *decl_class = (Class*)ostack[1];
     FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[2]]); 
     *ostack++ = (uintptr_t) fb->access_flags;
+    return ostack;
+}
+
+uintptr_t *getFieldSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Class *decl_class = (Class*)ostack[1];
+    FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[2]]); 
+    Object *string = NULL;
+
+    if(fb->signature != NULL) {
+        char *dot_name = slash2dots(fb->signature);
+        string = createString(dot_name);
+        free(dot_name);
+    }
+
+    *ostack++ = (uintptr_t)string;
     return ostack;
 }
 
@@ -1014,9 +1026,6 @@ VMMethod vm_class[] = {
     {"isInterface",                 isInterface},
     {"isPrimitive",                 isPrimitive},
     {"isArray",                     isArray},
-    {"isSynthetic",                 isSynthetic},
-    {"isAnnotation",                isAnnotation},
-    {"isEnum",                      isEnum},
     {"isMemberClass",               isMember},
     {"isLocalClass",                isLocal},
     {"isAnonymousClass",            isAnonymous},
@@ -1080,17 +1089,20 @@ VMMethod vm_classloader[] = {
 VMMethod vm_reflect_constructor[] = {
     {"constructNative",             constructNative},
     {"getConstructorModifiers",     getMethodModifiers},
+    {"getSignature",                getMethodSignature},
     {NULL,                          NULL}
 };
 
 VMMethod vm_reflect_method[] = {
     {"invokeNative",                invokeNative},
     {"getMethodModifiers",          getMethodModifiers},
+    {"getSignature",                getMethodSignature},
     {NULL,                          NULL}
 };
 
 VMMethod vm_reflect_field[] = {
     {"getFieldModifiers",           getFieldModifiers},
+    {"getSignature",                getFieldSignature},
     {"getField",                    getField},
     {"setField",                    setField},
     {"setZField",                   setPrimitiveField},
