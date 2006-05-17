@@ -32,6 +32,10 @@ char *nativeLibPath() {
 /* GNU Classpath's libraries end in .dylib because it
    uses libtool, but JNI libraries normally end in
    .jnilib under Mac OS X.  We try both.
+
+   On Mac OS X/Intel libtool seems to use a .so ending.
+   This is wrong, but a workaround for now is to _also_
+   try .so! 
 */
 
 void *nativeLibOpen(char *path) {
@@ -44,7 +48,12 @@ void *nativeLibOpen(char *path) {
 
     if((handle = dlopen(buff, RTLD_LAZY)) == NULL) {
         strcpy(buff + len, ".jnilib");
-        handle = dlopen(buff, RTLD_LAZY);
+
+        if((handle = dlopen(buff, RTLD_LAZY)) == NULL) {
+            strcpy(buff + len, ".so");
+
+            handle = dlopen(buff, RTLD_LAZY);
+        }
     }
 
     return handle;
