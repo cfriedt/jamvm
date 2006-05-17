@@ -254,6 +254,7 @@ void *threadStart(void *arg) {
     thread->state = STARTED;
     pthread_cond_broadcast(&cv);
 
+    /* Wait for the thread to start running */
     while(thread->state != RUNNING)
         pthread_cond_wait(&cv, &lock);
     pthread_mutex_unlock(&lock);
@@ -262,24 +263,24 @@ void *threadStart(void *arg) {
     enableSuspend(thread);
     executeMethod(jThread, run);
 
-    /* Call thread group's uncaughtException if exception
-     * is of type java.lang.Throwable */
-
+    /* Get the thread's group */
     group = (Object *)INST_DATA(jThread)[group_offset];
+
+    /* If there's an uncaught exception, call uncaughtException on the thread's
+       exception handler, or the thread's group if this is unset */
     if((excep = exceptionOccured())) {
-        Class *throwable;
-        MethodBlock *uncaught_exp;
-       
-        clearException();
-        throwable = findSystemClass0("java/lang/Throwable");
-        if(throwable && isInstanceOf(throwable, excep->class)
-                     && (uncaught_exp = lookupMethod(group->class, "uncaughtException",
-                                                      "(Ljava/lang/Thread;Ljava/lang/Throwable;)V")))
-            executeMethod(group, uncaught_exp, jThread, excep);
-        else {
-            setException(excep);
+        FieldBlock *fb = findField(thread_class, "exceptionHandler", "Ljava/lang/Thread$UncaughtExceptionHandler;");
+        Object *thread_handler = fb == NULL ? NULL : (Object *)INST_DATA(jThread)[fb->offset];
+        Object *handler = thread_handler == NULL ? group : thread_handler;
+
+        MethodBlock *uncaught_exp = lookupMethod(handler->class, "uncaughtException",
+                                                      "(Ljava/lang/Thread;Ljava/lang/Throwable;)V");
+
+        if(uncaught_exp) {
+            clearException();
+            executeMethod(handler, uncaught_exp, jThread, excep);
+        } else
             printException();
-        }
     }
 
     /* remove thread from thread group */
