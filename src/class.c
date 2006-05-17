@@ -295,7 +295,7 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
 
     READ_U2(classblock->fields_count, ptr, len);
     classblock->fields = (FieldBlock *)
-            sysMalloc(classblock->fields_count * sizeof(FieldBlock));
+                     sysMalloc(classblock->fields_count * sizeof(FieldBlock));
 
     for(i = 0; i < classblock->fields_count; i++) {
         u2 name_idx, type_idx;
@@ -305,23 +305,28 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
         READ_TYPE_INDEX(type_idx, constant_pool, CONSTANT_Utf8, ptr, len);
         classblock->fields[i].name = CP_UTF8(constant_pool, name_idx);
         classblock->fields[i].type = CP_UTF8(constant_pool, type_idx);
+        classblock->fields[i].signature = NULL;
         classblock->fields[i].constant = 0;
 
         READ_U2(attr_count, ptr, len);
         for(; attr_count != 0; attr_count--) {
-           u2 attr_name_idx;
-           char *attr_name;
-           u4 attr_length;
+            u2 attr_name_idx;
+            char *attr_name;
+            u4 attr_length;
 
-           READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-           attr_name = CP_UTF8(constant_pool, attr_name_idx);
-           READ_U4(attr_length, ptr, len);
+            READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+            attr_name = CP_UTF8(constant_pool, attr_name_idx);
+            READ_U4(attr_length, ptr, len);
 
-           if(strcmp(attr_name,"ConstantValue") == 0) {
-               READ_INDEX(classblock->fields[i].constant, ptr, len);
-           }
-           else
-               ptr += attr_length;
+            if(strcmp(attr_name, "ConstantValue") == 0) {
+                READ_INDEX(classblock->fields[i].constant, ptr, len);
+            } else
+                if(strcmp(attr_name, "Signature") == 0) {
+                    u2 signature_idx;
+                    READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                    classblock->fields[i].signature = CP_UTF8(constant_pool, signature_idx);
+                } else
+                    ptr += attr_length;
         }
     }
 
@@ -345,143 +350,149 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
 
         READ_U2(attr_count, ptr, len);
         for(; attr_count != 0; attr_count--) {
-           u2 attr_name_idx;
-           char *attr_name;
-           u4 attr_length;
+            u2 attr_name_idx;
+            char *attr_name;
+            u4 attr_length;
 
-           READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-           READ_U4(attr_length, ptr, len);
-           attr_name = CP_UTF8(constant_pool, attr_name_idx);
+            READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+            READ_U4(attr_length, ptr, len);
+            attr_name = CP_UTF8(constant_pool, attr_name_idx);
 
-           if(strcmp(attr_name, "Code") == 0) {
-              u4 code_length;
-              u2 code_attr_cnt;
-              int j;
+            if(strcmp(attr_name, "Code") == 0) {
+                u4 code_length;
+                u2 code_attr_cnt;
+                int j;
 
-              READ_U2(method->max_stack, ptr, len);
-              READ_U2(method->max_locals, ptr, len);
+                READ_U2(method->max_stack, ptr, len);
+                READ_U2(method->max_locals, ptr, len);
 
-              READ_U4(code_length, ptr, len);
-              method->code = (char *)sysMalloc(code_length);
-              memcpy(method->code, ptr, code_length);
-              ptr += code_length;
+                READ_U4(code_length, ptr, len);
+                method->code = (char *)sysMalloc(code_length);
+                memcpy(method->code, ptr, code_length);
+                ptr += code_length;
 
-              method->code_size = code_length;
+                method->code_size = code_length;
 
-              READ_U2(method->exception_table_size, ptr, len);
-              method->exception_table = (ExceptionTableEntry *)
-                  sysMalloc(method->exception_table_size*sizeof(ExceptionTableEntry));
+                READ_U2(method->exception_table_size, ptr, len);
+                method->exception_table = (ExceptionTableEntry *)
+                sysMalloc(method->exception_table_size*sizeof(ExceptionTableEntry));
 
-              for(j = 0; j < method->exception_table_size; j++) {
-                 ExceptionTableEntry *entry = &method->exception_table[j];              
+                for(j = 0; j < method->exception_table_size; j++) {
+                    ExceptionTableEntry *entry = &method->exception_table[j];              
 
-                 READ_U2(entry->start_pc, ptr, len);
-                 READ_U2(entry->end_pc, ptr, len);
-                 READ_U2(entry->handler_pc, ptr, len);
-                 READ_U2(entry->catch_type, ptr, len);
-              }
+                    READ_U2(entry->start_pc, ptr, len);
+                    READ_U2(entry->end_pc, ptr, len);
+                    READ_U2(entry->handler_pc, ptr, len);
+                    READ_U2(entry->catch_type, ptr, len);
+                }
 
-              READ_U2(code_attr_cnt, ptr, len);
-              for(; code_attr_cnt != 0; code_attr_cnt--) {
-                 u2 attr_name_idx;
-                 u4 attr_length;
+                READ_U2(code_attr_cnt, ptr, len);
+                for(; code_attr_cnt != 0; code_attr_cnt--) {
+                    u2 attr_name_idx;
+                    u4 attr_length;
 
-                 READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-                 attr_name = CP_UTF8(constant_pool, attr_name_idx);
-                 READ_U4(attr_length, ptr, len);
+                    READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                    attr_name = CP_UTF8(constant_pool, attr_name_idx);
+                    READ_U4(attr_length, ptr, len);
 
-                 if(strcmp(attr_name, "LineNumberTable") == 0) {
-                     READ_U2(method->line_no_table_size, ptr, len);
-                     method->line_no_table = (LineNoTableEntry *)
-                         sysMalloc(method->line_no_table_size*sizeof(LineNoTableEntry));
+                    if(strcmp(attr_name, "LineNumberTable") == 0) {
+                        READ_U2(method->line_no_table_size, ptr, len);
+                        method->line_no_table = (LineNoTableEntry *)
+                            sysMalloc(method->line_no_table_size*sizeof(LineNoTableEntry));
 
-                     for(j = 0; j < method->line_no_table_size; j++) {
-                         LineNoTableEntry *entry = &method->line_no_table[j];              
+                        for(j = 0; j < method->line_no_table_size; j++) {
+                            LineNoTableEntry *entry = &method->line_no_table[j];              
                          
-                         READ_U2(entry->start_pc, ptr, len);
-                         READ_U2(entry->line_no, ptr, len);
-                     }
-                 } else
-                     ptr += attr_length;
-              }
-           } else
-              if(strcmp(attr_name, "Exceptions") == 0) {
-                 int j;
+                            READ_U2(entry->start_pc, ptr, len);
+                            READ_U2(entry->line_no, ptr, len);
+                        }
+                    } else
+                        ptr += attr_length;
+                }
+            } else
+                if(strcmp(attr_name, "Exceptions") == 0) {
+                    int j;
 
-                 READ_U2(method->throw_table_size, ptr, len);
-                 method->throw_table = (u2 *)sysMalloc(method->throw_table_size*sizeof(u2));
-                 for(j = 0; j < method->throw_table_size; j++) {
-                    READ_U2(method->throw_table[j], ptr, len);
-                 }
-              } else
-                 ptr += attr_length;
+                    READ_U2(method->throw_table_size, ptr, len);
+                    method->throw_table = (u2 *)sysMalloc(method->throw_table_size*sizeof(u2));
+                    for(j = 0; j < method->throw_table_size; j++) {
+                        READ_U2(method->throw_table[j], ptr, len);
+                    }
+                } else
+                    if(strcmp(attr_name, "Signature") == 0) {
+                        u2 signature_idx;
+                        READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                        method->signature = CP_UTF8(constant_pool, signature_idx);
+                    } else
+                        ptr += attr_length;
         }
     }
 
     READ_U2(attr_count, ptr, len);
     for(; attr_count != 0; attr_count--) {
-       u2 attr_name_idx;
-       char *attr_name;
-       u4 attr_length;
+        u2 attr_name_idx;
+        char *attr_name;
+        u4 attr_length;
 
-       READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-       attr_name = CP_UTF8(constant_pool, attr_name_idx);
-       READ_U4(attr_length, ptr, len);
+        READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+        attr_name = CP_UTF8(constant_pool, attr_name_idx);
+        READ_U4(attr_length, ptr, len);
 
-       if(strcmp(attr_name, "SourceFile") == 0) {
-           u2 file_name_idx;
-           READ_TYPE_INDEX(file_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-           classblock->source_file_name = CP_UTF8(constant_pool, file_name_idx);
-       } else
-           if(strcmp(attr_name, "InnerClasses") == 0) {
-               int j, size;
-               READ_U2(size, ptr, len);
-               {
-                   u2 inner_classes[size];
-                   for(j = 0; j < size; j++) {
-                       int inner, outer;
-                       READ_TYPE_INDEX(inner, constant_pool, CONSTANT_Class, ptr, len);
-                       READ_TYPE_INDEX(outer, constant_pool, CONSTANT_Class, ptr, len);
+        if(strcmp(attr_name, "SourceFile") == 0) {
+            u2 file_name_idx;
+            READ_TYPE_INDEX(file_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+            classblock->source_file_name = CP_UTF8(constant_pool, file_name_idx);
+        } else
+            if(strcmp(attr_name, "InnerClasses") == 0) {
+                int j, size;
+                READ_U2(size, ptr, len);
+                {
+                    u2 inner_classes[size];
+                    for(j = 0; j < size; j++) {
+                        int inner, outer;
+                        READ_TYPE_INDEX(inner, constant_pool, CONSTANT_Class, ptr, len);
+                        READ_TYPE_INDEX(outer, constant_pool, CONSTANT_Class, ptr, len);
 
-                       if(inner == this_idx) {
-                           int inner_name_idx;
+                        if(inner == this_idx) {
+                            int inner_name_idx;
 
-                           /* A member class doesn't have an EnclosingMethod attribute, so set
-                              the enclosing class to be the same as the declaring class */
-                           if(outer)
-                               classblock->declaring_class = classblock->enclosing_class = outer;
+                            /* A member class doesn't have an EnclosingMethod attribute, so set
+                               the enclosing class to be the same as the declaring class */
+                            if(outer)
+                                classblock->declaring_class = classblock->enclosing_class = outer;
 
-                           READ_TYPE_INDEX(inner_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-                           if(inner_name_idx == 0)
-                               classblock->flags |= ANONYMOUS;
+                            READ_TYPE_INDEX(inner_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                            if(inner_name_idx == 0)
+                                classblock->flags |= ANONYMOUS;
 
-                           READ_U2(classblock->inner_access_flags, ptr, len);
-                       } else {
-                           ptr += 4;
-                           if(outer == this_idx)
-                               inner_classes[classblock->inner_class_count++] = inner;
-                       }
-                   }
-                   if(classblock->inner_class_count) {
-                       classblock->inner_classes = sysMalloc(classblock->inner_class_count*sizeof(u2));
-                       memcpy(classblock->inner_classes, &inner_classes[0],
-                                                         classblock->inner_class_count*sizeof(u2));
-                   }
-               }
-           } else
-               if(strcmp(attr_name, "EnclosingMethod") == 0) {
-                   READ_TYPE_INDEX(classblock->enclosing_class, constant_pool, CONSTANT_Class, ptr, len);
-                   READ_TYPE_INDEX(classblock->enclosing_method, constant_pool, CONSTANT_NameAndType, ptr, len);
-               } else 
-                   if(strcmp(attr_name, "Signature") == 0) {
-                       u2 signature_idx;
-                       READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-                       classblock->signature = CP_UTF8(constant_pool, signature_idx);
-                   } else
-                       if(strcmp(attr_name, "Synthetic") == 0)
-                           classblock->access_flags |= ACC_SYNTHETIC;
-                       else
-                           ptr += attr_length;
+                            READ_U2(classblock->inner_access_flags, ptr, len);
+                        } else {
+                            ptr += 4;
+                            if(outer == this_idx)
+                                inner_classes[classblock->inner_class_count++] = inner;
+                        }
+                    }
+
+                    if(classblock->inner_class_count) {
+                        classblock->inner_classes = sysMalloc(classblock->inner_class_count*sizeof(u2));
+                        memcpy(classblock->inner_classes, &inner_classes[0],
+                                                          classblock->inner_class_count*sizeof(u2));
+                    }
+                }
+            } else
+                if(strcmp(attr_name, "EnclosingMethod") == 0) {
+                    READ_TYPE_INDEX(classblock->enclosing_class, constant_pool, CONSTANT_Class, ptr, len);
+                    READ_TYPE_INDEX(classblock->enclosing_method, constant_pool, CONSTANT_NameAndType, ptr, len);
+                } else 
+                    if(strcmp(attr_name, "Signature") == 0) {
+                        u2 signature_idx;
+                        READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                        classblock->signature = CP_UTF8(constant_pool, signature_idx);
+                    } else
+                        if(strcmp(attr_name, "Synthetic") == 0)
+                            classblock->access_flags |= ACC_SYNTHETIC;
+                        else
+                            ptr += attr_length;
     }
 
     classblock->super = super_idx ? resolveClass(class, super_idx, FALSE) : NULL;
