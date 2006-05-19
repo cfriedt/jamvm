@@ -22,8 +22,22 @@
 #include <string.h>
 #include <stdlib.h>
 #include <dlfcn.h>
+#include <sys/sysctl.h>
 
 #include "../../jam.h"
+
+int nativeAvailableProcessors() {
+    int processors, mib[2];
+    size_t len = sizeof(processors);
+
+    mib[0] = CTL_HW;
+    mib[1] = HW_AVAILCPU;
+
+    if(sysctl(mib, 2, &processors, &len, NULL, 0) == -1)
+        return 1;
+    else
+        return processors;
+}
 
 char *nativeLibPath() {
     return getenv("LD_LIBRARY_PATH");

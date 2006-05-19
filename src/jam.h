@@ -786,6 +786,8 @@ extern void *nativeLibOpen(char *path);
 extern char *nativeLibMapName(char *name);
 extern void *nativeLibSym(void *handle, char *symbol);
 
+extern int nativeAvailableProcessors();
+
 /* Threading */
 
 extern void initialiseMainThread(int java_stack);

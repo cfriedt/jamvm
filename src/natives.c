@@ -183,6 +183,11 @@ uintptr_t *identityHashCode(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 /* java.lang.VMRuntime */
 
+uintptr_t *availableProcessors(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    *ostack++ = nativeAvailableProcessors();
+    return ostack;
+}
+
 uintptr_t *freeMemory(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     *(u8*)ostack = freeHeapMem();
     return ostack + 2;
@@ -1009,6 +1014,7 @@ VMMethod vm_system[] = {
 };
 
 VMMethod vm_runtime[] = {
+    {"availableProcessors",         availableProcessors},
     {"freeMemory",                  freeMemory},
     {"totalMemory",                 totalMemory},
     {"maxMemory",                   maxMemory},

@@ -22,8 +22,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <dlfcn.h>
+#include <sys/sysinfo.h>
 
 #include "../../jam.h"
+
+int nativeAvailableProcessors() {
+    return get_nprocs();
+}
 
 char *nativeLibPath() {
     return getenv("LD_LIBRARY_PATH");
