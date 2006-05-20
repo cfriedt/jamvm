@@ -59,7 +59,7 @@ final class VMRuntime
      *
      * @return the number of processors available, at least 1
      */
-    static int availableProcessors() {return 1; }
+    static native int availableProcessors();
 
     /**
      * Find out how much memory is still free for allocating Objects on the heap.
