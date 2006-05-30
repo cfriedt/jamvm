@@ -91,6 +91,10 @@ void showNonStandardOptions() {
     printf("\t\t   locations are appended to the bootstrap class path\n");
     printf("  -Xbootclasspath/p:%s\n", BCP_MESSAGE);
     printf("\t\t   locations are prepended to the bootstrap class path\n");
+    printf("  -Xbootclasspath/c:%s\n", BCP_MESSAGE);
+    printf("\t\t   locations where to find Classpath's classes\n");
+    printf("  -Xbootclasspath/v:%s\n", BCP_MESSAGE);
+    printf("\t\t   locations where to find JamVM's classes\n");
     printf("  -Xnoasyncgc\t   turn off asynchronous garbage collection\n");
     printf("  -Xcompactalways  always compact the heap when garbage-collecting\n");
     printf("  -Xnocompact\t   turn off heap-compaction\n");
@@ -120,7 +124,7 @@ void showUsage(char *name) {
 }
 
 void showVersionAndCopyright() {
-    printf("java version \"1.4.2\"\n");
+    printf("java version \"%s\"\n", JAVA_COMPAT_VERSION);
     printf("JamVM version %s\n", VERSION);
     printf("Copyright (C) 2003-2006 Robert Lougher <rob@lougher.org.uk>\n\n");
     printf("This program is free software; you can redistribute it and/or\n");
@@ -262,7 +266,9 @@ int parseCommandLine(int argc, char *argv[]) {
             bootpath = argv[i] + 16;
 
         } else if(strncmp(argv[i], "-Xbootclasspath/a:", 18) == 0 ||
-                  strncmp(argv[i], "-Xbootclasspath/p:", 18) == 0) {
+                  strncmp(argv[i], "-Xbootclasspath/p:", 18) == 0 ||
+                  strncmp(argv[i], "-Xbootclasspath/c:", 18) == 0 ||
+                  strncmp(argv[i], "-Xbootclasspath/v:", 18) == 0) {
 
             bootpathopt = argv[i][16];
             bootpath = argv[i] + 18;
