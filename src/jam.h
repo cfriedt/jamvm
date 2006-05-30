@@ -491,7 +491,6 @@ typedef struct classblock {
    u2 *inner_classes;
    int refs_offsets_size;
    RefsOffsetsEntry *refs_offsets_table;
-   Class *array_class;
    u2 enclosing_class;
    u2 enclosing_method;
 } ClassBlock;
@@ -603,6 +602,8 @@ typedef struct prop {
 /* size of emergency area - big enough to create
    a StackOverflow exception */
 #define STACK_RED_ZONE_SIZE 1*KB
+
+#define JAVA_COMPAT_VERSION "1.4.2"
 
 /* --------------------- Function prototypes  --------------------------- */
 
