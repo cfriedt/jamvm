@@ -22,7 +22,6 @@ package jamvm.java.lang;
 
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-import java.util.jar.Attributes;
 import java.util.jar.Attributes.Name;
 import java.lang.reflect.Method;
 
