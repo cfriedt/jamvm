@@ -143,7 +143,7 @@ void addDefaultProperties(Object *properties) {
     setProperty(properties, "java.runtime.version", VERSION);
     setProperty(properties, "java.vm.vendor", "Robert Lougher");
     setProperty(properties, "java.vm.vendor.url", "http://jamvm.sourceforge.net");
-    setProperty(properties, "java.version", "1.4.2");
+    setProperty(properties, "java.version", JAVA_COMPAT_VERSION);
     setProperty(properties, "java.vendor", "GNU Classpath");
     setProperty(properties, "java.vendor.url", "http://www.classpath.org");
     setProperty(properties, "java.home", getJavaHome());
