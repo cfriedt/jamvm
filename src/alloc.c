@@ -978,9 +978,6 @@ void threadClassData(Class *class, Class *new_addr) {
     if(cb->super != NULL)
         threadReference((Object**)&cb->super);
 
-    if(cb->array_class != NULL)
-        threadReference((Object**)&cb->array_class);
-
     for(i = 0; i < cb->interfaces_count; i++)
         if(cb->interfaces[i] != NULL)
             threadReference((Object**)&cb->interfaces[i]);
