@@ -1,3 +1,76 @@
+JamVM 1.4.3 released on 21st May 2006
+=====================================
+
+A summary of changes since 1.4.2:
+
+- Heap compaction implemented.  Previously on some programs the object
+  allocation pattern could lead to a highly fragmented heap (lots of
+  small holes).  This caused early heap expansion, and in some cases
+  an OutOfMemory exception (a result of repeated heap expansion until
+  heap fully expanded).
+
+  JamVM now includes a mark/compact collector in addition to the
+  mark/sweep GC.  This is normally ran after forced finalisation, and
+  before heap expansion.  It removes fragmentation by sliding the objects
+  to the bottom of the heap, closing the holes.
+
+  Two new command line options can be used to control compaction :
+
+    -Xnocompact : don't do compaction and just use the mark/sweep
+                  collector.  This is equivalent to JamVM 1.4.2 behaviour.
+
+    -Xcompactalways : do compaction on every garbage-collection.   In
+                      some cases this may lead to less collections, but
+                      the compactor is slower than the sweeper.
+
+- The interned String table is now garbage-collected (JamVM uses its
+  own interned String hashtable).
+
+- Additional Java 1.5 support
+    - New methods within VMClass implemented
+        - isMemberClass, isLocalClass, isAnonymousClass,
+          getEnclosingClass, getEnclosingMethod,
+          getEnclosingConstructor, getClassSignature.
+
+    - Generic signature support in reflection classes (Constructor, Method
+      Field).
+        - getTypeParameters, getSignature, getGenericExceptionTypes,
+          getGenericParameterTypes, toGenericString, getGenericType,
+          getGenericReturnType
+
+    - Uncaught exceptions will now use the thread's uncaughtExceptionHandler
+      (if available).
+
+- Fix for Non-ASCII characters in class name parameter
+    - affected methods Class.ForName, ClassLoader.defineClass
+
+- Use getcwd() instead of PWD enviroment variable for user.dir
+  property.  This fixes problems seen on some applications.
+
+- Fix in VMClass.defineClass on 64-bit machines (protection domain
+  parameter assumed to be 4 bytes).
+
+- Minor interpreter optimisation in direct-mode with handler
+  prefetch (reload of handler address in aload_0/getfield pair).
+
+- Command line options -version and -showversion now prints a "Java
+  compatible" version number.  This is to work with shell scripts which
+  parse the output to get the Java version.
+
+- Set the java.home property to the JAVA_HOME environment variable if set.
+
+- Ported to Mac OS X on Intel.
+
+- Runtime.availableProcessors implemented (Linux, Mac OS X and BSD
+  systems).
+
+- Updated to be compatible with Classpath 0.91.
+    - Merged in changes to GNU Classpath's VM reference classes and
+      JamVM's classes.
+
+- Various compiler warnings.
+
+
 JamVM 1.4.2 released on 22nd January 2006
 =========================================
 
