@@ -1,5 +1,5 @@
 .deps
-dll_os.o
+os.o
 libos.a
 Makefile
 Makefile.in

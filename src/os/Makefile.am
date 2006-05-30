@@ -1,3 +1,3 @@
 SUBDIRS = @os@
-DIST_SUBDIRS = linux darwin
+DIST_SUBDIRS = linux darwin bsd
 
