@@ -257,7 +257,7 @@ int resolveDll(char *name) {
         if(handle == NULL)
             return 0;
 
-        TRACE(("<DLL: Successfully opened library %s>\n",name));
+        TRACE(("<DLL: Successfully opened library %s>\n", name));
 
         if((onload = nativeLibSym(handle, "JNI_OnLoad")) != NULL) {
             int ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
