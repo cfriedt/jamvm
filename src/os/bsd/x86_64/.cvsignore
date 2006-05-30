@@ -1,0 +1,5 @@
+.deps
+init.o
+libnative.a
+Makefile
+Makefile.in
