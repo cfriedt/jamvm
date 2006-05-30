@@ -1517,25 +1517,44 @@ char *getClassPath() {
     return classpath;
 }
 
-char *setBootClassPath(char *cmdlne_bcp, char bootpathopt) {
 #ifdef USE_ZIP
-    char *dflt_bcp = INSTALL_DIR"/share/jamvm/classes.zip:"CLASSPATH_INSTALL_DIR"/share/classpath/glibj.zip";
+#define JAMVM_CLASSES INSTALL_DIR"/share/jamvm/classes.zip"
+#define CLASSPATH_CLASSES CLASSPATH_INSTALL_DIR"/share/classpath/glibj.zip"
 #else
-    char *dflt_bcp = INSTALL_DIR"/share/jamvm/classes:"CLASSPATH_INSTALL_DIR"/share/classpath";
+#define JAMVM_CLASSES INSTALL_DIR"/share/jamvm/classes"
+#define CLASSPATH_CLASSES CLASSPATH_INSTALL_DIR"/share/classpath"
 #endif
 
+#define DFLT_BCP JAMVM_CLASSES":"CLASSPATH_CLASSES
+
+char *setBootClassPath(char *cmdlne_bcp, char bootpathopt) {
     if(cmdlne_bcp) {
         if(bootpathopt) {
-            bootpath = sysMalloc(strlen(dflt_bcp) + strlen(cmdlne_bcp) + 2);
-            if(bootpathopt == 'a')
-                strcat(strcat(strcpy(bootpath, dflt_bcp), ":"), cmdlne_bcp);
-            else
-                strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), dflt_bcp);
+            switch(bootpathopt) {
+                case 'a':
+                case 'p':
+                    bootpath = sysMalloc(strlen(DFLT_BCP) + strlen(cmdlne_bcp) + 2);
+                    if(bootpathopt == 'a')
+                        strcat(strcat(strcpy(bootpath, DFLT_BCP), ":"), cmdlne_bcp);
+                    else
+                        strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), DFLT_BCP);
+                    break;
+
+                case 'c':
+                    bootpath = sysMalloc(strlen(JAMVM_CLASSES) + strlen(cmdlne_bcp) + 2);
+                    strcat(strcat(strcpy(bootpath, JAMVM_CLASSES), ":"), cmdlne_bcp);
+                    break;
+
+                case 'v':
+                    bootpath = sysMalloc(strlen(CLASSPATH_CLASSES) + strlen(cmdlne_bcp) + 2);
+                    strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), CLASSPATH_CLASSES);
+                    break;
+            }           
         } else
             bootpath = cmdlne_bcp;
     } else {
         char *env = getenv("BOOTCLASSPATH");
-        bootpath = env ? env : dflt_bcp;
+        bootpath = env ? env : DFLT_BCP;
     }
 
     return bootpath;
