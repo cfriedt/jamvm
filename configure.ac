@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.4.3-pre)
+AM_INIT_AUTOMAKE(jamvm, 1.4.3)
 AC_CONFIG_HEADERS([src/config.h])
 
 AC_ARG_ENABLE(tracegc,
@@ -58,17 +58,17 @@ AC_CANONICAL_HOST
 case "$host" in
 i[[3456]]86-*-linux*) host_cpu=i386 host_os=linux ;;
 i[[3456]]86-*-kfreebsd*) host_cpu=i386 host_os=linux ;;
-i386-*-openbsd*) host_os=linux libdl_needed=no ;;
-i386-*-freebsd*) host_os=linux libdl_needed=no ;;
+i386-*-openbsd*) host_os=bsd libdl_needed=no ;;
+i386-*-freebsd*) host_os=bsd libdl_needed=no ;;
 x86_64-*-linux*) host_os=linux ;;
-amd64-*-openbsd*) host_os=linux libdl_needed=no ;;
-amd64-*-freebsd*) host_os=linux libdl_needed=no ;;
+amd64-*-openbsd*) host_os=bsd libdl_needed=no ;;
+amd64-*-freebsd*) host_os=bsd libdl_needed=no ;;
 arm*-*-linux*) host_cpu=arm host_os=linux ;;
-arm*-*-openbsd*) host_cpu=arm host_os=linux libdl_needed=no ;;
-arm*-*-freebsd*) host_cpu=arm host_os=linux libdl_needed=no ;;
+arm*-*-openbsd*) host_cpu=arm host_os=bsd libdl_needed=no ;;
+arm*-*-freebsd*) host_cpu=arm host_os=bsd libdl_needed=no ;;
 powerpc*-*-linux*) host_cpu=powerpc host_os=linux ;;
-powerpc*-*-openbsd*) host_cpu=powerpc host_os=linux libdl_needed=no ;;
-powerpc*-*-freebsd*) host_cpu=powerpc host_os=linux libdl_needed=no ;;
+powerpc*-*-openbsd*) host_cpu=powerpc host_os=bsd libdl_needed=no ;;
+powerpc*-*-freebsd*) host_cpu=powerpc host_os=bsd libdl_needed=no ;;
 powerpc-*-darwin*) host_os=darwin ;;
 i[[3456]]86-*-darwin*) host_cpu=i386 host_os=darwin ;;
 *) AC_MSG_ERROR($host not supported) ;;
@@ -209,12 +209,17 @@ AC_CONFIG_FILES(
     src/os/Makefile \
     src/os/linux/Makefile \
     src/os/darwin/Makefile \
+    src/os/bsd/Makefile \
     src/os/linux/powerpc/Makefile \
     src/os/linux/arm/Makefile \
     src/os/linux/i386/Makefile \
     src/os/linux/x86_64/Makefile \
     src/os/darwin/i386/Makefile \
     src/os/darwin/powerpc/Makefile \
+    src/os/bsd/powerpc/Makefile \
+    src/os/bsd/arm/Makefile \
+    src/os/bsd/i386/Makefile \
+    src/os/bsd/x86_64/Makefile \
     lib/Makefile \
     lib/java/Makefile \
     lib/java/lang/Makefile \
