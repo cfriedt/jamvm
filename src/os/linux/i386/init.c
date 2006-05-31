@@ -18,22 +18,18 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifdef __linux__
 #include <fpu_control.h>
-#endif
 
 /* Change floating point precision to double (64-bit) from
  * the extended (80-bit) Linux default. */
 
 void setDoublePrecision() {
-#ifdef __linux__
     fpu_control_t cw;
 
     _FPU_GETCW(cw);
     cw &= ~_FPU_EXTENDED;
     cw |= _FPU_DOUBLE;
     _FPU_SETCW(cw);
-#endif
 }
 
 void initialisePlatform() {

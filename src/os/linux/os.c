@@ -24,18 +24,10 @@
 #include <dlfcn.h>
 #include <sys/sysinfo.h>
 
-#ifdef __linux__
-#include <sys/sysinfo.h>
-#endif
-
 #include "../../jam.h"
 
 int nativeAvailableProcessors() {
-#ifdef __linux__
     return get_nprocs();
-#else
-    return 1;
-#endif
 }
 
 char *nativeLibPath() {
