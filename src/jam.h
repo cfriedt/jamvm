@@ -261,6 +261,7 @@
 #define OPC_INSTANCEOF_QUICK            239
 #define OPC_MULTIANEWARRAY_QUICK        243
 #define OPC_INVOKEINTERFACE_QUICK       244
+#define OPC_ABSTRACT_METHOD_ERROR       245
 
 #define CONSTANT_Utf8                   1
 #define CONSTANT_Integer                3
@@ -787,6 +788,7 @@ extern void *nativeLibOpen(char *path);
 extern char *nativeLibMapName(char *name);
 extern void *nativeLibSym(void *handle, char *symbol);
 
+extern void *nativeStackBase();
 extern int nativeAvailableProcessors();
 
 /* Threading */

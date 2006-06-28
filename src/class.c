@@ -81,6 +81,10 @@ static HashTable loaded_classes;
 #define MAX_PRIM_CLASSES 9
 static Class *prim_classes[MAX_PRIM_CLASSES];
 
+/* Bytecode for stub abstract method.  If it is invoked
+   we'll get an abstract method error. */
+static char abstract_method[] = {OPC_ABSTRACT_METHOD_ERROR};
+
 /* Macros for reading data values from class files - values
    are in big endian format, and non-aligned.  See arch.h
    for READ_DBL - this is platform dependent */
@@ -737,6 +741,12 @@ void linkClass(Class *class) {
 
        mb->class = class;
 
+       /* Set abstract method to stub */
+       if(mb->access_flags & ACC_ABSTRACT) {
+           mb->code_size = sizeof(abstract_method);
+           mb->code = abstract_method;
+       }
+
        if(mb->access_flags & ACC_NATIVE) {
 
            /* set up native invoker to wrapper to resolve function 
@@ -751,6 +761,7 @@ void linkClass(Class *class) {
            mb->max_locals = mb->args_count;
            mb->max_stack = 0;
        }
+
 #ifdef DIRECT
        else  {
            /* Set the bottom bit of the pointer to indicate the
@@ -1422,11 +1433,17 @@ void freeClassData(Class *class) {
     for(i = 0; i < cb->methods_count; i++) {
         MethodBlock *mb = &cb->methods[i];
 
-        free((void*)((uintptr_t)mb->code & ~1));
+#ifdef DIRECT
+        if(!(mb->access_flags & ACC_ABSTRACT) || !((uintptr_t)mb->code & 0x3))
+#else
+        if(!(mb->access_flags & ACC_ABSTRACT))
+#endif
+            free((void*)((uintptr_t)mb->code & ~3));
+
         free(mb->exception_table);
         free(mb->line_no_table);
         free(mb->throw_table);
-    }
+    } 
 
     free(cb->methods);
     free(cb->inner_classes);
@@ -1528,31 +1545,31 @@ char *getClassPath() {
 #define DFLT_BCP JAMVM_CLASSES":"CLASSPATH_CLASSES
 
 char *setBootClassPath(char *cmdlne_bcp, char bootpathopt) {
-    if(cmdlne_bcp) {
-        if(bootpathopt) {
-            switch(bootpathopt) {
-                case 'a':
-                case 'p':
-                    bootpath = sysMalloc(strlen(DFLT_BCP) + strlen(cmdlne_bcp) + 2);
-                    if(bootpathopt == 'a')
-                        strcat(strcat(strcpy(bootpath, DFLT_BCP), ":"), cmdlne_bcp);
-                    else
-                        strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), DFLT_BCP);
-                    break;
+    if(cmdlne_bcp)
+        switch(bootpathopt) {
+            case 'a':
+            case 'p':
+                bootpath = sysMalloc(strlen(DFLT_BCP) + strlen(cmdlne_bcp) + 2);
+                if(bootpathopt == 'a')
+                    strcat(strcat(strcpy(bootpath, DFLT_BCP), ":"), cmdlne_bcp);
+                else
+                    strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), DFLT_BCP);
+                break;
 
-                case 'c':
-                    bootpath = sysMalloc(strlen(JAMVM_CLASSES) + strlen(cmdlne_bcp) + 2);
-                    strcat(strcat(strcpy(bootpath, JAMVM_CLASSES), ":"), cmdlne_bcp);
-                    break;
+            case 'c':
+                bootpath = sysMalloc(strlen(JAMVM_CLASSES) + strlen(cmdlne_bcp) + 2);
+                strcat(strcat(strcpy(bootpath, JAMVM_CLASSES), ":"), cmdlne_bcp);
+                break;
 
-                case 'v':
-                    bootpath = sysMalloc(strlen(CLASSPATH_CLASSES) + strlen(cmdlne_bcp) + 2);
-                    strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), CLASSPATH_CLASSES);
-                    break;
-            }           
-        } else
-            bootpath = cmdlne_bcp;
-    } else {
+            case 'v':
+                bootpath = sysMalloc(strlen(CLASSPATH_CLASSES) + strlen(cmdlne_bcp) + 2);
+                strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), CLASSPATH_CLASSES);
+                break;
+
+            default:
+                bootpath = cmdlne_bcp;
+        }           
+    else {
         char *env = getenv("BOOTCLASSPATH");
         bootpath = env ? env : DFLT_BCP;
     }

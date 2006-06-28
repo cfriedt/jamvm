@@ -308,7 +308,7 @@ retry:
                 case OPC_F2D: case OPC_D2F: case OPC_FREM:
                 case OPC_DREM: case OPC_LNEG: case OPC_FNEG:
                 case OPC_DNEG: case OPC_MONITORENTER:
-                case OPC_MONITOREXIT:
+                case OPC_MONITOREXIT: case OPC_ABSTRACT_METHOD_ERROR:
 #ifdef USE_CACHE
                     cache = 0;
                     pc += 1;
@@ -765,6 +765,7 @@ retry:
     enableSuspend(self);
 
     /* We don't need the old bytecode stream anymore */
-    free(code);
+    if(!mb->access_flags & ACC_ABSTRACT)
+        free(code);
 }
 #endif
