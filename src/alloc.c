@@ -320,13 +320,13 @@ void scanThread(Thread *thread) {
 
     TRACE_GC("Scanning stacks for thread 0x%x id %d\n", thread, thread->id);
 
+    /* Mark the java.lang.Thread object */
     markConservativeRoot(ee->thread);
 
-    /* If there's a pending exception raised
-       on this thread mark it */
-    if(ee->exception)
-        markConservativeRoot(ee->exception);
+    /* Mark any pending exception raised on this thread */
+    markConservativeRoot(ee->exception);
 
+    /* Scan the thread's C stack and mark all references */
     slot = (uintptr_t*)getStackTop(thread);
     end = (uintptr_t*)getStackBase(thread);
 
@@ -337,6 +337,7 @@ void scanThread(Thread *thread) {
             markConservativeRoot(ob);
         }
 
+    /* Scan the thread's Java stack and mark all references */
     slot = frame->ostack + frame->mb->max_stack;
 
     while(frame->prev != NULL) {
@@ -371,6 +372,7 @@ void markClassData(Class *class, int mark, int mark_soft_refs) {
 
     TRACE_GC("Marking class %s\n", cb->name);
 
+    /* Recursively mark the class's classloader */
     if(cb->class_loader != NULL && mark > IS_MARKED(cb->class_loader))
         markChildren(cb->class_loader, mark, mark_soft_refs);
 
