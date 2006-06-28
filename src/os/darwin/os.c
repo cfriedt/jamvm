@@ -23,8 +23,13 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <sys/sysctl.h>
+#include <pthread.h>
 
 #include "../../jam.h"
+
+void *nativeStackBase() {
+    return pthread_get_stackaddr_np(pthread_self());
+}
 
 int nativeAvailableProcessors() {
     int processors, mib[2];
