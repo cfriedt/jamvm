@@ -175,7 +175,7 @@ storeExcep:
 
 uintptr_t *identityHashCode(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *ob = (Object*)*ostack;
-    uintptr_t addr = getObjectHashcode(ob);
+    uintptr_t addr = ob == NULL ? 0 : getObjectHashcode(ob);
 
     *ostack++ = addr & 0xffffffff;
     return ostack;
@@ -684,9 +684,15 @@ uintptr_t *constructNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Object *array = (Object*)ostack[1]; 
     Class *decl_class = (Class*)ostack[2];
     Object *param_types = (Object*)ostack[3];
-    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[4]]); 
+    ClassBlock *cb = CLASS_CB(decl_class); 
+    MethodBlock *mb = &(cb->methods[ostack[4]]); 
     int no_access_check = ostack[5]; 
-    Object *ob = allocObject(mb->class);
+    Object *ob = NULL;
+
+    if(cb->access_flags & ACC_ABSTRACT)
+        signalException("java/lang/InstantiationError", cb->name);
+    else
+        ob = allocObject(mb->class);
 
     if(ob) invoke(ob, mb, array, param_types, !no_access_check);
 
@@ -761,9 +767,12 @@ uintptr_t *getPntr2Field(uintptr_t *ostack) {
     int no_access_check = ostack[5];
     Object *ob;
 
-    if(!no_access_check && !checkFieldAccess(fb, getCallerCallerClass())) {
-        signalException("java/lang/IllegalAccessException", "field is not accessible");
-        return NULL;
+    if(!no_access_check) {
+        Class *caller = getCallerCallerClass();
+        if(!checkClassAccess(decl_class, caller) || !checkFieldAccess(fb, caller)) {
+            signalException("java/lang/IllegalAccessException", "field is not accessible");
+            return NULL;
+        }
     }
 
     if(fb->access_flags & ACC_STATIC) {
