@@ -269,7 +269,8 @@ void *threadStart(void *arg) {
     /* If there's an uncaught exception, call uncaughtException on the thread's
        exception handler, or the thread's group if this is unset */
     if((excep = exceptionOccured())) {
-        FieldBlock *fb = findField(thread_class, "exceptionHandler", "Ljava/lang/Thread$UncaughtExceptionHandler;");
+        FieldBlock *fb = findField(thread_class, "exceptionHandler",
+                                                 "Ljava/lang/Thread$UncaughtExceptionHandler;");
         Object *thread_handler = fb == NULL ? NULL : (Object *)INST_DATA(jThread)[fb->offset];
         Object *handler = thread_handler == NULL ? group : thread_handler;
 
@@ -653,8 +654,11 @@ void dumpThreadsLoop(Thread *self) {
     for(;;) {
         sigwait(&mask, &sig);
 
+        /* If it was an interrupt (e.g. Ctrl-C) terminate the VM */
         if(sig == SIGINT)
             exitVM(0);
+
+        /* It must be a SIGQUIT.  Do a thread dump */
 
         suspendAllThreads(self);
         printf("\n------ JamVM version %s Full Thread Dump -------\n", VERSION);
@@ -714,11 +718,6 @@ static void initialiseSignals() {
     sigaddset(&mask, SIGINT);
     sigaddset(&mask, SIGPIPE);
     sigprocmask(SIG_BLOCK, &mask, NULL);
-
-    /* The signal handler thread must be a valid Java-level
-       thread, as it needs to run the shutdown hooks in
-       the event of user-termination of the VM */
-    createVMThread("Signal Handler", dumpThreadsLoop);
 }
 
 /* garbage collection support */
@@ -849,6 +848,7 @@ void initialiseMainThread(int stack_size) {
     name_offset = name->offset;
     run_mtbl_idx = run->method_table_index;
 
+    /* As we're initialising, VM will abort if allocation fails */
     vmthread = allocObject(vmthread_class);
     main_ee.thread = allocObject(thread_class);
 
@@ -861,10 +861,6 @@ void initialiseMainThread(int stack_size) {
     INST_DATA(main_ee.thread)[vmthread_offset] = (uintptr_t)vmthread;
 
     thrdGrp_class = findSystemClass("java/lang/ThreadGroup");
-    if(exceptionOccured()) {
-        printException();
-        exitVM(1);
-    }
 
     root = findField(thrdGrp_class, "root", "Ljava/lang/ThreadGroup;");
     remove_thread = findMethod(thrdGrp_class, "removeThread", "(Ljava/lang/Thread;)V");
@@ -877,7 +873,16 @@ void initialiseMainThread(int stack_size) {
 
     INST_DATA(main_ee.thread)[group_offset] = root->static_value;
 
+    /* Setup signal handling.  This will be inherited by all
+       created threads */
     initialiseSignals();
+
+    /* Create the signal handler thread.  It is responsible for
+       catching and handling SIGQUIT (thread dump) and SIGINT
+       (user-termination of the VM, e.g. via Ctrl-C).  Note it
+       must be a valid Java-level thread as it needs to run the
+       shutdown hooks in the event of user-termination */
+    createVMThread("Signal Handler", dumpThreadsLoop);
 
     return;
 
