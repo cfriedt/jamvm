@@ -23,6 +23,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 #include "jam.h"
 #include "sig.h"
@@ -1534,6 +1536,59 @@ char *getClassPath() {
     return classpath;
 }
 
+int filter(struct dirent *entry) {
+    int len = strlen(entry->d_name);
+    char *ext = &entry->d_name[len-4];
+
+    return len >= 4 && (strcasecmp(ext, ".zip") == 0 ||
+                        strcasecmp(ext, ".jar") == 0);
+}
+
+void scanDirForJars(char *dir) {
+    int bootpathlen = strlen(bootpath) + 1;
+    int dirlen = strlen(dir);
+    struct dirent **namelist;
+    int n;
+
+    n = scandir(dir, &namelist, &filter, &alphasort);
+
+    if(n >= 0) {
+        while(--n >= 0) {
+            char *buff;
+            bootpathlen += strlen(namelist[n]->d_name) + dirlen + 2;
+            buff = malloc(bootpathlen);
+
+            strcat(strcat(strcat(strcat(strcpy(buff, dir), "/"), namelist[n]->d_name), ":"), bootpath);
+
+            free(bootpath);
+            bootpath = buff;
+            free(namelist[n]);
+        }
+        free(namelist);
+    }
+}
+
+void scanDirsForJars(char *directories) {
+    int dirslen = strlen(directories);
+    char *pntr, *end, *dirs = malloc(dirslen + 1);
+    strcpy(dirs, directories);
+
+    for(end = pntr = &dirs[dirslen]; pntr != dirs; pntr--) {
+        if(*pntr == ':') {
+            char *start = pntr + 1;
+            if(start != end)
+                scanDirForJars(start);
+
+            *(end = pntr) = '\0';
+        }
+    }
+
+    if(end != dirs)
+        scanDirForJars(dirs);
+
+    free(dirs);
+}
+
 #ifdef USE_ZIP
 #define JAMVM_CLASSES INSTALL_DIR"/share/jamvm/classes.zip"
 #define CLASSPATH_CLASSES CLASSPATH_INSTALL_DIR"/share/classpath/glibj.zip"
@@ -1545,6 +1600,8 @@ char *getClassPath() {
 #define DFLT_BCP JAMVM_CLASSES":"CLASSPATH_CLASSES
 
 char *setBootClassPath(char *cmdlne_bcp, char bootpathopt) {
+    char *endorsed_dirs;
+
     if(cmdlne_bcp)
         switch(bootpathopt) {
             case 'a':
@@ -1567,12 +1624,21 @@ char *setBootClassPath(char *cmdlne_bcp, char bootpathopt) {
                 break;
 
             default:
-                bootpath = cmdlne_bcp;
+                bootpath = sysMalloc(strlen(cmdlne_bcp) + 1);
+                strcpy(bootpath, cmdlne_bcp);
         }           
     else {
         char *env = getenv("BOOTCLASSPATH");
-        bootpath = env ? env : DFLT_BCP;
+        char *path = env ? env : DFLT_BCP;
+        bootpath = sysMalloc(strlen(path) + 1);
+        strcpy(bootpath, path);
     }
+
+    endorsed_dirs = getCommandLineProperty("java.endorsed.dirs");
+    if(endorsed_dirs == NULL)
+        endorsed_dirs = INSTALL_DIR"/share/jamvm/endorsed";
+
+    scanDirsForJars(endorsed_dirs);
 
     return bootpath;
 }

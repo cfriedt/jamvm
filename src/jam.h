@@ -844,6 +844,7 @@ extern void markJNIGlobalRefs();
 
 extern void addCommandLineProperties(Object *properties);
 extern void addDefaultProperties(Object *properties);
+extern char *getCommandLineProperty(char *key);
 
 /* access */
 

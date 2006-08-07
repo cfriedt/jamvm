@@ -43,6 +43,18 @@
 extern Property *commandline_props;
 extern int commandline_props_count;
 
+char *getCommandLineProperty(char *key) {
+    if(commandline_props_count) {
+        int i;
+
+        for(i = 0; i < commandline_props_count; i++)
+            if(strcmp(commandline_props[i].key, key) == 0)
+                return commandline_props[i].value;
+    }
+
+    return NULL;
+}
+
 void setProperty(Object *properties, char *key, char *value) {
     Object *k = Cstr2String(key);
     Object *v = Cstr2String(value ? value : "?");
@@ -61,6 +73,7 @@ void addCommandLineProperties(Object *properties) {
             free(commandline_props[i].key);
         }
 
+        commandline_props_count = 0;
         free(commandline_props);
     }
 }
