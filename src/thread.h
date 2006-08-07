@@ -96,6 +96,9 @@ extern void disableSuspend0(Thread *thread, void *stack_top);
 extern void enableSuspend(Thread *thread);
 extern void fastEnableSuspend(Thread *thread);
 
+extern Thread *attachJNIThread(char *name, char is_daemon, Object *group);
+extern void detachJNIThread(Thread *thread);
+
 #define disableSuspend(thread)          \
 {                                       \
     sigjmp_buf *env;                    \

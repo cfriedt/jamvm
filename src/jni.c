@@ -410,7 +410,9 @@ jclass Jam_DefineClass(JNIEnv *env, const char *name, jobject loader, const jbyt
 }
 
 jclass Jam_FindClass(JNIEnv *env, const char *name) {
-    Object *loader = CLASS_CB(getExecEnv()->last_frame->mb->class)->class_loader;
+//    Object *loader = CLASS_CB(getExecEnv()->last_frame->mb->class)->class_loader;
+    Frame *last = getExecEnv()->last_frame;
+    Object *loader = last->prev ? CLASS_CB(last->mb->class)->class_loader : NULL;
     return (jclass) findClassFromClassLoader((char*) name, loader);
 }
 
@@ -1240,26 +1242,40 @@ jint Jam_DestroyJavaVM(JavaVM *vm) {
     return 0;
 }
 
+struct _JNINativeInterface Jam_JNINativeInterface;
+static void *env = &Jam_JNINativeInterface;
+
 jint Jam_AttachCurrentThread(JavaVM *vm, void **penv, void *args) {
-    fprintf(stderr, "JNI - FatalError: AttachCurrentThread unimplemented.\n");
-    exitVM(1);
-    return 0;
+    if(threadSelf() != NULL)
+        return;
+    
+    attachJNIThread(NULL, FALSE, NULL);
+    initJNILrefs();
+
+    *penv = &env;
+    return JNI_OK;
 }
 
 jint Jam_AttachCurrentThreadAsDaemon(JavaVM *vm, void **penv, void *args) {
-    fprintf(stderr, "JNI - FatalError: AttachCurrentThreadAsDaemon unimplemented.\n");
-    exitVM(1);
-    return 0;
+    if(threadSelf() != NULL)
+        return;
+    
+    attachJNIThread(NULL, TRUE, NULL);
+    initJNILrefs();
+
+    *penv = &env;
+    return JNI_OK;
 }
 
 jint Jam_DetachCurrentThread(JavaVM *vm) {
-    fprintf(stderr, "JNI - FatalError: DetachCurrentThread unimplemented.\n");
-    exitVM(1);
-    return 0;
-}
+    Thread *thread = threadSelf();
 
-struct _JNINativeInterface Jam_JNINativeInterface;
-static void *env = &Jam_JNINativeInterface;
+    if(thread == NULL)
+        return JNI_ERR;
+
+    detachJNIThread(thread);
+    return JNI_OK;
+}
 
 jint Jam_GetEnv(JavaVM *vm, void **penv, jint version) {
     if((version != JNI_VERSION_1_4) && (version != JNI_VERSION_1_2)
