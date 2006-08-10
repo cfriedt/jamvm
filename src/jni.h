@@ -322,6 +322,12 @@ struct _JNIInvokeInterface {
     jint (*AttachCurrentThreadAsDaemon)(JavaVM *vm, void **penv, void *args);
 };
 
+typedef struct JavaVMAttachArgs {
+    jint version;
+    char *name;
+    jobject group;
+} JavaVMAttachArgs;
+
 #undef VIRTUAL_METHOD
 #undef NONVIRTUAL_METHOD
 #undef STATIC_METHOD

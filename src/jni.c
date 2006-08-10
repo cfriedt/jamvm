@@ -1245,36 +1245,45 @@ jint Jam_DestroyJavaVM(JavaVM *vm) {
 struct _JNINativeInterface Jam_JNINativeInterface;
 static void *env = &Jam_JNINativeInterface;
 
-jint Jam_AttachCurrentThread(JavaVM *vm, void **penv, void *args) {
-    if(threadSelf() != NULL)
-        return;
-    
-    attachJNIThread(NULL, FALSE, NULL);
-    initJNILrefs();
+static jint attachCurrentThread(void **penv, void *args, int is_daemon) {
+    if(threadSelf() == NULL) {
+        char *name = NULL;
+        Object *group = NULL;
+
+        if(args != NULL) {
+            JavaVMAttachArgs *attach_args = (JavaVMAttachArgs*)args;
+            if((attach_args->version != JNI_VERSION_1_4) && (attach_args->version != JNI_VERSION_1_2))
+                return -1;
+
+            name = attach_args->name;
+            group = attach_args->group;
+        }
+
+        if(attachJNIThread(name, is_daemon, group) == NULL)
+            return -1;
+
+        initJNILrefs();
+    }
 
     *penv = &env;
-    return JNI_OK;
+    return 0;
+}
+
+jint Jam_AttachCurrentThread(JavaVM *vm, void **penv, void *args) {
+    return attachCurrentThread(penv, args, FALSE);
 }
 
 jint Jam_AttachCurrentThreadAsDaemon(JavaVM *vm, void **penv, void *args) {
-    if(threadSelf() != NULL)
-        return;
-    
-    attachJNIThread(NULL, TRUE, NULL);
-    initJNILrefs();
-
-    *penv = &env;
-    return JNI_OK;
+    return attachCurrentThread(penv, args, TRUE);
 }
 
 jint Jam_DetachCurrentThread(JavaVM *vm) {
     Thread *thread = threadSelf();
 
-    if(thread == NULL)
-        return JNI_ERR;
+    if(thread != NULL)
+        detachJNIThread(thread);
 
-    detachJNIThread(thread);
-    return JNI_OK;
+    return 0;
 }
 
 jint Jam_GetEnv(JavaVM *vm, void **penv, jint version) {
