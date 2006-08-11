@@ -410,9 +410,13 @@ jclass Jam_DefineClass(JNIEnv *env, const char *name, jobject loader, const jbyt
 }
 
 jclass Jam_FindClass(JNIEnv *env, const char *name) {
-//    Object *loader = CLASS_CB(getExecEnv()->last_frame->mb->class)->class_loader;
+    /* We use the class loader associated with the calling native method.
+       However, if this has been called from an attached thread there may
+       be no native Java frame.  In this case use the system class loader */
     Frame *last = getExecEnv()->last_frame;
-    Object *loader = last->prev ? CLASS_CB(last->mb->class)->class_loader : NULL;
+    Object *loader = last->prev ? CLASS_CB(last->mb->class)->class_loader
+                                : getSystemClassLoader();
+
     return (jclass) findClassFromClassLoader((char*) name, loader);
 }
 
@@ -1253,20 +1257,20 @@ static jint attachCurrentThread(void **penv, void *args, int is_daemon) {
         if(args != NULL) {
             JavaVMAttachArgs *attach_args = (JavaVMAttachArgs*)args;
             if((attach_args->version != JNI_VERSION_1_4) && (attach_args->version != JNI_VERSION_1_2))
-                return -1;
+                return JNI_EVERSION;
 
             name = attach_args->name;
             group = attach_args->group;
         }
 
         if(attachJNIThread(name, is_daemon, group) == NULL)
-            return -1;
+            return JNI_ERR;
 
         initJNILrefs();
     }
 
     *penv = &env;
-    return 0;
+    return JNI_OK;
 }
 
 jint Jam_AttachCurrentThread(JavaVM *vm, void **penv, void *args) {
@@ -1280,10 +1284,11 @@ jint Jam_AttachCurrentThreadAsDaemon(JavaVM *vm, void **penv, void *args) {
 jint Jam_DetachCurrentThread(JavaVM *vm) {
     Thread *thread = threadSelf();
 
-    if(thread != NULL)
-        detachJNIThread(thread);
+    if(thread == NULL)
+        return JNI_EDETACHED;
 
-    return 0;
+    detachJNIThread(thread);
+    return JNI_OK;
 }
 
 jint Jam_GetEnv(JavaVM *vm, void **penv, jint version) {
