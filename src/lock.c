@@ -32,9 +32,9 @@
 
 /* Trace lock operations and inflation/deflation */
 #ifdef TRACELOCK
-#define TRACE(x) printf x
+#define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
 #else
-#define TRACE(x)
+#define TRACE(fmt, ...)
 #endif
 
 #define UN_USED -1
@@ -74,8 +74,8 @@
     Monitor *mon = (Monitor *)ptr;                    \
     char res = ATOMIC_READ(&mon->entering) == UN_USED;\
     if(res) {                                         \
-        TRACE(("Scavenging monitor %p (obj %p)", mon, \
-                                          mon->obj)); \
+        TRACE("Scavenging monitor %p (obj %p)", mon,  \
+                                          mon->obj);  \
         mon->next = mon_free_list;                    \
         mon_free_list = mon;                          \
     }                                                 \
@@ -271,7 +271,7 @@ Monitor *findMonitor(Object *obj) {
 }
 
 static void inflate(Object *obj, Monitor *mon, Thread *self) {
-    TRACE(("Thread %p is inflating obj %p...\n", self, obj));
+    TRACE("Thread %p is inflating obj %p...\n", self, obj);
     clearFlcBit(obj);
     monitorNotifyAll(mon, self);
     ATOMIC_WRITE(&obj->lock, (uintptr_t) mon | SHAPE_BIT);
@@ -283,7 +283,7 @@ void objectLock(Object *obj) {
     uintptr_t entering, lockword;
     Monitor *mon;
 
-    TRACE(("Thread %p lock on obj %p...\n", self, obj));
+    TRACE("Thread %p lock on obj %p...\n", self, obj);
 
     if(COMPARE_AND_SWAP(&obj->lock, 0, thin_locked)) {
         /* This barrier is not needed for the thin-locking implementation --
@@ -343,7 +343,7 @@ void objectUnlock(Object *obj) {
     uintptr_t lockword = ATOMIC_READ(&obj->lock);
     uintptr_t thin_locked = self->id<<TID_SHIFT;
 
-    TRACE(("Thread %p unlock on obj %p...\n", self, obj));
+    TRACE("Thread %p unlock on obj %p...\n", self, obj);
 
     if(lockword == thin_locked) {
         /* This barrier is not needed for the thin-locking implementation --
@@ -377,7 +377,7 @@ retry:
 
                 if((mon->count == 0) && (ATOMIC_READ(&mon->entering) == 0) &&
                                 (mon->waiting == 0)) {
-                    TRACE(("Thread %p is deflating obj %p...\n", self, obj));
+                    TRACE("Thread %p is deflating obj %p...\n", self, obj);
 
                     /* This barrier is not needed for the thin-locking implementation --
                        it's a requirement of the Java memory model. */
@@ -397,7 +397,7 @@ void objectWait(Object *obj, long long ms, int ns) {
     Thread *self = threadSelf();
     Monitor *mon;
 
-    TRACE(("Thread %p Wait on obj %p...\n", self, obj));
+    TRACE("Thread %p Wait on obj %p...\n", self, obj);
 
     if((lockword & SHAPE_BIT) == 0) {
         int tid = (lockword&TID_MASK)>>TID_SHIFT;
@@ -422,7 +422,7 @@ void objectNotify(Object *obj) {
     uintptr_t lockword = ATOMIC_READ(&obj->lock);
     Thread *self = threadSelf();
 
-    TRACE(("Thread %p Notify on obj %p...\n", self, obj));
+    TRACE("Thread %p Notify on obj %p...\n", self, obj);
 
     if((lockword & SHAPE_BIT) == 0) {
         int tid = (lockword&TID_MASK)>>TID_SHIFT;
@@ -441,7 +441,7 @@ void objectNotifyAll(Object *obj) {
     uintptr_t lockword = ATOMIC_READ(&obj->lock);
     Thread *self = threadSelf();
 
-    TRACE(("Thread %p NotifyAll on obj %p...\n", self, obj));
+    TRACE("Thread %p NotifyAll on obj %p...\n", self, obj);
 
     if((lockword & SHAPE_BIT) == 0) {
         int tid = (lockword&TID_MASK)>>TID_SHIFT;

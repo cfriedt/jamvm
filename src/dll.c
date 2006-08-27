@@ -47,9 +47,9 @@ void *lookupLoadedDlls(MethodBlock *mb);
 
 /* Trace library loading and method lookup */
 #ifdef TRACEDLL
-#define TRACE(x) printf x
+#define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
 #else
-#define TRACE(x)
+#define TRACE(fmt, ...)
 #endif
 
 char *mangleString(char *utf8) {
@@ -154,7 +154,7 @@ void *lookupInternal(MethodBlock *mb) {
     ClassBlock *cb = CLASS_CB(mb->class);
     int i;
 
-    TRACE(("<DLL: Looking up %s internally>\n", mb->name));
+    TRACE("<DLL: Looking up %s internally>\n", mb->name);
 
     /* First try to locate the class */
     for(i = 0; native_methods[i].classname &&
@@ -169,7 +169,7 @@ void *lookupInternal(MethodBlock *mb) {
 
         if(methods[i].methodname) {
             if(verbose)
-                printf("internal");
+                jam_printf("internal");
 
             /* Found it -- set the invoker to the native method */
             return mb->native_invoker = (void*)methods[i].method;
@@ -184,7 +184,7 @@ void *resolveNativeMethod(MethodBlock *mb) {
 
     if(verbose) {
         char *classname = slash2dots(CLASS_CB(mb->class)->name);
-        printf("[Dynamic-linking native method %s.%s ... ", classname, mb->name);
+        jam_printf("[Dynamic-linking native method %s.%s ... ", classname, mb->name);
         free(classname);
     }
 
@@ -197,7 +197,7 @@ void *resolveNativeMethod(MethodBlock *mb) {
 #endif
 
     if(verbose)
-        printf("]\n");
+        jam_printf("]\n");
 
     return func;
 }
@@ -212,12 +212,12 @@ uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack
     return (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))func)(class, mb, ostack);
 }
 
-void initialiseDll(int verbosedll) {
+void initialiseDll(InitArgs *args) {
 #ifndef NO_JNI
     /* Init hash table, and create lock */
     initHashTable(hash_table, HASHTABSZE, TRUE);
 #endif
-    verbose = verbosedll;
+    verbose = args->verbosedll;
 }
 
 #ifndef NO_JNI
@@ -238,7 +238,7 @@ int dllNameHash(char *name) {
 int resolveDll(char *name) {
     DllEntry *dll;
 
-    TRACE(("<DLL: Attempting to resolve library %s>\n", name));
+    TRACE("<DLL: Attempting to resolve library %s>\n", name);
 
 #define HASH(ptr) dllNameHash(ptr)
 #define COMPARE(ptr1, ptr2, hash1, hash2) \
@@ -257,13 +257,13 @@ int resolveDll(char *name) {
         if(handle == NULL)
             return 0;
 
-        TRACE(("<DLL: Successfully opened library %s>\n", name));
+        TRACE("<DLL: Successfully opened library %s>\n", name);
 
         if((onload = nativeLibSym(handle, "JNI_OnLoad")) != NULL) {
             int ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 
             if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4) {
-                TRACE(("<DLL: JNI_OnLoad returned unsupported version %d.\n>", ver));
+                TRACE("<DLL: JNI_OnLoad returned unsupported version %d.\n>", ver);
                 return 0;
             }
         }
@@ -299,7 +299,7 @@ char *getDllName(char *name) {
 }
 
 void *lookupLoadedDlls0(char *name) {
-    TRACE(("<DLL: Looking up %s in loaded DLL's>\n", name));
+    TRACE("<DLL: Looking up %s in loaded DLL's>\n", name);
 
 #define ITERATE(ptr)                                          \
 {                                                             \
@@ -314,7 +314,7 @@ void *lookupLoadedDlls0(char *name) {
 static void *env = &Jam_JNINativeInterface;
 
 uintptr_t *callJNIWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    TRACE(("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name, mb->name, mb->type));
+    TRACE("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name, mb->name, mb->type);
 
     if(!initJNILrefs())
         return NULL;
@@ -344,7 +344,7 @@ void *lookupLoadedDlls(MethodBlock *mb) {
 
     if(func) {
         if(verbose)
-            printf("JNI");
+            jam_printf("JNI");
 
         mb->code = (unsigned char *) func;
         mb->native_extra_arg = nativeExtraArg(mb);

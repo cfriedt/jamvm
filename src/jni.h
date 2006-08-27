@@ -322,6 +322,18 @@ struct _JNIInvokeInterface {
     jint (*AttachCurrentThreadAsDaemon)(JavaVM *vm, void **penv, void *args);
 };
 
+typedef struct JavaVMOption {
+    char *optionString;
+    void *extraInfo;
+} JavaVMOption;
+
+typedef struct JavaVMInitArgs {
+    jint version;
+    jint nOptions;
+    JavaVMOption *options;
+    jboolean ignoreUnrecognized;
+} JavaVMInitArgs;
+
 typedef struct JavaVMAttachArgs {
     jint version;
     char *name;

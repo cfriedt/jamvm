@@ -40,7 +40,7 @@ void initialiseNatives() {
     FieldBlock *pd = findField(java_lang_Class, "pd", "Ljava/security/ProtectionDomain;");
 
     if(pd == NULL) {
-        fprintf(stderr, "Error initialising VM (initialiseNatives)\n");
+        jam_fprintf(stderr, "Error initialising VM (initialiseNatives)\n");
         exitVM(1);
     }
     pd_offset = pd->offset;
@@ -215,7 +215,7 @@ uintptr_t *runFinalization(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *exitInternal(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     int status = ostack[0];
-    exit(status);
+    jamvm_exit(status);
 }
 
 uintptr_t *nativeLoad(Class *class, MethodBlock *mb, uintptr_t *ostack) {

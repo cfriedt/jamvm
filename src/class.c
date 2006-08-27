@@ -582,7 +582,7 @@ createArrayClass(char *classname, Object *class_loader) {
 
     if((found = addClassToHash(class, classblock->class_loader)) == class) {
         if(verbose)
-            printf("[Created array class %s]\n", classname);
+            jam_printf("[Created array class %s]\n", classname);
         return class;
     }
 
@@ -612,7 +612,7 @@ createPrimClass(char *classname, int index) {
     unlockHashTable(loaded_classes);
 
     if(verbose)
-        printf("[Created primitive class %s]\n", classname);
+        jam_printf("[Created primitive class %s]\n", classname);
 
     return prim_classes[index];
 }
@@ -675,7 +675,7 @@ void linkClass(Class *class) {
        goto unlock;
 
    if(verbose)
-       printf("[Linking class %s]\n", cb->name);
+       jam_printf("[Linking class %s]\n", cb->name);
 
    if(super) {
       ClassBlock *super_cb = CLASS_CB(super);
@@ -972,7 +972,7 @@ void linkClass(Class *class) {
        MethodBlock *enqueue_mb = findMethod(class, "enqueue", "()Z");
 
        if(ref_fb == NULL || queue_fb == NULL || enqueue_mb == NULL) {
-           fprintf(stderr, "Expected fields/methods missing in java.lang.ref.Reference\n");
+           jam_fprintf(stderr, "Expected fields/methods missing in java.lang.ref.Reference\n");
            exitVM(1);
        }
 
@@ -1005,7 +1005,7 @@ void linkClass(Class *class) {
        FieldBlock *ldr_fb = findField(class, "vmdata", "Ljava/lang/Object;");
 
        if(ldr_fb == NULL) {
-           fprintf(stderr, "Expected vmdata field missing in java.lang.ClassLoader\n");
+           jam_fprintf(stderr, "Expected vmdata field missing in java.lang.ClassLoader\n");
            exitVM(1);
        }
 
@@ -1184,7 +1184,7 @@ Class *loadSystemClass(char *classname) {
     free(data);
 
     if(verbose && class)
-        printf("[Loaded %s from %s]\n", classname, bootclasspath[i-1].path);
+        jam_printf("[Loaded %s from %s]\n", classname, bootclasspath[i-1].path);
 
     return class;
 }
@@ -1332,7 +1332,7 @@ Class *findNonArrayClassFromClassLoader(char *classname, Object *loader) {
         addInitiatingLoaderToClass(loader, class);
 
         if(verbose && (CLASS_CB(class)->class_loader == loader))
-            printf("[Loaded %s]\n", classname);
+            jam_printf("[Loaded %s]\n", classname);
     }
     return class;
 }
@@ -1570,7 +1570,7 @@ void scanDirForJars(char *dir) {
 
 void scanDirsForJars(char *directories) {
     int dirslen = strlen(directories);
-    char *pntr, *end, *dirs = malloc(dirslen + 1);
+    char *pntr, *end, *dirs = sysMalloc(dirslen + 1);
     strcpy(dirs, directories);
 
     for(end = pntr = &dirs[dirslen]; pntr != dirs; pntr--) {
@@ -1678,20 +1678,21 @@ Object *bootClassPathResource(char *filename, int index) {
     return NULL;
 }
 
-void initialiseClass(char *classpath, char *bootpath, char bootpathopt, int verboseclass) {
-    char *bcp = setBootClassPath(bootpath, bootpathopt);
+void initialiseClass(InitArgs *args) {
+    char *bcp = setBootClassPath(args->bootpath, args->bootpathopt);
 
     if(!(bcp && parseBootClassPath(bcp))) {
-        fprintf(stderr, "bootclasspath is empty!\n");
+        jam_fprintf(stderr, "bootclasspath is empty!\n");
         exitVM(1);
     }
 
-    verbose = verboseclass;
-    setClassPath(classpath);
+    verbose = args->verboseclass;
+    setClassPath(args->classpath);
 
     /* Init hash table, and create lock */
     initHashTable(loaded_classes, INITSZE, TRUE);
 
+    /* Register the address of where the java.lang.Class ref _will_ be */
     registerStaticClassRef(&java_lang_Class);
 }
 

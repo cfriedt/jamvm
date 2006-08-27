@@ -20,6 +20,7 @@
 
 #include <stdarg.h>
 #include <inttypes.h>
+#include <stdio.h>
 
 /* Architecture dependent definitions */
 #include "arch.h"
@@ -527,6 +528,37 @@ typedef struct prop {
     char *value;
 } Property;
 
+typedef struct InitArgs {
+    int noasyncgc;
+    int verbosegc;
+    int verbosedll;
+    int verboseclass;
+
+    int compact_specified; /* Whether compaction has been given on the
+                              command line, and the value if it has */
+    int do_compact;
+
+    char *classpath;
+    char *bootpath;
+    char bootpathopt;
+
+    int java_stack;
+    unsigned long min_heap;
+    unsigned long max_heap;
+
+    Property *commandline_props;
+    int props_count;
+
+    void *main_stack_base;
+
+    /* JNI invocation API hooks */
+    
+    int (*vfprintf)(FILE *stream, const char *fmt, va_list ap);
+    void (*exit)(int status);
+    void (*abort)(void);
+
+} InitArgs;
+
 #define CLASS_CB(classRef)              ((ClassBlock*)(classRef+1))
 #define INST_DATA(objectRef)            ((uintptr_t*)(objectRef+1))
 
@@ -610,8 +642,8 @@ typedef struct prop {
 
 /* Alloc */
 
-extern void initialiseAlloc(unsigned long min, unsigned long max, int verbose);
-extern void initialiseGC(int noasyncgc, int compact_override, int compact_value);
+extern void initialiseAlloc(InitArgs *args);
+extern void initialiseGC(InitArgs *args);
 extern Class *allocClass();
 extern Object *allocObject(Class *class);
 extern Object *allocTypeArray(int type, int size);
@@ -680,8 +712,7 @@ extern void markBootClasses();
 extern void markLoaderClasses(Object *loader, int mark, int mark_soft_refs);
 extern void threadBootClasses();
 extern void threadLoaderClasses(Object *class_loader);
-
-extern void initialiseClass(char *classpath, char *bootpath, char bootpathopt, int verbose);
+extern void initialiseClass(InitArgs *args);
 
 /* resolve */
 
@@ -777,8 +808,7 @@ extern int resolveDll(char *name);
 extern char *getDllPath();
 extern char *getBootDllPath();
 extern char *getDllName(char *name);
-extern void initialiseDll(int verbose);
-
+extern void initialiseDll(InitArgs *args);
 extern uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack);
 
 /* Dll OS */
@@ -787,13 +817,12 @@ extern char *nativeLibPath();
 extern void *nativeLibOpen(char *path);
 extern char *nativeLibMapName(char *name);
 extern void *nativeLibSym(void *handle, char *symbol);
-
 extern void *nativeStackBase();
 extern int nativeAvailableProcessors();
 
 /* Threading */
 
-extern void initialiseMainThread(int java_stack);
+extern void initialiseMainThread(InitArgs *args);
 extern ExecEnv *getExecEnv();
 
 extern void createJavaThread(Object *jThread, long long stack_size);
@@ -842,6 +871,7 @@ extern void markJNIGlobalRefs();
 
 /* properties */
 
+extern void initialiseProperties(InitArgs *args);
 extern void addCommandLineProperties(Object *properties);
 extern void addDefaultProperties(Object *properties);
 extern char *getCommandLineProperty(char *key);
@@ -860,3 +890,19 @@ extern Class *getCallerCallerClass();
 /* native */
 
 extern void initialiseNatives();
+
+/* init */
+
+extern void setDefaultInitArgs(InitArgs *args);
+extern unsigned long parseMemValue(char *str);
+extern void initVM(InitArgs *args);
+extern int VMInitialising();
+
+/* hooks */
+
+extern void initialiseHooks(InitArgs *args);
+extern void jam_fprintf(FILE *stream, const char *fmt, ...);
+extern void jamvm_exit(int status);
+
+#define jam_printf(fmt, ...) jam_fprintf(stdout, fmt, ## __VA_ARGS__)
+

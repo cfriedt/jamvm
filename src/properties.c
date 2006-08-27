@@ -40,17 +40,20 @@
 #include <locale.h>
 #endif
 
-extern Property *commandline_props;
-extern int commandline_props_count;
+static Property *commandline_props;
+static int commandline_props_count;
+
+void initialiseProperties(InitArgs *args) {
+    commandline_props = args->commandline_props;
+    commandline_props_count = args->props_count;
+}
 
 char *getCommandLineProperty(char *key) {
-    if(commandline_props_count) {
-        int i;
+    int i;
 
-        for(i = 0; i < commandline_props_count; i++)
-            if(strcmp(commandline_props[i].key, key) == 0)
-                return commandline_props[i].value;
-    }
+    for(i = 0; i < commandline_props_count; i++)
+        if(strcmp(commandline_props[i].key, key) == 0)
+            return commandline_props[i].value;
 
     return NULL;
 }

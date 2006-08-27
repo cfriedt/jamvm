@@ -174,7 +174,7 @@ uintptr_t *executeJava() {
 
 unused:
 #ifndef DIRECT
-    printf("Unrecognised opcode %d in: %s.%s\n", *pc, CLASS_CB(mb->class)->name, mb->name);
+    jam_printf("Unrecognised opcode %d in: %s.%s\n", *pc, CLASS_CB(mb->class)->name, mb->name);
     exitVM(1);
 #else
 rewrite_lock:
@@ -2233,7 +2233,7 @@ invokeMethod:
             /* Overflow when we're already throwing stack overflow.
                Stack extension should be enough to throw exception,
                so something's seriously gone wrong - abort the VM! */
-            printf("Fatal stack overflow!  Aborting VM.\n");
+            jam_printf("Fatal stack overflow!  Aborting VM.\n");
             exitVM(1);
         }
         ee->stack_end += STACK_RED_ZONE_SIZE;

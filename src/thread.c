@@ -29,9 +29,9 @@
 #include "lock.h"
 
 #ifdef TRACETHREAD
-#define TRACE(x) printf x
+#define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
 #else
-#define TRACE(x)
+#define TRACE(fmt, ...)
 #endif
 
 /* Size of Java stack to use if no size is given */
@@ -222,13 +222,11 @@ void initialiseJavaStack(ExecEnv *ee) {
    MethodBlock *mb = (MethodBlock *) stack;
    Frame *top = (Frame *) (mb+1);
 
-   mb->max_stack = 0;
-   top->mb = mb;
    top->ostack = (uintptr_t*)(top+1);
-   top->prev = 0;
-
    top->lvars = (uintptr_t*)top;
-
+   mb->max_stack = 0;
+   top->prev = NULL;
+   top->mb = mb;
 
    ee->stack = stack;
    ee->last_frame = top;
@@ -297,7 +295,7 @@ Thread *attachThread(char *name, char is_daemon, void *stack_base, Thread *threa
     INST_DATA(ee->thread)[group_offset] = (uintptr_t)group;
     executeMethod(group, addThread_mb, ee->thread);
 
-    TRACE(("Thread 0x%x id: %d attached\n", thread, thread->id));
+    TRACE("Thread 0x%x id: %d attached\n", thread, thread->id);
     return thread;
 
 error:
@@ -382,7 +380,7 @@ void detachThread(Thread *thread) {
         pthread_mutex_unlock(&exit_lock);
     }
 
-    TRACE(("Thread 0x%x id: %d detached from VM\n", thread, thread->id));
+    TRACE("Thread 0x%x id: %d detached from VM\n", thread, thread->id);
 }
 
 void *threadStart(void *arg) {
@@ -405,7 +403,7 @@ void *threadStart(void *arg) {
     pthread_mutex_lock(&lock);
     thread->id = genThreadID();
 
-    TRACE(("Thread 0x%x id: %d started\n", thread, thread->id));
+    TRACE("Thread 0x%x id: %d started\n", thread, thread->id);
 
     thread->state = STARTED;
     pthread_cond_broadcast(&cv);
@@ -421,7 +419,7 @@ void *threadStart(void *arg) {
 
     detachThread(thread);
 
-    TRACE(("Thread 0x%x id: %d exited\n", thread, thread->id));
+    TRACE("Thread 0x%x id: %d exited\n", thread, thread->id);
     return NULL;
 }
 
@@ -563,7 +561,7 @@ void createVMThread(char *name, void (*start)(Thread*)) {
 void suspendAllThreads(Thread *self) {
     Thread *thread;
 
-    TRACE(("Thread 0x%x id: %d is suspending all threads\n", self, self->id));
+    TRACE("Thread 0x%x id: %d is suspending all threads\n", self, self->id);
     pthread_mutex_lock(&lock);
 
     for(thread = &main_thread; thread != NULL; thread = thread->next) {
@@ -574,7 +572,7 @@ void suspendAllThreads(Thread *self) {
         MBARRIER();
 
         if(!thread->blocking) {
-            TRACE(("Sending suspend signal to thread 0x%x id: %d\n", thread, thread->id));
+            TRACE("Sending suspend signal to thread 0x%x id: %d\n", thread, thread->id);
             pthread_kill(thread->tid, SIGUSR1);
         }
     }
@@ -584,21 +582,21 @@ void suspendAllThreads(Thread *self) {
             continue;
 
         while(thread->blocking != SUSP_BLOCKING && thread->state != SUSPENDED) {
-            TRACE(("Waiting for thread 0x%x id: %d to suspend\n", thread, thread->id));
+            TRACE("Waiting for thread 0x%x id: %d to suspend\n", thread, thread->id);
             sched_yield();
         }
     }
 
     all_threads_suspended = TRUE;
 
-    TRACE(("All threads suspended...\n"));
+    TRACE("All threads suspended...\n");
     pthread_mutex_unlock(&lock);
 }
 
 void resumeAllThreads(Thread *self) {
     Thread *thread;
 
-    TRACE(("Thread 0x%x id: %d is resuming all threads\n", self, self->id));
+    TRACE("Thread 0x%x id: %d is resuming all threads\n", self, self->id);
     pthread_mutex_lock(&lock);
 
     for(thread = &main_thread; thread != NULL; thread = thread->next) {
@@ -609,25 +607,25 @@ void resumeAllThreads(Thread *self) {
         MBARRIER();
 
         if(!thread->blocking) {
-            TRACE(("Sending resume signal to thread 0x%x id: %d\n", thread, thread->id));
+            TRACE("Sending resume signal to thread 0x%x id: %d\n", thread, thread->id);
             pthread_kill(thread->tid, SIGUSR1);
         }
     }
 
     for(thread = &main_thread; thread != NULL; thread = thread->next) {
         while(thread->state == SUSPENDED) {
-            TRACE(("Waiting for thread 0x%x id: %d to resume\n", thread, thread->id));
+            TRACE("Waiting for thread 0x%x id: %d to resume\n", thread, thread->id);
             sched_yield();
         }
     }
 
     all_threads_suspended = FALSE;
     if(threads_waiting_to_start) {
-        TRACE(("%d threads waiting to start...\n", threads_waiting_to_start));
+        TRACE("%d threads waiting to start...\n", threads_waiting_to_start);
 	    pthread_cond_broadcast(&cv);
     }
 
-    TRACE(("All threads resumed...\n"));
+    TRACE("All threads resumed...\n");
     pthread_mutex_unlock(&lock);
 }
 
@@ -680,9 +678,9 @@ void enableSuspend(Thread *thread) {
     MBARRIER();
 
     if(thread->suspend) {
-        TRACE(("Thread 0x%x id: %d is self suspending\n", thread, thread->id));
+        TRACE("Thread 0x%x id: %d is self suspending\n", thread, thread->id);
         suspendLoop(thread);
-        TRACE(("Thread 0x%x id: %d resumed\n", thread, thread->id));
+        TRACE("Thread 0x%x id: %d resumed\n", thread, thread->id);
     }
 
     sigemptyset(&mask);
@@ -708,9 +706,9 @@ void fastEnableSuspend(Thread *thread) {
         sigaddset(&mask, SIGUSR1);
         pthread_sigmask(SIG_BLOCK, &mask, NULL);
 
-        TRACE(("Thread 0x%x id: %d is fast self suspending\n", thread, thread->id));
+        TRACE("Thread 0x%x id: %d is fast self suspending\n", thread, thread->id);
         suspendLoop(thread);
-        TRACE(("Thread 0x%x id: %d resumed\n", thread, thread->id));
+        TRACE("Thread 0x%x id: %d resumed\n", thread, thread->id);
 
         pthread_sigmask(SIG_UNBLOCK, &mask, NULL);
     }
@@ -736,7 +734,7 @@ void dumpThreadsLoop(Thread *self) {
         /* It must be a SIGQUIT.  Do a thread dump */
 
         suspendAllThreads(self);
-        printf("\n------ JamVM version %s Full Thread Dump -------\n", VERSION);
+        jam_printf("\n------ JamVM version %s Full Thread Dump -------\n", VERSION);
 
         for(thread = &main_thread; thread != NULL; thread = thread->next) {
             uintptr_t *thr_data = INST_DATA(thread->ee->thread);
@@ -745,7 +743,7 @@ void dumpThreadsLoop(Thread *self) {
             int daemon = thr_data[daemon_offset];
             Frame *last = thread->ee->last_frame;
 
-            printf("\n\"%s\"%s priority: %d tid: %p id: %d state: %d\n",
+            jam_printf("\n\"%s\"%s priority: %d tid: %p id: %d state: %d\n",
                   name, daemon ? " (daemon)" : "", priority,
                   thread->tid, thread->id, thread->state);
             free(name);
@@ -756,21 +754,21 @@ void dumpThreadsLoop(Thread *self) {
                     ClassBlock *cb = CLASS_CB(mb->class);
                     char *dot_name = slash2dots(cb->name);
 
-                    printf("\tat %s.%s(", dot_name, mb->name);
+                    jam_printf("\tat %s.%s(", dot_name, mb->name);
                     free(dot_name);
 
                     if(mb->access_flags & ACC_NATIVE)
-                        printf("Native method");
+                        jam_printf("Native method");
                     else
                         if(cb->source_file_name == NULL)
-                            printf("Unknown source");
+                            jam_printf("Unknown source");
                         else {
                             int line = mapPC2LineNo(mb, last->last_pc);
-                            printf("%s", cb->source_file_name);
+                            jam_printf("%s", cb->source_file_name);
                             if(line != -1)
-                                printf(":%d", line);
+                                jam_printf(":%d", line);
                         }
-                    printf(")\n");
+                    jam_printf(")\n");
                 }
                 last = last->prev;
             }
@@ -818,8 +816,6 @@ int systemIdle(Thread *self) {
     return TRUE;
 }
 
-extern char VM_initing;
-
 void exitVM(int status) {
     main_exited = TRUE;
 
@@ -827,7 +823,7 @@ void exitVM(int status) {
        In the unlikely event that System.exit() can't be found, or
        it returns, fall through and exit. */
 
-    if(!VM_initing) {
+    if(!VMInitialising()) {
         Class *system = findSystemClass("java/lang/System");
         if(system) {
             MethodBlock *exit = findMethod(system, "exit", "(I)V");
@@ -841,7 +837,7 @@ void exitVM(int status) {
 
 void mainThreadWaitToExitVM() {
     Thread *self = threadSelf();
-    TRACE(("Waiting for %d non-daemon threads to exit\n", non_daemon_thrds));
+    TRACE("Waiting for %d non-daemon threads to exit\n", non_daemon_thrds);
 
     disableSuspend(self);
     pthread_mutex_lock(&exit_lock);
@@ -860,13 +856,14 @@ void mainThreadSetContextClassLoader(Object *loader) {
         INST_DATA(main_ee.thread)[fb->offset] = (uintptr_t)loader;
 }
 
-void initialiseMainThread(int stack_size) {
+void initialiseMainThread(InitArgs *args) {
     Object *vmthread;
     Class *thrdGrp_class;
     MethodBlock *run, *add_thread, *remove_thread;
     FieldBlock *vmData, *vmThread, *thread, *daemon, *name, *group, *priority, *root;
 
-    dflt_stack_size = stack_size;
+    /* Set the default size of the Java stack for each _new_ thread */
+    dflt_stack_size = args->java_stack;
 
     pthread_key_create(&threadKey, NULL);
 
@@ -881,7 +878,7 @@ void initialiseMainThread(int stack_size) {
     pthread_attr_init(&attributes);
     pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
 
-    main_thread.stack_base = &thrdGrp_class;
+    main_thread.stack_base = args->main_stack_base;
 
     main_thread.tid = pthread_self();
     main_thread.id = genThreadID();
@@ -964,6 +961,6 @@ void initialiseMainThread(int stack_size) {
     return;
 
 error:
-    fprintf(stderr, "Error initialising VM (initialiseMainThread)\n");
+    jam_fprintf(stderr, "Error initialising VM (initialiseMainThread)\n");
     exitVM(1);
 }

@@ -18,26 +18,26 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "../../../jam.h"
+#include "jam.h"
 
-#ifndef USE_FFI
-#include <stdio.h>
+static int (*vfprintf_hook)(FILE *stream, const char *fmt, va_list ap);
+static void (*exit_hook)(int status);
 
-/*
- This function calculates the size of the params area needed
- in the caller frame for the JNI native method.  This is: 
- JNIEnv + class (if static) + method arguments + saved regs +
- linkage area.  It's negative because the stack grows downwards.
-*/
+void jam_fprintf(FILE *stream, const char *fmt, ...) {
+    va_list ap;
 
-int nativeExtraArg(MethodBlock *mb) {
-    int params = (mb->args_count + 1 +
-                 ((mb->access_flags & ACC_STATIC) ? 1 : 0) + 7 + 6) * -sizeof(uintptr_t);
+    va_start(ap, fmt);
+    (*vfprintf_hook)(stream, fmt, ap);
 
-#ifdef DEBUG_DLL
-    jam_printf("<nativExtraArg %s%s : %d>\n", mb->name, mb->type, params);
-#endif
-
-    return params;
+    va_end(ap);
 }
-#endif
+
+void jamvm_exit(int status) {
+    (*exit_hook)(status);
+}
+
+void initialiseHooks(InitArgs *args) {
+    vfprintf_hook = args->vfprintf;
+    exit_hook = args->exit;
+}
+
