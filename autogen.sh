@@ -6,6 +6,14 @@ DIE=0
 srcdir=`dirname $0`
 test -z "$srcdir" && srcdir=.
 
+(libtoolize --version) < /dev/null > /dev/null 2>&1 || {
+  echo
+  echo "**Error**: You must have \`libtool' installed to compile JamVM."
+  echo "Install the appropriate package for your distribution,"
+  echo "or get the source tarball at http://ftp.gnu.org/gnu/libtool"
+  DIE=1
+}
+
 (autoconf --version) < /dev/null > /dev/null 2>&1 || {
   echo
   echo "**Error**: You must have \`autoconf' installed to compile JamVM."
@@ -66,11 +74,16 @@ aclocal $ACLOCAL_FLAGS || {
   exit 1
 }
 
+echo "Running libtoolize ..."
+libtoolize --force || { echo "**Error**: libtoolize failed."; exit 1; }
+
 echo "Running autoheader ..."
 autoheader || { echo "**Error**: autoheader failed."; exit 1; }
+
 echo "Running automake --gnu ..."
 automake --add-missing --gnu ||
   { echo "**Error**: automake failed."; exit 1; }
+
 echo "Running autoconf ..."
 autoconf || { echo "**Error**: autoconf failed."; exit 1; }
 

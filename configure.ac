@@ -128,10 +128,12 @@ AC_ARG_WITH(classpath-install-dir,
 
 AC_SUBST(with_classpath_install_dir)
 
+dnl Initialise libtool
+AC_DISABLE_STATIC
+AC_PROG_LIBTOOL
+
 dnl Checks for programs.
 AC_PROG_CC
-AC_PROG_RANLIB
-
 AM_PROG_AS
 
 AC_CHECK_PROGS(JAVAC, ecj jikes "gcj -C" javac)
