@@ -7,3 +7,6 @@ config.log
 config.status
 config.sub
 configure
+libtool
+ltmain.sh
+
