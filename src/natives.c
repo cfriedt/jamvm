@@ -582,6 +582,21 @@ uintptr_t *getClassContext(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
+uintptr_t *firstNonNullClassLoader(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Frame *last = getExecEnv()->last_frame;
+    Object *loader = NULL;
+
+    do {
+        for(; last->mb != NULL; last = last->prev)
+            if((loader = CLASS_CB(last->mb->class)->class_loader) != NULL)
+                goto out;
+    } while((last = last->prev)->prev != NULL);
+
+out:
+    *ostack++ = (uintptr_t)loader;
+    return ostack;
+}
+
 /* java.lang.VMClassLoader */
 
 /* loadClass(Ljava/lang/String;I)Ljava/lang/Class; */
@@ -1149,6 +1164,7 @@ VMMethod vm_stack_walker[] = {
     {"getClassContext",             getClassContext},
     {"getCallingClass",             getCallingClass},
     {"getCallingClassLoader",       getCallingClassLoader},
+    {"firstNonNullClassLoader",     firstNonNullClassLoader},
     {NULL,                          NULL}
 };
 
