@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "jam.h"
 
@@ -64,20 +65,17 @@ char *mangleString(char *utf8) {
 
     for(i = 0; i < len; i++) {
         unsigned short c = unicode[i];
-        if(c > 127)
-            mangledLen += 6;
-        else
-            switch(c) {
-                case '_':
-                case ';':
-                case '[':
-                    mangledLen += 2;
-                    break;
+        switch(c) {
+            case '_':
+            case ';':
+            case '[':
+                mangledLen += 2;
+                break;
 
-                default:
-                    mangledLen++;
-                    break;
-            }
+           default:
+                mangledLen += isalnum(c) ? 1 : 6;
+                break;
+        }
     }
 
     mangled = mngldPtr = (char*) sysMalloc(mangledLen + 1);
@@ -86,31 +84,31 @@ char *mangleString(char *utf8) {
 
     for(i = 0; i < len; i++) {
         unsigned short c = unicode[i];
-        if(c > 127)
-            mngldPtr += sprintf(mngldPtr, "_0%04x", c);
-        else
-            switch(c) {
-                case '_':
-                    *mngldPtr++ = '_';
-                    *mngldPtr++ = '1';
-                    break;
-                case ';':
-                    *mngldPtr++ = '_';
-                    *mngldPtr++ = '2';
-                    break;
-                case '[':
-                    *mngldPtr++ = '_';
-                    *mngldPtr++ = '3';
-                    break;
+        switch(c) {
+            case '_':
+                *mngldPtr++ = '_';
+                *mngldPtr++ = '1';
+                break;
+            case ';':
+                *mngldPtr++ = '_';
+                *mngldPtr++ = '2';
+                break;
+            case '[':
+                *mngldPtr++ = '_';
+                *mngldPtr++ = '3';
+                break;
 
-                case '/':
-                    *mngldPtr++ = '_';
-                    break;
+            case '/':
+                *mngldPtr++ = '_';
+                break;
 
-                default:
+            default:
+                if(isalnum(c))
                     *mngldPtr++ = c;
-                    break;
-            }
+                else
+                    mngldPtr += sprintf(mngldPtr, "_0%04x", c);
+                break;
+        }
     }
 
     *mngldPtr = '\0';
