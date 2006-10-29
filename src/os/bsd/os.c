@@ -78,6 +78,10 @@ void *nativeLibOpen(char *path) {
     return dlopen(path, RTLD_LAZY);
 }
 
+void nativeLibClose(void *handle) {
+    dlclose(handle);
+}
+
 void *nativeLibSym(void *handle, char *symbol) {
     return dlsym(handle, symbol);
 }

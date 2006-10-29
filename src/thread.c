@@ -1010,12 +1010,12 @@ void initialiseMainThread(InitArgs *args) {
 
     pthread_attr_init(&attributes);
     pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
-#if 0
+
     /* Ensure the thread stacks are at least 2 megabytes in size */
     pthread_attr_getstacksize(&attributes, &size);
     if(size < 2*MB)
         pthread_attr_setstacksize(&attributes, 2*MB);
-#endif
+
     monitorInit(&sleep_mon);
     initHashTable(thread_id_map, HASHTABSZE, TRUE);
 
