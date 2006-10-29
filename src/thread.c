@@ -964,7 +964,7 @@ void exitVM(int status) {
         }
     }
 
-    exit(status);
+    jamvm_exit(status);
 }
 
 void mainThreadWaitToExitVM() {
