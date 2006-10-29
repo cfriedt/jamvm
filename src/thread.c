@@ -27,12 +27,16 @@
 #include "jam.h"
 #include "thread.h"
 #include "lock.h"
+#include "hash.h"
 
 #ifdef TRACETHREAD
 #define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
 #else
 #define TRACE(fmt, ...)
 #endif
+
+#define HASHTABSZE 1<<4
+HashTable thread_id_map;
 
 /* Size of Java stack to use if no size is given */
 static int dflt_stack_size;
@@ -71,6 +75,7 @@ static int priority_offset;
 static int name_offset;
 static int vmthread_offset;
 static int thread_offset;
+static int threadId_offset;
 
 /* Method table indexes of Thread.run method and
  * ThreadGroup.removeThread - cached at startup */
@@ -87,6 +92,13 @@ static Class *vmthread_class;
 /* Count of non-daemon threads still running in VM */
 static int non_daemon_thrds = 0;
 
+/* Counts used in the ThreadMXBean management API.  The
+   counts start from one to include the main thread */
+static int threads_count = 1;
+static int peak_threads_count = 1;
+static long long total_started_threads_count = 1;
+
+/* Guards against threads starting while the "world is stopped" */
 static int all_threads_suspended = FALSE;
 static int threads_waiting_to_start = 0;
 
@@ -154,41 +166,38 @@ void threadYield(Thread *thread) {
     sched_yield();
 }
 
-#define INTERRUPT_TRIES 5
-
 void threadInterrupt(Thread *thread) {
-    Monitor *mon = thread->wait_mon;
+    Monitor *mon;
 
+    /* monitorWait sets wait_mon _before_ checking interrupted status.  Therefore,
+       if wait_mon is null, interrupted status will be noticed.  This guards
+       against a race-condition leading to an interrupt being missed.  The memory
+       barrier ensures correct ordering on SMP systems. */
     thread->interrupted = TRUE;
+    MBARRIER();
 
-    if(mon) {
-        Thread *self = threadSelf();
-        char owner = (mon->owner == self);
-        if(!owner) {
-            int i;
+    if((mon = thread->wait_mon) != NULL && thread->wait_next != NULL) {
+        int locked;
+        thread->interrupting = TRUE;
 
-            /* Another thread may be holding the monitor -
-             * if we can't get it after a couple attempts give-up
-             * to avoid deadlock */
-            for(i = 0; i < INTERRUPT_TRIES; i++) {
-                if(!pthread_mutex_trylock(&mon->lock))
-                    goto got_lock;
-                sched_yield();
-                if(thread->wait_mon != mon)
-                    return;
-            }
-            return;
-        }
-got_lock:
-        if((thread->wait_mon == mon) && thread->interrupted && !thread->interrupting &&
-                  ((mon->notifying + mon->interrupting) < mon->waiting)) {
-            thread->interrupting = TRUE;
-            mon->interrupting++;
-            pthread_cond_broadcast(&mon->cv);
-        }
-        if(!owner)
+        /* Ensure the thread has actually entered the wait
+           (else the signal will be lost) */
+
+        while(!(locked = !pthread_mutex_trylock(&mon->lock)) && mon->owner == NULL)
+            sched_yield();
+
+        pthread_cond_signal(&thread->wait_cv);
+
+        if(locked)
             pthread_mutex_unlock(&mon->lock);
     }
+
+    /* Handle the case where the thread is blocked in a system call.
+       This will knock it out with an EINTR.  The suspend signal
+       handler will just return (as in the user doing a kill), and do
+       nothing otherwise. */
+
+    pthread_kill(thread->tid, SIGUSR1);
 }
 
 void *getStackTop(Thread *thread) {
@@ -199,8 +208,8 @@ void *getStackBase(Thread *thread) {
     return thread->stack_base;
 }
 
-Thread *threadSelf0(Object *jThread) {
-    return (Thread*)(INST_DATA(jThread)[vmData_offset]);
+Thread *threadSelf0(Object *vmThread) {
+    return (Thread*)(INST_DATA(vmThread)[vmData_offset]);
 }
 
 Thread *threadSelf() {
@@ -208,11 +217,49 @@ Thread *threadSelf() {
 }
 
 void setThreadSelf(Thread *thread) {
-   pthread_setspecific(threadKey, thread);
+    pthread_setspecific(threadKey, thread);
+    pthread_cond_init(&thread->wait_cv, NULL);
 }
 
 ExecEnv *getExecEnv() {
     return threadSelf()->ee;
+}
+
+char *getThreadStateString(Thread *thread) {
+    switch(thread->state) {
+        case CREATING:
+        case STARTED:
+            return "NEW";
+        case RUNNING:
+        case SUSPENDED:
+            return "RUNNABLE";
+        case WAITING:
+            return "WAITING";
+        case TIMED_WAITING:
+            return "TIMED_WAITING";
+        case BLOCKED:
+            return "BLOCKED";
+    }
+}
+
+int getThreadsCount() {
+    return threads_count;
+}
+
+int getPeakThreadsCount() {
+    return peak_threads_count;
+}
+
+long long getTotalStartedThreadsCount() {
+    return total_started_threads_count;
+}
+
+void resetPeakThreadsCount() {
+    /* Grab the thread lock to protect against
+       concurrent update by threads starting/dying */
+    pthread_mutex_lock(&lock);
+    peak_threads_count = threads_count;
+    pthread_mutex_unlock(&lock);
 }
 
 void initialiseJavaStack(ExecEnv *ee) {
@@ -234,27 +281,95 @@ void initialiseJavaStack(ExecEnv *ee) {
    ee->stack_end = stack + stack_size-STACK_RED_ZONE_SIZE;
 }
 
-Thread *attachThread(char *name, char is_daemon, void *stack_base, Thread *thread, Object *group) {
-    ExecEnv *ee;
-    Object *vmthread;
-    Object *thread_name = NULL;
+long long javaThreadId(Thread *thread) {
+    return *(long long*)&(INST_DATA(thread->ee->thread)[threadId_offset]);
+}
 
-    ee = (ExecEnv*)sysMalloc(sizeof(ExecEnv));
-    memset(ee, 0, sizeof(ExecEnv));
+Thread *findHashedThread(Thread *thread, long long id) {
 
-    thread->tid = pthread_self();
-    thread->stack_base = stack_base;
-    thread->ee = ee;
+#define FOUND(thread_id)
+#define DELETED ((void*)-1)
+#define PREPARE(thread_id) thread
+#define SCAVENGE(ptr) ptr == DELETED
+#define HASH(thread_id) (int)thread_id
+#define COMPARE(thread_id, ptr, hash1, hash2) ptr != DELETED && \
+                                              (hash1 == hash2 && thread_id == javaThreadId(ptr))
 
-    initialiseJavaStack(ee);
+    Thread *ptr;
+
+    /* Add if absent, scavenge, locked */
+    findHashEntry(thread_id_map, id, ptr, (thread != NULL), TRUE, TRUE);
+
+    return ptr;
+}
+
+void addThreadToHash(Thread *thread) {
+    findHashedThread(thread, javaThreadId(thread));
+}
+
+Thread *findThreadById(long long id) {
+    return findHashedThread(NULL, id);
+}
+
+void deleteThreadFromHash(Thread *thread) {
+
+#undef HASH
+#undef COMPARE
+#define HASH(ptr) (int)javaThreadId(ptr)
+#define COMPARE(ptr1, ptr2, hash1, hash2) ptr1 == ptr2
+
+    deleteHashEntry(thread_id_map, thread, TRUE);
+}
+
+Object *initJavaThread(Thread *thread, char is_daemon, char *name) {
+    Object *vmthread, *jlthread, *thread_name = NULL;
+
+    /* Create the java.lang.Thread object and the VMThread */
+    if((vmthread = allocObject(vmthread_class)) == NULL ||
+       (jlthread = allocObject(thread_class)) == NULL)
+        return NULL;
+
+    thread->ee->thread = jlthread;
+    INST_DATA(vmthread)[vmData_offset] = (uintptr_t)thread;
+    INST_DATA(vmthread)[thread_offset] = (uintptr_t)jlthread;
+
+    /* Create the string for the thread name.  If null is specified
+       the initialiser method will generate a name of the form Thread-X */
+    if(name != NULL && (thread_name = Cstr2String(name)) == NULL)
+        return NULL;
+
+    /* Call the initialiser method -- this is for use by threads
+       created or attached by the VM "outside" of Java */
+    executeMethod(jlthread, init_mb, vmthread, thread_name, NORM_PRIORITY, is_daemon);
+
+    /* Add thread to thread ID map hash table. */
+    addThreadToHash(thread);
+
+    return jlthread;
+}
+
+void initThread(Thread *thread, char is_daemon, void *stack_base) {
+
+    /* Create the thread stack and store the thread structure in
+       thread-specific memory */
+    initialiseJavaStack(thread->ee);
     setThreadSelf(thread);
 
-    /* Need to add to thread list so it can be suspended _before_
-       allocating objects */
-
-    disableSuspend0(thread, stack_base);
+    /* Record the thread's stack base */
+    thread->stack_base = stack_base;
 
     pthread_mutex_lock(&lock);
+
+    /* add to thread list... After this point (once we release the lock)
+       we are suspendable */
+    if((thread->next = main_thread.next))
+        main_thread.next->prev = thread;
+    thread->prev = &main_thread;
+    main_thread.next = thread;
+
+    /* If all threads are suspended (i.e. GC in progress) we cannot start
+       until the threads are resumed.  Record we're waiting and wait until
+       the world is restarted... */
 
     threads_waiting_to_start++;
 
@@ -262,44 +377,58 @@ Thread *attachThread(char *name, char is_daemon, void *stack_base, Thread *threa
         pthread_cond_wait(&cv, &lock);
 
     threads_waiting_to_start--;
-
+#if 0
+    /* add to thread list... After this point (once we release the lock)
+       we are suspendable */
     if((thread->next = main_thread.next))
         main_thread.next->prev = thread;
     thread->prev = &main_thread;
     main_thread.next = thread;
+#endif
+    /* Keep track of threads counts */
+    if(++threads_count > peak_threads_count)
+        peak_threads_count = threads_count;
+    total_started_threads_count++;
 
+    /* If we're not a deamon thread the main thread must
+       wait until we exit */
     if(!is_daemon)
         non_daemon_thrds++;
 
+    /* Get a thread ID (used in thin locking) and
+       record we're now running */
     thread->id = genThreadID();
     thread->state = RUNNING;
 
     pthread_cond_broadcast(&cv);
     pthread_mutex_unlock(&lock);
+}
 
-    enableSuspend(thread);
+Thread *attachThread(char *name, char is_daemon, void *stack_base, Thread *thread, Object *group) {
+    Object *java_thread;
 
-    if((vmthread = allocObject(vmthread_class)) == NULL ||
-       (ee->thread = allocObject(thread_class)) == NULL)
-        goto error;
+    /* Create the ExecEnv for the thread */
+    ExecEnv *ee = sysMalloc(sizeof(ExecEnv));
+    memset(ee, 0, sizeof(ExecEnv));
 
-    INST_DATA(vmthread)[vmData_offset] = (uintptr_t)thread;
-    INST_DATA(vmthread)[thread_offset] = (uintptr_t)ee->thread;
+    thread->tid = pthread_self();
+    thread->ee = ee;
 
-    if(name != NULL && (thread_name = Cstr2String(name)) == NULL)
-        goto error;
+    /* Complete initialisation of the thread structure, create the thread
+       stack and add the thread to the thread list */
+    initThread(thread, is_daemon, stack_base);
 
-    executeMethod(ee->thread, init_mb, vmthread, thread_name, NORM_PRIORITY, is_daemon);
+    /* Initialise the Java-level thread objects representing this thread */
+    if((java_thread = initJavaThread(thread, is_daemon, name)) == NULL)
+        return NULL;
 
     /* Initialiser doesn't handle the thread group */
-    INST_DATA(ee->thread)[group_offset] = (uintptr_t)group;
-    executeMethod(group, addThread_mb, ee->thread);
+    INST_DATA(java_thread)[group_offset] = (uintptr_t)group;
+    executeMethod(group, addThread_mb, java_thread);
 
+    /* We're now attached to the VM...*/
     TRACE("Thread 0x%x id: %d attached\n", thread, thread->id);
     return thread;
-
-error:
-    return NULL;
 }
 
 void detachThread(Thread *thread) {
@@ -320,7 +449,7 @@ void detachThread(Thread *thread) {
         Object *handler = thread_handler == NULL ? group : thread_handler;
 
         MethodBlock *uncaught_exp = lookupMethod(handler->class, "uncaughtException",
-                                                      "(Ljava/lang/Thread;Ljava/lang/Throwable;)V");
+                                                 "(Ljava/lang/Thread;Ljava/lang/Throwable;)V");
 
         if(uncaught_exp) {
             clearException();
@@ -347,6 +476,9 @@ void detachThread(Thread *thread) {
     if((thread->prev->next = thread->next))
         thread->next->prev = thread->prev;
 
+    /* One less live thread */
+    threads_count--;
+
     /* Recycle the thread's thread ID */
     freeThreadID(thread->id);
 
@@ -362,9 +494,12 @@ void detachThread(Thread *thread) {
     objectNotifyAll(vmthread);
     objectUnlock(vmthread);
 
-    /* Free structures */
-    INST_DATA(vmthread)[vmData_offset] = 0;
-    free(thread);
+    /* It is safe to free the thread's ExecEnv and stack now as these are
+       only used within the thread.  It is _not_ safe to free the native
+       thread structure as another thread may be concurrently accessing it.
+       However, they must have a reference to the VMThread -- therefore, it
+       is safe to free during GC when the VMThread is determined to be no
+       longer reachable. */
     free(ee->stack);
     free(ee);
 
@@ -380,6 +515,9 @@ void detachThread(Thread *thread) {
         pthread_mutex_unlock(&exit_lock);
     }
 
+    /* Remove thread from the ID map hash table */
+    deleteThreadFromHash(thread);
+
     TRACE("Thread 0x%x id: %d detached from VM\n", thread, thread->id);
 }
 
@@ -390,33 +528,17 @@ void *threadStart(void *arg) {
     ClassBlock *cb = CLASS_CB(jThread->class);
     MethodBlock *run = cb->method_table[run_mtbl_idx];
 
-    initialiseJavaStack(ee);
-    setThreadSelf(thread);
+    /* Complete initialisation of the thread structure, create the thread
+       stack and add the thread to the thread list */
+    initThread(thread, INST_DATA(jThread)[daemon_offset], &thread);
 
-    /* Need to disable suspension as we'll most likely
-     * be waiting on lock when we're added to the thread
-     * list, and now liable for suspension */
+    /* Add thread to thread ID map hash table. */
+    addThreadToHash(thread);
 
-    thread->stack_base = &thread;
-    disableSuspend0(thread, &run);
-
-    pthread_mutex_lock(&lock);
-    thread->id = genThreadID();
-
-    TRACE("Thread 0x%x id: %d started\n", thread, thread->id);
-
-    thread->state = STARTED;
-    pthread_cond_broadcast(&cv);
-
-    /* Wait for the thread to start running */
-    while(thread->state != RUNNING)
-        pthread_cond_wait(&cv, &lock);
-    pthread_mutex_unlock(&lock);
-
-    /* Execute the thread's run() method... */
-    enableSuspend(thread);
+    /* Execute the thread's run method */
     executeMethod(jThread, run);
 
+    /* Run has completed.  Detach the thread from the VM and exit */
     detachThread(thread);
 
     TRACE("Thread 0x%x id: %d exited\n", thread, thread->id);
@@ -454,43 +576,22 @@ void createJavaThread(Object *jThread, long long stack_size) {
     INST_DATA(vmthread)[vmData_offset] = (uintptr_t)thread;
     INST_DATA(vmthread)[thread_offset] = (uintptr_t)jThread;
     INST_DATA(jThread)[vmthread_offset] = (uintptr_t)vmthread;
+
     pthread_mutex_unlock(&lock);
 
     if(pthread_create(&thread->tid, &attributes, threadStart, thread)) {
         INST_DATA(jThread)[vmthread_offset] = 0;
         free(ee);
         free(thread);
-        enableSuspend(self);
         signalException("java/lang/OutOfMemoryError", "can't create thread");
         return;
     }
 
     pthread_mutex_lock(&lock);
-    while(thread->state != STARTED)
+
+    /* Wait for thread to start */
+    while(thread->state == 0)
         pthread_cond_wait(&cv, &lock);
-
-    /* add to thread list... */
-
-    if((thread->next = main_thread.next))
-        main_thread.next->prev = thread;
-    thread->prev = &main_thread;
-    main_thread.next = thread;
-
-    if(!INST_DATA(jThread)[daemon_offset])
-        non_daemon_thrds++;
-
-    /* Thread is now on the thread queue and liable for suspension.
-       BUT there could have been a suspension before the thread
-       started...  If so, we're suspended, so don't let it continue
-       until we're resumed */
-
-    pthread_mutex_unlock(&lock);
-    enableSuspend(self);
-
-    disableSuspend0(self, self->stack_top);
-    pthread_mutex_lock(&lock);
-    thread->state = RUNNING;
-    pthread_cond_broadcast(&cv);
 
     pthread_mutex_unlock(&lock);
     enableSuspend(self);
@@ -531,7 +632,8 @@ static void *shell(void *args) {
 
     /* VM helper threads should be added to the system group, but this doesn't
        exist.  As the root group is main, we add it to that for now... */
-    attachThread(((char**)args)[0], TRUE, &self, self, (Object*)INST_DATA(main_ee.thread)[group_offset]);
+    attachThread(((char**)args)[0], TRUE, &self, self,
+                 (Object*)INST_DATA(main_ee.thread)[group_offset]);
 
     free(args);
     (*(void(*)(Thread*))start)(self);
@@ -556,6 +658,36 @@ void createVMThread(char *name, void (*start)(Thread*)) {
     while(thread->state == 0)
         pthread_cond_wait(&cv, &lock);
     pthread_mutex_unlock(&lock);
+}
+
+void suspendThread(Thread *thread) {
+    thread->suspend = TRUE;
+    MBARRIER();
+
+    if(!thread->blocking) {
+        TRACE("Sending suspend signal to thread 0x%x id: %d\n", thread, thread->id);
+        pthread_kill(thread->tid, SIGUSR1);
+    }
+
+    while(thread->blocking != SUSP_BLOCKING && thread->state != SUSPENDED) {
+        TRACE("Waiting for thread 0x%x id: %d to suspend\n", thread, thread->id);
+        sched_yield();
+    }
+}
+
+void resumeThread(Thread *thread) {
+    thread->suspend = FALSE;
+    MBARRIER();
+
+    if(!thread->blocking) {
+        TRACE("Sending resume signal to thread 0x%x id: %d\n", thread, thread->id);
+        pthread_kill(thread->tid, SIGUSR1);
+    }
+
+    while(thread->state == SUSPENDED) {
+        TRACE("Waiting for thread 0x%x id: %d to resume\n", thread, thread->id);
+        sched_yield();
+    }
 }
 
 void suspendAllThreads(Thread *self) {
@@ -743,9 +875,9 @@ void dumpThreadsLoop(Thread *self) {
             int daemon = thr_data[daemon_offset];
             Frame *last = thread->ee->last_frame;
 
-            jam_printf("\n\"%s\"%s priority: %d tid: %p id: %d state: %d\n",
-                  name, daemon ? " (daemon)" : "", priority,
-                  thread->tid, thread->id, thread->state);
+            jam_printf("\n\"%s\"%s %p priority: %d tid: %p id: %d state: %s (%d)\n",
+                  name, daemon ? " (daemon)" : "", thread, priority, thread->tid,
+                  thread->id, getThreadStateString(thread), thread->state);
             free(name);
 
             while(last->prev != NULL) {
@@ -857,14 +989,17 @@ void mainThreadSetContextClassLoader(Object *loader) {
 }
 
 void initialiseMainThread(InitArgs *args) {
-    Object *vmthread;
+    size_t size;
+    Object *java_thread;
     Class *thrdGrp_class;
-    MethodBlock *run, *add_thread, *remove_thread;
-    FieldBlock *vmData, *vmThread, *thread, *daemon, *name, *group, *priority, *root;
+    MethodBlock *run, *remove_thread;
+    FieldBlock *group, *priority, *root, *threadId;
+    FieldBlock *vmData, *vmThread, *thread, *daemon, *name;
 
     /* Set the default size of the Java stack for each _new_ thread */
     dflt_stack_size = args->java_stack;
 
+    /* Initialise internal locks and pthread state */
     pthread_key_create(&threadKey, NULL);
 
     pthread_mutex_init(&lock, NULL);
@@ -873,13 +1008,24 @@ void initialiseMainThread(InitArgs *args) {
     pthread_mutex_init(&exit_lock, NULL);
     pthread_cond_init(&exit_cv, NULL);
 
-    monitorInit(&sleep_mon);
-
     pthread_attr_init(&attributes);
     pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
+#if 0
+    /* Ensure the thread stacks are at least 2 megabytes in size */
+    pthread_attr_getstacksize(&attributes, &size);
+    if(size < 2*MB)
+        pthread_attr_setstacksize(&attributes, 2*MB);
+#endif
+    monitorInit(&sleep_mon);
+    initHashTable(thread_id_map, HASHTABSZE, TRUE);
+
+    /* We need to cache field and method offsets to create and initialise
+       threads.  However, the class loading component requires a valid
+       thread and ExecEnv.  To get round this we initialise the main thread
+       in two parts.  First part is sufficient to _load_ classes, but it
+       is still not fully setup so we don't allow initialisers to run */
 
     main_thread.stack_base = args->main_stack_base;
-
     main_thread.tid = pthread_self();
     main_thread.id = genThreadID();
     main_thread.state = RUNNING;
@@ -890,6 +1036,8 @@ void initialiseMainThread(InitArgs *args) {
 
     /* As we're initialising, VM will abort if Thread can't be found */
     thread_class = findSystemClass0("java/lang/Thread");
+
+    /* Register class reference for compaction threading */
     registerStaticClassRef(&thread_class);
 
     vmThread = findField(thread_class, "vmThread", "Ljava/lang/VMThread;");
@@ -897,20 +1045,25 @@ void initialiseMainThread(InitArgs *args) {
     name = findField(thread_class, "name", "Ljava/lang/String;");
     group = findField(thread_class, "group", "Ljava/lang/ThreadGroup;");
     priority = findField(thread_class, "priority", "I");
+    threadId = findField(thread_class, "threadId", "J");
 
     init_mb = findMethod(thread_class, "<init>",
                          "(Ljava/lang/VMThread;Ljava/lang/String;IZ)V");
     run = findMethod(thread_class, "run", "()V");
 
     vmthread_class = findSystemClass0("java/lang/VMThread");
+    CLASS_CB(vmthread_class)->flags |= VMTHREAD;
+
+    /* Register class reference for compaction threading */
     registerStaticClassRef(&vmthread_class);
 
     thread = findField(vmthread_class, "thread", "Ljava/lang/Thread;");
     vmData = findField(vmthread_class, "vmData", "I");
 
     /* findField and findMethod do not throw an exception... */
-    if((init_mb == NULL) || (vmData == NULL) || (run == NULL) || (daemon == NULL) || (name == NULL) ||
-           (group == NULL) || (priority == NULL) || (vmThread == NULL) || (thread == NULL))
+    if((init_mb == NULL) || (vmData == NULL) || (run == NULL) || (daemon == NULL) ||
+       (name == NULL) || (group == NULL) || (priority == NULL) || (vmThread == NULL) ||
+       (thread == NULL) || (threadId == NULL))
         goto error;
 
     vmthread_offset = vmThread->offset;
@@ -919,18 +1072,15 @@ void initialiseMainThread(InitArgs *args) {
     daemon_offset = daemon->offset;
     group_offset = group->offset;
     priority_offset = priority->offset;
+    threadId_offset = threadId->offset;
     name_offset = name->offset;
     run_mtbl_idx = run->method_table_index;
 
-    /* As we're initialising, VM will abort if allocation fails */
-    vmthread = allocObject(vmthread_class);
-    main_ee.thread = allocObject(thread_class);
+    /* Initialise the Java-level thread objects representing this thread */
+    java_thread = initJavaThread(&main_thread, FALSE, "main");
 
-    INST_DATA(vmthread)[vmData_offset] = (uintptr_t)&main_thread;
-    INST_DATA(vmthread)[thread_offset] = (uintptr_t)main_ee.thread;
-
-    executeMethod(main_ee.thread, init_mb, vmthread, Cstr2String("main"), NORM_PRIORITY, FALSE);
-
+    /* Main thread is now sufficiently setup to be able to run the thread group
+       initialiser.  This is essential to create the root thread group */
     thrdGrp_class = findSystemClass("java/lang/ThreadGroup");
 
     root = findField(thrdGrp_class, "root", "Ljava/lang/ThreadGroup;");
@@ -944,8 +1094,8 @@ void initialiseMainThread(InitArgs *args) {
     rmveThrd_mtbl_idx = remove_thread->method_table_index;
 
     /* Add the main thread to the root thread group */
-    INST_DATA(main_ee.thread)[group_offset] = root->static_value;
-    executeMethod(((Object*)root->static_value), addThread_mb, main_ee.thread);
+    INST_DATA(java_thread)[group_offset] = root->static_value;
+    executeMethod(((Object*)root->static_value), addThread_mb, java_thread);
 
     /* Setup signal handling.  This will be inherited by all
        threads created within Java */

@@ -220,8 +220,9 @@ uintptr_t *exitInternal(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *nativeLoad(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     char *name = String2Cstr((Object*)ostack[0]);
+    Object *class_loader = (Object *)ostack[1];
 
-    ostack[0] = resolveDll(name);
+    ostack[0] = resolveDll(name, class_loader);
     free(name);
 
     return ostack+1;
@@ -975,6 +976,16 @@ uintptr_t *holdsLock(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
+/* instance method getState()Ljava/lang/String; */
+uintptr_t *getState(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Object *this = (Object *)*ostack;
+    Thread *thread = threadSelf0(this);
+    char *state = thread ? getThreadStateString(thread) : "TERMINATED";
+
+    *ostack++ = (uintptr_t)Cstr2String(state);
+    return ostack;
+}
+
 /* java.security.VMAccessController */
 
 /* instance method getStack()[[Ljava/lang/Object; */
@@ -1019,6 +1030,71 @@ uintptr_t *getStack(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     }
 
     *ostack++ = (uintptr_t) stack;
+    return ostack;
+}
+
+uintptr_t *getThreadCount(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    *ostack++ = getThreadsCount();
+    return ostack;
+}
+
+uintptr_t *getPeakThreadCount(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    *ostack++ = getPeakThreadsCount();
+    return ostack;
+}
+
+uintptr_t *getTotalStartedThreadCount(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    *(u8*)ostack = getTotalStartedThreadsCount();
+    return ostack + 2;
+}
+
+uintptr_t *resetPeakThreadCount(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    resetPeakThreadsCount();
+    return ostack;
+}
+
+uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long id = *((long long *)&ostack[0]);
+    int max_depth = ostack[2];
+
+    Thread *thread = findThreadById(id);
+    Object *info = NULL;
+
+    if(thread != NULL) {
+        int self = thread == threadSelf();
+        Object *vmthrowable;
+        Class *info_class;
+        MethodBlock *init;
+
+        info_class = findSystemClass("java/lang/management/ThreadInfo");
+        init = findMethod(info_class, "<init>", "(Ljava/lang/Thread;JJLjava/lang/Object;"
+                                                "Ljava/lang/Thread;JJZZ[Ljava/lang/StackTraceElement;)V");
+
+        if(!self)
+            suspendThread(thread);
+
+        vmthrowable = setStackTrace0(thread->ee, max_depth);
+
+        if(!self)
+            resumeThread(thread);
+
+        if(vmthrowable != NULL) {
+            Object *trace;
+            if((info = allocObject(info_class)) != NULL &&
+                       (trace = convertStackTrace(vmthrowable)) != NULL) {
+
+                Monitor *mon = thread->blocked_mon;
+                Object *lock = mon != NULL ? mon->obj : NULL;
+                Thread *owner = mon != NULL ? mon->owner : NULL;
+                Object *lock_owner = owner != NULL ? owner->ee->thread : NULL;
+
+                executeMethod(info, init, thread->ee->thread, thread->blocked_count, 0LL,
+                              lock, lock_owner, thread->waited_count, 0LL, 0, FALSE, trace);
+            }
+        }
+    }
+
+    *ostack++ = (uintptr_t)info;
     return ostack;
 }
 
@@ -1096,6 +1172,7 @@ VMMethod vm_thread[] = {
     {"interrupted",                 interrupted},
     {"nativeSetPriority",           nativeSetPriority},
     {"holdsLock",                   holdsLock},
+    {"getState",                    getState},
     {NULL,                          NULL}
 };
 
@@ -1173,20 +1250,30 @@ VMMethod vm_access_controller[] = {
     {NULL,                          NULL}
 };
 
+VMMethod vm_threadmx_bean_impl[] = {
+    {"getThreadCount",              getThreadCount},
+    {"getPeakThreadCount",          getPeakThreadCount},
+    {"getTotalStartedThreadCount",  getTotalStartedThreadCount},
+    {"resetPeakThreadCount",        resetPeakThreadCount},
+    {"getThreadInfoForId",          getThreadInfoForId},
+    {NULL,                          NULL}
+};
+
 VMClass native_methods[] = {
-    {"java/lang/VMClass",                vm_class},
-    {"java/lang/VMObject",               vm_object},
-    {"java/lang/VMThread",               vm_thread},
-    {"java/lang/VMSystem",               vm_system},
-    {"java/lang/VMString",               vm_string},
-    {"java/lang/VMRuntime",              vm_runtime},
-    {"java/lang/VMThrowable",            vm_throwable},
-    {"java/lang/VMClassLoader",          vm_classloader},
-    {"java/lang/reflect/Field",          vm_reflect_field},
-    {"java/lang/reflect/Method",         vm_reflect_method},
-    {"java/lang/reflect/Constructor",    vm_reflect_constructor},
-    {"java/security/VMAccessController", vm_access_controller},
-    {"gnu/classpath/VMSystemProperties", vm_system_properties},
-    {"gnu/classpath/VMStackWalker",      vm_stack_walker},
-    {NULL,                               NULL}
+    {"java/lang/VMClass",                           vm_class},
+    {"java/lang/VMObject",                          vm_object},
+    {"java/lang/VMThread",                          vm_thread},
+    {"java/lang/VMSystem",                          vm_system},
+    {"java/lang/VMString",                          vm_string},
+    {"java/lang/VMRuntime",                         vm_runtime},
+    {"java/lang/VMThrowable",                       vm_throwable},
+    {"java/lang/VMClassLoader",                     vm_classloader},
+    {"java/lang/reflect/Field",                     vm_reflect_field},
+    {"java/lang/reflect/Method",                    vm_reflect_method},
+    {"java/lang/reflect/Constructor",               vm_reflect_constructor},
+    {"java/security/VMAccessController",            vm_access_controller},
+    {"gnu/classpath/VMSystemProperties",            vm_system_properties},
+    {"gnu/classpath/VMStackWalker",                 vm_stack_walker},
+    {"gnu/java/lang/management/VMThreadMXBeanImpl", vm_threadmx_bean_impl},
+    {NULL,                                          NULL}
 };

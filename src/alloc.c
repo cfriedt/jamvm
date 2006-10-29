@@ -659,12 +659,19 @@ void handleUnmarkedSpecial(Object *ob) {
             if(!IS_CLASS_DUP(cb))
                 jam_printf("<GC: Unloading class %s>\n", cb->name);
         }
-        freeClassData((Class*)ob);
+        freeClassData(ob);
     } else
         if(IS_CLASS_LOADER(CLASS_CB(ob->class))) {
-            TRACE_GC("FREE: Freeing class loader object\n");
+            TRACE_GC("FREE: Freeing class loader object %p\n", ob);
+            unloadClassLoaderDlls(ob);
             freeClassLoaderData(ob);
-        }
+        } else
+            if(IS_VMTHREAD(CLASS_CB(ob->class))) {
+                /* Free the native thread structure (see comment
+                   in detachThread (thread.c) */
+                TRACE_GC("FREE: Freeing native thread for VMThread object %p\n", ob);
+                free(threadSelf0(ob));
+            }
 }
 
 static uintptr_t doSweep(Thread *self) {
@@ -1179,6 +1186,8 @@ uintptr_t doCompact() {
                     new_addr = ptr;
 
 marked_phase1:
+                marked++;
+
                 /* Thread references within the object */
                 if(threadChildren(ob, (Object*)(new_addr+HEADER_SIZE)))
                     cleared++;
@@ -1187,9 +1196,17 @@ marked_phase1:
                     new_addr += OBJECT_GRAIN;
 
                 new_addr += size;
+                goto next;
             }
+
+            if(HDR_SPECIAL_OBJ(hdr) && ob->class != NULL)
+                handleUnmarkedSpecial(ob);
+
+            freed += size;
+            unmarked++;
         }
 
+next:
         /* Skip to next block */
         ptr += size;
     }
@@ -1231,8 +1248,6 @@ marked_phase1:
                 }
 
 marked_phase2:
-                marked++;
-
                 /* Move the object to the new address */
                 if(new_addr != ptr) {
                     TRACE_COMPACT("Moving object from %p to %p.\n", ob, new_addr+HEADER_SIZE);
@@ -1244,17 +1259,9 @@ marked_phase2:
                 }
 
                 new_addr += size;
-                goto next;
             }
-
-            if(HDR_SPECIAL_OBJ(hdr) && ob->class != NULL)
-                handleUnmarkedSpecial(ob);
-
-            freed += size;
-            unmarked++;
         }
 
-next:
         /* Skip to next block */
         ptr += size;
     }

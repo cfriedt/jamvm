@@ -99,7 +99,7 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
                 goto exit;
             }
 
-            if(args->props_count = props_count) {
+            if((args->props_count = props_count)) {
                 args->commandline_props = (Property*)sysMalloc(props_count * sizeof(Property));
                 memcpy(args->commandline_props, &props[0], props_count * sizeof(Property));
             }

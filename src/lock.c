@@ -29,6 +29,7 @@
 #include "thread.h"
 #include "hash.h"
 #include "alloc.h"
+#include "lock.h"
 
 /* Trace lock operations and inflation/deflation */
 #ifdef TRACELOCK
@@ -86,24 +87,62 @@ static Monitor *mon_free_list = NULL;
 static HashTable mon_cache;
 
 void monitorInit(Monitor *mon) {
+    memset(mon, 0, sizeof(Monitor));
     pthread_mutex_init(&mon->lock, NULL);
-    pthread_cond_init(&mon->cv, NULL);
-    mon->owner = 0;
-    mon->count = 0;
-    mon->waiting = 0;
-    mon->notifying = 0;
-    mon->interrupting = 0;
+}
+
+void waitSetAppend(Monitor *mon, Thread *thread) {
+    if(mon->wait_set == NULL)
+        mon->wait_set = thread->wait_prev = thread;
+
+    thread->wait_next = mon->wait_set;
+    thread->wait_prev = mon->wait_set->wait_prev;
+    thread->wait_prev->wait_next = mon->wait_set->wait_prev = thread;
+
+    thread->wait_id = mon->wait_count++;
+}
+
+void waitSetUnlinkThread(Monitor *mon, Thread *thread) {
+    if(mon->wait_set == thread)
+        if((mon->wait_set = mon->wait_set->wait_next) == thread)
+            mon->wait_set = NULL;
+
+    thread->wait_prev->wait_next = thread->wait_next;
+    thread->wait_next->wait_prev = thread->wait_prev;
+    thread->wait_prev = thread->wait_next = NULL;
+}
+
+Thread *waitSetSignalNext(Monitor *mon) {
+    Thread *thread = mon->wait_set;
+
+    if(thread != NULL) {
+        waitSetUnlinkThread(mon, thread);
+        pthread_cond_signal(&thread->wait_cv);
+
+        thread->notify_id = mon->wait_count;
+    }
+
+    return thread;
 }
 
 void monitorLock(Monitor *mon, Thread *self) {
     if(mon->owner == self)
         mon->count++;
     else {
-        disableSuspend(self);
-        self->state = WAITING;
-        pthread_mutex_lock(&mon->lock);
-        self->state = RUNNING;
-        enableSuspend(self);
+        if(pthread_mutex_trylock(&mon->lock)) {
+            disableSuspend(self);
+
+            self->blocked_mon = mon;
+            self->blocked_count++;
+            self->state = BLOCKED;
+
+            pthread_mutex_lock(&mon->lock);
+
+            self->state = RUNNING;
+            self->blocked_mon = NULL;
+
+            enableSuspend(self);
+        }
         mon->owner = self;
     }
 }
@@ -123,18 +162,19 @@ int monitorTryLock(Monitor *mon, Thread *self) {
 void monitorUnlock(Monitor *mon, Thread *self) {
     if(mon->owner == self) {
         if(mon->count == 0) {
-            mon->owner = 0;
+            mon->owner = NULL;
             pthread_mutex_unlock(&mon->lock);
         } else
             mon->count--;
     }
 }
 
-int monitorWait(Monitor *mon, Thread *self, long long ms, int ns) {
-    char interrupted = 0;
-    int old_count;
+int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns, int locked) {
     char timed = (ms != 0) || (ns != 0);
+    char interrupted = FALSE;
+    char timeout = FALSE;
     struct timespec ts;
+    int old_count;
 
     if(mon->owner != self)
         return FALSE;
@@ -143,10 +183,16 @@ int monitorWait(Monitor *mon, Thread *self, long long ms, int ns) {
 
     disableSuspend(self);
 
+    /* Unlock the monitor.  As it could be recursively
+       locked remember the recursion count */
     old_count = mon->count;
     mon->count = 0;
     mon->owner = NULL;
-    mon->waiting++;
+
+    /* Counter used in thin-lock deflation */
+    mon->in_wait++;
+
+    self->wait_mon = mon;
 
     if(timed) {
         struct timeval tv;
@@ -166,47 +212,67 @@ int monitorWait(Monitor *mon, Thread *self, long long ms, int ns) {
            it to the max value instead of truncating.
            Depending on result, we may not wait at all */
        ts.tv_sec = seconds > LONG_MAX ? LONG_MAX : seconds;
-    }
 
-    self->wait_mon = mon;
-    self->state = WAITING;
+       self->state = TIMED_WAITING;
+    } else
+       self->state = locked ? BLOCKED : WAITING;
 
-    if(self->interrupted)
+    if(self->interrupted && !locked)
         interrupted = TRUE;
     else {
+        if(locked)
+            self->blocked_count++;
+        else
+            self->waited_count++;
 
-wait_loop:
-        if(timed) {
-            if(pthread_cond_timedwait(&mon->cv, &mon->lock, &ts) == ETIMEDOUT)
-                goto out;
+        self->interrupting = FALSE;
 
-            /* Sigjmp/longjmp resets fpu control on i386 --
-             * empty for sane platforms. */ 
-            FPU_HACK;
+        /* Add the thread onto the end of the wait set */
+        waitSetAppend(mon, self);
 
-        } else
-            pthread_cond_wait(&mon->cv, &mon->lock);
+        while(self->wait_next != NULL && !self->interrupting)
+            if(timed) {
+                if((timeout = (pthread_cond_timedwait(&self->wait_cv, &mon->lock, &ts) == ETIMEDOUT)))
+                    break;
 
-        /* see why we were signalled... */
+                /* On Linux/i386 systems using LinuxThreads, pthread_cond_timedwait is
+                 * implemented using sigjmp/longjmp.  This resets the fpu control word
+                 * back to 64-bit precision.  The macro is empty for sane platforms. */ 
+                FPU_HACK;
 
-        if(self->interrupting) {
-            interrupted = TRUE;
-            self->interrupting = FALSE;
-            mon->interrupting--;
-        } else
-            if(mon->notifying)
-                mon->notifying--;
-            else
-                goto wait_loop;
+            } else
+                pthread_cond_wait(&self->wait_cv, &mon->lock);
     }
-out:
+
+    /* If we've been interrupted or timed-out, we will not have been
+       removed from the wait set.  If we have, we must have been
+       notified afterwards.  In this case, the notify has been lost,
+       and we must signal another thread */
+
+    if(self->interrupting || timeout) {
+        /* An interrupt after a timeout remains pending */
+        interrupted = !(locked || timeout);
+
+        if(self->wait_next != NULL)
+            waitSetUnlinkThread(mon, self);
+        else {
+            /* Notify lost.  Signal another thread only if it
+               was on the wait set at the time of the notify */
+            if(mon->wait_set != NULL && mon->wait_set->wait_id < self->notify_id) {
+                Thread *thread = waitSetSignalNext(mon);
+                thread->notify_id = self->notify_id;
+            }
+        }
+    }
 
     self->state = RUNNING;
-    self->wait_mon = 0;
+    self->wait_mon = NULL;
+
+   /* Restore the monitor owner and recursion count */
 
     mon->owner = self;
     mon->count = old_count;
-    mon->waiting--;
+    mon->in_wait--;
 
     enableSuspend(self);
 
@@ -222,10 +288,9 @@ int monitorNotify(Monitor *mon, Thread *self) {
     if(mon->owner != self)
         return FALSE;
 
-    if((mon->notifying + mon->interrupting) < mon->waiting) {
-        mon->notifying++;
-        pthread_cond_signal(&mon->cv);
-    }
+    /* Signal the first thread in the wait set.  This
+       is the thread which has been waiting the longest */
+    waitSetSignalNext(mon);
 
     return TRUE;
 }
@@ -234,8 +299,8 @@ int monitorNotifyAll(Monitor *mon, Thread *self) {
     if(mon->owner != self)
         return FALSE;
 
-    mon->notifying = mon->waiting - mon->interrupting;
-    pthread_cond_broadcast(&mon->cv);
+    /* Signal all threads in the wait set */
+    while(waitSetSignalNext(mon) != NULL);
 
     return TRUE;
 }
@@ -334,7 +399,7 @@ try_again2:
         if(COMPARE_AND_SWAP(&obj->lock, 0, thin_locked))
             inflate(obj, mon, self);
         else
-            monitorWait(mon, self, 0, 0);
+            monitorWait0(mon, self, 0, 0, TRUE);
     }
 }
 
@@ -376,7 +441,7 @@ retry:
                 Monitor *mon = (Monitor*) (lockword & ~SHAPE_BIT);
 
                 if((mon->count == 0) && (ATOMIC_READ(&mon->entering) == 0) &&
-                                (mon->waiting == 0)) {
+                                (mon->in_wait == 0)) {
                     TRACE("Thread %p is deflating obj %p...\n", self, obj);
 
                     /* This barrier is not needed for the thin-locking implementation --

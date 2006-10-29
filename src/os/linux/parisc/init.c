@@ -18,22 +18,11 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "thread.h"
+#include "arch/parisc.h"
 
-extern void monitorInit(Monitor *mon);
-extern void monitorLock(Monitor *mon, Thread *self);
-extern void monitorUnlock(Monitor *mon, Thread *self);
-extern int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns, int locked);
-extern int monitorNotify(Monitor *mon, Thread *self);
-extern int monitorNotifyAll(Monitor *mon, Thread *self);
+CasLock cas_lock;
 
-#define monitorWait(mon, self, ms, ns) \
-    monitorWait0(mon, self, ms, ns, FALSE)
-
-extern void objectLock(Object *ob);
-extern void objectUnlock(Object *ob);
-extern void objectNotify(Object *ob);
-extern void objectNotifyAll(Object *ob);
-extern void objectWait(Object *ob, long long ms, int ns);
-extern int objectLockedByCurrent(Object *ob);
-extern void threadMonitorCache();
+void initialisePlatform() {
+    /* Initialise lock for compare_and_swap implementation */
+    cas_lock.lock = 1;
+}

@@ -20,6 +20,7 @@
 
 #include <stdarg.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 
 /* Architecture dependent definitions */
@@ -330,6 +331,7 @@
 #define CLASS_CLASH           128
 #define VMTHROWABLE           256 
 #define ANONYMOUS             512
+#define VMTHREAD             1024
 
 typedef unsigned char           u1;
 typedef unsigned short          u2;
@@ -583,8 +585,9 @@ typedef struct InitArgs {
 #define IS_CLASS_DUP(cb)		(cb->flags & CLASS_CLASH)
 #define IS_CLASS_CLASS(cb)		(cb->flags & CLASS_CLASS)
 #define IS_VMTHROWABLE(cb)		(cb->flags & VMTHROWABLE)
+#define IS_VMTHREAD(cb)			(cb->flags & VMTHREAD)
 #define IS_ANONYMOUS(cb)		(cb->flags & ANONYMOUS)
-#define IS_SPECIAL(cb)			(cb->flags & (REFERENCE | CLASS_LOADER))
+#define IS_SPECIAL(cb)			(cb->flags & (REFERENCE | CLASS_LOADER | VMTHREAD))
 
 #define IS_MEMBER(cb)			cb->declaring_class
 #define IS_LOCAL(cb)			(cb->enclosing_method && !IS_ANONYMOUS(cb))
@@ -754,7 +757,7 @@ extern void setException(Object *excep);
 extern void clearException();
 extern void printException();
 extern CodePntr findCatchBlock(Class *exception);
-extern Object *setStackTrace();
+extern Object *setStackTrace0(ExecEnv *ee, int max_depth);
 extern Object *convertStackTrace(Object *vmthrwble);
 extern int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr);
 extern void markVMThrowable(Object *vmthrwble, int mark, int mark_soft_refs);
@@ -765,6 +768,9 @@ extern void initialiseException();
 
 #define signalException(excep_name, excep_mess) \
     signalChainedException(excep_name, excep_mess, NULL)
+
+#define setStackTrace() \
+    setStackTrace0(getExecEnv(), INT_MAX)
 
 /* interp */
 
@@ -804,17 +810,19 @@ extern void initialiseUtf8();
 /* Dll */
 
 extern void *resolveNativeMethod(MethodBlock *mb);
-extern int resolveDll(char *name);
+extern int resolveDll(char *name, Object *loader);
 extern char *getDllPath();
 extern char *getBootDllPath();
 extern char *getDllName(char *name);
 extern void initialiseDll(InitArgs *args);
 extern uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern void unloadClassLoaderDlls(Object *loader);
 
 /* Dll OS */
 
 extern char *nativeLibPath();
 extern void *nativeLibOpen(char *path);
+extern void nativeLibClose(void *handle);
 extern char *nativeLibMapName(char *name);
 extern void *nativeLibSym(void *handle, char *symbol);
 extern void *nativeStackBase();

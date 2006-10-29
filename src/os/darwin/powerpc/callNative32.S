@@ -60,9 +60,6 @@ _callJNIMethod:
         stw r19,-24(r11)
         stw r20,-28(r11)
 
-        ; Set lr to function ptr, for calling later        
-        mtlr r8
-
         ; setup signature and stack pntrs
         mr r14,r5
         addi r15,r7,-4
@@ -82,13 +79,11 @@ static:
 
 get_pc:
         mflr r20
-
-
-
         la r17,lo16(other0-get_pc)(r20)
         la r18,lo16(float0-get_pc)(r20)
         la r19,lo16(long0-get_pc)(r20)
 
+        ; Set lr to function ptr, for calling later        
         mtlr r8
 
         ; Setup pointer to parameter area for args which

@@ -171,6 +171,7 @@ void addDefaultProperties(Object *properties) {
     setProperty(properties, "java.vm.specification.name", "Java Virtual Machine Specification");
     setProperty(properties, "java.class.version", "48.0");
     setProperty(properties, "java.class.path", getClassPath());
+    setProperty(properties, "sun.boot.class.path", getBootClassPath());
     setProperty(properties, "java.boot.class.path", getBootClassPath());
     setProperty(properties, "gnu.classpath.boot.library.path", getBootDllPath());
     setProperty(properties, "java.library.path", getDllPath());

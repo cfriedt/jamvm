@@ -431,7 +431,7 @@ jboolean Jam_IsAssignableFrom(JNIEnv *env, jclass clazz1, jclass clazz2) {
 
 jint Jam_Throw(JNIEnv *env, jthrowable obj) {
     Object *ob = (Object*)obj;
-    setStackTrace(ob);
+    setStackTrace();
     setException(ob);
     return JNI_TRUE;
 }
@@ -537,11 +537,15 @@ jsize Jam_GetStringLength(JNIEnv *env, jstring string) {
 const jchar *Jam_GetStringChars(JNIEnv *env, jstring string, jboolean *isCopy) {
     if(isCopy != NULL)
         *isCopy = JNI_FALSE;
+
+    /* Pin the reference */
     addJNIGref(getStringCharsArray((Object*)string));
+
     return (const jchar *)getStringChars((Object*)string);
 }
 
 void Jam_ReleaseStringChars(JNIEnv *env, jstring string, const jchar *chars) {
+    /* Unpin the reference */
     delJNIGref(getStringCharsArray((Object*)string));
 }
 
@@ -550,12 +554,17 @@ jstring Jam_NewStringUTF(JNIEnv *env, const char *bytes) {
 }
 
 jsize Jam_GetStringUTFLength(JNIEnv *env, jstring string) {
+    if(string == NULL)
+        return 0;
     return getStringUtf8Len((Object*)string);
 }
 
 const char *Jam_GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy) {
     if(isCopy != NULL)
         *isCopy = JNI_TRUE;
+
+    if(string == NULL)
+        return NULL;
     return (const char*)String2Utf8((Object*)string);
 }
 
@@ -1419,7 +1428,7 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
     if(args->min_heap > args->max_heap)
         goto error;
 
-    if(args->props_count = props_count) {
+    if((args->props_count = props_count)) {
         args->commandline_props = (Property*)sysMalloc(props_count * sizeof(Property));
         memcpy(args->commandline_props, &props[0], props_count * sizeof(Property));
     }

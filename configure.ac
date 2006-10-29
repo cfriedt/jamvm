@@ -61,6 +61,7 @@ i[[3456]]86-*-kfreebsd*) host_cpu=i386 host_os=linux ;;
 i386-*-openbsd*) host_os=bsd libdl_needed=no ;;
 i386-*-freebsd*) host_os=bsd libdl_needed=no ;;
 x86_64-*-linux*) host_os=linux ;;
+hppa*-*-linux*) host_cpu=parisc host_os=linux ;;
 amd64-*-openbsd*) host_os=bsd libdl_needed=no ;;
 amd64-*-freebsd*) host_os=bsd libdl_needed=no ;;
 arm*-*-linux*) host_cpu=arm host_os=linux ;;
@@ -117,7 +118,7 @@ fi
 
 AC_ARG_ENABLE(ffi,
     [  --enable-ffi             use libffi to call native methods],,
-    [if test "$host_cpu" != x86_64; then
+    [if test "$host_cpu" != x86_64 -a "$host_cpu" != parisc; then
         enable_ffi=no
      fi])
 
@@ -216,6 +217,7 @@ AC_CONFIG_FILES(
     src/os/linux/arm/Makefile \
     src/os/linux/i386/Makefile \
     src/os/linux/x86_64/Makefile \
+    src/os/linux/parisc/Makefile \
     src/os/darwin/i386/Makefile \
     src/os/darwin/powerpc/Makefile \
     src/os/bsd/powerpc/Makefile \
