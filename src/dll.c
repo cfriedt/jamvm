@@ -267,8 +267,6 @@ int resolveDll(char *name, Object *loader) {
             }
         }
 
-printf("***** %s loader %x\n", name, loader);
-
         dll = (DllEntry*)sysMalloc(sizeof(DllEntry));
         dll->name = strcpy((char*)sysMalloc(strlen(name)+1), name);
         dll->handle = handle;
