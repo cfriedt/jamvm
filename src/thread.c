@@ -358,14 +358,8 @@ void initThread(Thread *thread, char is_daemon, void *stack_base) {
     /* Record the thread's stack base */
     thread->stack_base = stack_base;
 
+    /* Grab thread list lock.  This also stops suspension */
     pthread_mutex_lock(&lock);
-
-    /* add to thread list... After this point (once we release the lock)
-       we are suspendable */
-    if((thread->next = main_thread.next))
-        main_thread.next->prev = thread;
-    thread->prev = &main_thread;
-    main_thread.next = thread;
 
     /* If all threads are suspended (i.e. GC in progress) we cannot start
        until the threads are resumed.  Record we're waiting and wait until
@@ -377,14 +371,14 @@ void initThread(Thread *thread, char is_daemon, void *stack_base) {
         pthread_cond_wait(&cv, &lock);
 
     threads_waiting_to_start--;
-#if 0
+
     /* add to thread list... After this point (once we release the lock)
        we are suspendable */
     if((thread->next = main_thread.next))
         main_thread.next->prev = thread;
     thread->prev = &main_thread;
     main_thread.next = thread;
-#endif
+
     /* Keep track of threads counts */
     if(++threads_count > peak_threads_count)
         peak_threads_count = threads_count;
