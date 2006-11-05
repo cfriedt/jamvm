@@ -2070,7 +2070,7 @@ unsigned long maxHeapMem() {
 void *sysMalloc(int n) {
     void *mem = malloc(n);
 
-    if(mem == NULL) {
+    if(mem == NULL && n > 0) {
         jam_fprintf(stderr, "Malloc failed - aborting VM...\n");
         exitVM(1);
     }
