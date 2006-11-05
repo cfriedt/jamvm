@@ -1,57 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.4.4-pre)
+AM_INIT_AUTOMAKE(jamvm, 1.4.4)
 AC_CONFIG_HEADERS([src/config.h])
-
-AC_ARG_ENABLE(tracegc,
-    [  --enable-tracegc         add gc tracing (for debugging)],
-    [if test "$enableval" != no; then
-        AC_DEFINE([TRACEGC],1,[defined if gc tracing enabled for debugging])
-    fi],)
-
-AC_ARG_ENABLE(tracealloc,
-    [  --enable-tracealloc      add object allocation tracing (for debugging)],
-    [if test "$enableval" != no; then
-        AC_DEFINE([TRACEALLOC],1,[defined if object allocation tracing enabled for debugging])
-    fi],)
-
-AC_ARG_ENABLE(tracefnlz,
-    [  --enable-tracefnlz       add object finalisation tracing (for debugging)],
-    [if test "$enableval" != no; then
-        AC_DEFINE([TRACEFNLZ],1,[defined if object finalisation tracing enabled for debugging])
-    fi],)
-
-AC_ARG_ENABLE(tracedll,
-    [  --enable-tracedll        add library loading/lookup tracing (for debugging)],
-    [if test "$enableval" != no; then
-        AC_DEFINE([TRACEDLL],1,[defined if library loading/unloading tracing enabled for debugging])
-    fi],)
-
-AC_ARG_ENABLE(tracelock,
-    [  --enable-tracelock       add object locking tracing (for debugging)],
-    [if test "$enableval" != no; then
-        AC_DEFINE([TRACELOCK],1,[defined if object locking tracing enabled for debugging])
-    fi],)
-
-AC_ARG_ENABLE(tracethread,
-    [  --enable-tracethread     add thread creation tracing (for debugging)],
-    [if test "$enableval" != no; then
-        AC_DEFINE([TRACETHREAD],1,[defined if thread creation tracing enabled for debugging])
-    fi],)
-
-AC_ARG_ENABLE(trace,
-    [  --enable-trace           add all tracing (for debugging)],
-    [if test "$enableval" != no; then
-        AC_DEFINE([TRACEGC],1,[defined if gc tracing enabled for debugging])
-        AC_DEFINE([TRACEALLOC],1,[defined if object allocation tracing enabled for debugging])
-        AC_DEFINE([TRACEFNLZ],1,[defined if object finalisation tracing enabled for debugging])
-        AC_DEFINE([TRACEDLL],1,[defined if library loading/unloading tracing enabled for debugging])
-        AC_DEFINE([TRACELOCK],1,[defined if object locking tracing enabled for debugging])
-        AC_DEFINE([TRACETHREAD],1,[defined if thread creation tracing enabled for debugging])
-    fi],)
-
-AC_ARG_ENABLE(zip,
-    [  --disable-zip            turn-off zip support in the bootstrap loader],,)
+AC_PREFIX_DEFAULT(/usr/local/jamvm)
 
 AC_CANONICAL_HOST
 
@@ -80,22 +31,69 @@ os=$host_os
 AC_SUBST(arch)
 AC_SUBST(os)
 
+AC_ARG_ENABLE(tracegc,
+    [AS_HELP_STRING(--enable-tracegc,add gc tracing (for debugging))],
+    [if test "$enableval" != no; then
+        AC_DEFINE([TRACEGC],1,[defined if gc tracing enabled for debugging])
+    fi],)
+
+AC_ARG_ENABLE(tracealloc,
+    [AS_HELP_STRING(--enable-tracealloc,add object allocation tracing (for debugging))],
+    [if test "$enableval" != no; then
+        AC_DEFINE([TRACEALLOC],1,[defined if object allocation tracing enabled for debugging])
+    fi],)
+
+AC_ARG_ENABLE(tracefnlz,
+    [AS_HELP_STRING(--enable-tracefnlz,add object finalisation tracing (for debugging))],
+    [if test "$enableval" != no; then
+        AC_DEFINE([TRACEFNLZ],1,[defined if object finalisation tracing enabled for debugging])
+    fi],)
+
+AC_ARG_ENABLE(tracedll,
+    [AS_HELP_STRING(--enable-tracedll,add library loading/lookup tracing (for debugging))],
+    [if test "$enableval" != no; then
+        AC_DEFINE([TRACEDLL],1,[defined if library loading/unloading tracing enabled for debugging])
+    fi],)
+
+AC_ARG_ENABLE(tracelock,
+    [AS_HELP_STRING(--enable-tracelock,add object locking tracing (for debugging))],
+    [if test "$enableval" != no; then
+        AC_DEFINE([TRACELOCK],1,[defined if object locking tracing enabled for debugging])
+    fi],)
+
+AC_ARG_ENABLE(tracethread,
+    [AS_HELP_STRING(--enable-tracethread,add thread creation tracing (for debugging))],
+    [if test "$enableval" != no; then
+        AC_DEFINE([TRACETHREAD],1,[defined if thread creation tracing enabled for debugging])
+    fi],)
+
+AC_ARG_ENABLE(trace,
+    [AS_HELP_STRING(--enable-trace,add all tracing (for debugging))],
+    [if test "$enableval" != no; then
+        AC_DEFINE([TRACEGC],1,[defined if gc tracing enabled for debugging])
+        AC_DEFINE([TRACEALLOC],1,[defined if object allocation tracing enabled for debugging])
+        AC_DEFINE([TRACEFNLZ],1,[defined if object finalisation tracing enabled for debugging])
+        AC_DEFINE([TRACEDLL],1,[defined if library loading/unloading tracing enabled for debugging])
+        AC_DEFINE([TRACELOCK],1,[defined if object locking tracing enabled for debugging])
+        AC_DEFINE([TRACETHREAD],1,[defined if thread creation tracing enabled for debugging])
+    fi],)
+
 AC_ARG_ENABLE(int-threading,
-    [  --enable-int-threading   enable threaded version of the interpreter (default enabled)],,)
+    [AS_HELP_STRING(--enable-int-threading,enable threaded version of the interpreter (default enabled))],,)
 
 AC_ARG_ENABLE(int-direct,
-    [  --enable-int-direct      enable direct threaded version of the interpreter (default enabled)],,)
+    [AS_HELP_STRING(--enable-int-direct,enable direct threaded version of the interpreter (default enabled))],,)
 
 AC_ARG_ENABLE(int-caching,
-    [  --enable-int-caching     enable stack-caching version of the interpreter
-                                  (default powerpc,arm enabled : i386 disabled)],,
+    [AS_HELP_STRING(--enable-int-caching,enable stack-caching version of the interpreter
+                   (default powerpc,arm enabled : i386 disabled))],,
     [if test "$host_cpu" == i386; then
          enable_int_caching=no
      fi])
 
 AC_ARG_ENABLE(int-prefetch,
-    [  --enable-int-prefetch    enable prefetching version of the interpreter
-                                  (default powerpc enabled : i386,arm disabled)],,
+    [AS_HELP_STRING(--enable-int-prefetch,enable prefetching version of the interpreter
+                   (default powerpc enabled : i386,arm disabled))],,
     [if test "$host_cpu" != powerpc; then
          enable_int_prefetch=no
      fi])
@@ -117,17 +115,30 @@ if test "$enable_int_threading" != no; then
 fi
 
 AC_ARG_ENABLE(ffi,
-    [  --enable-ffi             use libffi to call native methods],,
+    [AS_HELP_STRING(--enable-ffi,use libffi to call native methods)],,
     [if test "$host_cpu" != x86_64 -a "$host_cpu" != parisc; then
         enable_ffi=no
      fi])
 
 AC_ARG_WITH(classpath-install-dir,
-    [  --with-classpath-install-dir=<dir>       installation directory of GNU classpath
-                                (default /usr/local/classpath)],,
+    [AS_HELP_STRING(--with-classpath-install-dir=<dir>,installation directory of GNU classpath
+                   (default /usr/local/classpath))],,
     [with_classpath_install_dir=/usr/local/classpath])
 
+AC_DEFINE_UNQUOTED(CLASSPATH_INSTALL_DIR, "$with_classpath_install_dir",
+    [GNU Classpath installation directory (prefix)])
+
 AC_SUBST(with_classpath_install_dir)
+
+if test "$prefix" = "NONE"; then
+    install_dir=$ac_default_prefix
+else
+    install_dir=$prefix
+fi
+AC_DEFINE_UNQUOTED(INSTALL_DIR, "$install_dir", [Installation directory (prefix)])
+
+AC_ARG_ENABLE(zip,
+    [AS_HELP_STRING(--disable-zip,turn-off zip support in the bootstrap loader)],,)
 
 dnl Initialise libtool
 AC_DISABLE_STATIC
