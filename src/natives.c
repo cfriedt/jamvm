@@ -1053,6 +1053,11 @@ uintptr_t *resetPeakThreadCount(Class *class, MethodBlock *mb, uintptr_t *ostack
     return ostack;
 }
 
+uintptr_t *findMonitorDeadlockedThreads(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    *ostack++ = (uintptr_t)NULL;
+    return ostack;
+}
+
 uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     long long id = *((long long *)&ostack[0]);
     int max_depth = ostack[2];
@@ -1061,35 +1066,43 @@ uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb, uintptr_t *ostack) 
     Object *info = NULL;
 
     if(thread != NULL) {
-        int self = thread == threadSelf();
-        Object *vmthrowable;
-        Class *info_class;
-        MethodBlock *init;
+        Class *info_class = findSystemClass("java/lang/management/ThreadInfo");
 
-        info_class = findSystemClass("java/lang/management/ThreadInfo");
-        init = findMethod(info_class, "<init>", "(Ljava/lang/Thread;JJLjava/lang/Object;"
-                                                "Ljava/lang/Thread;JJZZ[Ljava/lang/StackTraceElement;)V");
+        if(info_class != NULL) {
+            MethodBlock *init = findMethod(info_class, "<init>",
+                                           "(Ljava/lang/Thread;JJLjava/lang/Object;"
+                                           "Ljava/lang/Thread;JJZZ[Ljava/lang/StackTraceElement;)V");
+            if(init != NULL) {
+                Frame *last;
+                int in_native;
+                Object *vmthrowable;
+                int self = thread == threadSelf();
 
-        if(!self)
-            suspendThread(thread);
+                if(!self)
+                    suspendThread(thread);
 
-        vmthrowable = setStackTrace0(thread->ee, max_depth);
+                vmthrowable = setStackTrace0(thread->ee, max_depth);
 
-        if(!self)
-            resumeThread(thread);
+                last = thread->ee->last_frame;
+                in_native = last->prev == NULL || last->mb->access_flags & ACC_NATIVE;
 
-        if(vmthrowable != NULL) {
-            Object *trace;
-            if((info = allocObject(info_class)) != NULL &&
-                       (trace = convertStackTrace(vmthrowable)) != NULL) {
+                if(!self)
+                    resumeThread(thread);
 
-                Monitor *mon = thread->blocked_mon;
-                Object *lock = mon != NULL ? mon->obj : NULL;
-                Thread *owner = mon != NULL ? mon->owner : NULL;
-                Object *lock_owner = owner != NULL ? owner->ee->thread : NULL;
+                if(vmthrowable != NULL) {
+                    Object *trace;
+                    if((info = allocObject(info_class)) != NULL &&
+                               (trace = convertStackTrace(vmthrowable)) != NULL) {
 
-                executeMethod(info, init, thread->ee->thread, thread->blocked_count, 0LL,
-                              lock, lock_owner, thread->waited_count, 0LL, 0, FALSE, trace);
+                        Monitor *mon = thread->blocked_mon;
+                        Object *lock = mon != NULL ? mon->obj : NULL;
+                        Thread *owner = mon != NULL ? mon->owner : NULL;
+                        Object *lock_owner = owner != NULL ? owner->ee->thread : NULL;
+
+                        executeMethod(info, init, thread->ee->thread, thread->blocked_count, 0LL, lock,
+                                      lock_owner, thread->waited_count, 0LL, in_native, FALSE, trace);
+                    }
+                }
             }
         }
     }
@@ -1256,6 +1269,7 @@ VMMethod vm_threadmx_bean_impl[] = {
     {"getTotalStartedThreadCount",  getTotalStartedThreadCount},
     {"resetPeakThreadCount",        resetPeakThreadCount},
     {"getThreadInfoForId",          getThreadInfoForId},
+    {"findMonitorDeadlockedThreads",findMonitorDeadlockedThreads},
     {NULL,                          NULL}
 };
 
