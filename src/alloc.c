@@ -1835,8 +1835,8 @@ Object *allocArray(Class *class, int size, int el_size) {
     ob = (Object *)gcMalloc(size * el_size + sizeof(u4) + sizeof(Object));
 
     if(ob != NULL) {
-        *(u4*)INST_DATA(ob) = size;
         ob->class = class;
+        ARRAY_LEN(ob) = size;
         TRACE_ALLOC("<ALLOC: allocated %s array object @%p>\n", CLASS_CB(class)->name, ob);
     }
 

@@ -1111,6 +1111,206 @@ uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb, uintptr_t *ostack) 
     return ostack;
 }
 
+/* sun.misc.Unsafe */
+
+static volatile uintptr_t spinlock = 0;
+
+void lockSpinLock() {
+    while(!LOCKWORD_COMPARE_AND_SWAP(&spinlock, 0, 1));
+}
+
+void unlockSpinLock() {
+    LOCKWORD_WRITE(&spinlock, 0);
+}
+
+uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    FieldBlock *fb = fbFromReflectObject((Object*)ostack[1]);
+
+    *(long long*)ostack = (long long)INST_DATA((Object*)NULL)[fb->offset];
+    return ostack + 2;
+}
+
+uintptr_t *compareAndSwapInt(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+    uintptr_t expect = ostack[4];
+    uintptr_t update = ostack[5];
+    int result;
+
+#ifdef COMPARE_AND_SWAP
+    result = COMPARE_AND_SWAP(addr, expect, update);
+#else
+    lockSpinLock();
+    if(result = (*addr == expect))
+        *addr = update;
+    unlockSpinLock();
+#endif
+
+    *ostack++ = result;
+    return ostack;
+}
+
+uintptr_t *compareAndSwapLong(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    long long *addr = (long long*)((char*)ostack[1] + offset);
+    long long expect = *((long long *)&ostack[4]);
+    long long update = *((long long *)&ostack[6]);
+    int result;
+
+#ifdef COMPARE_AND_SWAP_64
+    result = COMPARE_AND_SWAP_64(addr, expect, update);
+#else
+    lockSpinLock();
+    if(result = (*addr == expect))
+        *addr = update;
+    unlockSpinLock();
+#endif
+
+    *ostack++ = result;
+    return ostack;
+}
+
+uintptr_t *putOrderedInt(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    volatile uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+    uintptr_t value = ostack[4];
+
+    *addr = value;
+    return ostack;
+}
+
+uintptr_t *putOrderedLong(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    long long value = *((long long *)&ostack[4]);
+    volatile long long *addr = (long long*)((char*)ostack[1] + offset);
+
+    if(sizeof(uintptr_t) == 8)
+        *addr = value;
+    else {
+        lockSpinLock();
+        *addr = value;
+        unlockSpinLock();
+    }
+
+    return ostack;
+}
+
+uintptr_t *putIntVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    volatile uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+    uintptr_t value = ostack[4];
+
+    MBARRIER();
+    *addr = value;
+
+    return ostack;
+}
+
+uintptr_t *getIntVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    volatile uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+
+    *ostack++ = *addr;
+    MBARRIER();
+
+    return ostack;
+}
+
+uintptr_t *putLong(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    long long value = *((long long *)&ostack[4]);
+    long long *addr = (long long*)((char*)ostack[1] + offset);
+
+    if(sizeof(uintptr_t) == 8)
+        *addr = value;
+    else {
+        lockSpinLock();
+        *addr = value;
+        unlockSpinLock();
+    }
+
+    return ostack;
+}
+
+uintptr_t *getLongVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    volatile long long *addr = (long long*)((char*)ostack[1] + offset);
+
+    if(sizeof(uintptr_t) == 8)
+        *(long long*)ostack = *addr;
+    else {
+        lockSpinLock();
+        *(long long*)ostack = *addr;
+        unlockSpinLock();
+    }
+
+    return ostack + 2;
+}
+
+uintptr_t *getLong(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    long long *addr = (long long*)((char*)ostack[1] + offset);
+
+    if(sizeof(uintptr_t) == 8)
+        *(long long*)ostack = *addr;
+    else {
+        lockSpinLock();
+        *(long long*)ostack = *addr;
+        unlockSpinLock();
+    }
+
+    return ostack + 2;
+}
+
+uintptr_t *putObject(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+    uintptr_t value = ostack[4];
+
+    *addr = value;
+    return ostack;
+}
+
+uintptr_t *arrayBaseOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    *ostack++ = (uintptr_t) ARRAY_DATA((Object*)NULL);
+    return ostack;
+}
+
+uintptr_t *arrayIndexScale(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Class *array_class = (Class*)ostack[1];
+    ClassBlock *cb = CLASS_CB(array_class);
+    int scale = 0;
+
+    if(cb->name[0] == '[')
+        switch(cb->name[1]) {
+            case 'I':
+            case 'F':
+                scale = 4;
+                break;
+
+            case '[':
+            case 'L':
+                scale = sizeof(Object*);
+                break;
+
+            case 'J':
+            case 'D':
+                scale = 8;
+                break;
+        }
+
+    *ostack++ = scale;
+    return ostack;
+}
+
+uintptr_t *unpark(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    return ostack;
+}
+
+uintptr_t *park(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    return ostack;
+}
+
 VMMethod vm_object[] = {
     {"getClass",                    getClass},
     {"clone",                       jamClone},
@@ -1258,6 +1458,30 @@ VMMethod vm_stack_walker[] = {
     {NULL,                          NULL}
 };
 
+VMMethod sun_misc_unsafe[] = {
+    {"objectFieldOffset",           objectFieldOffset},
+    {"compareAndSwapInt",           compareAndSwapInt},
+    {"compareAndSwapLong",          compareAndSwapLong},
+    {"compareAndSwapObject",        compareAndSwapInt},
+    {"putOrderedInt",               putOrderedInt},
+    {"putOrderedLong",              putOrderedLong},
+    {"putOrderedObject",            putOrderedInt},
+    {"putIntVolatile",              putIntVolatile},
+    {"getIntVolatile",              getIntVolatile},
+    {"putLongVolatile",             putOrderedLong},
+    {"putLong",                     putLong},
+    {"getLongVolatile",             getLongVolatile},
+    {"getLong",                     getLong},
+    {"putObjectVolatile",           putIntVolatile},
+    {"putObject",                   putObject},
+    {"getObjectVolatile",           getIntVolatile},
+    {"arrayBaseOffset",             arrayBaseOffset},
+    {"arrayIndexScale",             arrayIndexScale},
+    {"unpark",                      unpark},
+    {"park",                        park},
+    {NULL,                          NULL}
+};
+
 VMMethod vm_access_controller[] = {
     {"getStack",                    getStack},
     {NULL,                          NULL}
@@ -1289,5 +1513,6 @@ VMClass native_methods[] = {
     {"gnu/classpath/VMSystemProperties",            vm_system_properties},
     {"gnu/classpath/VMStackWalker",                 vm_stack_walker},
     {"gnu/java/lang/management/VMThreadMXBeanImpl", vm_threadmx_bean_impl},
+    {"sun/misc/Unsafe",                             sun_misc_unsafe},
     {NULL,                                          NULL}
 };
