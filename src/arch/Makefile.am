@@ -1,3 +1,3 @@
 # used by automake to generate Makefile.in
 
-EXTRA_DIST = powerpc.h arm.h i386.h x86_64.h parisc.h
+EXTRA_DIST = powerpc.h arm.h i386.h x86_64.h parisc.h mips.h
