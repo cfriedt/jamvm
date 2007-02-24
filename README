@@ -1,12 +1,12 @@
-JamVM 1.4.4
+JamVM 1.4.5
 ===========
 
-Welcome to the twenty-first release of JamVM!
+Welcome to the twenty-second release of JamVM!
 
 JamVM is a Java Virtual Machine which conforms to the JVM
 specification version 2 (blue book).  In comparison to most other
 VM's (free and commercial) it is extremely small, with a stripped
-executable on PowerPC of only ~150K, and Intel 110K.  However, unlike
+executable on PowerPC of only ~170K, and Intel 130K.  However, unlike
 other small VMs (e.g. KVM) it is designed to support the full
 specification, and includes support for object finalisation, 
 soft/weak/phantom references, the Java Native Interface (JNI) and
@@ -38,6 +38,9 @@ Linux
 - AMD64: built and tested on an AMD Athlon 64.  It should also
          work on Pentium 4 supporting EM64T technology (but I
          haven't tested).
+
+- MIPS: built and tested on mipsel using the O32 ABI.  The system
+        was an embedded wireless router.
 
 Mac OS X/Darwin
 ---------------
@@ -71,14 +74,14 @@ Class Libraries
 JamVM is designed to use the GNU classpath Java class library (see
 http://www.gnu.org/software/classpath).  A number of classes are
 reference classes which must be modified for a particular VM.  These are
-provided and built along with JamVM (see INSTALL).  JamVM 1.4.4 works with
-Classpath version 0.92 (the latest development snapshot).  It should
+provided and built along with JamVM (see INSTALL).  JamVM 1.4.5 works with
+Classpath version 0.93 (the latest development snapshot).  It should
 also work with the latest version direct from CVS and the upcoming
-Classpath 0.93 (but check the Classpath mailing lists for possible patches).
+Classpath 0.94 (but check the Classpath mailing lists for possible patches).
 Later snapshots of Classpath may also work, if no modifications have been
 made to the VM interface.
 
-Note, JamVM 1.4.4 will not work with versions of Classpath earlier than
+Note, JamVM 1.4.5 will not work with versions of Classpath earlier than
 0.92, nor will it work with the class library from Sun or IBM's Virtual
 Machines.
 
@@ -183,4 +186,4 @@ particular order, is given below.
 That's it!
 
 Robert Lougher <rob@lougher.org.uk>
-2nd November 2006.
+4th February 2007.

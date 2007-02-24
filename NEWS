@@ -1,3 +1,50 @@
+JamVM 1.4.5 released on 4th February 2007
+=========================================
+
+A summary of changes since 1.4.4:
+
+- Support for Java 1.5 Annotations.  This includes the following
+  methods for reflection access to Annotations:
+
+    - VMClass.getDeclaredAnnotations
+    - java.lang.reflect.Field.getDeclaredAnnotations
+    - java.lang.reflect.Constructor
+        - getAnnotation, getDeclaredAnnotations, getParameterAnnotations
+    - java.lang.reflect.Method
+        - getDefaultValue, getAnnotation, getDeclaredAnnotations,
+          getParameterAnnotations
+
+- Class sun.misc.Unsafe implemented, providing VM support for
+  JSR-166 (Concurrency Utilities).
+
+- Ported to the mipsel architecture.  This is a full port, with hand-
+  coded assembler to handle the construction of a call-frame for calling
+  JNI native methods.  This supports the O32 ABI (for other ABIs libffi
+  can be used).
+
+- Bug fix in registering references external to the heap with the GC.
+  The table should be locked for references registered after VM
+  initialisation.
+
+- Bug fix when expanding the heap and the free-list is empty.
+
+- Fixed race-condition when rewriting OPC_NEW in the indirect-threaded
+  interpreter (by default the direct-threaded interpreter is used).
+
+- Bug fix in the GC compaction phase.  The class-loader references
+  within the loaded DLL hashtable must be updated when the class-loader
+  is moved during compaction.  This is a regression introduced in
+  JamVM 1.4.3 (DLL unloading), seen while running Eclipse.
+
+- Bug fix in JNI_GetStringUTFLength.  The reported length should not
+  include space for a NULL terminator.
+
+- Various compile fixes for uClibc.  Support for the JNI invocation
+  API requires glibc features not implemented in uClibc.
+
+- Command line option -fullversion implemented.
+
+
 JamVM 1.4.4 released on 2nd November 2006
 =========================================
 
