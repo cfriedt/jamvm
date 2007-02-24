@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006 Robert Lougher <rob@lougher.org.uk>.
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -216,6 +217,8 @@ uintptr_t *runFinalization(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 uintptr_t *exitInternal(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     int status = ostack[0];
     jamvm_exit(status);
+    /* keep compiler happy */
+    return 0;
 }
 
 uintptr_t *nativeLoad(Class *class, MethodBlock *mb, uintptr_t *ostack) {
@@ -408,6 +411,12 @@ uintptr_t *getDeclaredFields(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *clazz = GET_CLASS(ostack[0]);
     int public = ostack[1];
     *ostack++ = (uintptr_t) getClassFields(clazz, public);
+    return ostack;
+}
+
+uintptr_t *getClassDeclaredAnnotations(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Class *clazz = GET_CLASS(ostack[0]);
+    *ostack++ = (uintptr_t) getClassAnnotations(clazz);
     return ostack;
 }
 
@@ -738,6 +747,27 @@ uintptr_t *getMethodSignature(Class *class, MethodBlock *mb2, uintptr_t *ostack)
     return ostack;
 }
 
+uintptr_t *getDefaultValue(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
+    Class *decl_class = (Class*)ostack[1];
+    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
+    *ostack++ = (uintptr_t)getMethodDefaultValue(mb);
+    return ostack;
+}
+
+uintptr_t *getMethodDeclaredAnnotations(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
+    Class *decl_class = (Class*)ostack[1];
+    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
+    *ostack++ = (uintptr_t)getMethodAnnotations(mb);
+    return ostack;
+}
+
+uintptr_t *getParameterAnnotations(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
+    Class *decl_class = (Class*)ostack[1];
+    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
+    *ostack++ = (uintptr_t)getMethodParameterAnnotations(mb);
+    return ostack;
+}
+
 uintptr_t *getFieldModifiers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *decl_class = (Class*)ostack[1];
     FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[2]]); 
@@ -757,6 +787,13 @@ uintptr_t *getFieldSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     }
 
     *ostack++ = (uintptr_t)string;
+    return ostack;
+}
+
+uintptr_t *getFieldDeclaredAnnotations(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Class *decl_class = (Class*)ostack[1];
+    FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[2]]); 
+    *ostack++ = (uintptr_t)getFieldAnnotations(fb);
     return ostack;
 }
 
@@ -783,12 +820,9 @@ uintptr_t *getPntr2Field(uintptr_t *ostack) {
     int no_access_check = ostack[5];
     Object *ob;
 
-    if(!no_access_check) {
-        Class *caller = getCallerCallerClass();
-        if(!checkClassAccess(decl_class, caller) || !checkFieldAccess(fb, caller)) {
-            signalException("java/lang/IllegalAccessException", "field is not accessible");
-            return NULL;
-        }
+    if(!no_access_check && !checkFieldAccess(fb, getCallerCallerClass())) {
+        signalException("java/lang/IllegalAccessException", "field is not accessible");
+        return NULL;
     }
 
     if(fb->access_flags & ACC_STATIC) {
@@ -808,7 +842,7 @@ uintptr_t *getField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
     /* If field is static, getPntr2Field also initialises the field's declaring class */
     if((field = getPntr2Field(ostack)) != NULL)
-        *ostack++ = (uintptr_t) createWrapperObject(field_type, field);
+        *ostack++ = (uintptr_t) getReflectReturnObject(field_type, field);
 
     return ostack;
 }
@@ -872,7 +906,7 @@ uintptr_t *invokeNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     if(mb->access_flags & ACC_STATIC)
         initClass(decl_class);
     else {
-        /* Interfaces are not normally initialsed. */
+        /* Interfaces are not normally initialised. */
         if(IS_INTERFACE(CLASS_CB(decl_class)))
             initClass(decl_class);
 
@@ -882,7 +916,7 @@ uintptr_t *invokeNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     }
  
     if((ret = (uintptr_t*) invoke(ob, mb, array, param_types, !no_access_check)) != NULL)
-        *ostack++ = (uintptr_t) createWrapperObject(ret_type, ret);
+        *ostack++ = (uintptr_t) getReflectReturnObject(ret_type, ret);
 
     return ostack;
 }
@@ -1126,7 +1160,7 @@ void unlockSpinLock() {
 uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     FieldBlock *fb = fbFromReflectObject((Object*)ostack[1]);
 
-    *(long long*)ostack = (long long)INST_DATA((Object*)NULL)[fb->offset];
+    *(long long*)ostack = (long long)(uintptr_t)&INST_DATA((Object*)NULL)[fb->offset];
     return ostack + 2;
 }
 
@@ -1141,7 +1175,7 @@ uintptr_t *compareAndSwapInt(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     result = COMPARE_AND_SWAP(addr, expect, update);
 #else
     lockSpinLock();
-    if(result = (*addr == expect))
+    if((result = (*addr == expect)))
         *addr = update;
     unlockSpinLock();
 #endif
@@ -1161,7 +1195,7 @@ uintptr_t *compareAndSwapLong(Class *class, MethodBlock *mb, uintptr_t *ostack) 
     result = COMPARE_AND_SWAP_64(addr, expect, update);
 #else
     lockSpinLock();
-    if(result = (*addr == expect))
+    if((result = (*addr == expect)))
         *addr = update;
     unlockSpinLock();
 #endif
@@ -1366,6 +1400,7 @@ VMMethod vm_class[] = {
     {"forName",                     forName},
     {"throwException",              throwException},
     {"hasClassInitializer",         hasClassInitializer},
+    {"getDeclaredAnnotations",      getClassDeclaredAnnotations},
     {NULL,                          NULL}
 };
 
@@ -1407,41 +1442,47 @@ VMMethod vm_classloader[] = {
 };
 
 VMMethod vm_reflect_constructor[] = {
-    {"constructNative",             constructNative},
-    {"getConstructorModifiers",     getMethodModifiers},
-    {"getSignature",                getMethodSignature},
-    {NULL,                          NULL}
+    {"constructNative",               constructNative},
+    {"getConstructorModifiers",       getMethodModifiers},
+    {"getSignature",                  getMethodSignature},
+    {"getDeclaredAnnotationsNative",  getMethodDeclaredAnnotations},
+    {"getParameterAnnotationsNative", getParameterAnnotations},
+    {NULL,                            NULL}
 };
 
 VMMethod vm_reflect_method[] = {
-    {"invokeNative",                invokeNative},
-    {"getMethodModifiers",          getMethodModifiers},
-    {"getSignature",                getMethodSignature},
-    {NULL,                          NULL}
+    {"invokeNative",                  invokeNative},
+    {"getMethodModifiers",            getMethodModifiers},
+    {"getSignature",                  getMethodSignature},
+    {"getDefaultValueNative",         getDefaultValue},
+    {"getDeclaredAnnotationsNative",  getMethodDeclaredAnnotations},
+    {"getParameterAnnotationsNative", getParameterAnnotations},
+    {NULL,                            NULL}
 };
 
 VMMethod vm_reflect_field[] = {
-    {"getFieldModifiers",           getFieldModifiers},
-    {"getSignature",                getFieldSignature},
-    {"getField",                    getField},
-    {"setField",                    setField},
-    {"setZField",                   setPrimitiveField},
-    {"setBField",                   setPrimitiveField},
-    {"setCField",                   setPrimitiveField},
-    {"setSField",                   setPrimitiveField},
-    {"setIField",                   setPrimitiveField},
-    {"setFField",                   setPrimitiveField},
-    {"setJField",                   setPrimitiveField},
-    {"setDField",                   setPrimitiveField},
-    {"getZField",                   getPrimitiveField},
-    {"getBField",                   getPrimitiveField},
-    {"getCField",                   getPrimitiveField},
-    {"getSField",                   getPrimitiveField},
-    {"getIField",                   getPrimitiveField},
-    {"getFField",                   getPrimitiveField},
-    {"getJField",                   getPrimitiveField},
-    {"getDField",                   getPrimitiveField},
-    {NULL,                          NULL}
+    {"getFieldModifiers",             getFieldModifiers},
+    {"getSignature",                  getFieldSignature},
+    {"getDeclaredAnnotationsNative",  getFieldDeclaredAnnotations},
+    {"getField",                      getField},
+    {"setField",                      setField},
+    {"setZField",                     setPrimitiveField},
+    {"setBField",                     setPrimitiveField},
+    {"setCField",                     setPrimitiveField},
+    {"setSField",                     setPrimitiveField},
+    {"setIField",                     setPrimitiveField},
+    {"setFField",                     setPrimitiveField},
+    {"setJField",                     setPrimitiveField},
+    {"setDField",                     setPrimitiveField},
+    {"getZField",                     getPrimitiveField},
+    {"getBField",                     getPrimitiveField},
+    {"getCField",                     getPrimitiveField},
+    {"getSField",                     getPrimitiveField},
+    {"getIField",                     getPrimitiveField},
+    {"getFField",                     getPrimitiveField},
+    {"getJField",                     getPrimitiveField},
+    {"getDField",                     getPrimitiveField},
+    {NULL,                            NULL}
 };
 
 VMMethod vm_system_properties[] = {
