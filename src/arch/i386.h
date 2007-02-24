@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006 Robert Lougher <rob@lougher.org.uk>.
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -43,7 +44,7 @@ extern void setDoublePrecision();
     result;                                         \
 })
 
-#if 0
+#ifdef USE_CMPXCHG8B
 #define COMPARE_AND_SWAP_64(addr, old_val, new_val) \
 ({                                                  \
     int ov_hi = old_val >> 32;                      \
