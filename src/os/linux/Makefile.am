@@ -1,5 +1,5 @@
 SUBDIRS = @arch@
-DIST_SUBDIRS = powerpc arm i386 x86_64 parisc
+DIST_SUBDIRS = powerpc arm i386 x86_64 parisc mips
 
 noinst_LTLIBRARIES = libos.la
 libos_la_SOURCES = os.c
