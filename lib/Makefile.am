@@ -1,7 +1,7 @@
 @use_zip_yes@ GLIBJ_ZIP = ${with_classpath_install_dir}/share/classpath/glibj.zip
 @use_zip_no@ GLIBJ_ZIP = ${with_classpath_install_dir}/share/classpath/
 
-SUBDIRS = jamvm java gnu
+SUBDIRS = jamvm java gnu sun
 EXTRA_DIST = classes.zip README
 
 noinst_DATA = inst_classes.zip
@@ -17,6 +17,7 @@ JAVA_FILES = $(srcdir)/jamvm/java/lang/JarLauncher.java \
              $(srcdir)/java/lang/reflect/Method.java \
              $(srcdir)/java/security/VMAccessController.java \
              $(srcdir)/gnu/classpath/VMSystemProperties.java \
+             $(srcdir)/sun/reflect/annotation/AnnotationInvocationHandler.java \
              $(srcdir)/gnu/classpath/VMStackWalker.java
 
 
