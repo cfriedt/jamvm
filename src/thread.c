@@ -460,8 +460,11 @@ void detachThread(Thread *thread) {
        point will result in an IllegalThreadStateException */
     INST_DATA(jThread)[vmthread_offset] = 0;
 
+    /* Remove thread from the ID map hash table */
+    deleteThreadFromHash(thread);
+
     /* Disable suspend to protect lock operation */
-    disableSuspend0(thread, &excep);
+    disableSuspend(thread);
 
     /* Grab global lock, and update thread structures protected by
        it (thread list, thread ID and number of daemon threads) */
@@ -509,9 +512,6 @@ void detachThread(Thread *thread) {
         pthread_cond_signal(&exit_cv);
         pthread_mutex_unlock(&exit_lock);
     }
-
-    /* Remove thread from the ID map hash table */
-    deleteThreadFromHash(thread);
 
     TRACE("Thread 0x%x id: %d detached from VM\n", thread, thread->id);
 }
