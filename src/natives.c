@@ -820,9 +820,12 @@ uintptr_t *getPntr2Field(uintptr_t *ostack) {
     int no_access_check = ostack[5];
     Object *ob;
 
-    if(!no_access_check && !checkFieldAccess(fb, getCallerCallerClass())) {
-        signalException("java/lang/IllegalAccessException", "field is not accessible");
-        return NULL;
+    if(!no_access_check) {
+        Class *caller = getCallerCallerClass();
+        if(!checkClassAccess(decl_class, caller) || !checkFieldAccess(fb, caller)) {
+            signalException("java/lang/IllegalAccessException", "field is not accessible");
+            return NULL;
+        }
     }
 
     if(fb->access_flags & ACC_STATIC) {
@@ -1345,6 +1348,11 @@ uintptr_t *park(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
+uintptr_t *vmSupportsCS8(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    *ostack++ = FALSE;
+    return ostack;
+}
+
 VMMethod vm_object[] = {
     {"getClass",                    getClass},
     {"clone",                       jamClone},
@@ -1538,6 +1546,11 @@ VMMethod vm_threadmx_bean_impl[] = {
     {NULL,                          NULL}
 };
 
+VMMethod concurrent_atomic_long[] = {
+    {"VMSupportsCS8",               vmSupportsCS8},
+    {NULL,                          NULL}
+};
+
 VMClass native_methods[] = {
     {"java/lang/VMClass",                           vm_class},
     {"java/lang/VMObject",                          vm_object},
@@ -1555,5 +1568,6 @@ VMClass native_methods[] = {
     {"gnu/classpath/VMStackWalker",                 vm_stack_walker},
     {"gnu/java/lang/management/VMThreadMXBeanImpl", vm_threadmx_bean_impl},
     {"sun/misc/Unsafe",                             sun_misc_unsafe},
+    {"java/util/concurrent/atomic/AtomicLong",      concurrent_atomic_long},
     {NULL,                                          NULL}
 };
