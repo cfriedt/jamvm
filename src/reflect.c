@@ -178,7 +178,7 @@ Object *createConstructorObject(MethodBlock *mb) {
         strcpy(sig, mb->type);
         classes = convertSig2ClassArray(&sig, mb->class);
         exceps = getExceptionTypes(mb);
-        free(signature);
+        sysFree(signature);
 
         if((classes == NULL) || (exceps == NULL))
             return NULL;
@@ -236,7 +236,7 @@ Object *createMethodObject(MethodBlock *mb) {
 
         sig++;
         ret = convertSigElement2Class(&sig, mb->class);
-        free(signature);
+        sysFree(signature);
 
         if((classes == NULL) || (exceps == NULL) || (name == NULL) || (ret == NULL))
             return NULL;
@@ -292,7 +292,7 @@ Object *createFieldObject(FieldBlock *fb) {
 
         strcpy(signature, fb->type);
         type = convertSigElement2Class(&sig, fb->class);
-        free(signature);
+        sysFree(signature);
         name = createString(fb->name);
 
         if((type == NULL) || (name == NULL))
@@ -484,7 +484,7 @@ Class *findClassFromSignature(char *type_name, Class *class) {
     strcpy(name, type_name);
 
     type_class = convertSigElement2Class(&pntr, class);
-    free(name);
+    sysFree(name);
 
     return type_class;
 }
@@ -875,9 +875,12 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
 
     Object *excep;
 
-    if(check_access && !checkMethodAccess(mb, getCallerCallerClass())) {
-        signalException("java/lang/IllegalAccessException", "method is not accessible");
-        return NULL;
+    if(check_access) {
+        Class *caller = getCallerCallerClass();
+        if(!checkClassAccess(mb->class, caller) || !checkMethodAccess(mb, caller)) {
+            signalException("java/lang/IllegalAccessException", "method is not accessible");
+            return NULL;
+        }
     }
 
     if(args_len != types_len) {
