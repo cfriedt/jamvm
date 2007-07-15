@@ -233,7 +233,7 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
                CP_INFO(constant_pool,i) = (uintptr_t) (utf8 = findUtf8String(buff));
 
                if(utf8 != buff)
-                   free(buff);
+                   sysFree(buff);
 
                break;
            }
@@ -1186,7 +1186,7 @@ char *findFileEntry(char *path, int *file_len) {
     if(read_len == *file_len)
         return data;
 
-    free(data);
+    sysFree(data);
     return NULL;
 }
 
@@ -1213,7 +1213,7 @@ Class *loadSystemClass(char *classname) {
     }
 
     class = defineClass(classname, data, 0, file_len, NULL);
-    free(data);
+    sysFree(data);
 
     if(verbose && class)
         jam_printf("[Loaded %s from %s]\n", classname, bootclasspath[i-1].path);
@@ -1339,7 +1339,7 @@ Class *findNonArrayClassFromClassLoader(char *classname, Object *loader) {
         Object *string = createString(dot_name);
         Object *excep;
 
-        free(dot_name);
+        sysFree(dot_name);
         if(string == NULL)
             return NULL;
 
@@ -1454,25 +1454,25 @@ void freeClassData(Class *class) {
     int i;
 
     if(IS_ARRAY(cb)) {
-        free(cb->name);
-        free(cb->interfaces);
+        gcPendingFree(cb->name);
+        gcPendingFree(cb->interfaces);
         return;
     }
 
-    free((void*)cb->constant_pool.type);
-    free(cb->constant_pool.info);
-    free(cb->interfaces);
+    gcPendingFree((void*)cb->constant_pool.type);
+    gcPendingFree(cb->constant_pool.info);
+    gcPendingFree(cb->interfaces);
 
     for(i = 0; i < cb->fields_count; i++) {
         FieldBlock *fb = &cb->fields[i];
 
         if(fb->annotations != NULL) {
-            free(fb->annotations->data);
-            free(fb->annotations);
+            gcPendingFree(fb->annotations->data);
+            gcPendingFree(fb->annotations);
         }
     }
 
-    free(cb->fields);
+    gcPendingFree(cb->fields);
 
     for(i = 0; i < cb->methods_count; i++) {
         MethodBlock *mb = &cb->methods[i];
@@ -1482,35 +1482,35 @@ void freeClassData(Class *class) {
 #else
         if(!(mb->access_flags & ACC_ABSTRACT))
 #endif
-            free((void*)((uintptr_t)mb->code & ~3));
+            gcPendingFree((void*)((uintptr_t)mb->code & ~3));
 
-        free(mb->exception_table);
-        free(mb->line_no_table);
-        free(mb->throw_table);
+        gcPendingFree(mb->exception_table);
+        gcPendingFree(mb->line_no_table);
+        gcPendingFree(mb->throw_table);
 
         if(mb->annotations != NULL) {
             if(mb->annotations->annotations != NULL) {
-                free(mb->annotations->annotations->data);
-                free(mb->annotations->annotations);
+                gcPendingFree(mb->annotations->annotations->data);
+                gcPendingFree(mb->annotations->annotations);
             }
             if(mb->annotations->parameters != NULL) {
-                free(mb->annotations->parameters->data);
-                free(mb->annotations->parameters);
+                gcPendingFree(mb->annotations->parameters->data);
+                gcPendingFree(mb->annotations->parameters);
             }
             if(mb->annotations->dft_val != NULL) {
-                free(mb->annotations->dft_val->data);
-                free(mb->annotations->dft_val);
+                gcPendingFree(mb->annotations->dft_val->data);
+                gcPendingFree(mb->annotations->dft_val);
             }
-            free(mb->annotations);
+            gcPendingFree(mb->annotations);
         }
     } 
 
-    free(cb->methods);
-    free(cb->inner_classes);
+    gcPendingFree(cb->methods);
+    gcPendingFree(cb->inner_classes);
 
     if(cb->annotations != NULL) {
-        free(cb->annotations->data);
-        free(cb->annotations);
+        gcPendingFree(cb->annotations->data);
+        gcPendingFree(cb->annotations);
     }
 
    if(cb->state >= CLASS_LINKED) {
@@ -1521,15 +1521,15 @@ void freeClassData(Class *class) {
         if(!IS_INTERFACE(cb)) {
              int spr_imthd_sze = super_cb->imethod_table_size;
 
-            free(cb->method_table);
+            gcPendingFree(cb->method_table);
             if(cb->imethod_table_size > spr_imthd_sze)
-                free(cb->imethod_table[spr_imthd_sze].offsets);
+                gcPendingFree(cb->imethod_table[spr_imthd_sze].offsets);
         }
 
-        free(cb->imethod_table);
+        gcPendingFree(cb->imethod_table);
 
         if(cb->refs_offsets_table != super_cb->refs_offsets_table)
-            free(cb->refs_offsets_table);
+            gcPendingFree(cb->refs_offsets_table);
     }
 }
 
@@ -1538,8 +1538,8 @@ void freeClassLoaderData(Object *class_loader) {
 
     if(vmdata != NULL) {
         HashTable **table = ARRAY_DATA(vmdata);
-        freeHashTable((**table));
-        free(*table);
+        gcFreeHashTable((**table));
+        gcPendingFree(*table);
     }
 }
 
@@ -1619,15 +1619,15 @@ void scanDirForJars(char *dir) {
         while(--n >= 0) {
             char *buff;
             bootpathlen += strlen(namelist[n]->d_name) + dirlen + 2;
-            buff = malloc(bootpathlen);
+            buff = sysMalloc(bootpathlen);
 
             strcat(strcat(strcat(strcat(strcpy(buff, dir), "/"), namelist[n]->d_name), ":"), bootpath);
 
-            free(bootpath);
+            sysFree(bootpath);
             bootpath = buff;
-            free(namelist[n]);
+            sysFree(namelist[n]);
         }
-        free(namelist);
+        sysFree(namelist);
     }
 }
 
@@ -1649,7 +1649,7 @@ void scanDirsForJars(char *directories) {
     if(end != dirs)
         scanDirForJars(dirs);
 
-    free(dirs);
+    sysFree(dirs);
 }
 
 #ifdef USE_ZIP

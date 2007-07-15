@@ -498,8 +498,8 @@ void detachThread(Thread *thread) {
        However, they must have a reference to the VMThread -- therefore, it
        is safe to free during GC when the VMThread is determined to be no
        longer reachable. */
-    free(ee->stack);
-    free(ee);
+    sysFree(ee->stack);
+    sysFree(ee);
 
     /* If no more daemon threads notify the main thread (which
        may be waiting to exit VM).  Note, this is not protected
@@ -576,7 +576,7 @@ void createJavaThread(Object *jThread, long long stack_size) {
 
     if(pthread_create(&thread->tid, &attributes, threadStart, thread)) {
         INST_DATA(jThread)[vmthread_offset] = 0;
-        free(ee);
+        sysFree(ee);
         signalException("java/lang/OutOfMemoryError", "can't create thread");
         return;
     }
@@ -629,7 +629,7 @@ static void *shell(void *args) {
     attachThread(((char**)args)[0], TRUE, &self, self,
                  (Object*)INST_DATA(main_ee.thread)[group_offset]);
 
-    free(args);
+    sysFree(args);
     (*(void(*)(Thread*))start)(self);
     return NULL;
 }
@@ -872,7 +872,7 @@ void dumpThreadsLoop(Thread *self) {
             jam_printf("\n\"%s\"%s %p priority: %d tid: %p id: %d state: %s (%d)\n",
                   name, daemon ? " (daemon)" : "", thread, priority, thread->tid,
                   thread->id, getThreadStateString(thread), thread->state);
-            free(name);
+            sysFree(name);
 
             while(last->prev != NULL) {
                 for(; last->mb != NULL; last = last->prev) {
@@ -881,7 +881,7 @@ void dumpThreadsLoop(Thread *self) {
                     char *dot_name = slash2dots(cb->name);
 
                     jam_printf("\tat %s.%s(", dot_name, mb->name);
-                    free(dot_name);
+                    sysFree(dot_name);
 
                     if(mb->access_flags & ACC_NATIVE)
                         jam_printf("Native method");

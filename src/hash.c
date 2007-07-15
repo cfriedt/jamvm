@@ -58,7 +58,7 @@ void resizeHash(HashTable *table, int new_size) {
         }
     }
 
-    free(table->hash_table);
+    sysFree(table->hash_table);
     table->hash_table = new_table;
     table->hash_size = new_size;
 }

@@ -292,7 +292,7 @@ char *findArchiveEntry(char *pathname, ZipFile *zip, int *uncomp_len) {
     }
 
 error:
-    free(decomp_buff);
+    sysFree(decomp_buff);
     return NULL;
 }
 #else

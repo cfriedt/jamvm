@@ -114,7 +114,7 @@ char *mangleString(char *utf8) {
 
     *mngldPtr = '\0';
 
-    free(unicode);
+    sysFree(unicode);
     return mangled;
 }
 
@@ -127,7 +127,7 @@ char *mangleClassAndMethodName(MethodBlock *mb) {
     sprintf(nonMangled, "Java/%s/%s", classname, methodname);
 
     mangled = mangleString(nonMangled);
-    free(nonMangled);
+    sysFree(nonMangled);
     return mangled;
 }
 
@@ -145,7 +145,7 @@ char *mangleSignature(MethodBlock *mb) {
     nonMangled[i - 1] = '\0';
     
     mangled = mangleString(nonMangled);
-    free(nonMangled);
+    sysFree(nonMangled);
     return mangled;
 }
 
@@ -184,7 +184,7 @@ void *resolveNativeMethod(MethodBlock *mb) {
     if(verbose) {
         char *classname = slash2dots(CLASS_CB(mb->class)->name);
         jam_printf("[Dynamic-linking native method %s.%s ... ", classname, mb->name);
-        free(classname);
+        sysFree(classname);
     }
 
     /* First see if it's an internal native method */
@@ -327,7 +327,7 @@ void unloadDll(DllEntry *dll) {
         (*(void (*)(JavaVM*, void*))on_unload)(&invokeIntf, NULL);
 
     nativeLibClose(dll->handle);
-    free(dll);
+    sysFree(dll);
 }
 
 #undef ITERATE
@@ -402,11 +402,11 @@ void *lookupLoadedDlls(MethodBlock *mb) {
         sprintf(fullyMangled, "%s__%s", mangled, mangledSig);
         func = lookupLoadedDlls0(fullyMangled, loader);
 
-        free(fullyMangled);
-        free(mangledSig);
+        sysFree(fullyMangled);
+        sysFree(mangledSig);
     }
 
-    free(mangled);
+    sysFree(mangled);
 
     if(func) {
         if(verbose)

@@ -74,11 +74,11 @@ void addCommandLineProperties(Object *properties) {
 
         for(i = 0; i < commandline_props_count; i++) {
             setProperty(properties, commandline_props[i].key, commandline_props[i].value);
-            free(commandline_props[i].key);
+            sysFree(commandline_props[i].key);
         }
 
         commandline_props_count = 0;
-        free(commandline_props);
+        sysFree(commandline_props);
     }
 }
 
@@ -137,7 +137,7 @@ void setUserDirProperty(Object *properties) {
     setProperty(properties, "user.dir", cwd);
 
     if(cwd != NULL)
-        free(cwd);
+        sysFree(cwd);
 }
 
 void setOSProperties(Object *properties) {

@@ -570,7 +570,7 @@ const char *Jam_GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy)
 }
 
 void Jam_ReleaseStringUTFChars(JNIEnv *env, jstring string, const char *chars) {
-    free((void*)chars);
+    sysFree((void*)chars);
 }
 
 jsize Jam_GetArrayLength(JNIEnv *env, jarray array) {

@@ -159,6 +159,9 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
     }                                                                              \
 }
 
+#define gcFreeHashTable(table)                                                     \
+    gcPendingFree(table.hash_table);
+
 #define freeHashTable(table)                                                       \
-    free(table.hash_table);
+    sysFree(table.hash_table);
 

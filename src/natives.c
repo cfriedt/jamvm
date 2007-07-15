@@ -226,7 +226,7 @@ uintptr_t *nativeLoad(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *class_loader = (Object *)ostack[1];
 
     ostack[0] = resolveDll(name, class_loader);
-    free(name);
+    sysFree(name);
 
     return ostack+1;
 }
@@ -234,10 +234,10 @@ uintptr_t *nativeLoad(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 uintptr_t *mapLibraryName(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     char *name = String2Cstr((Object*)ostack[0]);
     char *lib = getDllName(name);
-    free(name);
+    sysFree(name);
 
     *ostack++ = (uintptr_t)Cstr2String(lib);
-    free(lib);
+    sysFree(lib);
 
     return ostack;
 }
@@ -339,7 +339,7 @@ uintptr_t *getClassSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(cb->signature != NULL) {
         char *dot_name = slash2dots(cb->signature);
         string = createString(dot_name);
-        free(dot_name);
+        sysFree(dot_name);
     }
 
     *ostack++ = (uintptr_t)string;
@@ -376,7 +376,7 @@ uintptr_t *getName(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     char *dot_name = slash2dots(CLASS_CB((GET_CLASS(*ostack)))->name);
     Object *string = createString(dot_name);
     *ostack++ = (uintptr_t)string;
-    free(dot_name);
+    sysFree(dot_name);
     return ostack;
 }
 
@@ -508,7 +508,7 @@ out:
         if(resolve)
             initClass(class);
 
-    free(cstr);
+    sysFree(cstr);
     *ostack++ = (uintptr_t)class;
     return ostack;
 }
@@ -651,7 +651,7 @@ uintptr_t *defineClass0(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
                 linkClass(class);
             }
 
-            free(cstr);
+            sysFree(cstr);
         }
 
     *ostack++ = (uintptr_t) class;
@@ -678,7 +678,7 @@ uintptr_t *findLoadedClass(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
 
     class = findHashedClass(cstr, class_loader);
 
-    free(cstr);
+    sysFree(cstr);
     *ostack++ = (uintptr_t) class;
     return ostack;
 }
@@ -740,7 +740,7 @@ uintptr_t *getMethodSignature(Class *class, MethodBlock *mb2, uintptr_t *ostack)
     if(mb->signature != NULL) {
         char *dot_name = slash2dots(mb->signature);
         string = createString(dot_name);
-        free(dot_name);
+        sysFree(dot_name);
     }
 
     *ostack++ = (uintptr_t)string;
@@ -783,7 +783,7 @@ uintptr_t *getFieldSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(fb->signature != NULL) {
         char *dot_name = slash2dots(fb->signature);
         string = createString(dot_name);
-        free(dot_name);
+        sysFree(dot_name);
     }
 
     *ostack++ = (uintptr_t)string;

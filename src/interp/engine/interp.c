@@ -2125,7 +2125,7 @@ rewrite_lock:
             strcat(strcat(strcpy(ac_name, "[L"), name), ";");
 
         array_class = findArrayClassFromClass(ac_name, mb->class);
-        free(ac_name);
+        sysFree(ac_name);
 
         if(exceptionOccured0(ee))
             goto throwException;

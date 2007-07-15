@@ -681,6 +681,7 @@ extern unsigned long totalHeapMem();
 extern unsigned long maxHeapMem();
 
 extern void *sysMalloc(int n);
+extern void sysFree(void *ptr);
 extern void *sysRealloc(void *ptr, int n);
 
 extern void registerStaticObjectRef(Object **ob);
@@ -691,6 +692,8 @@ extern void registerStaticObjectRefLocked(Object **ob);
 
 #define registerStaticClassRefLocked(ref) \
     registerStaticObjectRefLocked(ref);
+
+extern void gcPendingFree(void *addr);
 
 /* GC support */
 extern void threadReference(Object **ref);

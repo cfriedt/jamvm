@@ -767,6 +767,6 @@ retry:
 
     /* We don't need the old bytecode stream anymore */
     if(!mb->access_flags & ACC_ABSTRACT)
-        free(code);
+        sysFree(code);
 }
 #endif

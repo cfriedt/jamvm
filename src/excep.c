@@ -270,7 +270,7 @@ Object *convertStackTrace(Object *vmthrwble) {
         Object *classname = createString(dot_name);
         Object *methodname = createString(mb->name);
         Object *ste = allocObject(ste_class);
-        free(dot_name);
+        sysFree(dot_name);
 
         if(exceptionOccured())
             return NULL;
