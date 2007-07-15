@@ -189,6 +189,27 @@ extern int finalize_mtbl_idx;
 extern int enqueue_mtbl_idx;
 extern int ldr_vmdata_offset;
 
+/* During GC all threads are suspended.  To safeguard against a
+   suspended thread holding the malloc-lock, free cannot be called
+   within the GC to free native memory associated with "special
+   objects".  Instead, frees are chained together into a pending
+   list, and are freed once all threads are resumed.  Note, we
+   cannot wrap malloc/realloc/free within the VM as this does
+   not guard against "invisible" malloc/realloc/free within libc
+   calls and JNI methods */
+static void **pending_free_list = NULL;
+void freePendingFrees();
+
+/* Similarly, allocation for internal lists within GC cannot use
+   memory from the system heap.  The following functions provide
+   the same API, but allocate memory via mmap */
+void *gcMemRealloc(void *addr, int new_size);
+void *gcMemMalloc(int size);
+void gcMemFree(void *addr);
+
+/* Cached system page size (used in above functions) */
+static int sys_page_size;
+
 /* The possible ways in which a reference may be marked in
    the mark bit array */
 #define HARD_MARK               3
@@ -260,6 +281,7 @@ void initialiseAlloc(InitArgs *args) {
 
     heapmax = heapbase+((args->max_heap-(heapbase-mem))&~(OBJECT_GRAIN-1));
 
+    /* Set initial free-list to one block covering entire heap */
     freelist = (Chunk*)heapbase;
     freelist->header = heapfree = heaplimit-heapbase;
     freelist->next = NULL;
@@ -267,12 +289,17 @@ void initialiseAlloc(InitArgs *args) {
     TRACE_GC("Alloced heap size %p\n", heaplimit-heapbase);
     allocMarkBits();
 
+    /* Initialise GC locks */
     initVMLock(heap_lock);
     initVMLock(has_fnlzr_lock);
     initVMLock(registered_refs_lock);
     initVMWaitLock(run_finaliser_lock);
     initVMWaitLock(reference_lock);
 
+    /* Cache system page size -- used for internal GC lists */
+    sys_page_size = getpagesize();
+
+    /* Set verbose option from initialisation arguments */
     verbosegc = args->verbosegc;
 }
 
@@ -303,14 +330,14 @@ void markConservativeRoot(Object *object) {
 
     if((conservative_root_count % LIST_INCREMENT) == 0) {
         int new_size = conservative_root_count + LIST_INCREMENT;
-        conservative_roots = sysRealloc(conservative_roots,
-                                        new_size * sizeof(Object *));
+        conservative_roots = gcMemRealloc(conservative_roots,
+                                          new_size * sizeof(Object *));
     }
     conservative_roots[conservative_root_count++] = object;
 }
 
 void freeConservativeRoots() {
-    free(conservative_roots);
+    gcMemFree(conservative_roots);
     conservative_roots = NULL;
     conservative_root_count = 0;
 }
@@ -502,7 +529,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
     if(list##_start == list##_end) {                                     \
         list##_end = list##_size;                                        \
         list##_start = list##_size += LIST_INCREMENT;                    \
-        list##_list = (Object**)sysRealloc(list##_list,                  \
+        list##_list = (Object**)gcMemRealloc(list##_list,                \
                                            list##_size*sizeof(Object*)); \
     }                                                                    \
     list##_end = list##_end%list##_size;                                 \
@@ -673,7 +700,7 @@ void handleUnmarkedSpecial(Object *ob) {
                 /* Free the native thread structure (see comment
                    in detachThread (thread.c) */
                 TRACE_GC("FREE: Freeing native thread for VMThread object %p\n", ob);
-                free(threadSelf0(ob));
+                gcPendingFree(threadSelf0(ob));
             }
 }
 
@@ -885,7 +912,7 @@ void addConservativeRoots2Hash() {
     for(i = 1; i < conservative_root_count; i <<= 1);
     con_roots_hashtable_size = i << 1;
 
-    con_roots_hashtable = sysMalloc(con_roots_hashtable_size * sizeof(uintptr_t));
+    con_roots_hashtable = gcMemMalloc(con_roots_hashtable_size * sizeof(uintptr_t));
     memset(con_roots_hashtable, 0, con_roots_hashtable_size * sizeof(uintptr_t));
 
     for(i = 0; i < conservative_root_count; i++) {
@@ -1294,7 +1321,7 @@ marked_phase2:
     chunkpp = &freelist;
 
     /* Free conservative roots hash table */
-    free(con_roots_hashtable);
+    gcMemFree(con_roots_hashtable);
     
     if(verbosegc) {
         long long size = heaplimit-heapbase;
@@ -1353,9 +1380,10 @@ void expandHeap(int min) {
     /* The heap has increased in size - need to reallocate
        the mark bits to cover new area */
 
-    free(markBits);
+    sysFree(markBits);
     allocMarkBits();
 }
+
 
 /* ------------------------- GARBAGE COLLECT ------------------------- */
 
@@ -1435,6 +1463,7 @@ unsigned long gc0(int mark_soft_refs, int compact) {
     unlockVMWaitLock(run_finaliser_lock, self);
 
     freeConservativeRoots();
+    freePendingFrees();
 
     return largest;
 }
@@ -1535,7 +1564,7 @@ void asyncGCThreadLoop(Thread *self) {
         do {                                                                    \
             Object *ob;                                                         \
             list##_start %= list##_size;                                        \
-	    if((ob = list##_list[list##_start]) == NULL)                        \
+            if((ob = list##_list[list##_start]) == NULL)                        \
                 continue;                                                       \
                                                                                 \
             unlockVMWaitLock(list##_lock, self);                                \
@@ -1613,6 +1642,7 @@ void initialiseGC(InitArgs *args) {
     compact_override = args->compact_specified;
     compact_value = args->do_compact;
 }
+
 
 /* ------------------------- ALLOCATION ROUTINES  ------------------------- */
 
@@ -2084,12 +2114,82 @@ unsigned long maxHeapMem() {
     return heapmax-heapbase;
 }
 
+
+/* ------ Allocation routines for internal GC lists ------- */
+
+/* These use mmap to avoid deadlock with threads
+    suspended while holding the malloc lock */
+
+void *gcMemMalloc(int n) {
+    int size = n + sizeof(int);
+    int *mem = mmap(0, size, PROT_READ|PROT_WRITE,
+                             MAP_PRIVATE|MAP_ANON, -1, 0);
+
+    if(mem == MAP_FAILED) {
+        jam_fprintf(stderr, "Mmap failed - aborting VM...\n");
+        exitVM(1);
+    }
+
+    *mem++ = size;
+    return mem;
+}
+
+void *gcMemRealloc(void *addr, int size) {
+    if(addr == NULL)
+        return gcMemMalloc(size);
+    else {
+        int *mem = addr;
+        int old_size = *--mem;
+        int new_size = size + sizeof(int);
+
+        if(old_size/sys_page_size == new_size/sys_page_size) {
+            *mem = new_size;
+            return addr;
+        } else {
+            int copy_size = new_size > old_size ? old_size : new_size;
+            void *new_mem = gcMemMalloc(size);
+
+            memcpy(new_mem, addr, copy_size - sizeof(int));
+            munmap(mem, old_size);
+
+            return new_mem;
+        }
+    }
+}
+
+void gcMemFree(void *addr) {
+    if(addr != NULL) {
+        int *mem = addr;
+        int size = *--mem;
+        munmap(mem, size);
+    }
+}
+
+/* Delayed free, for use while in GC to avoid deadlock with
+   threads suspended while holding the malloc lock.  This
+   simply chains the pointers into a linked-list */
+
+void gcPendingFree(void *addr) {
+    *(void**)addr = pending_free_list;
+    pending_free_list = addr;
+}
+
+void freePendingFrees() {
+    while(pending_free_list) {
+        void *next = *pending_free_list;
+        sysFree(pending_free_list);
+        pending_free_list = next;
+    }
+}
+
+
 /* ------ Allocation from system heap ------- */
 
-void *sysMalloc(int n) {
+void *sysMalloc(int size) {
+    int n = size < sizeof(void*) ? sizeof(void*) : size;
     void *mem = malloc(n);
 
-    if(mem == NULL && n > 0) {
+    if(mem == NULL) {
         jam_fprintf(stderr, "Malloc failed - aborting VM...\n");
         exitVM(1);
     }
@@ -2097,8 +2197,8 @@ void *sysMalloc(int n) {
     return mem;
 }
 
-void *sysRealloc(void *ptr, int n) {
-    void *mem = realloc(ptr, n);
+void *sysRealloc(void *addr, int size) {
+    void *mem = realloc(addr, size);
 
     if(mem == NULL) {
         jam_fprintf(stderr, "Realloc failed - aborting VM...\n");
@@ -2106,5 +2206,9 @@ void *sysRealloc(void *ptr, int n) {
     }
 
     return mem;
+}
+
+void sysFree(void *addr) {
+    free(addr);
 }
 
