@@ -179,11 +179,8 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
         } else if(strncmp(argv[i], "-D", 2) == 0) {
             char *pntr, *key = strcpy(sysMalloc(strlen(argv[i]+2) + 1), argv[i]+2);
             for(pntr = key; *pntr && (*pntr != '='); pntr++);
-            if(pntr == key) {
-                printf("Bad property: %s\n", argv[i]);
-                goto exit;
-            }
-            *pntr++ = '\0';
+            if(*pntr)
+                *pntr++ = '\0';
             props[props_count].key = key;
             props[props_count++].value = pntr;
 
