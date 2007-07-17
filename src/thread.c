@@ -169,6 +169,7 @@ void threadYield(Thread *thread) {
 
 void threadInterrupt(Thread *thread) {
     Monitor *mon;
+    Thread *self = threadSelf();
 
     /* monitorWait sets wait_mon _before_ checking interrupted status.  Therefore,
        if wait_mon is null, interrupted status will be noticed.  This guards
@@ -198,7 +199,16 @@ void threadInterrupt(Thread *thread) {
        handler will just return (as in the user doing a kill), and do
        nothing otherwise. */
 
+    /* Note, under Linuxthreads pthread_kill obtains a lock on the thread
+       being signalled.  If another thread is suspending all threads,
+       and the interrupting thread is earlier in the thread list than the
+       thread being interrupted, it can be suspended holding the lock.
+       When the suspending thread tries to signal the interrupted thread
+       it will deadlock.  To prevent this, disable suspension. */
+
+    fastDisableSuspend(self);
     pthread_kill(thread->tid, SIGUSR1);
+    fastEnableSuspend(self);
 }
 
 void *getStackTop(Thread *thread) {
@@ -256,11 +266,15 @@ long long getTotalStartedThreadsCount() {
 }
 
 void resetPeakThreadsCount() {
+    Thread *self = threadSelf();
+
     /* Grab the thread lock to protect against
        concurrent update by threads starting/dying */
+    disableSuspend(self);
     pthread_mutex_lock(&lock);
     peak_threads_count = threads_count;
     pthread_mutex_unlock(&lock);
+    enableSuspend(self);
 }
 
 void initialiseJavaStack(ExecEnv *ee) {
@@ -518,10 +532,11 @@ void detachThread(Thread *thread) {
 
 void *threadStart(void *arg) {
     Thread *thread = (Thread *)arg;
-    ExecEnv *ee = thread->ee;
-    Object *jThread = ee->thread;
-    ClassBlock *cb = CLASS_CB(jThread->class);
-    MethodBlock *run = cb->method_table[run_mtbl_idx];
+    Object *jThread = thread->ee->thread;
+
+    /* Parent thread created thread with suspension disabled.
+       This is inherited so we need to enable */
+    enableSuspend(thread);
 
     /* Complete initialisation of the thread structure, create the thread
        stack and add the thread to the thread list */
@@ -531,7 +546,7 @@ void *threadStart(void *arg) {
     addThreadToHash(thread);
 
     /* Execute the thread's run method */
-    executeMethod(jThread, run);
+    executeMethod(jThread, CLASS_CB(jThread->class)->method_table[run_mtbl_idx]);
 
     /* Run has completed.  Detach the thread from the VM and exit */
     detachThread(thread);
