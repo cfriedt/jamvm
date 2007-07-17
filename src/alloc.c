@@ -2173,8 +2173,10 @@ void gcMemFree(void *addr) {
    simply chains the pointers into a linked-list */
 
 void gcPendingFree(void *addr) {
-    *(void**)addr = pending_free_list;
-    pending_free_list = addr;
+    if(addr != NULL) {
+        *(void**)addr = pending_free_list;
+        pending_free_list = addr;
+    }
 }
 
 void freePendingFrees() {
