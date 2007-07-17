@@ -2039,9 +2039,12 @@ Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
 
 Class *allocClass() {
     Class *class = (Class*)gcMalloc(sizeof(ClassBlock)+sizeof(Class));
-    SET_SPECIAL_OB(class);
 
-    TRACE_ALLOC("<ALLOC: allocated class object @%p>\n", class);
+    if(class != NULL) {
+        SET_SPECIAL_OB(class);
+        TRACE_ALLOC("<ALLOC: allocated class object @%p>\n", class);
+    }
+
     return class; 
 }
 
