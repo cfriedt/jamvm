@@ -592,6 +592,7 @@ void createJavaThread(Object *jThread, long long stack_size) {
     if(pthread_create(&thread->tid, &attributes, threadStart, thread)) {
         INST_DATA(jThread)[vmthread_offset] = 0;
         sysFree(ee);
+        enableSuspend(self);
         signalException("java/lang/OutOfMemoryError", "can't create thread");
         return;
     }
