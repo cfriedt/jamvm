@@ -88,7 +88,7 @@ AC_ARG_ENABLE(int-direct,
 AC_ARG_ENABLE(int-caching,
     [AS_HELP_STRING(--enable-int-caching,enable stack-caching version of the interpreter
                    (default powerpc,arm enabled : i386 disabled))],,
-    [if test "$host_cpu" == i386; then
+    [if test "$host_cpu" = i386; then
          enable_int_caching=no
      fi])
 
