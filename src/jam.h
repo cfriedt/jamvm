@@ -265,6 +265,7 @@
 #define OPC_MULTIANEWARRAY_QUICK        243
 #define OPC_INVOKEINTERFACE_QUICK       244
 #define OPC_ABSTRACT_METHOD_ERROR       245
+#define OPC_INLINE_REWRITER             246
 
 #define CONSTANT_Utf8                   1
 #define CONSTANT_Integer                3
@@ -413,6 +414,28 @@ typedef struct lookup_table {
     LookupEntry *entries;
 } LookupTable;
 
+typedef struct opcode_info {
+    unsigned char opcode;
+    unsigned char cache_depth;
+} OpcodeInfo;
+
+typedef struct code_block {
+    int length;
+    Instruction *start;
+    OpcodeInfo *opcodes;
+} CodeBlock;
+
+typedef struct quick_prepare_info {
+    CodeBlock block;
+    Instruction *quickened;
+    struct quick_prepare_info *next;
+} QuickPrepareInfo;
+
+typedef struct prepare_info {
+    CodeBlock block;
+    Operand operand;
+} PrepareInfo;
+
 typedef Instruction *CodePntr;
 #else
 typedef unsigned char *CodePntr;
@@ -450,6 +473,7 @@ typedef struct methodblock {
    LineNoTableEntry *line_no_table;
    int method_table_index;
    MethodAnnotationData *annotations;
+   QuickPrepareInfo *quick_prepare_info;
 } MethodBlock;
 
 typedef struct fieldblock {
@@ -574,6 +598,10 @@ typedef struct InitArgs {
     void (*exit)(int status);
     void (*abort)(void);
 
+#ifdef INLINING
+    int replication;
+    int codemem;
+#endif
 } InitArgs;
 
 #define CLASS_CB(classRef)              ((ClassBlock*)(classRef+1))
@@ -797,7 +825,7 @@ extern void initialiseException();
 /* interp */
 
 extern uintptr_t *executeJava();
-extern void initialiseInterpreter();
+extern void initialiseInterpreter(InitArgs *args);
 
 /* String */
 
@@ -942,3 +970,6 @@ extern void jamvm_exit(int status);
 
 #define jam_printf(fmt, ...) jam_fprintf(stdout, fmt, ## __VA_ARGS__)
 
+/* inlining */
+
+extern void freeMethodInlinedInfo(MethodBlock *mb);
