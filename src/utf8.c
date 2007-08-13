@@ -30,7 +30,7 @@
                   ((hash1 == hash2) && utf8Comp(ptr1, ptr2))
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
-#define FOUND(ptr)
+#define FOUND(ptr) ptr
 
 static HashTable hash_table;
 

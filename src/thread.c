@@ -302,7 +302,7 @@ long long javaThreadId(Thread *thread) {
 
 Thread *findHashedThread(Thread *thread, long long id) {
 
-#define FOUND(thread_id)
+#define FOUND(ptr) ptr
 #define DELETED ((void*)-1)
 #define PREPARE(thread_id) thread
 #define SCAVENGE(ptr) ptr == DELETED

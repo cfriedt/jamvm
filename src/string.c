@@ -31,7 +31,7 @@
                   ((hash1 == hash2) && stringComp(ptr1, ptr2))
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
-#define FOUND(ptr)
+#define FOUND(ptr) ptr
 
 static Class *string_class;
 static int count_offset; 
