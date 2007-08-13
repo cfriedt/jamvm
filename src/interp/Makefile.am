@@ -24,4 +24,4 @@ libinterp_la_SOURCES = interp.c interp2.c direct.c inlining.c \
                        interp.h interp-direct.h interp-indirect.h \
                        interp-inlining.h
 
-AM_CPPFLAGS = -I$(top_builddir)/src
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src
