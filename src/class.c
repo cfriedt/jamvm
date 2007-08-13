@@ -33,8 +33,8 @@
 #include "lock.h"
 #include "hash.h"
 #include "zip.h"
-#include "interp.h"
 #include "class.h"
+#include "interp/interp.h"
 
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
