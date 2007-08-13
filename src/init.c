@@ -52,6 +52,11 @@ void setDefaultInitArgs(InitArgs *args) {
     args->vfprintf = vfprintf;
     args->abort    = abort;
     args->exit     = exit;
+
+#ifdef INLINING
+    args->replication = 10;
+    args->codemem = args->max_heap / 4;
+#endif
 }
 
 int VMInitialising() {
@@ -70,7 +75,7 @@ void initVM(InitArgs *args) {
     initialiseDll(args);
     initialiseUtf8();
     initialiseMonitor();
-    initialiseInterpreter();
+    initialiseInterpreter(args);
     initialiseMainThread(args);
     initialiseException();
     initialiseString();
