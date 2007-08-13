@@ -30,9 +30,9 @@
 {                                                          \
     index = pc->operand.uui.u1;                            \
     cache = pc->operand.uui.i;                             \
-    if(pc->handler != L(opcode, 0) &&                      \
-       pc->handler != L(opcode, 1) &&                      \
-       pc->handler != L(opcode, 2))                        \
+    if(pc->handler != L(opcode, 0, ENTRY) &&               \
+       pc->handler != L(opcode, 1, ENTRY) &&               \
+       pc->handler != L(opcode, 2, ENTRY))                 \
         REDISPATCH                                         \
 }
 #else /* USE_CACHE */
@@ -40,7 +40,7 @@
 {                                                          \
     index = pc->operand.uui.u1;                            \
     cache = pc->operand.uui.i;                             \
-    if(pc->handler != L(opcode, 0))                        \
+    if(pc->handler != L(opcode, 0, ENTRY))                 \
         REDISPATCH                                         \
 }
 #endif
@@ -63,16 +63,163 @@
  * this, but this generates warnings on >= 2.96...
  */
 #if (__GNUC__ == 2) && (__GNUC_MINOR__ <= 95)
-#define label(x, y)                     \
-opc##x##_##y##:
+#define label(x, y, z)                     \
+opc##x##_##y##_##z##:
 #else
-#define label(x, y)                     \
-opc##x##_##y:
+#define label(x, y, z)                     \
+opc##x##_##y##_##z:
 #endif
 
-#define DEF_OPC(opcode, level)          \
-label(opcode, level)
+#define DEF_OPC(opcode, level, BODY)     \
+    label(opcode, level, ENTRY)          \
+        BODY
 
+#define DEF_OPC_2(op1, op2, level, BODY) \
+    label(op1, level, ENTRY)             \
+    label(op2, level, ENTRY)             \
+        BODY
+
+#define DEF_OPC_3(op1, op2, op3, level, BODY) \
+    label(op1, level, ENTRY)                  \
+    label(op2, level, ENTRY)                  \
+    label(op3, level, ENTRY)                  \
+        BODY
+
+#ifdef USE_CACHE
+#define DEF_OPC_012(opcode, BODY)     \
+    label(opcode, 0, ENTRY)           \
+        cache.i.v1 = *--ostack;       \
+                                      \
+    label(opcode, 1, ENTRY)           \
+        cache.i.v2 = cache.i.v1;      \
+        cache.i.v1 = *--ostack;       \
+                                      \
+    label(opcode, 2, ENTRY)           \
+        BODY
+        
+#define DEF_OPC_012_2(op1, op2, BODY) \
+    label(op1, 0, ENTRY)              \
+    label(op2, 0, ENTRY)              \
+        cache.i.v1 = *--ostack;       \
+                                      \
+    label(op1, 1, ENTRY)              \
+    label(op2, 1, ENTRY)              \
+        cache.i.v2 = cache.i.v1;      \
+        cache.i.v1 = *--ostack;       \
+                                      \
+    label(op1, 2, ENTRY)              \
+    label(op2, 2, ENTRY)              \
+        BODY
+
+#define DEF_OPC_012_3(op1, op2, op3, BODY) \
+    label(op1, 0, ENTRY)              \
+    label(op2, 0, ENTRY)              \
+    label(op3, 0, ENTRY)              \
+        cache.i.v1 = *--ostack;       \
+                                      \
+    label(op1, 1, ENTRY)              \
+    label(op2, 1, ENTRY)              \
+    label(op3, 1, ENTRY)              \
+        cache.i.v2 = cache.i.v1;      \
+        cache.i.v1 = *--ostack;       \
+                                      \
+    label(op1, 2, ENTRY)              \
+    label(op2, 2, ENTRY)              \
+    label(op3, 2, ENTRY)              \
+        BODY
+
+#define DEF_OPC_012_4(op1, op2, op3, op4, BODY) \
+    label(op1, 0, ENTRY)              \
+    label(op2, 0, ENTRY)              \
+    label(op3, 0, ENTRY)              \
+    label(op4, 0, ENTRY)              \
+        cache.i.v1 = *--ostack;       \
+                                      \
+    label(op1, 1, ENTRY)              \
+    label(op2, 1, ENTRY)              \
+    label(op3, 1, ENTRY)              \
+    label(op4, 1, ENTRY)              \
+        cache.i.v2 = cache.i.v1;      \
+        cache.i.v1 = *--ostack;       \
+                                      \
+    label(op1, 2, ENTRY)              \
+    label(op2, 2, ENTRY)              \
+    label(op3, 2, ENTRY)              \
+    label(op4, 2, ENTRY)              \
+        BODY
+
+#define DEF_OPC_210(opcode, BODY)     \
+    label(opcode, 2, ENTRY)           \
+        *ostack++ = cache.i.v1;       \
+        cache.i.v1 = cache.i.v2;      \
+                                      \
+    label(opcode, 1, ENTRY)           \
+        *ostack++ = cache.i.v1;       \
+                                      \
+    label(opcode, 0, ENTRY)           \
+        BODY
+        
+#define DEF_OPC_210_2(op1, op2, BODY) \
+    label(op1, 2, ENTRY)              \
+    label(op2, 2, ENTRY)              \
+        *ostack++ = cache.i.v1;       \
+        cache.i.v1 = cache.i.v2;      \
+                                      \
+    label(op1, 1, ENTRY)              \
+    label(op2, 1, ENTRY)              \
+        *ostack++ = cache.i.v1;       \
+                                      \
+    label(op1, 0, ENTRY)              \
+    label(op2, 0, ENTRY)              \
+        BODY
+
+#define LABELS(opcode)                \
+    label(opcode, 0, ENTRY)           \
+    label(opcode, 1, ENTRY)           \
+    label(opcode, 2, ENTRY)
+
+#define DEF_OPC_RW(opcode, BODY)      \
+    LABELS(opcode)                    \
+        BODY
+
+#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY) \
+    LABELS(op1)                    \
+    LABELS(op2)                    \
+    LABELS(op3)                    \
+    LABELS(op4)                    \
+        BODY
+
+#else /* USE_CACHE */
+
+#define DEF_OPC_012(opcode, BODY)     \
+    DEF_OPC(opcode, 0, BODY)
+
+#define DEF_OPC_012_2(op1, op2, BODY) \
+    DEF_OPC_2(op1, op2, 0, BODY)
+
+#define DEF_OPC_012_3(op1, op2, op3, BODY) \
+    DEF_OPC_3(op1, op2, op3, 0, BODY)
+
+#define DEF_OPC_012_4(op1, op2, op3, op4, BODY) \
+    label(op1, 0, ENTRY)                  \
+    label(op2, 0, ENTRY)                  \
+    label(op3, 0, ENTRY)                  \
+    label(op4, 0, ENTRY)                  \
+        BODY
+
+#define DEF_OPC_210(opcode, BODY)     \
+    DEF_OPC_012(opcode, ({BODY});)
+
+#define DEF_OPC_210_2(op1, op2, BODY) \
+    DEF_OPC_012_2(op1, op2, ({BODY});)
+
+#define DEF_OPC_RW(opcode, BODY)          \
+    DEF_OPC_012(opcode, ({BODY});)
+
+#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY) \
+    DEF_OPC_012_4(op1, op2, op3, op4, ({BODY});)
+
+#endif /* USE_CACHE */
 #ifdef PREFETCH
 #define DISPATCH_FIRST                  \
 {                                       \
@@ -110,15 +257,11 @@ label(opcode, level)
     pc++;                               \
     DISPATCH_FIRST
 
-#ifdef USE_CACHE
-#define DEF_OPC_RW(op)                  \
-    DEF_OPC(op, 0)                      \
-    DEF_OPC(op, 1)                      \
-    DEF_OPC(op, 2)
-#else
-#define DEF_OPC_RW(op)                  \
-    DEF_OPC(op, 0)
-#endif
+#define DISPATCH_METHOD_RET(ins_len)    \
+    DISPATCH_RET(ins_len)
+
+#define DISPATCH_SWITCH                 \
+    DISPATCH_FIRST
 
 #define PREPARE_MB(mb)                  \
     if((uintptr_t)mb->code & 0x3)       \
@@ -141,5 +284,33 @@ label(opcode, level)
 #define RESOLVED_METHOD(pc)   ((MethodBlock*)pc->operand.pntr)
 #define RESOLVED_CLASS(pc)    (Class *)CP_INFO(cp, pc->operand.uui.u1)
 
-extern void initialiseDirect();
+/* Macros for checking for common exceptions */
+
+#define THROW_EXCEPTION(excep_name, message)                               \
+{                                                                          \
+    frame->last_pc = pc;                                                   \
+    signalException(excep_name, message);                                  \
+    goto throwException;                                                   \
+}
+
+#define NULL_POINTER_CHECK(ref)                                            \
+    if(!ref) THROW_EXCEPTION("java/lang/NullPointerException", NULL);
+
+#define MAX_INT_DIGITS 11
+
+#define ARRAY_BOUNDS_CHECK(array, idx)                                     \
+{                                                                          \
+    if(idx >= ARRAY_LEN(array)) {                                          \
+        char buff[MAX_INT_DIGITS];                                         \
+        snprintf(buff, MAX_INT_DIGITS, "%d", idx);                         \
+        THROW_EXCEPTION("java/lang/ArrayIndexOutOfBoundsException", buff); \
+    }                                                                      \
+}
+
+#define ZERO_DIVISOR_CHECK(value)                          \
+    if(value == 0)                                         \
+        THROW_EXCEPTION("java/lang/ArithmeticException",   \
+                        "division by zero");
+
+extern void initialiseDirect(InitArgs *args);
 extern void prepare(MethodBlock *mb, const void ***handlers);
