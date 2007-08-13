@@ -75,32 +75,34 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
     }                                                                              \
                                                                                    \
     if(ptr2) {                                                                     \
-        FOUND(ptr2);                                                               \
+        ptr2 = FOUND(ptr2);                                                        \
     } else                                                                         \
         if(add_if_absent) {                                                        \
             table.hash_table[i].hash = hash;                                       \
             ptr2 = table.hash_table[i].data = PREPARE(ptr);                        \
                                                                                    \
-            table.hash_count++;                                                    \
-            if((table.hash_count * 4) > (table.hash_size * 3)) {                   \
-                int new_size;                                                      \
-                if(scavenge) {                                                     \
-                    int n;                                                         \
-                    for(i = 0, n = table.hash_count; n--; i++) {                   \
-                        void *data = table.hash_table[i].data;                     \
-                        if(data && SCAVENGE(data)) {                               \
-                            table.hash_table[i].data = NULL;                       \
-                            table.hash_count--;                                    \
+            if(ptr2) {                                                             \
+                table.hash_count++;                                                \
+                if((table.hash_count * 4) > (table.hash_size * 3)) {               \
+                    int new_size;                                                  \
+                    if(scavenge) {                                                 \
+                        int n;                                                     \
+                        for(i = 0, n = table.hash_count; n--; i++) {               \
+                            void *data = table.hash_table[i].data;                 \
+                            if(data && SCAVENGE(data)) {                           \
+                                table.hash_table[i].data = NULL;                   \
+                                table.hash_count--;                                \
+                            }                                                      \
                         }                                                          \
-                    }                                                              \
-                    if((table.hash_count * 3) > (table.hash_size * 2))             \
+                        if((table.hash_count * 3) > (table.hash_size * 2))         \
+                            new_size = table.hash_size*2;                          \
+                        else                                                       \
+                            new_size = table.hash_size;                            \
+                    } else                                                         \
                         new_size = table.hash_size*2;                              \
-                    else                                                           \
-                        new_size = table.hash_size;                                \
-                } else                                                             \
-                    new_size = table.hash_size*2;                                  \
                                                                                    \
-                resizeHash(&table, new_size);                                      \
+                    resizeHash(&table, new_size);                                  \
+                }                                                                  \
             }                                                                      \
         }                                                                          \
                                                                                    \
