@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+/* Copyright (C) 2003, 2004, 2005, 2006, 2007
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -37,6 +36,7 @@
 #endif
 
 #define REWRITE_OPERAND(index) \
+    quickened = TRUE;          \
     operand.uui.u1 = index;    \
     operand.uui.u2 = opcode;   \
     operand.uui.i = ins_cache;
@@ -53,14 +53,30 @@
 /* Global lock for method preparation */
 static VMWaitLock prepare_lock;
 
-void initialiseDirect() {
+#ifdef INLINING
+int inlining_enabled = -1;
+#endif
+
+void initialiseDirect(InitArgs *args) {
+#ifdef INLINING
+    inlining_enabled = initialiseInlining(args);
+#endif
     initVMWaitLock(prepare_lock);
 }
+
+#define FALLTHROUGH 1
+#define EXCEPTION   2
+#define TARGET      4
+#define END         8
 
 void prepare(MethodBlock *mb, const void ***handlers) {
     int code_len = mb->code_size;
 #ifdef USE_CACHE
     signed char cache_depth[code_len];
+#endif
+#ifdef INLINING
+    OpcodeInfo opcodes[code_len];
+    char info[code_len + 1];
 #endif
     Instruction *new_code = NULL;
     unsigned char *code;
@@ -118,8 +134,14 @@ retry:
     for(i = 0; i < mb->exception_table_size; i++)
         cache_depth[mb->exception_table[i].handler_pc] = 0;
 #endif
+#ifdef INLINING
+    memset(info, FALSE, code_len + 1);
+    for(i = 0; i < mb->exception_table_size; i++)
+        info[mb->exception_table[i].handler_pc] = EXCEPTION;
+#endif
 
     for(pass = 0; pass < 2; pass++) {
+        int block_start = 0;
         int cache = 0;
         int pc;
 
@@ -127,6 +149,7 @@ retry:
             new_code = sysMalloc((ins_count + 1) * sizeof(Instruction));
 
         for(ins_count = 0, pc = 0; pc < code_len; ins_count++) {
+            int quickened = FALSE;
             Operand operand;
             int ins_cache;
             int opcode;
@@ -142,8 +165,11 @@ retry:
                 TRACE("CONFLICT @ addr: %d depth1 %d depth2 %d\n", pc, cache_depth[pc], cache);
 
                 if(pass == 1)
-                    new_code[ins_count].handler = (void**)handlers[cache][OPC_NOP];
-
+                    new_code[ins_count].handler = handlers[cache][OPC_NOP];
+#ifdef INLINING
+                opcodes[ins_count].opcode = OPC_NOP;
+                opcodes[ins_count].cache_depth = cache;
+#endif
                 cache = 0;
                 ins_count++;
             }
@@ -154,14 +180,15 @@ retry:
 
             /* On pass one we calculate the cache depth and the mapping
                between bytecode and instruction numbering */
+
             if(pass == 0) {
 #ifdef USE_CACHE
-                TRACE("%d : pc %d opcode %d cache %d\n", ins_count, pc, opcode, cache);
-                cache_depth[pc] = cache;
+                    TRACE("%d : pc %d opcode %d cache %d\n", ins_count, pc, opcode, cache);
+                    cache_depth[pc] = cache;
 #else
-                TRACE("%d : pc %d opcode %d\n", ins_count, pc, opcode);
+                    TRACE("%d : pc %d opcode %d\n", ins_count, pc, opcode);
 #endif
-                map[pc] = ins_count;
+                    map[pc] = ins_count;
             }
 #ifdef DIRECT_DEBUG
             else {
@@ -265,6 +292,19 @@ retry:
                     pc += 2;
                     break;
         
+                case OPC_RETURN: case OPC_IRETURN:  case OPC_ARETURN:
+                case OPC_FRETURN: case OPC_LRETURN: case OPC_DRETURN:
+                case OPC_ATHROW:
+                    pc += 1;
+#ifdef INLINING
+                    info[pc] |= END;
+#endif
+                    break;
+#ifdef USE_CACHE
+                    cache = 0;
+                    pc += 1;
+                    break;
+#endif
                 case OPC_ACONST_NULL: case OPC_ICONST_M1: case OPC_ICONST_0:
                 case OPC_FCONST_0: case OPC_ICONST_1: case OPC_ICONST_2:
                 case OPC_ICONST_3: case OPC_ICONST_4: case OPC_ICONST_5:
@@ -329,14 +369,6 @@ retry:
                 case OPC_INEG:
 #ifdef USE_CACHE
                     cache = cache == 2 ? 2 : 1;
-                    pc += 1;
-                    break;
-#endif
-                case OPC_ATHROW: case OPC_RETURN: case OPC_IRETURN:
-                case OPC_ARETURN: case OPC_FRETURN: case OPC_LRETURN:
-                case OPC_DRETURN:
-#ifdef USE_CACHE
-                    cache = 0;
                     pc += 1;
                     break;
 #endif
@@ -409,18 +441,24 @@ retry:
 #ifdef USE_CACHE
                     }
 #endif
+    
                     if(pass == 1) {
                         TRACE("IF old dest %d new dest %d\n", dest, map[dest]);
                         operand.pntr = &new_code[map[dest]];
-                    }
+                    } else {
 #ifdef USE_CACHE
-                    /* Branches re-cache, so the cache depth at destination is zero */
-                    else
+                        /* Branches re-cache, so the cache depth at destination is zero */
                         cache_depth[dest] = 0;
 #endif
+#ifdef INLINING
+                        info[pc]   |= FALLTHROUGH;
+                        info[dest] |= TARGET;
+#endif
+                    }
+
                     break;
                 }
-    
+
                 case OPC_PUTFIELD: case OPC_INVOKEVIRTUAL: case OPC_INVOKESPECIAL:
                 case OPC_INVOKESTATIC: case OPC_CHECKCAST: case OPC_INSTANCEOF:
                     REWRITE_OPERAND(READ_U2_OP(code + pc));
@@ -441,6 +479,7 @@ retry:
                         delta = READ_S4_OP(code + pc);
 
                     dest = pc + delta;
+
 #ifdef USE_CACHE
                     /* Conflict can only occur on first pass, and dest must be backwards */
                     if(cache_depth[dest] > 0) {
@@ -461,15 +500,21 @@ retry:
 #ifdef USE_CACHE
                     }
 #endif
-                    /* GOTO re-caches, so the cache depth at destination is zero */
+
                     if(pass == 1) {
                         TRACE("GOTO old dest %d new dest %d\n", dest, map[dest]);
                         operand.pntr = &new_code[map[dest]];
-                    }
+                    } else {
 #ifdef USE_CACHE
-                    else
+                        /* GOTO re-caches, so the cache depth at destination is zero */
                         cache_depth[dest] = 0;
 #endif
+#ifdef INLINING
+                        info[pc]   |= END;
+                        info[dest] |= TARGET;
+#endif
+                    }
+
                     break;
                 }
         
@@ -482,17 +527,28 @@ retry:
                     int i;
     
                     if(pass == 0) {
-#ifdef USE_CACHE
+#if defined(USE_CACHE) || defined(INLINING)
                         /* Destinations should always be forward WRT pc, i.e. not
                            visited yet.  Depths can only be -1 (or 0) so conflict
                            is impossible.  */
-
+    
                         /* TABLESWITCH re-caches, so all possible destinations
                            are at cache depth zero */
+#ifdef USE_CACHE
                         cache_depth[pc + deflt] = 0;
-
-                        for(i = 3; i < (high - low + 4); i++)
-                            cache_depth[pc + ntohl(aligned_pc[i])] = 0;
+#endif
+#ifdef INLINING
+                        info[pc + deflt] |= TARGET;
+#endif
+                        for(i = 3; i < (high - low + 4); i++) {
+                            int dest = pc + ntohl(aligned_pc[i]);
+#ifdef USE_CACHE
+                            cache_depth[dest] = 0;
+#endif
+#ifdef INLINING
+                            info[dest] |= TARGET;
+#endif
+                        }
 #else
                         i = high - low + 4;
 #endif
@@ -525,27 +581,39 @@ retry:
                     int i, j;
     
                     if(pass == 0) {
-#ifdef USE_CACHE
+#if defined(USE_CACHE) || defined(INLINING)
                         /* Destinations should always be forward WRT pc, i.e. not
                            visited yet.  Depths can only be -1 (or 0) so conflict
                            is impossible.  */
-
+    
                         /* LOOKUPSWITCH re-caches, so all possible destinations
                            are at cache depth zero */
+#ifdef USE_CACHE
                         cache_depth[pc + deflt] = 0;
+#endif
+#ifdef INLINING
+                        info[pc + deflt] |= TARGET;
+#endif
 
-                        for(i = 2; i < (npairs*2+2); i += 2)
-                            cache_depth[pc + ntohl(aligned_pc[i+1])] = 0;
+                        for(i = 2; i < (npairs*2+2); i += 2) {
+                            int dest = pc + ntohl(aligned_pc[i+1]);
+#ifdef USE_CACHE
+                            cache_depth[dest] = 0;
+#endif
+#ifdef INLINING
+                            info[dest] |= TARGET;
+#endif
+                        }
 #else
                         i = npairs*2+2;
 #endif
                     } else {
                         LookupTable *table = (LookupTable*)sysMalloc(sizeof(LookupTable));
-
+   
                         table->num_entries = npairs;
                         table->deflt = &new_code[map[pc + deflt]];
                         table->entries = (LookupEntry*)sysMalloc(npairs * sizeof(LookupEntry));
-                        
+                            
                         for(i = 2, j = 0; j < npairs; i += 2, j++) {
                             table->entries[j].key = ntohl(aligned_pc[i]);
                             table->entries[j].handler = &new_code[map[pc + ntohl(aligned_pc[i+1])]];
@@ -636,12 +704,16 @@ retry:
                     if(pass == 1) {
                         TRACE("JSR old dest %d new dest %d\n", dest, map[dest]);
                         operand.pntr = &new_code[map[dest]];
-                    }
+                    } else {
 #ifdef USE_CACHE
-                    /* JSR re-caches, so the cache depth at destination is zero */
-                    else
+                        /* JSR re-caches, so the cache depth at destination is zero */
                         cache_depth[dest] = 0;
 #endif
+#ifdef INLINING
+                        info[pc]   |= TARGET;
+                        info[dest] |= TARGET;
+#endif
+                    }
                     break;
                 }
     
@@ -652,6 +724,14 @@ retry:
                     pc += 2;
                     break;
 #endif
+                    operand.i = READ_U1_OP(code + pc);
+                    cache = 0;
+                    pc += 2;
+#ifdef INLINING
+                    info[pc] |= END;
+#endif
+                    break;
+
                 case OPC_NEWARRAY:
                     operand.i = READ_U1_OP(code + pc);
 #ifdef USE_CACHE
@@ -673,6 +753,7 @@ retry:
                     operand.uui.u1 = READ_U2_OP(code + pc);
                     operand.uui.u2 = READ_U1_OP(code + pc + 2);
                     operand.uui.i = cache;
+                    quickened = TRUE;
 #ifdef USE_CACHE
                     cache = 1;
 #endif
@@ -733,8 +814,51 @@ retry:
                 }
             }
 
-            /* Store the new instruction */
-            if(pass == 1) {
+            if(pass == 0) {
+#ifdef INLINING
+                opcodes[ins_count].opcode = opcode;
+                opcodes[ins_count].cache_depth = ins_cache;
+#endif
+            } else {
+#ifdef INLINING
+                if(inlining_enabled && info[pc]) {
+                    TRACE("Block start %d end %d (info %d @ pc %d opcode %d)\n",
+                                              block_start, ins_count, info[pc], pc, opcode);
+
+                    if(block_start != -1) {
+                        int block_len = ins_count - block_start + 1;
+                        CodeBlock *block;
+
+                        if(quickened) {
+                            QuickPrepareInfo *prepare_info;
+                            TRACE("Last opcode is quickened.  Adding to linked-list.\n");
+
+                            prepare_info = sysMalloc(sizeof(QuickPrepareInfo));
+                            prepare_info->quickened = &new_code[ins_count];
+                            prepare_info->next = mb->quick_prepare_info;
+                            mb->quick_prepare_info = prepare_info;
+                            block = &prepare_info->block;
+                        } else {
+                            PrepareInfo *prepare_info;
+                            TRACE("Wrapping handler in inline preparer.\n");
+
+                            prepare_info = sysMalloc(sizeof(PrepareInfo));
+                            prepare_info->operand = operand;
+                            operand.pntr = prepare_info;
+                            opcode = OPC_INLINE_REWRITER;
+                            block = &prepare_info->block;
+                        }
+
+                        block->length = block_len;
+                        block->start = &new_code[block_start];
+                        block->opcodes = sysMalloc(block_len * sizeof(OpcodeInfo));
+                        memcpy(block->opcodes, &opcodes[block_start], block_len * sizeof(OpcodeInfo));
+                    }
+
+                    block_start = info[pc] == END ? -1 : ins_count + 1;
+                }
+#endif
+                /* Store the new instruction */
                 new_code[ins_count].handler = handlers[ins_cache][opcode];
                 new_code[ins_count].operand = operand;
             }
@@ -761,12 +885,13 @@ retry:
 
     lockVMWaitLock(prepare_lock, self);
     mb->code = new_code;
+    mb->code_size = ins_count;
     notifyAllVMWaitLock(prepare_lock, self);
     unlockVMWaitLock(prepare_lock, self);
     enableSuspend(self);
 
     /* We don't need the old bytecode stream anymore */
     if(!mb->access_flags & ACC_ABSTRACT)
-        sysFree(code);
+        free(code);
 }
 #endif
