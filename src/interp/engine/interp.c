@@ -32,35 +32,119 @@
 #include "interp.h"
 
 #ifdef DIRECT
+#ifdef INLINING
+#include "interp-inlining.h"
+#else
 #include "interp-direct.h"
+#endif
 #else
 #include "interp-indirect.h"
 #endif
 
-/* Macros for checking for common exceptions */
-
-#define THROW_EXCEPTION(excep_name, message)                               \
-{                                                                          \
-    frame->last_pc = pc;                                                   \
-    signalException(excep_name, message);                                  \
-    goto throwException;                                                   \
-}
-
-#define NULL_POINTER_CHECK(ref)                                            \
-    if(!ref) THROW_EXCEPTION("java/lang/NullPointerException", NULL);
-
-#define MAX_INT_DIGITS 11
-
-#define ARRAY_BOUNDS_CHECK(array, idx)                                     \
-{                                                                          \
-    if(idx >= ARRAY_LEN(array)) {                                          \
-        char buff[MAX_INT_DIGITS];                                         \
-        snprintf(buff, MAX_INT_DIGITS, "%d", idx);                         \
-        THROW_EXCEPTION("java/lang/ArrayIndexOutOfBoundsException", buff); \
-    }                                                                      \
-}
-
 uintptr_t *executeJava() {
+#ifdef THREADED
+#define L(opcode, level, label) &&opc##opcode##_##level##_##label
+
+#ifdef DIRECT
+#define I(opcode, level, label) &&rewrite_lock
+#else
+#define I(opcode, level, label) L(opcode, level, label)
+#endif
+
+#ifdef INLINING
+#define DEF_HANDLER_TABLES(level)    \
+    DEF_HANDLER_TABLE(level, START); \
+    DEF_HANDLER_TABLE(level, ENTRY); \
+    DEF_HANDLER_TABLE(level, END);
+#else
+#define DEF_HANDLER_TABLES(level)    \
+    DEF_HANDLER_TABLE(level, ENTRY);
+#endif
+
+#define DEF_HANDLER_TABLE(lvl,lbl)                                                      \
+    HANDLER_TABLE_T *handlers_##lvl##_##lbl[] = {                                       \
+        L(0,lvl,lbl), L(1,lvl,lbl), L(2,lvl,lbl), L(3,lvl,lbl), L(4,lvl,lbl),           \
+        L(5,lvl,lbl), L(6,lvl,lbl), L(7,lvl,lbl), L(8,lvl,lbl), L(9,lvl,lbl),           \
+        L(10,lvl,lbl), L(11,lvl,lbl), L(12,lvl,lbl), L(13,lvl,lbl), L(14,lvl,lbl),      \
+        L(15,lvl,lbl), L(16,lvl,lbl), L(17,lvl,lbl), L(18,lvl,lbl), I(19,lvl,lbl),      \
+        L(20,lvl,lbl), L(21,lvl,lbl), L(22,lvl,lbl), L(23,lvl,lbl), L(24,lvl,lbl),      \
+        L(25,lvl,lbl), L(26,lvl,lbl), L(27,lvl,lbl), L(28,lvl,lbl), L(29,lvl,lbl),      \
+        L(30,lvl,lbl), L(31,lvl,lbl), L(32,lvl,lbl), L(33,lvl,lbl), L(34,lvl,lbl),      \
+        L(35,lvl,lbl), L(36,lvl,lbl), L(37,lvl,lbl), L(38,lvl,lbl), L(39,lvl,lbl),      \
+        L(40,lvl,lbl), L(41,lvl,lbl), I(42,lvl,lbl), L(43,lvl,lbl), L(44,lvl,lbl),      \
+        L(45,lvl,lbl), L(46,lvl,lbl), L(47,lvl,lbl), L(48,lvl,lbl), L(49,lvl,lbl),      \
+        L(50,lvl,lbl), L(51,lvl,lbl), L(52,lvl,lbl), L(53,lvl,lbl), L(54,lvl,lbl),      \
+        L(55,lvl,lbl), L(56,lvl,lbl), L(57,lvl,lbl), L(58,lvl,lbl), L(59,lvl,lbl),      \
+        L(60,lvl,lbl), L(61,lvl,lbl), L(62,lvl,lbl), L(63,lvl,lbl), L(64,lvl,lbl),      \
+        L(65,lvl,lbl), L(66,lvl,lbl), L(67,lvl,lbl), L(68,lvl,lbl), L(69,lvl,lbl),      \
+        L(70,lvl,lbl), L(71,lvl,lbl), L(72,lvl,lbl), L(73,lvl,lbl), L(74,lvl,lbl),      \
+        L(75,lvl,lbl), L(76,lvl,lbl), L(77,lvl,lbl), L(78,lvl,lbl), L(79,lvl,lbl),      \
+        L(80,lvl,lbl), L(81,lvl,lbl), L(82,lvl,lbl), L(83,lvl,lbl), L(84,lvl,lbl),      \
+        L(85,lvl,lbl), L(86,lvl,lbl), L(87,lvl,lbl), L(88,lvl,lbl), L(89,lvl,lbl),      \
+        L(90,lvl,lbl), L(91,lvl,lbl), L(92,lvl,lbl), L(93,lvl,lbl), L(94,lvl,lbl),      \
+        L(95,lvl,lbl), L(96,lvl,lbl), L(97,lvl,lbl), L(98,lvl,lbl), L(99,lvl,lbl),      \
+        L(100,lvl,lbl), L(101,lvl,lbl), L(102,lvl,lbl), L(103,lvl,lbl), L(104,lvl,lbl), \
+        L(105,lvl,lbl), L(106,lvl,lbl), L(107,lvl,lbl), L(108,lvl,lbl), L(109,lvl,lbl), \
+        L(110,lvl,lbl), L(111,lvl,lbl), L(112,lvl,lbl), L(113,lvl,lbl), L(114,lvl,lbl), \
+        L(115,lvl,lbl), L(116,lvl,lbl), L(117,lvl,lbl), L(118,lvl,lbl), L(119,lvl,lbl), \
+        L(120,lvl,lbl), L(121,lvl,lbl), L(122,lvl,lbl), L(123,lvl,lbl), L(124,lvl,lbl), \
+        L(125,lvl,lbl), L(126,lvl,lbl), L(127,lvl,lbl), L(128,lvl,lbl), L(129,lvl,lbl), \
+        L(130,lvl,lbl), L(131,lvl,lbl), L(132,lvl,lbl), L(133,lvl,lbl), L(134,lvl,lbl), \
+        L(135,lvl,lbl), L(136,lvl,lbl), L(137,lvl,lbl), L(138,lvl,lbl), L(139,lvl,lbl), \
+        L(140,lvl,lbl), L(141,lvl,lbl), L(142,lvl,lbl), L(143,lvl,lbl), L(144,lvl,lbl), \
+        L(145,lvl,lbl), L(146,lvl,lbl), L(147,lvl,lbl), L(148,lvl,lbl), L(149,lvl,lbl), \
+        L(150,lvl,lbl), L(151,lvl,lbl), L(152,lvl,lbl), L(153,lvl,lbl), L(154,lvl,lbl), \
+        L(155,lvl,lbl), L(156,lvl,lbl), L(157,lvl,lbl), L(158,lvl,lbl), L(159,lvl,lbl), \
+        L(160,lvl,lbl), L(161,lvl,lbl), L(162,lvl,lbl), L(163,lvl,lbl), L(164,lvl,lbl), \
+        L(165,lvl,lbl), L(166,lvl,lbl), L(167,lvl,lbl), L(168,lvl,lbl), L(169,lvl,lbl), \
+        L(170,lvl,lbl), L(171,lvl,lbl), L(172,lvl,lbl), L(173,lvl,lbl), L(174,lvl,lbl), \
+        L(175,lvl,lbl), L(176,lvl,lbl), L(177,lvl,lbl), L(178,lvl,lbl), L(179,lvl,lbl), \
+        L(180,lvl,lbl), L(181,lvl,lbl), L(182,lvl,lbl), L(183,lvl,lbl), L(184,lvl,lbl), \
+        L(185,lvl,lbl), &&unused, L(187,lvl,lbl), L(188,lvl,lbl), L(189,lvl,lbl),       \
+        L(190,lvl,lbl), L(191,lvl,lbl), L(192,lvl,lbl), L(193,lvl,lbl), L(194,lvl,lbl), \
+        L(195,lvl,lbl), I(196,lvl,lbl), L(197,lvl,lbl), L(198,lvl,lbl), L(199,lvl,lbl), \
+        L(200,lvl,lbl), L(201,lvl,lbl), &&unused, L(203,lvl,lbl), L(204,lvl,lbl),       \
+        &&unused, L(206,lvl,lbl), L(207,lvl,lbl), L(208,lvl,lbl), L(209,lvl,lbl),       \
+        L(210,lvl,lbl), L(211,lvl,lbl), L(212,lvl,lbl), L(213,lvl,lbl), L(214,lvl,lbl), \
+        L(215,lvl,lbl), L(216,lvl,lbl), &&unused, &&unused, &&unused, &&unused,         \
+        &&unused, &&unused, &&unused, &&unused, &&unused, I(226,lvl,lbl),               \
+        I(227,lvl,lbl), I(228,lvl,lbl), L(229,lvl,lbl), I(230,lvl,lbl), L(231,lvl,lbl), \
+        L(232,lvl,lbl), L(233,lvl,lbl), &&unused, L(235,lvl,lbl), &&unused,             \
+        &&unused, L(238,lvl,lbl), L(239,lvl,lbl), &&unused, &&unused, &&unused,         \
+        L(243,lvl,lbl), L(244,lvl,lbl), L(245,lvl,lbl), L(246,lvl,lbl), &&unused,       \
+        &&unused, &&unused, &&unused, &&unused, &&unused, &&unused, &&unused,           \
+        &&unused}
+
+    DEF_HANDLER_TABLES(0);
+
+#ifdef USE_CACHE
+    DEF_HANDLER_TABLES(1);
+    DEF_HANDLER_TABLES(2);
+#ifdef INLINING
+    static const void **handlers[] = {handlers_0_ENTRY, handlers_1_ENTRY, handlers_2_ENTRY,
+                                      handlers_0_START, handlers_1_START, handlers_2_START,
+                                      handlers_0_END, handlers_1_END, handlers_2_END};
+#else
+    static const void **handlers[] = {handlers_0_ENTRY, handlers_1_ENTRY, handlers_2_ENTRY};
+#endif
+#else
+#ifdef INLINING
+    static const void **handlers[] = {handlers_0_ENTRY, handlers_0_START, handlers_0_END};
+#else
+    static const void **handlers[] = {handlers_0_ENTRY};
+#endif
+#endif
+
+#ifdef INLINING
+    extern int inlining_inited;
+    if(!inlining_inited) return (uintptr_t*)handlers;
+
+    void *throwNullLabel = &&throwNull;
+    void *throwOOBLabel = &&throwOOB;
+    void *throwArithmeticExcepLabel = &&throwArithmeticExcep;
+    int oob_array_index;
+#endif
+
     CodePntr pc;
     ExecEnv *ee = getExecEnv();
     Frame *frame = ee->last_frame;
@@ -86,83 +170,8 @@ uintptr_t *executeJava() {
     } cache;
 #endif
 
-#ifdef THREADED
-#define L(opcode, level) &&opc##opcode##_##level
-
-#ifdef DIRECT
-#define I(opcode, level) &&unused
-#else
-#define I(opcode, level) L(opcode, level)
-#endif
-
-#define DEF_HANDLER_TABLE(level)                                              \
-    HANDLER_TABLE_T *handlers_##level[] = {                                   \
-        L(0,level), L(1,level), L(2,level), L(3,level), L(4,level),           \
-        L(5,level), L(6,level), L(7,level), L(8,level), L(9,level),           \
-        L(10,level), L(11,level), L(12,level), L(13,level), L(14,level),      \
-        L(15,level), L(16,level), L(17,level), L(18,level), I(19,level),      \
-        L(20,level), L(21,level), L(22,level), L(23,level), L(24,level),      \
-        L(25,level), L(26,level), L(27,level), L(28,level), L(29,level),      \
-        L(30,level), L(31,level), L(32,level), L(33,level), L(34,level),      \
-        L(35,level), L(36,level), L(37,level), L(38,level), L(39,level),      \
-        L(40,level), L(41,level), I(42,level), L(43,level), L(44,level),      \
-        L(45,level), L(46,level), L(47,level), L(48,level), L(49,level),      \
-        L(50,level), L(51,level), L(52,level), L(53,level), L(54,level),      \
-        L(55,level), L(56,level), L(57,level), L(58,level), L(59,level),      \
-        L(60,level), L(61,level), L(62,level), L(63,level), L(64,level),      \
-        L(65,level), L(66,level), L(67,level), L(68,level), L(69,level),      \
-        L(70,level), L(71,level), L(72,level), L(73,level), L(74,level),      \
-        L(75,level), L(76,level), L(77,level), L(78,level), L(79,level),      \
-        L(80,level), L(81,level), L(82,level), L(83,level), L(84,level),      \
-        L(85,level), L(86,level), L(87,level), L(88,level), L(89,level),      \
-        L(90,level), L(91,level), L(92,level), L(93,level), L(94,level),      \
-        L(95,level), L(96,level), L(97,level), L(98,level), L(99,level),      \
-        L(100,level), L(101,level), L(102,level), L(103,level), L(104,level), \
-        L(105,level), L(106,level), L(107,level), L(108,level), L(109,level), \
-        L(110,level), L(111,level), L(112,level), L(113,level), L(114,level), \
-        L(115,level), L(116,level), L(117,level), L(118,level), L(119,level), \
-        L(120,level), L(121,level), L(122,level), L(123,level), L(124,level), \
-        L(125,level), L(126,level), L(127,level), L(128,level), L(129,level), \
-        L(130,level), L(131,level), L(132,level), L(133,level), L(134,level), \
-        L(135,level), L(136,level), L(137,level), L(138,level), L(139,level), \
-        L(140,level), L(141,level), L(142,level), L(143,level), L(144,level), \
-        L(145,level), L(146,level), L(147,level), L(148,level), L(149,level), \
-        L(150,level), L(151,level), L(152,level), L(153,level), L(154,level), \
-        L(155,level), L(156,level), L(157,level), L(158,level), L(159,level), \
-        L(160,level), L(161,level), L(162,level), L(163,level), L(164,level), \
-        L(165,level), L(166,level), L(167,level), L(168,level), L(169,level), \
-        L(170,level), L(171,level), L(172,level), L(173,level), L(174,level), \
-        L(175,level), L(176,level), L(177,level), L(178,level), L(179,level), \
-        L(180,level), L(181,level), L(182,level), L(183,level), L(184,level), \
-        L(185,level), &&unused, L(187,level), L(188,level), L(189,level),     \
-        L(190,level), L(191,level), L(192,level), L(193,level), L(194,level), \
-        L(195,level), I(196,level), L(197,level), L(198,level), L(199,level), \
-        L(200,level), L(201,level), &&unused, L(203,level), L(204,level),     \
-        &&unused, L(206,level), L(207,level), L(208,level), L(209,level),     \
-        L(210,level), L(211,level), L(212,level), L(213,level), L(214,level), \
-        L(215,level), L(216,level), &&unused, &&unused, &&unused, &&unused,   \
-        &&unused, &&unused, &&unused, &&unused, &&unused, I(226,level),       \
-        I(227,level), I(228,level), L(229,level), I(230,level), L(231,level), \
-        L(232,level), L(233,level), &&unused, L(235,level), &&unused,         \
-        &&unused, L(238,level), L(239,level), &&unused, &&unused, &&unused,   \
-        L(243,level), L(244,level), L(245, level), &&unused, &&unused,        \
-        &&unused, &&unused, &&unused, &&unused, &&unused, &&unused, &&unused, \
-        &&unused}
-
-    DEF_HANDLER_TABLE(0);
-
-#ifdef USE_CACHE
-    DEF_HANDLER_TABLE(1);
-    DEF_HANDLER_TABLE(2);
-    const void **handlers[] = {handlers_0, handlers_1, handlers_2};
-#else
-    const void **handlers[] = {handlers_0};
-#endif
-
     PREPARE_MB(mb);
     pc = (CodePntr)mb->code;
-
-    DISPATCH_FIRST
 
 #else /* THREADED */
 
@@ -173,225 +182,284 @@ uintptr_t *executeJava() {
             default:
 #endif
 
-unused:
 #ifndef DIRECT
+unused:
     jam_printf("Unrecognised opcode %d in: %s.%s\n", *pc, CLASS_CB(mb->class)->name, mb->name);
     exitVM(1);
 #else
 rewrite_lock:
-    REDISPATCH
+    DISPATCH_FIRST
+unused:
+#ifdef INLINING
+    throwOOBLabel = NULL;
+    throwNullLabel = NULL;
+    throwArithmeticExcepLabel = NULL;
+#endif
 #endif
 
 #define MULTI_LEVEL_OPCODES(level)                         \
-    DEF_OPC(OPC_ICONST_M1, level)                          \
+    DEF_OPC(OPC_ICONST_M1, level,                          \
         PUSH_##level(-1, 1);                               \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ACONST_NULL, level)                        \
-    DEF_OPC(OPC_ICONST_0, level)                           \
-    DEF_OPC(OPC_FCONST_0, level)                           \
+    DEF_OPC_3(OPC_ACONST_NULL,                             \
+              OPC_ICONST_0,                                \
+              OPC_FCONST_0, level,                         \
         PUSH_##level(0, 1);                                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ICONST_1, level)                           \
+    DEF_OPC(OPC_ICONST_1, level,                           \
         PUSH_##level(1, 1);                                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ICONST_2, level)                           \
+    DEF_OPC(OPC_ICONST_2, level,                           \
         PUSH_##level(2, 1);                                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ICONST_3, level)                           \
+    DEF_OPC(OPC_ICONST_3, level,                           \
         PUSH_##level(3, 1);                                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ICONST_4, level)                           \
+    DEF_OPC(OPC_ICONST_4, level,                           \
         PUSH_##level(4, 1);                                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ICONST_5, level)                           \
+    DEF_OPC(OPC_ICONST_5, level,                           \
         PUSH_##level(5, 1);                                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_FCONST_1, level)                           \
+    DEF_OPC(OPC_FCONST_1, level,                           \
         PUSH_##level(FLOAT_1_BITS, 1);                     \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_FCONST_2, level)                           \
+    DEF_OPC(OPC_FCONST_2, level,                           \
         PUSH_##level(FLOAT_2_BITS, 1);                     \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_SIPUSH, level)                             \
+    DEF_OPC(OPC_SIPUSH, level,                             \
         PUSH_##level(DOUBLE_SIGNED(pc), 3);                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_BIPUSH, level)                             \
+    DEF_OPC(OPC_BIPUSH, level,                             \
         PUSH_##level(SINGLE_SIGNED(pc), 2);                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_LDC_QUICK, level)                          \
+    DEF_OPC(OPC_LDC_QUICK, level,                          \
         PUSH_##level(RESOLVED_CONSTANT(pc), 2);            \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_LDC_W_QUICK, level)                        \
+    DEF_OPC(OPC_LDC_W_QUICK, level,                        \
         PUSH_##level(CP_INFO(cp, DOUBLE_INDEX(pc)), 3);    \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ILOAD, level)                              \
-    DEF_OPC(OPC_FLOAD, level)                              \
-    DEF_OPC(OPC_ALOAD, level)                              \
+    DEF_OPC_3(OPC_ILOAD,                                   \
+              OPC_FLOAD,                                   \
+              OPC_ALOAD, level,                            \
         PUSH_##level(lvars[SINGLE_INDEX(pc)], 2);          \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ALOAD_THIS, level)                         \
+    DEF_OPC(OPC_ALOAD_THIS, level,                         \
         ALOAD_THIS(level);                                 \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ILOAD_0, level)                            \
-    DEF_OPC(OPC_FLOAD_0, level)                            \
-        PUSH_##level(lvars[0], 1);                         \
+    DEF_OPC_2(OPC_ILOAD_0,                                 \
+              OPC_FLOAD_0, level,                          \
+        PUSH_##level(lvars[0], 1)                          \
+    );                                                     \
                                                            \
-    DEF_OPC(OPC_ILOAD_1, level)                            \
-    DEF_OPC(OPC_FLOAD_1, level)                            \
-    DEF_OPC(OPC_ALOAD_1, level)                            \
+    DEF_OPC_3(OPC_ILOAD_1,                                 \
+              OPC_FLOAD_1,                                 \
+              OPC_ALOAD_1, level,                          \
         PUSH_##level(lvars[1], 1);                         \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ILOAD_2, level)                            \
-    DEF_OPC(OPC_FLOAD_2, level)                            \
-    DEF_OPC(OPC_ALOAD_2, level)                            \
+    DEF_OPC_3(OPC_ILOAD_2,                                 \
+              OPC_FLOAD_2,                                 \
+              OPC_ALOAD_2, level,                          \
         PUSH_##level(lvars[2], 1);                         \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ILOAD_3, level)                            \
-    DEF_OPC(OPC_FLOAD_3, level)                            \
-    DEF_OPC(OPC_ALOAD_3, level)                            \
+    DEF_OPC_3(OPC_ILOAD_3,                                 \
+              OPC_FLOAD_3,                                 \
+              OPC_ALOAD_3, level,                          \
         PUSH_##level(lvars[3], 1);                         \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ISTORE, level)                             \
-    DEF_OPC(OPC_FSTORE, level)                             \
-    DEF_OPC(OPC_ASTORE, level)                             \
+    DEF_OPC_3(OPC_ISTORE,                                  \
+              OPC_FSTORE,                                  \
+              OPC_ASTORE, level,                           \
         POP_##level(lvars[SINGLE_INDEX(pc)], 2);           \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ISTORE_0, level)                           \
-    DEF_OPC(OPC_ASTORE_0, level)                           \
-    DEF_OPC(OPC_FSTORE_0, level)                           \
+    DEF_OPC_3(OPC_ISTORE_0,                                \
+              OPC_ASTORE_0,                                \
+              OPC_FSTORE_0, level,                         \
         POP_##level(lvars[0], 1);                          \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ISTORE_1, level)                           \
-    DEF_OPC(OPC_ASTORE_1, level)                           \
-    DEF_OPC(OPC_FSTORE_1, level)                           \
+    DEF_OPC_3(OPC_ISTORE_1,                                \
+              OPC_ASTORE_1,                                \
+              OPC_FSTORE_1, level,                         \
         POP_##level(lvars[1], 1);                          \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ISTORE_2, level)                           \
-    DEF_OPC(OPC_ASTORE_2, level)                           \
-    DEF_OPC(OPC_FSTORE_2, level)                           \
+    DEF_OPC_3(OPC_ISTORE_2,                                \
+              OPC_ASTORE_2,                                \
+              OPC_FSTORE_2, level,                         \
         POP_##level(lvars[2], 1);                          \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ISTORE_3, level)                           \
-    DEF_OPC(OPC_ASTORE_3, level)                           \
-    DEF_OPC(OPC_FSTORE_3, level)                           \
+    DEF_OPC_3(OPC_ISTORE_3,                                \
+              OPC_ASTORE_3,                                \
+              OPC_FSTORE_3, level,                         \
         POP_##level(lvars[3], 1);                          \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IADD, level)                               \
+    DEF_OPC(OPC_IADD, level,                               \
         BINARY_OP_##level(+);                              \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ISUB, level)                               \
+    DEF_OPC(OPC_ISUB, level,                               \
         BINARY_OP_##level(-);                              \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IMUL, level)                               \
+    DEF_OPC(OPC_IMUL, level,                               \
         BINARY_OP_##level(*);                              \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IDIV, level)                               \
+    DEF_OPC(OPC_IDIV, level,                               \
         ZERO_DIVISOR_CHECK_##level;                        \
         BINARY_OP_##level(/);                              \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IREM, level)                               \
+    DEF_OPC(OPC_IREM, level,                               \
         ZERO_DIVISOR_CHECK_##level;                        \
         BINARY_OP_##level(%);                              \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IAND, level)                               \
+    DEF_OPC(OPC_IAND, level,                               \
         BINARY_OP_##level(&);                              \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IOR, level)                                \
+    DEF_OPC(OPC_IOR, level,                                \
         BINARY_OP_##level(|);                              \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IXOR, level)                               \
+    DEF_OPC(OPC_IXOR, level,                               \
         BINARY_OP_##level(^);                              \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_INEG, level)                               \
+    DEF_OPC(OPC_INEG, level,                               \
         UNARY_MINUS_##level;                               \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ISHL, level)                               \
+    DEF_OPC(OPC_ISHL, level,                               \
         SHIFT_OP_##level(int, <<);                         \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_ISHR, level)                               \
+    DEF_OPC(OPC_ISHR, level,                               \
         SHIFT_OP_##level(int, >>);                         \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IUSHR, level)                              \
+    DEF_OPC(OPC_IUSHR, level,                              \
         SHIFT_OP_##level(unsigned int, >>);                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IF_ACMPEQ, level)                          \
-    DEF_OPC(OPC_IF_ICMPEQ, level)                          \
+    DEF_OPC_2(OPC_IF_ACMPEQ,                               \
+              OPC_IF_ICMPEQ, level,                        \
         IF_ICMP_##level(==);                               \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IF_ACMPNE, level)                          \
-    DEF_OPC(OPC_IF_ICMPNE, level)                          \
+    DEF_OPC_2(OPC_IF_ACMPNE,                               \
+              OPC_IF_ICMPNE, level,                        \
         IF_ICMP_##level(!=);                               \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IF_ICMPLT, level)                          \
+    DEF_OPC(OPC_IF_ICMPLT, level,                          \
         IF_ICMP_##level(<);                                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IF_ICMPGE, level)                          \
+    DEF_OPC(OPC_IF_ICMPGE, level,                          \
         IF_ICMP_##level(>=);                               \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IF_ICMPGT, level)                          \
+    DEF_OPC(OPC_IF_ICMPGT, level,                          \
         IF_ICMP_##level(>);                                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IF_ICMPLE, level)                          \
+    DEF_OPC(OPC_IF_ICMPLE, level,                          \
         IF_ICMP_##level(<=);                               \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IFNE, level)                               \
-    DEF_OPC(OPC_IFNONNULL, level)                          \
+    DEF_OPC_2(OPC_IFNE,                                    \
+              OPC_IFNONNULL, level,                        \
         IF_##level(!=);                                    \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IFEQ, level)                               \
-    DEF_OPC(OPC_IFNULL, level)                             \
+    DEF_OPC_2(OPC_IFEQ,                                    \
+              OPC_IFNULL, level,                           \
         IF_##level(==);                                    \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IFLT, level)                               \
+    DEF_OPC(OPC_IFLT, level,                               \
         IF_##level(<);                                     \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IFGE, level)                               \
+    DEF_OPC(OPC_IFGE, level,                               \
         IF_##level(>=);                                    \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IFGT, level)                               \
+    DEF_OPC(OPC_IFGT, level,                               \
         IF_##level(>);                                     \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IFLE, level)                               \
+    DEF_OPC(OPC_IFLE, level,                               \
         IF_##level(<=);                                    \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IINC, level)                               \
+    DEF_OPC(OPC_IINC, level,                               \
         lvars[IINC_LVAR_IDX(pc)] += IINC_DELTA(pc);        \
         DISPATCH(level, 3);                                \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_POP, level)                                \
+    DEF_OPC(OPC_POP, level,                                \
         POP1_##level;                                      \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_POP2, level)                               \
+    DEF_OPC(OPC_POP2, level,                               \
         ostack -= 2 - level;                               \
         DISPATCH(0, 1);                                    \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_DUP, level)                                \
+    DEF_OPC(OPC_DUP, level,                                \
         DUP_##level;                                       \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_IRETURN, level)                            \
-    DEF_OPC(OPC_ARETURN, level)                            \
-    DEF_OPC(OPC_FRETURN, level)                            \
+    DEF_OPC_3(OPC_IRETURN,                                 \
+              OPC_ARETURN,                                 \
+              OPC_FRETURN, level,                          \
         RETURN_##level;                                    \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_RETURN, level)                             \
-        goto methodReturn;                                 \
+    DEF_OPC(OPC_RETURN, level,                             \
+        goto methodReturn;                           \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_GETSTATIC_QUICK, level)                    \
+    DEF_OPC(OPC_GETSTATIC_QUICK, level,                    \
         PUSH_##level(RESOLVED_FIELD(pc)->static_value, 3); \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_PUTSTATIC_QUICK, level)                    \
+    DEF_OPC(OPC_PUTSTATIC_QUICK, level,                    \
         POP_##level(RESOLVED_FIELD(pc)->static_value, 3);  \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_GETFIELD_THIS, level)                      \
+    DEF_OPC(OPC_GETFIELD_THIS, level,                      \
         GETFIELD_THIS(level);                              \
+    )                                                      \
                                                            \
-    DEF_OPC(OPC_GETFIELD_QUICK, level)                     \
-        GETFIELD_QUICK_##level;
-
-#define ZERO_DIVISOR_CHECK(value)                          \
-    if(value == 0)                                         \
-        THROW_EXCEPTION("java/lang/ArithmeticException",   \
-                        "division by zero");
+    DEF_OPC(OPC_GETFIELD_QUICK, level,                     \
+        GETFIELD_QUICK_##level;                            \
+    )
 
 #define ZERO_DIVISOR_CHECK_0                               \
     ZERO_DIVISOR_CHECK((int)ostack[-1]);
@@ -534,14 +602,9 @@ rewrite_lock:
 #define IF_1(COND)                                         \
     BRANCH((int)cache.i.v1 COND 0);
 
-#ifdef USE_CACHE
 #define IF_2(COND)                                         \
     *ostack++ = cache.i.v1;                                \
     BRANCH((int)cache.i.v2 COND 0);
-#else
-#define IF_2(COND)                                         \
-    BRANCH((int)cache.i.v2 COND 0);
-#endif
 
 #ifdef DIRECT
 #define ALOAD_THIS(level)
@@ -564,94 +627,11 @@ rewrite_lock:
 #ifdef USE_CACHE
     MULTI_LEVEL_OPCODES(1);
     MULTI_LEVEL_OPCODES(2);
+#endif
 
-#define DEF_OPC_012(opcode)           \
-    DEF_OPC(opcode, 0)                \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    DEF_OPC(opcode, 1)                \
-        cache.i.v2 = cache.i.v1;      \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    DEF_OPC(opcode, 2)
-
-#define DEF_OPC_012_2(op1, op2)       \
-    DEF_OPC(op1, 0)                   \
-    DEF_OPC(op2, 0)                   \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    DEF_OPC(op1, 1)                   \
-    DEF_OPC(op2, 1)                   \
-        cache.i.v2 = cache.i.v1;      \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    DEF_OPC(op1, 2)                   \
-    DEF_OPC(op2, 2)
-
-#define DEF_OPC_012_3(op1, op2, op3)  \
-    DEF_OPC(op1, 0)                   \
-    DEF_OPC(op2, 0)                   \
-    DEF_OPC(op3, 0)                   \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    DEF_OPC(op1, 1)                   \
-    DEF_OPC(op2, 1)                   \
-    DEF_OPC(op3, 1)                   \
-        cache.i.v2 = cache.i.v1;      \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    DEF_OPC(op1, 2)                   \
-    DEF_OPC(op2, 2)                   \
-    DEF_OPC(op3, 2)
-
-#define DEF_OPC_210(opcode)           \
-    DEF_OPC(opcode, 2)                \
-        *ostack++ = cache.i.v1;       \
-        cache.i.v1 = cache.i.v2;      \
-                                      \
-    DEF_OPC(opcode, 1)                \
-        *ostack++ = cache.i.v1;       \
-                                      \
-    DEF_OPC(opcode, 0)
-
-#define DEF_OPC_210_2(op1, op2)       \
-    DEF_OPC(op1, 2)                   \
-    DEF_OPC(op2, 2)                   \
-        *ostack++ = cache.i.v1;       \
-        cache.i.v1 = cache.i.v2;      \
-                                      \
-    DEF_OPC(op1, 1)                   \
-    DEF_OPC(op2, 1)                   \
-        *ostack++ = cache.i.v1;       \
-                                      \
-    DEF_OPC(op1, 0)                   \
-    DEF_OPC(op2, 0)
-
-#else /* USE_CACHE */
-
-#define DEF_OPC_012(opcode)           \
-    DEF_OPC(opcode, 0)
-
-#define DEF_OPC_012_2(op1, op2)       \
-    DEF_OPC(op1, 0)                   \
-    DEF_OPC(op2, 0)
-
-#define DEF_OPC_012_3(op1, op2, op3)  \
-    DEF_OPC(op1, 0)                   \
-    DEF_OPC(op2, 0)                   \
-    DEF_OPC(op3, 0)
-
-#define DEF_OPC_210(opcode)           \
-    DEF_OPC(opcode, 0)
-
-#define DEF_OPC_210_2(op1, op2)       \
-    DEF_OPC(op1, 0)                   \
-    DEF_OPC(op2, 0)
-
-#endif /* USE_CACHE */
-
-    DEF_OPC_210(OPC_NOP)
+    DEF_OPC_210(OPC_NOP,
         DISPATCH(0, 1);
+    )
 
 #ifdef USE_CACHE
 #define PUSH_LONG(value, ins_len) \
@@ -666,42 +646,51 @@ rewrite_lock:
     
     DEF_OPC_210_2(
             OPC_LCONST_0,
-            OPC_DCONST_0)
+            OPC_DCONST_0,
         PUSH_LONG(0, 1);
+    )
 
-    DEF_OPC_210(OPC_DCONST_1)
+    DEF_OPC_210(OPC_DCONST_1,
         PUSH_LONG(DOUBLE_1_BITS, 1);
+    )
 
-    DEF_OPC_210(OPC_LCONST_1)
+    DEF_OPC_210(OPC_LCONST_1,
         PUSH_LONG(1, 1);
+    )
 
-    DEF_OPC_210(OPC_LDC2_W)
+    DEF_OPC_210(OPC_LDC2_W,
         PUSH_LONG(CP_LONG(cp, DOUBLE_INDEX(pc)), 3);
+    )
 
     DEF_OPC_210_2(
             OPC_LLOAD,
-            OPC_DLOAD)
+            OPC_DLOAD,
         PUSH_LONG(*(u8*)(&lvars[SINGLE_INDEX(pc)]), 2);
+    )
 
     DEF_OPC_210_2(
             OPC_LLOAD_0,
-            OPC_DLOAD_0)
+            OPC_DLOAD_0,
         PUSH_LONG(*(u8*)(&lvars[0]), 1);
+    )
 
     DEF_OPC_210_2(
             OPC_LLOAD_1,
-            OPC_DLOAD_1)
+            OPC_DLOAD_1,
         PUSH_LONG(*(u8*)(&lvars[1]), 1);
+    )
 
     DEF_OPC_210_2(
             OPC_LLOAD_2,
-            OPC_DLOAD_2)
+            OPC_DLOAD_2,
         PUSH_LONG(*(u8*)(&lvars[2]), 1);
+    )
 
     DEF_OPC_210_2(
             OPC_LLOAD_3,
-            OPC_DLOAD_3)
+            OPC_DLOAD_3,
         PUSH_LONG(*(u8*)(&lvars[3]), 1);
+    )
 
 #ifdef USE_CACHE
 #define POP_LONG(dest, ins_len) \
@@ -716,28 +705,33 @@ rewrite_lock:
 
     DEF_OPC_012_2(
             OPC_LSTORE,
-            OPC_DSTORE)
+            OPC_DSTORE,
         POP_LONG(*(u8*)(&lvars[SINGLE_INDEX(pc)]), 2);
+    )
 
     DEF_OPC_012_2(
             OPC_LSTORE_0,
-            OPC_DSTORE_0)
+            OPC_DSTORE_0,
         POP_LONG(*(u8*)(&lvars[0]), 1);
+    )
 
     DEF_OPC_012_2(
             OPC_LSTORE_1,
-            OPC_DSTORE_1)
+            OPC_DSTORE_1,
         POP_LONG(*(u8*)(&lvars[1]), 1);
+    )
 
     DEF_OPC_012_2(
             OPC_LSTORE_2,
-            OPC_DSTORE_2)
+            OPC_DSTORE_2,
         POP_LONG(*(u8*)(&lvars[2]), 1);
+    )
 
     DEF_OPC_012_2(
             OPC_LSTORE_3,
-            OPC_DSTORE_3)
+            OPC_DSTORE_3,
         POP_LONG(*(u8*)(&lvars[3]), 1);
+    )
 
 #ifdef USE_CACHE
 #define ARRAY_LOAD_IDX cache.i.v2
@@ -759,32 +753,43 @@ rewrite_lock:
 
     DEF_OPC_012_2(
             OPC_IALOAD,
-            OPC_FALOAD)
-        ARRAY_LOAD(int);
+            OPC_FALOAD,
+        ARRAY_LOAD(int)
+    )
 
-    DEF_OPC_012(OPC_AALOAD)
-        ARRAY_LOAD(uintptr_t);
+    DEF_OPC_012(OPC_AALOAD,
+        ARRAY_LOAD(uintptr_t)
+    )
 
-    DEF_OPC_012(OPC_BALOAD)
-        ARRAY_LOAD(signed char);
+    DEF_OPC_012(OPC_BALOAD,
+        ARRAY_LOAD(signed char)
+    )
 
-    DEF_OPC_012(OPC_CALOAD)
-        ARRAY_LOAD(unsigned short);
+    DEF_OPC_012(OPC_CALOAD,
+        ARRAY_LOAD(unsigned short)
+    )
 
-    DEF_OPC_012(OPC_SALOAD)
-        ARRAY_LOAD(short);
+    DEF_OPC_012(OPC_SALOAD,
+        ARRAY_LOAD(short)
+    )
 
-    DEF_OPC_012_2(
-            OPC_LALOAD,
-            OPC_DALOAD)
-    {
+    DEF_OPC_012(OPC_LALOAD, {
         int idx = ARRAY_LOAD_IDX;
         Object *array = (Object *)ARRAY_LOAD_ARY;
 
         NULL_POINTER_CHECK(array);
         ARRAY_BOUNDS_CHECK(array, idx);
         PUSH_LONG(((u8 *)ARRAY_DATA(array))[idx], 1);
-    }
+    })
+
+    DEF_OPC_012(OPC_DALOAD, {
+        int idx = ARRAY_LOAD_IDX;
+        Object *array = (Object *)ARRAY_LOAD_ARY;
+
+        NULL_POINTER_CHECK(array);
+        ARRAY_BOUNDS_CHECK(array, idx);
+        PUSH_LONG(((u8 *)ARRAY_DATA(array))[idx], 1);
+    })
 
 #ifdef USE_CACHE
 #define ARRAY_STORE_VAL cache.i.v2
@@ -808,19 +813,21 @@ rewrite_lock:
 
     DEF_OPC_012_2(
             OPC_IASTORE,
-            OPC_FASTORE)
-        ARRAY_STORE(int);
+            OPC_FASTORE,
+        ARRAY_STORE(int)
+    )
 
-    DEF_OPC_012(OPC_BASTORE)
+    DEF_OPC_012(OPC_BASTORE,
         ARRAY_STORE(char);
+    )
 
     DEF_OPC_012_2(
             OPC_CASTORE,
-            OPC_SASTORE)
+            OPC_SASTORE,
         ARRAY_STORE(short);
+    )
 
-    DEF_OPC_012(OPC_AASTORE)
-    { 
+    DEF_OPC_012(OPC_AASTORE, { 
         Object *obj = (Object*)ARRAY_STORE_VAL;
         int idx = ARRAY_STORE_IDX;
         Object *array = (Object *)*--ostack;
@@ -833,13 +840,12 @@ rewrite_lock:
 
         ((Object**)ARRAY_DATA(array))[idx] = obj;
         DISPATCH(0, 1);
-    }
+    })
 
 #ifdef USE_CACHE
     DEF_OPC_012_2(
             OPC_LASTORE,
-            OPC_DASTORE)
-    {
+            OPC_DASTORE, {
         int idx = ostack[-1];
         Object *array = (Object *)ostack[-2];
 
@@ -849,12 +855,11 @@ rewrite_lock:
 
         ((u8 *)ARRAY_DATA(array))[idx] = cache.l;
         DISPATCH(0, 1);
-    }
+    })
 #else
     DEF_OPC_012_2(
             OPC_LASTORE,
-            OPC_DASTORE)
-    {
+            OPC_DASTORE, {
         int idx = ostack[-3];
         Object *array = (Object *)ostack[-4];
 
@@ -864,59 +869,61 @@ rewrite_lock:
 
         ((u8 *)ARRAY_DATA(array))[idx] = *(u8*)&ostack[2];
         DISPATCH(0, 1);
-    }
+    })
 #endif
 
 #ifdef USE_CACHE
-    DEF_OPC_012(OPC_DUP_X1)
+    DEF_OPC_012(OPC_DUP_X1, {
         *ostack++ = cache.i.v2;
         DISPATCH(2, 1);
+    })
 
-    DEF_OPC_012(OPC_DUP_X2)
+    DEF_OPC_012(OPC_DUP_X2, {
         *ostack++ = ostack[-1];
         ostack[-2] = cache.i.v2;
         DISPATCH(2, 1);
+    })
 
-    DEF_OPC_012(OPC_DUP2)
+    DEF_OPC_012(OPC_DUP2, {
         *ostack++ = cache.i.v1;
         *ostack++ = cache.i.v2;
         DISPATCH(2, 1);
+    })
 
-    DEF_OPC_012(OPC_DUP2_X1)
+    DEF_OPC_012(OPC_DUP2_X1, {
         ostack[0]  = cache.i.v2;
         ostack[1]  = ostack[-1];
         ostack[-1] = cache.i.v1;
         ostack += 2;
         DISPATCH(2, 1);
+    })
 
-    DEF_OPC_012(OPC_DUP2_X2)
+    DEF_OPC_012(OPC_DUP2_X2,
         ostack[0] = ostack[-2];
         ostack[1] = ostack[-1];
         ostack[-2] = cache.i.v1;
         ostack[-1] = cache.i.v2;
         ostack += 2;
         DISPATCH(2, 1);
+    )
 
-    DEF_OPC_012(OPC_SWAP)
-    {
+    DEF_OPC_012(OPC_SWAP, {
         uintptr_t word1 = cache.i.v1;
         cache.i.v1 = cache.i.v2;
         cache.i.v2 = word1;
         DISPATCH(2, 1);
-    }
+    })
 #else /* USE_CACHE */
-    DEF_OPC_012(OPC_DUP_X1)
-    {
+    DEF_OPC_012(OPC_DUP_X1, {
         uintptr_t word1 = ostack[-1];
         uintptr_t word2 = ostack[-2];
         ostack[-2] = word1;
         ostack[-1] = word2;
         *ostack++ = word1;
         DISPATCH(0, 1);
-    }
+    })
 
-    DEF_OPC_012(OPC_DUP_X2)
-    {
+    DEF_OPC_012(OPC_DUP_X2, {
         uintptr_t word1 = ostack[-1];
         uintptr_t word2 = ostack[-2];
         uintptr_t word3 = ostack[-3];
@@ -925,16 +932,16 @@ rewrite_lock:
         ostack[-1] = word2;
         *ostack++ = word1;
         DISPATCH(0, 1);
-    }
+    })
 
-    DEF_OPC_012(OPC_DUP2)
+    DEF_OPC_012(OPC_DUP2, {
         ostack[0] = ostack[-2];
         ostack[1] = ostack[-1];
         ostack += 2;
         DISPATCH(0, 1);
+    })
 
-    DEF_OPC_012(OPC_DUP2_X1)
-    {
+    DEF_OPC_012(OPC_DUP2_X1, {
         uintptr_t word1 = ostack[-1];
         uintptr_t word2 = ostack[-2];
         uintptr_t word3 = ostack[-3];
@@ -945,10 +952,9 @@ rewrite_lock:
         ostack[1]  = word1;
         ostack += 2;
         DISPATCH(0, 1);
-    }
+    })
 
-    DEF_OPC_012(OPC_DUP2_X2)
-    {
+    DEF_OPC_012(OPC_DUP2_X2, {
         uintptr_t word1 = ostack[-1];
         uintptr_t word2 = ostack[-2];
         uintptr_t word3 = ostack[-3];
@@ -961,15 +967,14 @@ rewrite_lock:
         ostack[1]  = word1;
         ostack += 2;
         DISPATCH(0, 1);
-    }
+    })
 
-    DEF_OPC_012(OPC_SWAP)
-    {
+    DEF_OPC_012(OPC_SWAP, {
         uintptr_t word1 = ostack[-1];
         ostack[-1] = ostack[-2];
         ostack[-2] = word1;
         DISPATCH(0, 1)
-    }
+    })
 #endif /* USE_CACHE */
 
 #define BINARY_OP_fp(TYPE, OP)                  \
@@ -979,29 +984,37 @@ rewrite_lock:
     ostack -= sizeof(TYPE)/4;                   \
     DISPATCH(0, 1);
 
-    DEF_OPC_210(OPC_FADD)
+    DEF_OPC_210(OPC_FADD,
         BINARY_OP_fp(float, +);
+    )
 
-    DEF_OPC_210(OPC_DADD)
+    DEF_OPC_210(OPC_DADD,
         BINARY_OP_fp(double, +);
+    )
 
-    DEF_OPC_210(OPC_FSUB)
+    DEF_OPC_210(OPC_FSUB,
         BINARY_OP_fp(float, -);
+    )
 
-    DEF_OPC_210(OPC_DSUB)
+    DEF_OPC_210(OPC_DSUB,
         BINARY_OP_fp(double, -);
+    )
 
-    DEF_OPC_210(OPC_FMUL)
+    DEF_OPC_210(OPC_FMUL,
         BINARY_OP_fp(float, *);
+    )
 
-    DEF_OPC_210(OPC_DMUL)
+    DEF_OPC_210(OPC_DMUL,
         BINARY_OP_fp(double, *);
+    )
 
-    DEF_OPC_210(OPC_FDIV)
+    DEF_OPC_210(OPC_FDIV,
         BINARY_OP_fp(float, /);
+    )
 
-    DEF_OPC_210(OPC_DDIV)
+    DEF_OPC_210(OPC_DDIV,
         BINARY_OP_fp(double, /);
+    )
 
 #ifdef USE_CACHE
 #define BINARY_OP_long(OP)                               \
@@ -1019,31 +1032,39 @@ rewrite_lock:
     ZERO_DIVISOR_CHECK(*(u8*)&ostack[-2]);
 #endif
 
-    DEF_OPC_012(OPC_LADD)
+    DEF_OPC_012(OPC_LADD,
         BINARY_OP_long(+);
+    )
 
-    DEF_OPC_012(OPC_LSUB)
+    DEF_OPC_012(OPC_LSUB,
         BINARY_OP_long(-);
+    )
 
-    DEF_OPC_012(OPC_LMUL)
+    DEF_OPC_012(OPC_LMUL,
         BINARY_OP_long(*);
+    )
 
-    DEF_OPC_012(OPC_LDIV)
+    DEF_OPC_012(OPC_LDIV,
         ZERO_DIVISOR_CHECK_long;
         BINARY_OP_long(/);
+    )
 
-    DEF_OPC_012(OPC_LREM)
+    DEF_OPC_012(OPC_LREM,
         ZERO_DIVISOR_CHECK_long;
         BINARY_OP_long(%);
+    )
 
-    DEF_OPC_012(OPC_LAND)
+    DEF_OPC_012(OPC_LAND,
         BINARY_OP_long(&);
+    )
 
-    DEF_OPC_012(OPC_LOR)
+    DEF_OPC_012(OPC_LOR,
         BINARY_OP_long(|);
+    )
 
-    DEF_OPC_012(OPC_LXOR)
+    DEF_OPC_012(OPC_LXOR,
         BINARY_OP_long(^);
+    )
 
 #ifdef USE_CACHE
 #define SHIFT_OP_long(TYPE, OP)       \
@@ -1064,55 +1085,59 @@ rewrite_lock:
 }
 #endif
 
-    DEF_OPC_012(OPC_LSHL)
+    DEF_OPC_012(OPC_LSHL,
         SHIFT_OP_long(long long, <<);
+    )
 
-    DEF_OPC_012(OPC_LSHR)
+    DEF_OPC_012(OPC_LSHR,
         SHIFT_OP_long(long long, >>);
+    )
 
-    DEF_OPC_012(OPC_LUSHR)
+    DEF_OPC_012(OPC_LUSHR,
         SHIFT_OP_long(unsigned long long, >>);
+    )
 
-    DEF_OPC_210(OPC_FREM)
-    {
+    DEF_OPC_210(OPC_FREM, {
         float v2 = *(float *)&ostack[-1];
         float v1 = *(float *)&ostack[-2];
 
         *(float *)&ostack[-2] = fmod(v1, v2);
         ostack -= 1;
         DISPATCH(0, 1);
-    }
+    })
 
-    DEF_OPC_210(OPC_DREM)
-    {
+    DEF_OPC_210(OPC_DREM, {
         double v2 = *(double *)&ostack[-2];
         double v1 = *(double *)&ostack[-4];
 
         *(double *)&ostack[-4] = fmod(v1, v2);
         ostack -= 2;
         DISPATCH(0, 1);
-    }
+    })
 
 #define UNARY_MINUS(TYPE)                    \
     *(TYPE*)&ostack[-sizeof(TYPE)/4] =       \
           -*(TYPE*)&ostack[-sizeof(TYPE)/4]; \
     DISPATCH(0, 1);
 
-    DEF_OPC_210(OPC_LNEG)
+    DEF_OPC_210(OPC_LNEG,
         UNARY_MINUS(long long);
+    )
 
-    DEF_OPC_210(OPC_FNEG)
+    DEF_OPC_210(OPC_FNEG,
         UNARY_MINUS(float);
+    )
 
-    DEF_OPC_210(OPC_DNEG)
+    DEF_OPC_210(OPC_DNEG,
         UNARY_MINUS(double);
+    )
 
-    DEF_OPC_210(OPC_I2L)
+    DEF_OPC_210(OPC_I2L, {
         ostack -= 1;
         PUSH_LONG((int)*ostack, 1);
+    })
 
-    DEF_OPC_012(OPC_L2I)
-    {
+    DEF_OPC_012(OPC_L2I, {
        long long l;
 #ifdef USE_CACHE
         l = cache.l;
@@ -1121,7 +1146,7 @@ rewrite_lock:
         l = *(long long*)ostack;
 #endif
         PUSH_0((int)l, 1);
-    }
+    })
 
 #define OPC_int2fp(DEST_TYPE)            \
     ostack -= 1;                         \
@@ -1130,11 +1155,13 @@ rewrite_lock:
     ostack += sizeof(DEST_TYPE)/4;       \
     DISPATCH(0, 1);
 
-    DEF_OPC_210(OPC_I2F)
+    DEF_OPC_210(OPC_I2F,
         OPC_int2fp(float);
+    )
 
-    DEF_OPC_210(OPC_I2D)
+    DEF_OPC_210(OPC_I2D,
         OPC_int2fp(double);
+    )
 
 #define OPC_X2Y(SRC_TYPE, DEST_TYPE)     \
 {                                        \
@@ -1146,17 +1173,21 @@ rewrite_lock:
     DISPATCH(0, 1);                      \
 }
 
-    DEF_OPC_210(OPC_L2F)
+    DEF_OPC_210(OPC_L2F,
         OPC_X2Y(long long, float);
+    )
 
-    DEF_OPC_210(OPC_L2D)
+    DEF_OPC_210(OPC_L2D,
         OPC_X2Y(long long, double);
+    )
 
-    DEF_OPC_210(OPC_F2D)
+    DEF_OPC_210(OPC_F2D,
         OPC_X2Y(float, double);
+    )
 
-    DEF_OPC_210(OPC_D2F)
+    DEF_OPC_210(OPC_D2F,
         OPC_X2Y(double, float);
+    )
 
 #define OPC_fp2int(SRC_TYPE)            \
 {                                       \
@@ -1177,11 +1208,13 @@ rewrite_lock:
     PUSH_0(res, 1);                     \
 }
 
-    DEF_OPC_210(OPC_F2I)
+    DEF_OPC_210(OPC_F2I,
         OPC_fp2int(float);
+    )
 
-    DEF_OPC_210(OPC_D2I)
+    DEF_OPC_210(OPC_D2I,
         OPC_fp2int(double);
+    )
 
 #define OPC_fp2long(SRC_TYPE)              \
 {                                          \
@@ -1202,48 +1235,45 @@ rewrite_lock:
     PUSH_LONG(res, 1);                     \
 }
 
-    DEF_OPC_210(OPC_F2L)
+    DEF_OPC_210(OPC_F2L,
         OPC_fp2long(float);
+    )
 
-    DEF_OPC_210(OPC_D2L)
+    DEF_OPC_210(OPC_D2L,
         OPC_fp2long(double);
+    )
 
-    DEF_OPC_210(OPC_I2B)
-    {
+    DEF_OPC_210(OPC_I2B, {
         signed char v = *--ostack & 0xff;
         PUSH_0(v, 1);
-    }
+    })
 
-    DEF_OPC_210(OPC_I2C)
-    {
+    DEF_OPC_210(OPC_I2C, {
         int v = *--ostack & 0xffff;
         PUSH_0(v, 1);
-    }
+    })
 
-    DEF_OPC_210(OPC_I2S)
-    {
+    DEF_OPC_210(OPC_I2S, {
         signed short v = *--ostack & 0xffff;
         PUSH_0((int) v, 1);
-    }
+    })
 
 #ifdef USE_CACHE
-    DEF_OPC_012(OPC_LCMP)
-    {
+    DEF_OPC_012(OPC_LCMP, {
         long long v1 = *(long long*)&ostack[-2];
         int r = (v1 == cache.l) ? 0 : ((v1 < cache.l) ? -1 : 1);
         cache.i.v1 = r;
         ostack -= 2;
         DISPATCH(1, 1);
-    }
+    })
 #else
-    DEF_OPC_012(OPC_LCMP)
-    {
+    DEF_OPC_012(OPC_LCMP, {
         long long v2 = *(long long*)&ostack[-2];
         long long v1 = *(long long*)&ostack[-4];
         ostack[-4] = (v1 == v2) ? 0 : ((v1 < v2) ? -1 : 1);
         ostack -= 3;
         DISPATCH(0, 1);
-    }
+    })
 #endif
 
 #define FCMP(TYPE, isNan)                                 \
@@ -1263,44 +1293,51 @@ rewrite_lock:
     PUSH_0(res, 1);                                       \
 }
 
-    DEF_OPC_210(OPC_DCMPG)
+    DEF_OPC_210(OPC_DCMPG,
         FCMP(double, 1);
+    )
 
-    DEF_OPC_210(OPC_DCMPL)
+    DEF_OPC_210(OPC_DCMPL,
         FCMP(double, -1);
+    )
 
-    DEF_OPC_210(OPC_FCMPG)
+    DEF_OPC_210(OPC_FCMPG,
         FCMP(float, 1);
+    )
 
-    DEF_OPC_210(OPC_FCMPL)
+    DEF_OPC_210(OPC_FCMPL,
         FCMP(float, -1);
+    )
 
 #ifdef DIRECT
     DEF_OPC_210_2(
             OPC_GOTO,
-            OPC_GOTO_W)
+            OPC_GOTO_W,
 #else
-    DEF_OPC_210(OPC_GOTO)
+    DEF_OPC_210(OPC_GOTO,
 #endif
         BRANCH(TRUE);
+    )
 
 #ifdef DIRECT
     DEF_OPC_210_2(
             OPC_JSR,
-            OPC_JSR_W)
+            OPC_JSR_W,
 #else
-    DEF_OPC_210(OPC_JSR)
+    DEF_OPC_210(OPC_JSR,
 #endif
         *ostack++ = (uintptr_t)pc;
         BRANCH(TRUE);
+    )
 
-    DEF_OPC_210(OPC_RET)
+    DEF_OPC_210(OPC_RET,
         pc = (CodePntr)lvars[SINGLE_INDEX(pc)];
         DISPATCH_RET(3);
+    )
 
     DEF_OPC_012_2(
             OPC_LRETURN,
-            OPC_DRETURN)
+            OPC_DRETURN,
 #ifdef USE_CACHE
         *(u8*)lvars = cache.l;
 #else
@@ -1309,27 +1346,25 @@ rewrite_lock:
 #endif
         lvars += 2;
         goto methodReturn;
+    )
 
-    DEF_OPC_210(OPC_ARRAYLENGTH)
-    {
+    DEF_OPC_210(OPC_ARRAYLENGTH, {
         Object *array = (Object *)*--ostack;
 
         NULL_POINTER_CHECK(array);
         PUSH_0(ARRAY_LEN(array), 1);
-    }
+    })
 
-    DEF_OPC_210(OPC_ATHROW)
-    {
+    DEF_OPC_210(OPC_ATHROW, {
         Object *obj = (Object *)ostack[-1];
         frame->last_pc = pc;
         NULL_POINTER_CHECK(obj);
                 
         ee->exception = obj;
         goto throwException;
-    }
+    })
 
-    DEF_OPC_210(OPC_NEWARRAY)
-    {
+    DEF_OPC_210(OPC_NEWARRAY, {
         int type = ARRAY_TYPE(pc);
         int count = *--ostack;
         Object *obj;
@@ -1339,27 +1374,24 @@ rewrite_lock:
             goto throwException;
 
         PUSH_0((uintptr_t)obj, 2);
-    }
+    })
 
-    DEF_OPC_210(OPC_MONITORENTER)
-    {
+    DEF_OPC_210(OPC_MONITORENTER, {
         Object *obj = (Object *)*--ostack;
         NULL_POINTER_CHECK(obj);
         objectLock(obj);
         DISPATCH(0, 1);
-    }
+    })
 
-    DEF_OPC_210(OPC_MONITOREXIT)
-    {
+    DEF_OPC_210(OPC_MONITOREXIT, {
         Object *obj = (Object *)*--ostack;
         NULL_POINTER_CHECK(obj);
         objectUnlock(obj);
         DISPATCH(0, 1);
-    }
+    })
 
 #ifdef DIRECT
-    DEF_OPC_RW(OPC_LDC)
-    {
+    DEF_OPC_RW(OPC_LDC, ({
         int idx, cache;
         Operand operand;
 
@@ -1380,10 +1412,9 @@ rewrite_lock:
             OPCODE_REWRITE(OPC_LDC_QUICK, cache, operand);
 
         REDISPATCH
-    }
+    });)
 
-    DEF_OPC_210(OPC_TABLESWITCH)
-    {
+    DEF_OPC_210(OPC_TABLESWITCH, {
         SwitchTable *table = (SwitchTable*)pc->operand.pntr;
         int index = *--ostack;
 
@@ -1392,11 +1423,10 @@ rewrite_lock:
         else
             pc = table->entries[index - table->low];
 
-        DISPATCH_FIRST
-    }
+        DISPATCH_SWITCH
+    })
 
-    DEF_OPC_210(OPC_LOOKUPSWITCH)
-    {
+    DEF_OPC_210(OPC_LOOKUPSWITCH, {
         LookupTable *table = (LookupTable*)pc->operand.pntr;
         int key = *--ostack;
         int i;
@@ -1405,11 +1435,10 @@ rewrite_lock:
 
         pc = (i == table->num_entries ? table->deflt
                                       : table->entries[i].handler);
-        DISPATCH_FIRST
-    }
+        DISPATCH_SWITCH
+    })
 
-    DEF_OPC_RW(OPC_GETSTATIC) 
-    {
+    DEF_OPC_RW(OPC_GETSTATIC, ({
         int idx, cache;
         FieldBlock *fb;
         Operand operand;
@@ -1427,10 +1456,9 @@ rewrite_lock:
                  OPC_GETSTATIC2_QUICK : OPC_GETSTATIC_QUICK), cache, operand);
 
         REDISPATCH
-    }
+    });)
 
-    DEF_OPC_RW(OPC_PUTSTATIC) 
-    {
+    DEF_OPC_RW(OPC_PUTSTATIC, ({
         int idx, cache;
         FieldBlock *fb;
         Operand operand;
@@ -1448,10 +1476,9 @@ rewrite_lock:
                  OPC_PUTSTATIC2_QUICK : OPC_PUTSTATIC_QUICK), cache, operand);
 
         REDISPATCH
-    }
+    });)
 
-    DEF_OPC_RW(OPC_GETFIELD)
-    {
+    DEF_OPC_RW(OPC_GETFIELD, ({
         int idx, cache;
         FieldBlock *fb;
         Operand operand;
@@ -1469,10 +1496,9 @@ rewrite_lock:
                  OPC_GETFIELD2_QUICK : OPC_GETFIELD_QUICK), cache, operand);
 
         REDISPATCH
-    }
+    });)
 
-    DEF_OPC_RW(OPC_PUTFIELD)
-    {
+    DEF_OPC_RW(OPC_PUTFIELD, ({
         int idx, cache;
         FieldBlock *fb;
         Operand operand;
@@ -1490,10 +1516,9 @@ rewrite_lock:
                  OPC_PUTFIELD2_QUICK : OPC_PUTFIELD_QUICK), cache, operand);
 
         REDISPATCH
-    }
+    });)
 
-    DEF_OPC_RW(OPC_INVOKEVIRTUAL)
-    {
+    DEF_OPC_RW(OPC_INVOKEVIRTUAL, ({
         int idx, cache;
         Operand operand;
 
@@ -1509,10 +1534,9 @@ rewrite_lock:
         operand.uu.u2 = new_mb->method_table_index;
         OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK, cache, operand);
         REDISPATCH
-    }
+    });)
 
-    DEF_OPC_RW(OPC_INVOKESPECIAL)
-    {
+    DEF_OPC_RW(OPC_INVOKESPECIAL, ({
         int idx, cache;
         Operand operand;
 
@@ -1536,10 +1560,9 @@ rewrite_lock:
         }
 
         REDISPATCH
-    }
+    });)
 
-    DEF_OPC_RW(OPC_INVOKESTATIC)
-    {
+    DEF_OPC_RW(OPC_INVOKESTATIC, ({
         int idx, cache;
         Operand operand;
 
@@ -1554,10 +1577,9 @@ rewrite_lock:
         operand.pntr = new_mb;
         OPCODE_REWRITE(OPC_INVOKESTATIC_QUICK, cache, operand);
         REDISPATCH
-    }
+    });)
 
-    DEF_OPC_RW(OPC_INVOKEINTERFACE)
-    {
+    DEF_OPC_RW(OPC_INVOKEINTERFACE, ({
         int idx, cache;
         Operand operand;
 
@@ -1580,10 +1602,9 @@ rewrite_lock:
         }
 
         REDISPATCH
-    }
+    });)
 
-    DEF_OPC_RW(OPC_MULTIANEWARRAY)
-    {
+    DEF_OPC_RW(OPC_MULTIANEWARRAY, ({
         int idx = pc->operand.uui.u1;
         int cache = pc->operand.uui.i;
 
@@ -1595,13 +1616,9 @@ rewrite_lock:
         
         OPCODE_REWRITE(OPC_MULTIANEWARRAY_QUICK, cache, pc->operand);
         REDISPATCH
-    }
+    });)
 
-    DEF_OPC_RW(OPC_NEW)
-    DEF_OPC_RW(OPC_ANEWARRAY)
-    DEF_OPC_RW(OPC_CHECKCAST)
-    DEF_OPC_RW(OPC_INSTANCEOF)
-    {
+    DEF_OPC_RW_4(OPC_NEW, OPC_ANEWARRAY, OPC_CHECKCAST, OPC_INSTANCEOF, ({
         int idx = pc->operand.uui.u1;
         int opcode = pc->operand.uui.u2;
         int cache = pc->operand.uui.i;
@@ -1623,7 +1640,7 @@ rewrite_lock:
 
         OPCODE_REWRITE((opcode + OPC_NEW_QUICK-OPC_NEW), cache, pc->operand);
         REDISPATCH
-    }
+    });)
 #else /* DIRECT */
     DEF_OPC_210(OPC_LDC)
         frame->last_pc = pc;
@@ -1792,7 +1809,7 @@ rewrite_lock:
         DISPATCH(0, 3);
     }
 #else
-    DEF_OPC_012(OPC_PUTFIELD_QUICK_W)
+    DEF_OPC_012(OPC_PUTFIELD_QUICK_W,
     {
         FieldBlock *fb = RESOLVED_FIELD(pc);
  
@@ -1813,7 +1830,7 @@ rewrite_lock:
     }
 #endif
 
-    DEF_OPC_210(OPC_INVOKEVIRTUAL)
+    DEF_OPC_210(OPC_INVOKEVIRTUAL,
     {
         int idx;
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_INVOKEVIRTUAL, idx);
@@ -1832,7 +1849,7 @@ rewrite_lock:
         DISPATCH(0, 0);
     }
 
-    DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK_W)
+    DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK_W,
         new_mb = RESOLVED_METHOD(pc);
         arg1 = ostack - (new_mb->args_count);
         NULL_POINTER_CHECK(*arg1);
@@ -1842,7 +1859,7 @@ rewrite_lock:
 
         goto invokeMethod;
 
-    DEF_OPC_210(OPC_INVOKESPECIAL)
+    DEF_OPC_210(OPC_INVOKESPECIAL,
     {
         int idx;
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_INVOKESPECIAL, idx);
@@ -1864,7 +1881,7 @@ rewrite_lock:
         DISPATCH(0, 0);
     }
 
-    DEF_OPC_210(OPC_INVOKESTATIC)
+    DEF_OPC_210(OPC_INVOKESTATIC,
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, DOUBLE_INDEX(pc));
  
@@ -1874,7 +1891,7 @@ rewrite_lock:
         OPCODE_REWRITE(OPC_INVOKESTATIC_QUICK);
         DISPATCH(0, 0);
 
-    DEF_OPC_210(OPC_INVOKEINTERFACE)
+    DEF_OPC_210(OPC_INVOKEINTERFACE,
         frame->last_pc = pc;
         new_mb = resolveInterfaceMethod(mb->class, DOUBLE_INDEX(pc));
  
@@ -1981,85 +1998,80 @@ rewrite_lock:
         DISPATCH(0, 0);
 #endif /* DIRECT */
 
-    DEF_OPC_210(OPC_GETSTATIC2_QUICK) 
-    {
+    DEF_OPC_210(OPC_GETSTATIC2_QUICK, {
         FieldBlock *fb = RESOLVED_FIELD(pc);
         PUSH_LONG(*(u8*)&fb->static_value, 3);
-    }
+    })
 
-    DEF_OPC_012(OPC_PUTSTATIC2_QUICK) 
-    {
+    DEF_OPC_012(OPC_PUTSTATIC2_QUICK, {
         FieldBlock *fb = RESOLVED_FIELD(pc);
         POP_LONG(*(u8*)&fb->static_value, 3);
-    }
+    })
 
-    DEF_OPC_210(OPC_GETFIELD2_QUICK)
-    {
+    DEF_OPC_210(OPC_GETFIELD2_QUICK, {
         Object *obj = (Object *)*--ostack;
         NULL_POINTER_CHECK(obj);
                 
         PUSH_LONG(*(u8*)(&(INST_DATA(obj)[SINGLE_INDEX(pc)])), 3);
-    }
+    })
 
 #ifdef USE_CACHE
-    DEF_OPC_012(OPC_PUTFIELD2_QUICK)
-    {
+    DEF_OPC_012(OPC_PUTFIELD2_QUICK, {
         Object *obj = (Object *)*--ostack;
         NULL_POINTER_CHECK(obj);
 
         *(u8*)(&(INST_DATA(obj)[SINGLE_INDEX(pc)])) = cache.l;
         DISPATCH(0, 3);
-    }
+    })
 
-    DEF_OPC_012(OPC_PUTFIELD_QUICK)
-    {
+    DEF_OPC_012(OPC_PUTFIELD_QUICK, {
         Object *obj = (Object *)cache.i.v1;
         NULL_POINTER_CHECK(obj);
                 
         INST_DATA(obj)[SINGLE_INDEX(pc)] = cache.i.v2;
         DISPATCH(0, 3);
-    }
+    })
 #else
-    DEF_OPC_012(OPC_PUTFIELD2_QUICK)
-    {
+    DEF_OPC_012(OPC_PUTFIELD2_QUICK, {
         Object *obj = (Object *)ostack[-3];
 
         ostack -= 3;
         NULL_POINTER_CHECK(obj);
         *(u8*)(&(INST_DATA(obj)[SINGLE_INDEX(pc)])) = *(u8*)&ostack[1];
         DISPATCH(0, 3);
-    }
+    })
 
-    DEF_OPC_012(OPC_PUTFIELD_QUICK)
-    {
+    DEF_OPC_012(OPC_PUTFIELD_QUICK, {
         Object *obj = (Object *)ostack[-2];
 
         ostack -= 2;
         NULL_POINTER_CHECK(obj);
         INST_DATA(obj)[SINGLE_INDEX(pc)] = ostack[1];
         DISPATCH(0, 3);
-    }
+    })
 #endif
 
-    DEF_OPC_210(OPC_INVOKESUPER_QUICK)
+    DEF_OPC_210(OPC_INVOKESUPER_QUICK, {
         new_mb = CLASS_CB(CLASS_CB(mb->class)->super)->method_table[DOUBLE_INDEX(pc)];
         arg1 = ostack - (new_mb->args_count);
         NULL_POINTER_CHECK(*arg1);
         goto invokeMethod;
+    })
 
-    DEF_OPC_210(OPC_INVOKENONVIRTUAL_QUICK)
+    DEF_OPC_210(OPC_INVOKENONVIRTUAL_QUICK, {
         new_mb = RESOLVED_METHOD(pc);
         arg1 = ostack - (new_mb->args_count);
         NULL_POINTER_CHECK(*arg1);
         goto invokeMethod;
+    })
 
-    DEF_OPC_210(OPC_INVOKESTATIC_QUICK)
+    DEF_OPC_210(OPC_INVOKESTATIC_QUICK, {
         new_mb = RESOLVED_METHOD(pc);
         arg1 = ostack - new_mb->args_count;
         goto invokeMethod;
+    })
 
-    DEF_OPC_210(OPC_INVOKEINTERFACE_QUICK)
-    {
+    DEF_OPC_210(OPC_INVOKEINTERFACE_QUICK, {
         int mtbl_idx;
         ClassBlock *cb;
         int cache = INV_INTF_CACHE(pc);
@@ -2087,10 +2099,9 @@ rewrite_lock:
         new_mb = cb->method_table[mtbl_idx];
 
         goto invokeMethod;
-    }
+    })
 
-    DEF_OPC_210(OPC_NEW_QUICK)
-    {
+    DEF_OPC_210(OPC_NEW_QUICK, {
         Class *class = RESOLVED_CLASS(pc);
         Object *obj;
 
@@ -2099,10 +2110,9 @@ rewrite_lock:
             goto throwException;
 
         PUSH_0((uintptr_t)obj, 3);
-    }
+    })
  
-    DEF_OPC_210(OPC_ANEWARRAY_QUICK)
-    {
+    DEF_OPC_210(OPC_ANEWARRAY_QUICK, {
         Class *class = RESOLVED_CLASS(pc);
         char *name = CLASS_CB(class)->name;
         int count = *--ostack;
@@ -2125,7 +2135,7 @@ rewrite_lock:
             strcat(strcat(strcpy(ac_name, "[L"), name), ";");
 
         array_class = findArrayClassFromClass(ac_name, mb->class);
-        sysFree(ac_name);
+        free(ac_name);
 
         if(exceptionOccured0(ee))
             goto throwException;
@@ -2134,10 +2144,9 @@ rewrite_lock:
             goto throwException;
 
         PUSH_0((uintptr_t)obj, 3);
-    }
+    })
 
-    DEF_OPC_210(OPC_CHECKCAST_QUICK)
-    {
+    DEF_OPC_210(OPC_CHECKCAST_QUICK, {
         Class *class = RESOLVED_CLASS(pc);
         Object *obj = (Object*)ostack[-1]; 
                
@@ -2145,10 +2154,9 @@ rewrite_lock:
             THROW_EXCEPTION("java/lang/ClassCastException", CLASS_CB(obj->class)->name);
     
         DISPATCH(0, 3);
-    }
+    })
 
-    DEF_OPC_210(OPC_INSTANCEOF_QUICK)
-    {
+    DEF_OPC_210(OPC_INSTANCEOF_QUICK, {
         Class *class = RESOLVED_CLASS(pc);
         Object *obj = (Object*)ostack[-1]; 
                
@@ -2156,10 +2164,9 @@ rewrite_lock:
             ostack[-1] = isInstanceOf(class, obj->class); 
 
         DISPATCH(0, 3);
-    }
+    })
 
-    DEF_OPC_210(OPC_MULTIANEWARRAY_QUICK)
-    {
+    DEF_OPC_210(OPC_MULTIANEWARRAY_QUICK, ({
         Class *class = RESOLVED_CLASS(pc);
         int i, dim = MULTI_ARRAY_DIM(pc);
         Object *obj;
@@ -2177,12 +2184,12 @@ rewrite_lock:
             goto throwException;
 
         PUSH_0((uintptr_t)obj, 4);
-    }
+    });)
 
     /* Special bytecode which forms the body of an abstract method.
        If it is invoked it'll throw an abstract method exception. */
 
-    DEF_OPC_210(OPC_ABSTRACT_METHOD_ERROR)
+    DEF_OPC_210(OPC_ABSTRACT_METHOD_ERROR, {
         /* As the method has been invoked, a frame will exist for
            the abstract method itself.  Pop this to get the correct
            exception stack trace. */
@@ -2191,13 +2198,27 @@ rewrite_lock:
         /* Throw the exception */
         signalException("java/lang/AbstractMethodError", mb->name);
         goto throwException;
+    })
 
-    DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK)
+    DEF_OPC_RW(OPC_INLINE_REWRITER, ({
+#ifdef INLINING
+        Operand operand;
+
+        WITH_OPCODE_CHANGE_OPERAND(OPC_INLINE_REWRITER, operand);
+
+        inlineBlockWrappedOpcode(pc, operand.pntr);
+#endif
+    });)
+
+    DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK, {
         arg1 = ostack - INV_QUICK_ARGS(pc);
         NULL_POINTER_CHECK(*arg1);
 
         new_class = (*(Object **)arg1)->class;
         new_mb = CLASS_CB(new_class)->method_table[INV_QUICK_IDX(pc)];
+
+        goto invokeMethod;
+    })
 
 invokeMethod:
 {
@@ -2255,9 +2276,8 @@ invokeMethod:
         this = (Object*)lvars[0];
         pc = (CodePntr)mb->code;
         cp = &(CLASS_CB(mb->class)->constant_pool);
-
-        DISPATCH_FIRST
     }
+    DISPATCH_FIRST
 }
 
 methodReturn:
@@ -2286,7 +2306,22 @@ methodReturn:
     /* Pop frame */ 
     ee->last_frame = frame;
 
-    DISPATCH_RET(*pc == OPC_INVOKEINTERFACE_QUICK ? 5 : 3);
+    DISPATCH_METHOD_RET(*pc == OPC_INVOKEINTERFACE_QUICK ? 5 : 3);
+
+#ifdef INLINING
+throwNull:
+    THROW_EXCEPTION("java/lang/NullPointerException", NULL);
+
+throwArithmeticExcep:
+    THROW_EXCEPTION("java/lang/ArithmeticException", "division by zero");
+
+throwOOB:
+    {
+        char buff[MAX_INT_DIGITS];
+        snprintf(buff, MAX_INT_DIGITS, "%d", oob_array_index);
+        THROW_EXCEPTION("java/lang/ArrayIndexOutOfBoundsException", buff);
+    }
+#endif
 
 throwException:
     {
@@ -2332,9 +2367,11 @@ throwException:
 #endif
 }
 
-void initialiseInterpreter() {
+#ifndef executeJava
+void initialiseInterpreter(InitArgs *args) {
 #ifdef DIRECT
-    initialiseDirect();
+    initialiseDirect(args);
 #endif
 }
+#endif
 
