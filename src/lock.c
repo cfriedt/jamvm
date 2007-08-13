@@ -42,10 +42,14 @@
 #define UN_USED -1
 
 #define HASHTABSZE 1<<5
+#define PREPARE(obj) allocMonitor(obj)
 #define HASH(obj) (getObjectHashcode(obj) >> LOG_OBJECT_GRAIN)
 #define COMPARE(obj, mon, hash1, hash2) hash1 == hash2 && mon->obj == obj
-#define PREPARE(obj) allocMonitor(obj)
-#define FOUND(ptr) LOCKWORD_COMPARE_AND_SWAP(&ptr->entering, UN_USED, 0)
+#define FOUND(ptr)                                          \
+({                                                          \
+     LOCKWORD_COMPARE_AND_SWAP(&ptr->entering, UN_USED, 0); \
+     ptr;                                                   \
+})
 
 /* lockword format in "thin" mode
   31                                         0
@@ -71,17 +75,16 @@
 #define TID_SIZE    (32-TID_SHIFT)
 #define TID_MASK    (((1<<TID_SIZE)-1)<<TID_SHIFT)
 
-#define SCAVENGE(ptr)                                 \
-({                                                    \
-    Monitor *mon = (Monitor *)ptr;                    \
-    char res = LOCKWORD_READ(&mon->entering) == UN_USED;\
-    if(res) {                                         \
-        TRACE("Scavenging monitor %p (obj %p)", mon,  \
-                                          mon->obj);  \
-        mon->next = mon_free_list;                    \
-        mon_free_list = mon;                          \
-    }                                                 \
-    res;                                              \
+#define SCAVENGE(ptr)                                           \
+({                                                              \
+    Monitor *mon = (Monitor *)ptr;                              \
+    char res = LOCKWORD_READ(&mon->entering) == UN_USED;        \
+    if(res) {                                                   \
+        TRACE("Scavenging monitor %p (obj %p)", mon, mon->obj); \
+        mon->next = mon_free_list;                              \
+        mon_free_list = mon;                                    \
+    }                                                           \
+    res;                                                        \
 })
 
 static Monitor *mon_free_list = NULL;
