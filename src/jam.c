@@ -214,7 +214,22 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
 
         } else if(strcmp(argv[i], "-Xcompactalways") == 0) {
             args->compact_specified = args->do_compact = TRUE;
+#ifdef INLINING
+        } else if(strncmp(argv[i], "-Xreplication:", 14) == 0) {
+            char *pntr = argv[i] + 14;
+            int val;
 
+            if(strcmp(pntr, "none") == 0)
+                val = INT_MAX;
+            else
+                if(strcmp(pntr, "always") == 0)
+                    val = 0;
+                else
+                    val = strtol(pntr, NULL, 0);
+
+        } else if(strncmp(argv[i], "-Xcodemem:", 10) == 0) {
+            args->codemem = parseMemValue(argv[i] + 10);
+#endif
         } else {
             printf("Unrecognised command line option: %s\n", argv[i]);
             break;
