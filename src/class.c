@@ -38,7 +38,7 @@
 
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
-#define FOUND(ptr)
+#define FOUND(ptr) ptr
 
 static int verbose;
 static char *bootpath;
@@ -1085,6 +1085,9 @@ Class *initClass(Class *class) {
    Object *excep;
    int i;
 
+   if(cb->state >= CLASS_INITED)
+      return class;
+
    linkClass(class);
    objectLock((Object *)class);
 
@@ -1478,11 +1481,18 @@ void freeClassData(Class *class) {
         MethodBlock *mb = &cb->methods[i];
 
 #ifdef DIRECT
-        if(!(mb->access_flags & ACC_ABSTRACT) || !((uintptr_t)mb->code & 0x3))
+        if(!((uintptr_t)mb->code & 0x3)) {
+#ifdef INLINING
+            freeMethodInlinedInfo(mb);
+#endif
+            gcPendingFree(mb->code);
+        } else
+            if(!(mb->access_flags & ACC_ABSTRACT))
+                gcPendingFree((void*)((uintptr_t)mb->code & ~3));
 #else
         if(!(mb->access_flags & ACC_ABSTRACT))
+            gcPendingFree(mb->code);
 #endif
-            gcPendingFree((void*)((uintptr_t)mb->code & ~3));
 
         gcPendingFree(mb->exception_table);
         gcPendingFree(mb->line_no_table);
