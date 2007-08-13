@@ -220,7 +220,6 @@ AC_CONFIG_LINKS(src/arch.h:src/arch/$arch.h)
 AC_CONFIG_FILES(
     Makefile \
     src/Makefile \
-    src/Makefile \
     src/interp/Makefile \
     src/arch/Makefile \
     src/os/Makefile \
