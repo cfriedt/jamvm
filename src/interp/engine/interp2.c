@@ -19,10 +19,11 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include "config.h"
+
 #ifdef INLINING
 #define executeJava() executeJava2()
 #define PAD __asm__(".space 16");
 
 #include "interp.c"
 #endif
-
