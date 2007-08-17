@@ -19,12 +19,14 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/* Must be included first to get configure options */
+#include "jam.h"
+
 #ifdef INLINING
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include "jam.h"
 #include "hash.h"
 
 #ifdef TRACE
@@ -79,8 +81,8 @@ static int replication_threshold;
 
 static int code_size = 0;
 static int sys_page_size;
-static int code_increment;
 static int max_code_size;
+static int code_increment;
 static CodeBlockHeader *code_free_list = NULL;
 
 static char *min_entry_point = (char*)-1;
@@ -109,7 +111,12 @@ char *findNextLabel(char **pntrs, char *pntr) {
     return NULL;
 }
 
-int initialiseInlining(InitArgs *args) {
+#define SHOWRELOC(args, fmt, ...) do {   \
+    if(args->showreloc)                  \
+        jam_printf(fmt, ## __VA_ARGS__); \
+} while(0)
+
+int checkRelocatability(InitArgs *args) {
     char ***handlers1 = (char ***)executeJava();
     char ***handlers2 = (char ***)executeJava2();
     char *sorted_ends[LABELS_SIZE];
@@ -123,10 +130,9 @@ int initialiseInlining(InitArgs *args) {
     goto_len = handlers1[ENTRY_LABELS][GOTO_END] - goto_start;
 
     if(!memcmp(goto_start, handlers2[ENTRY_LABELS][GOTO_START], goto_len))
-        TRACE_INLINING("Goto is relocatable\n");
+        SHOWRELOC(args, "Goto is relocatable\n");
     else {
-        TRACE_INLINING("Goto is not relocatable : disabling inlining.\n");
-        inlining_inited = TRUE;
+        SHOWRELOC(args, "Goto is not relocatable : disabling inlining.\n");
         return FALSE;
     }
 
@@ -154,15 +160,15 @@ int initialiseInlining(InitArgs *args) {
 
                 if(nearest_end == end)
                     if(!memcmp(entry, handlers2[ENTRY_LABELS+i][j], len)) {
-                        TRACE_INLINING("Handler %d is relocatable\n", j);
+                        SHOWRELOC(args, "Handler %d is relocatable\n", j);
                         handler_sizes[i][j] = len;
                         continue;
                     } else
-                        TRACE_INLINING("Memcmp failed : handler %d is not relocatable\n", j);
+                        SHOWRELOC(args, "Memcmp failed : handler %d is not relocatable\n", j);
                 else
-                    TRACE_INLINING("Re-ordered end label : handler %d is not relocatable\n", j);
+                    SHOWRELOC(args, "Re-ordered end label : handler %d is not relocatable\n", j);
             } else
-                TRACE_INLINING("End label < entry : handler %d is not relocatable\n", j);
+                SHOWRELOC(args, "End label < entry : handler %d is not relocatable\n", j);
 
             /* Flag handler as non-relocatable */
             handler_sizes[i][j] = -1;
@@ -171,19 +177,25 @@ int initialiseInlining(InitArgs *args) {
         handler_entry_points[i] = handlers1[ENTRY_LABELS+i];
     }
 
-    initVMWaitLock(quick_prepare_lock);
-    initHashTable(code_hash_table, HASHTABSZE, TRUE);
-
-    sys_page_size = getpagesize();
-    max_code_size = ROUND(args->codemem, sys_page_size);
-    code_increment = ROUND(CODE_INCREMENT, sys_page_size);
-
-    replication_threshold = args->replication;
-
-    return inlining_inited = TRUE;
+    return TRUE;
 }
 
 int initialiseInlining(InitArgs *args) {
+    int enabled = args->codemem > 0 ? checkRelocatability(args) : FALSE;
+
+    if(enabled) {
+        initVMWaitLock(quick_prepare_lock);
+        initHashTable(code_hash_table, HASHTABSZE, TRUE);
+
+        sys_page_size = getpagesize();
+        max_code_size = ROUND(args->codemem, sys_page_size);
+        code_increment = ROUND(CODE_INCREMENT, sys_page_size);
+
+        replication_threshold = args->replication;
+    }
+
+    inlining_inited = TRUE;
+    return enabled;
 }
 
 int codeBlockHash(CodeBlockHeader *block) {
