@@ -46,6 +46,14 @@ void showNonStandardOptions() {
     printf("  -Xnoasyncgc\t   turn off asynchronous garbage collection\n");
     printf("  -Xcompactalways  always compact the heap when garbage-collecting\n");
     printf("  -Xnocompact\t   turn off heap-compaction\n");
+#ifdef INLINING
+    printf("  -Xshowreloc\t   show opcode relocatability\n");
+    printf("  -Xreplication:[none|always|<value>]\n");
+    printf("\t\t   none always re-use super-instructions\n");
+    printf("\t\t   always always copy super-instructions\n");
+    printf("\t\t   <value> copy when usage reaches threshold value\n");
+    printf("  -Xcodemem:[unlimited|<size>]\n");
+#endif
     printf("  -Xms<size>\t   set the initial size of the heap (default = %dM)\n", DEFAULT_MIN_HEAP/MB);
     printf("  -Xmx<size>\t   set the maximum size of the heap (default = %dM)\n", DEFAULT_MAX_HEAP/MB);
     printf("  -Xss<size>\t   set the Java stack size for each thread (default = %dK)\n", DEFAULT_STACK/KB);
@@ -228,7 +236,13 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
                     val = strtol(pntr, NULL, 0);
 
         } else if(strncmp(argv[i], "-Xcodemem:", 10) == 0) {
-            args->codemem = parseMemValue(argv[i] + 10);
+            char *pntr = argv[i] + 10;
+
+            args->codemem = strncmp(pntr, "unlimited", 10) == 0 ?
+                INT_MAX : parseMemValue(pntr);
+
+        } else if(strcmp(argv[i], "-Xshowreloc") == 0) {
+            args->showreloc = TRUE;
 #endif
         } else {
             printf("Unrecognised command line option: %s\n", argv[i]);
