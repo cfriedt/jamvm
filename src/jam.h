@@ -600,6 +600,7 @@ typedef struct InitArgs {
 
 #ifdef INLINING
     int replication;
+    int showreloc;
     int codemem;
 #endif
 } InitArgs;
