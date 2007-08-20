@@ -24,11 +24,11 @@
 #include <limits.h>
 #include <stdio.h>
 
-/* Architecture dependent definitions */
-#include "arch.h"
-
 /* Configure options */
 #include "config.h"
+
+/* Architecture dependent definitions */
+#include "arch.h"
 
 #ifndef TRUE
 #define         TRUE    1
