@@ -1421,7 +1421,33 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
 
         } else if(strcmp(string, "-Xcompactalways") == 0) {
             args->compact_specified = args->do_compact = TRUE;
+#ifdef INLINING
+        } else if(strncmp(string, "-Xnoinlining") == 0) {
+            /* Turning inlining off is equivalent to setting
+               code memory to zero */
+            args->codemem = 0;
 
+        } else if(strncmp(string, "-Xreplication:", 14) == 0) {
+            char *pntr = string + 14;
+            int val;
+
+            if(strcmp(pntr, "none") == 0)
+                val = INT_MAX;
+            else
+                if(strcmp(pntr, "always") == 0)
+                    val = 0;
+                else
+                    val = strtol(pntr, NULL, 0);
+
+        } else if(strncmp(string, "-Xcodemem:", 10) == 0) {
+            char *pntr = string + 10;
+
+            args->codemem = strncmp(pntr, "unlimited", 10) == 0 ?
+                INT_MAX : parseMemValue(pntr);
+
+        } else if(strcmp(string, "-Xshowreloc") == 0) {
+            args->showreloc = TRUE;
+#endif
         } else if(!vm_args->ignoreUnrecognized)
             goto error;
     }
