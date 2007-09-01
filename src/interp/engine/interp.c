@@ -1642,7 +1642,7 @@ unused:
         REDISPATCH
     });)
 #else /* DIRECT */
-    DEF_OPC_210(OPC_LDC)
+    DEF_OPC_210(OPC_LDC, {
         frame->last_pc = pc;
 
         resolveSingleConstant(mb->class, SINGLE_INDEX(pc));
@@ -1652,8 +1652,9 @@ unused:
 
         OPCODE_REWRITE(OPC_LDC_QUICK);
         DISPATCH(0, 0);
+    })
 
-    DEF_OPC_210(OPC_LDC_W)
+    DEF_OPC_210(OPC_LDC_W, {
         frame->last_pc = pc;
 
         resolveSingleConstant(mb->class, DOUBLE_INDEX(pc));
@@ -1663,16 +1664,17 @@ unused:
 
         OPCODE_REWRITE(OPC_LDC_W_QUICK);
         DISPATCH(0, 0);
+    })
 
-    DEF_OPC_210(OPC_ALOAD_0)
+    DEF_OPC_210(OPC_ALOAD_0, {
         if(mb->access_flags & ACC_STATIC)
             OPCODE_REWRITE(OPC_ILOAD_0);
         else
             OPCODE_REWRITE(OPC_ALOAD_THIS);
         DISPATCH(0, 0);
+    })
 
-    DEF_OPC_210(OPC_TABLESWITCH)
-    {
+    DEF_OPC_210(OPC_TABLESWITCH, {
         int *aligned_pc = (int*)((uintptr_t)(pc + 4) & ~0x3);
         int deflt = ntohl(aligned_pc[0]);
         int low   = ntohl(aligned_pc[1]);
@@ -1681,10 +1683,9 @@ unused:
 
         DISPATCH(0, (index < low || index > high) ?
                         deflt : ntohl(aligned_pc[index - low + 3]));
-    }
+    })
 
-    DEF_OPC_210(OPC_LOOKUPSWITCH)
-    {
+    DEF_OPC_210(OPC_LOOKUPSWITCH, {
         int *aligned_pc = (int*)((uintptr_t)(pc + 4) & ~0x3);
         int deflt  = ntohl(aligned_pc[0]);
         int npairs = ntohl(aligned_pc[1]);
@@ -1694,10 +1695,9 @@ unused:
         for(i = 2; (i < npairs*2+2) && (key != ntohl(aligned_pc[i])); i += 2);
 
         DISPATCH(0, i == npairs*2+2 ? deflt : ntohl(aligned_pc[i+1]));
-    }
+    })
 
-    DEF_OPC_210(OPC_GETSTATIC) 
-    {
+    DEF_OPC_210(OPC_GETSTATIC, {
         FieldBlock *fb;
                
         frame->last_pc = pc;
@@ -1711,10 +1711,9 @@ unused:
         else
             OPCODE_REWRITE(OPC_GETSTATIC_QUICK);
         DISPATCH(0, 0);
-    }
+    })
 
-    DEF_OPC_210(OPC_PUTSTATIC) 
-    {
+    DEF_OPC_210(OPC_PUTSTATIC, {
         FieldBlock *fb;
                
         frame->last_pc = pc;
@@ -1728,10 +1727,9 @@ unused:
         else
             OPCODE_REWRITE(OPC_PUTSTATIC_QUICK);
         DISPATCH(0, 0);
-    }
+    })
 
-    DEF_OPC_210(OPC_GETFIELD)
-    {
+    DEF_OPC_210(OPC_GETFIELD, {
         int idx;
         FieldBlock *fb;
 
@@ -1750,10 +1748,9 @@ unused:
                  OPC_GETFIELD2_QUICK : OPC_GETFIELD_QUICK), fb->offset);
 
         DISPATCH(0, 0);
-    }
+    })
 
-    DEF_OPC_210(OPC_PUTFIELD)
-    {
+    DEF_OPC_210(OPC_PUTFIELD, {
         int idx;
         FieldBlock *fb;
 
@@ -1772,10 +1769,9 @@ unused:
                  OPC_PUTFIELD2_QUICK : OPC_PUTFIELD_QUICK), fb->offset);
 
         DISPATCH(0, 0);
-    }
+    })
 
-    DEF_OPC_210(OPC_GETFIELD_QUICK_W)
-    {
+    DEF_OPC_210(OPC_GETFIELD_QUICK_W, {
         FieldBlock *fb = RESOLVED_FIELD(pc);
         Object *obj = (Object *)*--ostack;
         uintptr_t *addr;
@@ -1788,11 +1784,10 @@ unused:
         } else {
             PUSH_0(*addr, 3);
         }
-    }
+    })
 
 #ifdef USE_CACHE
-    DEF_OPC_012(OPC_PUTFIELD_QUICK_W)
-    {
+    DEF_OPC_012(OPC_PUTFIELD_QUICK_W, {
         FieldBlock *fb = RESOLVED_FIELD(pc);
  
         if((*fb->type == 'J') || (*fb->type == 'D')) {
@@ -1807,10 +1802,9 @@ unused:
             INST_DATA(obj)[fb->offset] = cache.i.v2;
         }
         DISPATCH(0, 3);
-    }
+    })
 #else
-    DEF_OPC_012(OPC_PUTFIELD_QUICK_W,
-    {
+    DEF_OPC_012(OPC_PUTFIELD_QUICK_W, {
         FieldBlock *fb = RESOLVED_FIELD(pc);
  
         if((*fb->type == 'J') || (*fb->type == 'D')) {
@@ -1827,11 +1821,10 @@ unused:
             INST_DATA(obj)[fb->offset] = ostack[1];
         }
         DISPATCH(0, 3);
-    }
+    })
 #endif
 
-    DEF_OPC_210(OPC_INVOKEVIRTUAL,
-    {
+    DEF_OPC_210(OPC_INVOKEVIRTUAL, {
         int idx;
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_INVOKEVIRTUAL, idx);
 
@@ -1847,9 +1840,9 @@ unused:
         } else
             OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK_W);
         DISPATCH(0, 0);
-    }
+    })
 
-    DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK_W,
+    DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK_W, {
         new_mb = RESOLVED_METHOD(pc);
         arg1 = ostack - (new_mb->args_count);
         NULL_POINTER_CHECK(*arg1);
@@ -1858,9 +1851,9 @@ unused:
         new_mb = CLASS_CB(new_class)->method_table[new_mb->method_table_index];
 
         goto invokeMethod;
+    })
 
-    DEF_OPC_210(OPC_INVOKESPECIAL,
-    {
+    DEF_OPC_210(OPC_INVOKESPECIAL, {
         int idx;
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_INVOKESPECIAL, idx);
 
@@ -1879,9 +1872,9 @@ unused:
         } else
             OPCODE_REWRITE(OPC_INVOKENONVIRTUAL_QUICK);
         DISPATCH(0, 0);
-    }
+    })
 
-    DEF_OPC_210(OPC_INVOKESTATIC,
+    DEF_OPC_210(OPC_INVOKESTATIC, {
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, DOUBLE_INDEX(pc));
  
@@ -1890,8 +1883,9 @@ unused:
 
         OPCODE_REWRITE(OPC_INVOKESTATIC_QUICK);
         DISPATCH(0, 0);
+    })
 
-    DEF_OPC_210(OPC_INVOKEINTERFACE,
+    DEF_OPC_210(OPC_INVOKEINTERFACE, {
         frame->last_pc = pc;
         new_mb = resolveInterfaceMethod(mb->class, DOUBLE_INDEX(pc));
  
@@ -1906,9 +1900,10 @@ unused:
         }
 
         DISPATCH(0, 0);
+    })
 
 #define REWRITE_RESOLVE_CLASS(opcode)                                     \
-    DEF_OPC_210(opcode)                                                   \
+    DEF_OPC_210(opcode, {                                                 \
         frame->last_pc = pc;                                              \
         resolveClass(mb->class, DOUBLE_INDEX(pc), FALSE);                 \
                                                                           \
@@ -1917,14 +1912,14 @@ unused:
                                                                           \
         OPCODE_REWRITE((opcode + OPC_ANEWARRAY_QUICK-OPC_ANEWARRAY));     \
         DISPATCH(0, 0);                                                   \
+    })
 
    REWRITE_RESOLVE_CLASS(OPC_ANEWARRAY)
    REWRITE_RESOLVE_CLASS(OPC_CHECKCAST)
    REWRITE_RESOLVE_CLASS(OPC_INSTANCEOF)
    REWRITE_RESOLVE_CLASS(OPC_MULTIANEWARRAY)
 
-    DEF_OPC_210(OPC_NEW)
-    {
+    DEF_OPC_210(OPC_NEW, {
         Class *class;
         ClassBlock *cb;
 
@@ -1942,10 +1937,9 @@ unused:
 
         OPCODE_REWRITE(OPC_NEW_QUICK);
         DISPATCH(0, 0);
-    }
+    })
 
-    DEF_OPC_210(OPC_WIDE)
-    {
+    DEF_OPC_210(OPC_WIDE, {
        int opcode = pc[1];
         switch(opcode) {
             case OPC_ILOAD:
@@ -1986,16 +1980,19 @@ unused:
                 break;
         }
         DISPATCH(0, 0);
-    }
+    })
 
-    DEF_OPC_210(OPC_GOTO_W)
+    DEF_OPC_210(OPC_GOTO_W, {
         DISPATCH(0, READ_S4_OP(pc));
+    })
 
-    DEF_OPC_210(OPC_JSR_W)
+    DEF_OPC_210(OPC_JSR_W, {
         PUSH_0((uintptr_t)pc+2, READ_S4_OP(pc));
+    })
 
-    DEF_OPC_210(OPC_LOCK)
+    DEF_OPC_210(OPC_LOCK, {
         DISPATCH(0, 0);
+    })
 #endif /* DIRECT */
 
     DEF_OPC_210(OPC_GETSTATIC2_QUICK, {

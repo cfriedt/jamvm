@@ -115,3 +115,31 @@ label(opcode, level)
 #define RESOLVED_METHOD(pc)   ((MethodBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
 #define RESOLVED_CLASS(pc)    ((Class *)CP_INFO(cp, DOUBLE_INDEX(pc)))
 
+/* Macros for checking for common exceptions */
+
+#define THROW_EXCEPTION(excep_name, message)                               \
+{                                                                          \
+    frame->last_pc = pc;                                                   \
+    signalException(excep_name, message);                                  \
+    goto throwException;                                                   \
+}
+
+#define NULL_POINTER_CHECK(ref)                                            \
+    if(!ref) THROW_EXCEPTION("java/lang/NullPointerException", NULL);
+
+#define MAX_INT_DIGITS 11
+
+#define ARRAY_BOUNDS_CHECK(array, idx)                                     \
+{                                                                          \
+    if(idx >= ARRAY_LEN(array)) {                                          \
+        char buff[MAX_INT_DIGITS];                                         \
+        snprintf(buff, MAX_INT_DIGITS, "%d", idx);                         \
+        THROW_EXCEPTION("java/lang/ArrayIndexOutOfBoundsException", buff); \
+    }                                                                      \
+}
+
+#define ZERO_DIVISOR_CHECK(value)                          \
+    if(value == 0)                                         \
+        THROW_EXCEPTION("java/lang/ArithmeticException",   \
+                        "division by zero");
+

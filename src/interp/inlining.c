@@ -81,8 +81,8 @@ static int replication_threshold;
 
 static int code_size = 0;
 static int sys_page_size;
-static int max_code_size;
 static int code_increment;
+static unsigned int max_code_size;
 static CodeBlockHeader *code_free_list = NULL;
 
 static char *min_entry_point = (char*)-1;
@@ -192,6 +192,10 @@ int initialiseInlining(InitArgs *args) {
         code_increment = ROUND(CODE_INCREMENT, sys_page_size);
 
         replication_threshold = args->replication;
+
+printf("sys_page_size %d\n", sys_page_size);
+printf("max_code_size %u\n", max_code_size);
+printf("code_increment %d\n", code_increment);
     }
 
     inlining_inited = TRUE;
@@ -244,6 +248,59 @@ out:
             last->len += free_pntr->len;
             free_pntr = last;
         }
+    }
+}
+
+void freeMethodInlinedInfo(MethodBlock *mb) {
+    Instruction *instruction = mb->code;
+    CodeBlockHeader **blocks = mb->code;
+    QuickPrepareInfo *info;
+    int i;
+
+    /* Scan handlers within the method */
+
+    for(i = mb->code_size; i--; instruction++) {
+        char *handler = (char*)instruction->handler;
+        CodeBlockHeader *block;
+
+        if(handler >= min_entry_point || handler <= max_entry_point) {
+            /* Handler is within the program text and so does
+               not need freeing.  However, sequences which
+               have not been rewritten yet will have associated
+               preparation info. */
+            if(handler == handler_entry_points[0][OPC_INLINE_REWRITER])
+                gcPendingFree(instruction->operand.pntr);
+
+            continue;
+        }
+
+        /* The handler is an inlined block */
+        block = ((CodeBlockHeader*)handler) - 1;
+
+        if(block->u.ref_count <= 0) {
+            /* Either a duplicate block, or a hashed block and this
+               is the only reference to it.  Duplicates must be freed
+               as this would be a leak.  Hashed blocks potentially
+               will be re-used and so we could keep them around.
+               However, we free them because it's better to free
+               room for a potentially more useful sequence. */
+
+            /* Add onto list to be freed */
+            *blocks++ = block;
+
+            if(block->u.ref_count == 0)
+                deleteHashEntry(code_hash_table, block, FALSE);
+        } else
+            block->u.ref_count--;
+    }
+
+    if(blocks > (CodeBlockHeader**)mb->code)
+        addToFreeList(mb->code, blocks - (CodeBlockHeader**)mb->code);
+
+    for(info = mb->quick_prepare_info; info != NULL;) {
+        QuickPrepareInfo *temp = info;
+        info = info->next;
+        gcPendingFree(temp);
     }
 }
 
@@ -302,57 +359,13 @@ CodeBlockHeader *allocCodeMemory(int size) {
     return block;
 }
     
-void freeMethodInlinedInfo(MethodBlock *mb) {
-    Instruction *instruction = mb->code;
-    CodeBlockHeader **blocks = mb->code;
-    QuickPrepareInfo *info;
-    int i;
+CodeBlockHeader *copyCodeBlock(CodeBlockHeader *dest_block, CodeBlockHeader *src_block) {
+    int len = src_block->len - sizeof(CodeBlockHeader);
 
-    /* Scan handlers within the method */
+    memcpy(dest_block + 1, src_block + 1, len);
+    FLUSH_CACHE(dest_block + 1, len);
 
-    for(i = mb->code_size; i--; instruction++) {
-        char *handler = (char*)instruction->handler;
-        CodeBlockHeader *block;
-
-        if(handler >= min_entry_point || handler <= max_entry_point) {
-            /* Handler is within the program text and so does
-               not need freeing.  However, sequences which
-               have not been rewritten yet will have associated
-               preparation info. */
-            if(handler == handler_entry_points[0][OPC_INLINE_REWRITER])
-                gcPendingFree(instruction->operand.pntr);
-
-            continue;
-        }
-
-        /* The handler is an inlined block */
-        block = ((CodeBlockHeader*)handler) - 1;
-
-        if(block->u.ref_count <= 0) {
-            /* Either a duplicate block, or a hashed block and this
-               is the only reference to it.  Duplicates must be freed
-               as this would be a leak.  Hashed blocks potentially
-               will be re-used and so we could keep them around.
-               However, we free them because it's better to free
-               room for a potentially more useful sequence. */
-
-            /* Add onto list to be freed */
-            *blocks++ = block;
-
-            if(block->u.ref_count == 0)
-                deleteHashEntry(code_hash_table, block, FALSE);
-        } else
-            block->u.ref_count--;
-    }
-
-    if(blocks > (CodeBlockHeader**)mb->code)
-        addToFreeList(mb->code, blocks - (CodeBlockHeader**)mb->code);
-
-    for(info = mb->quick_prepare_info; info != NULL;) {
-        QuickPrepareInfo *temp = info;
-        info = info->next;
-        gcPendingFree(temp);
-    }
+    return dest_block;
 }
 
 CodeBlockHeader *foundExistingBlock(CodeBlockHeader *block) {
@@ -364,9 +377,7 @@ CodeBlockHeader *foundExistingBlock(CodeBlockHeader *block) {
         if(new_block != NULL) {
             /* Flag block as being a duplicate */
             new_block->u.ref_count = -1;
-            memcpy(new_block + 1, block + 1, block->len - sizeof(CodeBlockHeader));
-
-            return new_block;
+            return copyCodeBlock(new_block, block);
         }
     }
 
@@ -382,7 +393,7 @@ CodeBlockHeader *allocCodeBlock(CodeBlockHeader *block) {
 
     if(new_block != NULL) {
         new_block->u.ref_count = 0;
-        memcpy(new_block + 1, block + 1, block->len - sizeof(CodeBlockHeader));
+        copyCodeBlock(new_block, block);
     }
 
     return new_block;
@@ -442,8 +453,6 @@ void inlineSequence(CodeBlock *info, int start, int len) {
         /* Replace first handler with new inlined block */
         instructions[0].handler = hashed_block + 1;
         MBARRIER();
-
-        FLUSH_CACHE(instructions[0].handler, code_len);
 
         TRACE_INLINING("InlineSequence start %p (%d) instruction len %d code len %d sequence %p\n",
                        instructions, start, len, code_len, instructions[0].handler);
