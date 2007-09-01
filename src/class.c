@@ -1662,16 +1662,6 @@ void scanDirsForJars(char *directories) {
     sysFree(dirs);
 }
 
-#ifdef USE_ZIP
-#define JAMVM_CLASSES INSTALL_DIR"/share/jamvm/classes.zip"
-#define CLASSPATH_CLASSES CLASSPATH_INSTALL_DIR"/share/classpath/glibj.zip"
-#else
-#define JAMVM_CLASSES INSTALL_DIR"/share/jamvm/classes"
-#define CLASSPATH_CLASSES CLASSPATH_INSTALL_DIR"/share/classpath"
-#endif
-
-#define DFLT_BCP JAMVM_CLASSES":"CLASSPATH_CLASSES
-
 char *setBootClassPath(char *cmdlne_bcp, char bootpathopt) {
     char *endorsed_dirs;
 
