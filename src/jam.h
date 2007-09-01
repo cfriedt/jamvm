@@ -414,6 +414,7 @@ typedef struct lookup_table {
     LookupEntry *entries;
 } LookupTable;
 
+#ifdef INLINING
 typedef struct opcode_info {
     unsigned char opcode;
     unsigned char cache_depth;
@@ -435,6 +436,7 @@ typedef struct prepare_info {
     CodeBlock block;
     Operand operand;
 } PrepareInfo;
+#endif
 
 typedef Instruction *CodePntr;
 #else
@@ -473,7 +475,9 @@ typedef struct methodblock {
    LineNoTableEntry *line_no_table;
    int method_table_index;
    MethodAnnotationData *annotations;
+#ifdef INLINING
    QuickPrepareInfo *quick_prepare_info;
+#endif
 } MethodBlock;
 
 typedef struct fieldblock {
@@ -599,9 +603,9 @@ typedef struct InitArgs {
     void (*abort)(void);
 
 #ifdef INLINING
+    unsigned int codemem;
     int replication;
     int showreloc;
-    int codemem;
 #endif
 } InitArgs;
 
