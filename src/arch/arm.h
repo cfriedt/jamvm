@@ -95,6 +95,18 @@ do {                                                      \
     : "cc", "memory");                                    \
 } while(0)
 
+#define FLUSH_CACHE(addr, length)                         \
+{                                                         \
+    __asm__ __volatile__ ("                               \
+        mov r0, %0\n                                      \
+        mov r1, %1\n                                      \
+        mov r2, #0\n                                      \
+        swi 0x9f0002\n                                    \
+    ":                                                    \
+     : "r" (addr), "r" (addr + length - 1),               \
+     : "r0", "r1", "r2");                                 \
+}
+
 #define MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define JMM_LOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
