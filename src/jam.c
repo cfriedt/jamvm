@@ -25,6 +25,7 @@
 #include <stdarg.h>
 
 #include "jam.h"
+#include "class.h"
 
 #ifdef USE_ZIP
 #define BCP_MESSAGE "<jar/zip files and directories separated by :>"
@@ -47,12 +48,13 @@ void showNonStandardOptions() {
     printf("  -Xcompactalways  always compact the heap when garbage-collecting\n");
     printf("  -Xnocompact\t   turn off heap-compaction\n");
 #ifdef INLINING
+    printf("  -Xnoinlining\t  turn off interpreter inlining\n");
     printf("  -Xshowreloc\t   show opcode relocatability\n");
     printf("  -Xreplication:[none|always|<value>]\n");
-    printf("\t\t   none always re-use super-instructions\n");
-    printf("\t\t   always always copy super-instructions\n");
+    printf("\t\t   none : always re-use super-instructions\n");
+    printf("\t\t   always : never re-use super-instructions\n");
     printf("\t\t   <value> copy when usage reaches threshold value\n");
-    printf("  -Xcodemem:[unlimited|<size>]\n");
+    printf("  -Xcodemem:[unlimited|<size>] (default maximum heapsize/4)\n");
 #endif
     printf("  -Xms<size>\t   set the initial size of the heap (default = %dM)\n", DEFAULT_MIN_HEAP/MB);
     printf("  -Xmx<size>\t   set the maximum size of the heap (default = %dM)\n", DEFAULT_MAX_HEAP/MB);
@@ -92,6 +94,33 @@ void showVersionAndCopyright() {
     printf("but WITHOUT ANY WARRANTY; without even the implied warranty of\n");
     printf("MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n");
     printf("GNU General Public License for more details.\n");
+
+    printf("\nBuild information:\n\nExecution Engine: ");
+
+#ifdef THREADED
+#ifdef DIRECT
+#ifdef INLINING
+    printf("inline-");
+#else /* INLINING */
+    printf("direct-");
+#endif /* INLINING */
+#endif /* DIRECT */
+    printf("threaded interpreter");
+#ifdef USE_CACHE
+    printf(" with stack-caching\n");
+#else /* USE_CACHE*/
+    printf("\n");
+#endif /* USE_CACHE */
+#else /* THREADED */
+    printf("switch interpreter\n");
+#endif /*THREADED */
+
+#if defined(__GNUC__) && defined(__VERSION__)
+    printf("Compiled with: gcc %s\n", __VERSION__);
+#endif
+
+    printf("\nBoot Library Path: %s\n", getBootDllPath());
+    printf("Boot Class Path: %s\n", DFLT_BCP);
 }
 
 void showFullVersion() {
@@ -223,6 +252,11 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
         } else if(strcmp(argv[i], "-Xcompactalways") == 0) {
             args->compact_specified = args->do_compact = TRUE;
 #ifdef INLINING
+        } else if(strncmp(argv[i], "-Xnoinlining") == 0) {
+            /* Turning inlining off is equivalent to setting
+               code memory to zero */
+            args->codemem = 0;
+
         } else if(strncmp(argv[i], "-Xreplication:", 14) == 0) {
             char *pntr = argv[i] + 14;
             int val;
