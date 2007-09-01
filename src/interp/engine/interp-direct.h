@@ -63,163 +63,164 @@
  * this, but this generates warnings on >= 2.96...
  */
 #if (__GNUC__ == 2) && (__GNUC_MINOR__ <= 95)
-#define label(x, y, z)                     \
+#define label(x, y, z)                          \
 opc##x##_##y##_##z##:
 #else
-#define label(x, y, z)                     \
+#define label(x, y, z)                          \
 opc##x##_##y##_##z:
 #endif
 
-#define DEF_OPC(opcode, level, BODY)     \
-    label(opcode, level, ENTRY)          \
+#define DEF_OPC(opcode, level, BODY)            \
+    label(opcode, level, ENTRY)                 \
         BODY
 
-#define DEF_OPC_2(op1, op2, level, BODY) \
-    label(op1, level, ENTRY)             \
-    label(op2, level, ENTRY)             \
+#define DEF_OPC_2(op1, op2, level, BODY)        \
+    label(op1, level, ENTRY)                    \
+    label(op2, level, ENTRY)                    \
         BODY
 
-#define DEF_OPC_3(op1, op2, op3, level, BODY) \
-    label(op1, level, ENTRY)                  \
-    label(op2, level, ENTRY)                  \
-    label(op3, level, ENTRY)                  \
+#define DEF_OPC_3(op1, op2, op3, level, BODY)   \
+    label(op1, level, ENTRY)                    \
+    label(op2, level, ENTRY)                    \
+    label(op3, level, ENTRY)                    \
         BODY
 
 #ifdef USE_CACHE
-#define DEF_OPC_012(opcode, BODY)     \
-    label(opcode, 0, ENTRY)           \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    label(opcode, 1, ENTRY)           \
-        cache.i.v2 = cache.i.v1;      \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    label(opcode, 2, ENTRY)           \
+#define DEF_OPC_012(opcode, BODY)               \
+    label(opcode, 0, ENTRY)                     \
+        cache.i.v1 = *--ostack;                 \
+                                                \
+    label(opcode, 1, ENTRY)                     \
+        cache.i.v2 = cache.i.v1;                \
+        cache.i.v1 = *--ostack;                 \
+                                                \
+    label(opcode, 2, ENTRY)                     \
         BODY
         
-#define DEF_OPC_012_2(op1, op2, BODY) \
-    label(op1, 0, ENTRY)              \
-    label(op2, 0, ENTRY)              \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    label(op1, 1, ENTRY)              \
-    label(op2, 1, ENTRY)              \
-        cache.i.v2 = cache.i.v1;      \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    label(op1, 2, ENTRY)              \
-    label(op2, 2, ENTRY)              \
+#define DEF_OPC_012_2(op1, op2, BODY)           \
+    label(op1, 0, ENTRY)                        \
+    label(op2, 0, ENTRY)                        \
+        cache.i.v1 = *--ostack;                 \
+                                                \
+    label(op1, 1, ENTRY)                        \
+    label(op2, 1, ENTRY)                        \
+        cache.i.v2 = cache.i.v1;                \
+        cache.i.v1 = *--ostack;                 \
+                                                \
+    label(op1, 2, ENTRY)                        \
+    label(op2, 2, ENTRY)                        \
         BODY
 
-#define DEF_OPC_012_3(op1, op2, op3, BODY) \
-    label(op1, 0, ENTRY)              \
-    label(op2, 0, ENTRY)              \
-    label(op3, 0, ENTRY)              \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    label(op1, 1, ENTRY)              \
-    label(op2, 1, ENTRY)              \
-    label(op3, 1, ENTRY)              \
-        cache.i.v2 = cache.i.v1;      \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    label(op1, 2, ENTRY)              \
-    label(op2, 2, ENTRY)              \
-    label(op3, 2, ENTRY)              \
+#define DEF_OPC_012_3(op1, op2, op3, BODY)      \
+    label(op1, 0, ENTRY)                        \
+    label(op2, 0, ENTRY)                        \
+    label(op3, 0, ENTRY)                        \
+        cache.i.v1 = *--ostack;                 \
+                                                \
+    label(op1, 1, ENTRY)                        \
+    label(op2, 1, ENTRY)                        \
+    label(op3, 1, ENTRY)                        \
+        cache.i.v2 = cache.i.v1;                \
+        cache.i.v1 = *--ostack;                 \
+                                                \
+    label(op1, 2, ENTRY)                        \
+    label(op2, 2, ENTRY)                        \
+    label(op3, 2, ENTRY)                        \
         BODY
 
 #define DEF_OPC_012_4(op1, op2, op3, op4, BODY) \
-    label(op1, 0, ENTRY)              \
-    label(op2, 0, ENTRY)              \
-    label(op3, 0, ENTRY)              \
-    label(op4, 0, ENTRY)              \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    label(op1, 1, ENTRY)              \
-    label(op2, 1, ENTRY)              \
-    label(op3, 1, ENTRY)              \
-    label(op4, 1, ENTRY)              \
-        cache.i.v2 = cache.i.v1;      \
-        cache.i.v1 = *--ostack;       \
-                                      \
-    label(op1, 2, ENTRY)              \
-    label(op2, 2, ENTRY)              \
-    label(op3, 2, ENTRY)              \
-    label(op4, 2, ENTRY)              \
+    label(op1, 0, ENTRY)                        \
+    label(op2, 0, ENTRY)                        \
+    label(op3, 0, ENTRY)                        \
+    label(op4, 0, ENTRY)                        \
+        cache.i.v1 = *--ostack;                 \
+                                                \
+    label(op1, 1, ENTRY)                        \
+    label(op2, 1, ENTRY)                        \
+    label(op3, 1, ENTRY)                        \
+    label(op4, 1, ENTRY)                        \
+        cache.i.v2 = cache.i.v1;                \
+        cache.i.v1 = *--ostack;                 \
+                                                \
+    label(op1, 2, ENTRY)                        \
+    label(op2, 2, ENTRY)                        \
+    label(op3, 2, ENTRY)                        \
+    label(op4, 2, ENTRY)                        \
         BODY
 
-#define DEF_OPC_210(opcode, BODY)     \
-    label(opcode, 2, ENTRY)           \
-        *ostack++ = cache.i.v1;       \
-        cache.i.v1 = cache.i.v2;      \
-                                      \
-    label(opcode, 1, ENTRY)           \
-        *ostack++ = cache.i.v1;       \
-                                      \
-    label(opcode, 0, ENTRY)           \
+#define DEF_OPC_210(opcode, BODY)               \
+    label(opcode, 2, ENTRY)                     \
+        *ostack++ = cache.i.v1;                 \
+        cache.i.v1 = cache.i.v2;                \
+                                                \
+    label(opcode, 1, ENTRY)                     \
+        *ostack++ = cache.i.v1;                 \
+                                                \
+    label(opcode, 0, ENTRY)                     \
         BODY
         
-#define DEF_OPC_210_2(op1, op2, BODY) \
-    label(op1, 2, ENTRY)              \
-    label(op2, 2, ENTRY)              \
-        *ostack++ = cache.i.v1;       \
-        cache.i.v1 = cache.i.v2;      \
-                                      \
-    label(op1, 1, ENTRY)              \
-    label(op2, 1, ENTRY)              \
-        *ostack++ = cache.i.v1;       \
-                                      \
-    label(op1, 0, ENTRY)              \
-    label(op2, 0, ENTRY)              \
+#define DEF_OPC_210_2(op1, op2, BODY)           \
+    label(op1, 2, ENTRY)                        \
+    label(op2, 2, ENTRY)                        \
+        *ostack++ = cache.i.v1;                 \
+        cache.i.v1 = cache.i.v2;                \
+                                                \
+    label(op1, 1, ENTRY)                        \
+    label(op2, 1, ENTRY)                        \
+        *ostack++ = cache.i.v1;                 \
+                                                \
+    label(op1, 0, ENTRY)                        \
+    label(op2, 0, ENTRY)                        \
         BODY
 
-#define LABELS(opcode)                \
-    label(opcode, 0, ENTRY)           \
-    label(opcode, 1, ENTRY)           \
+#define LABELS(opcode)                          \
+    label(opcode, 0, ENTRY)                     \
+    label(opcode, 1, ENTRY)                     \
     label(opcode, 2, ENTRY)
 
-#define DEF_OPC_RW(opcode, BODY)      \
-    LABELS(opcode)                    \
+#define DEF_OPC_RW(opcode, BODY)                \
+    LABELS(opcode)                              \
         BODY
 
-#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY) \
-    LABELS(op1)                    \
-    LABELS(op2)                    \
-    LABELS(op3)                    \
-    LABELS(op4)                    \
+#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY)  \
+    LABELS(op1)                                 \
+    LABELS(op2)                                 \
+    LABELS(op3)                                 \
+    LABELS(op4)                                 \
         BODY
 
 #else /* USE_CACHE */
 
-#define DEF_OPC_012(opcode, BODY)     \
+#define DEF_OPC_012(opcode, BODY)               \
     DEF_OPC(opcode, 0, BODY)
 
-#define DEF_OPC_012_2(op1, op2, BODY) \
+#define DEF_OPC_012_2(op1, op2, BODY)           \
     DEF_OPC_2(op1, op2, 0, BODY)
 
-#define DEF_OPC_012_3(op1, op2, op3, BODY) \
+#define DEF_OPC_012_3(op1, op2, op3, BODY)      \
     DEF_OPC_3(op1, op2, op3, 0, BODY)
 
 #define DEF_OPC_012_4(op1, op2, op3, op4, BODY) \
-    label(op1, 0, ENTRY)                  \
-    label(op2, 0, ENTRY)                  \
-    label(op3, 0, ENTRY)                  \
-    label(op4, 0, ENTRY)                  \
+    label(op1, 0, ENTRY)                        \
+    label(op2, 0, ENTRY)                        \
+    label(op3, 0, ENTRY)                        \
+    label(op4, 0, ENTRY)                        \
         BODY
 
-#define DEF_OPC_210(opcode, BODY)     \
+#define DEF_OPC_210(opcode, BODY)               \
     DEF_OPC_012(opcode, ({BODY});)
 
-#define DEF_OPC_210_2(op1, op2, BODY) \
+#define DEF_OPC_210_2(op1, op2, BODY)           \
     DEF_OPC_012_2(op1, op2, ({BODY});)
 
-#define DEF_OPC_RW(opcode, BODY)          \
+#define DEF_OPC_RW(opcode, BODY)                \
     DEF_OPC_012(opcode, ({BODY});)
 
-#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY) \
+#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY)  \
     DEF_OPC_012_4(op1, op2, op3, op4, ({BODY});)
 
 #endif /* USE_CACHE */
+
 #ifdef PREFETCH
 #define DISPATCH_FIRST                  \
 {                                       \

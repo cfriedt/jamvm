@@ -83,145 +83,142 @@
  * this, but this generates warnings on >= 2.96...
  */
 #if (__GNUC__ == 2) && (__GNUC_MINOR__ <= 95)
-#define label(x, y, z)                     \
+#define label(x, y, z)                          \
 opc##x##_##y##:
 #else
-#define label(x, y, z)                     \
+#define label(x, y, z)                          \
 opc##x##_##y##_##z:
 #endif
 
-#define DEF_OPC(opcode, level, BODY)     \
-    label(opcode, level, START)          \
-        PAD                              \
-    label(opcode, level, ENTRY)          \
-        BODY                             \
-    label(opcode, level, END)            \
+#define DEF_OPC(opcode, level, BODY)            \
+    label(opcode, level, START)                 \
+        PAD                                     \
+    label(opcode, level, ENTRY)                 \
+        BODY                                    \
+    label(opcode, level, END)                   \
         goto *pc->handler;
 
-#define DEF_OPC_2(op1, op2, level, BODY) \
-    DEF_OPC(op1, level, BODY);           \
+#define DEF_OPC_2(op1, op2, level, BODY)        \
+    DEF_OPC(op1, level, BODY);                  \
     DEF_OPC(op2, level, BODY);
 
-#define DEF_OPC_3(op1, op2, op3, level, BODY) \
-    DEF_OPC(op1, level, BODY);                \
-    DEF_OPC(op2, level, BODY);                \
+#define DEF_OPC_3(op1, op2, op3, level, BODY)   \
+    DEF_OPC(op1, level, BODY);                  \
+    DEF_OPC(op2, level, BODY);                  \
     DEF_OPC(op3, level, BODY);
 
 #ifdef USE_CACHE
-#define DEF_OPC_012(opcode, BODY)     \
-    DEF_OPC(opcode, 0, ({             \
-        cache.i.v2 = *--ostack;       \
-        cache.i.v1 = *--ostack;       \
-        __asm__("");                  \
-        BODY                          \
-    });)                              \
-                                      \
-    DEF_OPC(opcode, 1, ({             \
-        cache.i.v2 = cache.i.v1;      \
-        cache.i.v1 = *--ostack;       \
-        __asm__("");                  \
-        BODY                          \
-    });)                              \
-                                      \
+#define DEF_OPC_012(opcode, BODY)               \
+    DEF_OPC(opcode, 0, ({                       \
+        cache.i.v2 = *--ostack;                 \
+        cache.i.v1 = *--ostack;                 \
+        __asm__("");                            \
+        BODY                                    \
+    });)                                        \
+                                                \
+    DEF_OPC(opcode, 1, ({                       \
+        cache.i.v2 = cache.i.v1;                \
+        cache.i.v1 = *--ostack;                 \
+        __asm__("");                            \
+        BODY                                    \
+    });)                                        \
+                                                \
     DEF_OPC(opcode, 2, ({BODY});)
         
         
-#define DEF_OPC_012_2(op1, op2, BODY) \
-    DEF_OPC_012(op1, BODY)            \
+#define DEF_OPC_012_2(op1, op2, BODY)           \
+    DEF_OPC_012(op1, BODY)                      \
     DEF_OPC_012(op2, BODY)
 
-#define DEF_OPC_012_3(op1, op2, op3, BODY) \
-    DEF_OPC_012(op1, BODY)            \
-    DEF_OPC_012(op2, BODY)            \
+#define DEF_OPC_012_3(op1, op2, op3, BODY)      \
+    DEF_OPC_012(op1, BODY)                      \
+    DEF_OPC_012(op2, BODY)                      \
     DEF_OPC_012(op3, BODY)
 
 #define DEF_OPC_012_4(op1, op2, op3, op4, BODY) \
-    DEF_OPC_012(op1, BODY)            \
-    DEF_OPC_012(op2, BODY)            \
-    DEF_OPC_012(op3, BODY)            \
+    DEF_OPC_012(op1, BODY)                      \
+    DEF_OPC_012(op2, BODY)                      \
+    DEF_OPC_012(op3, BODY)                      \
     DEF_OPC_012(op4, BODY)
 
-#define DEF_OPC_210(opcode, BODY)     \
-    DEF_OPC(opcode, 2, ({             \
-        *ostack++ = cache.i.v1;       \
-        *ostack++ = cache.i.v2;       \
-        __asm__("");                  \
-        BODY                          \
-    });)                              \
-                                      \
-    DEF_OPC(opcode, 1, ({             \
-        *ostack++ = cache.i.v1;       \
-        __asm__("");                  \
-        BODY                          \
-    });)                              \
-                                      \
+#define DEF_OPC_210(opcode, BODY)               \
+    DEF_OPC(opcode, 2, ({                       \
+        *ostack++ = cache.i.v1;                 \
+        *ostack++ = cache.i.v2;                 \
+        __asm__("");                            \
+        BODY                                    \
+    });)                                        \
+                                                \
+    DEF_OPC(opcode, 1, ({                       \
+        *ostack++ = cache.i.v1;                 \
+        __asm__("");                            \
+        BODY                                    \
+    });)                                        \
+                                                \
     DEF_OPC(opcode, 0, ({BODY});)
         
-#define DEF_OPC_210_2(op1, op2, BODY) \
-    DEF_OPC_210(op1, BODY)            \
+#define DEF_OPC_210_2(op1, op2, BODY)           \
+    DEF_OPC_210(op1, BODY)                      \
     DEF_OPC_210(op2, BODY)
 
-#define LABEL(opcode, lbl)         \
-    label(opcode, 0, lbl)          \
-    label(opcode, 1, lbl)          \
+#define LABEL(opcode, lbl)                      \
+    label(opcode, 0, lbl)                       \
+    label(opcode, 1, lbl)                       \
     label(opcode, 2, lbl)
 
-#define LABELS(opcode)               \
-    LABEL(opcode, START)             \
-    LABEL(opcode, ENTRY)             \
+#define LABELS(opcode)                          \
+    LABEL(opcode, START)                        \
+    LABEL(opcode, ENTRY)                        \
     LABEL(opcode, END) 
 
-#define DEF_OPC_RW(opcode, BODY)      \
-    LABELS(opcode)                    \
-        BODY                          \
-        DISPATCH_FIRST3
+#define DEF_OPC_RW(opcode, BODY)                \
+    LABELS(opcode)                              \
+        BODY                                    \
+        goto *pc->handler;
 
-#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY) \
-    LABELS(op1)                    \
-    LABELS(op2)                    \
-    LABELS(op3)                    \
-    LABELS(op4)                    \
-        BODY                       \
-        DISPATCH_FIRST3
+#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY)  \
+    LABELS(op1)                                 \
+    LABELS(op2)                                 \
+    LABELS(op3)                                 \
+    LABELS(op4)                                 \
+        BODY                                    \
+        goto *pc->handler;
 
 #else /* USE_CACHE */
 
-#define DEF_OPC_012(opcode, BODY)     \
+#define DEF_OPC_012(opcode, BODY)               \
     DEF_OPC(opcode, 0, BODY)
 
-#define DEF_OPC_012_2(op1, op2, BODY) \
-    DEF_OPC_012(op1, BODY)            \
+#define DEF_OPC_012_2(op1, op2, BODY)           \
+    DEF_OPC_012(op1, BODY)                      \
     DEF_OPC_012(op2, BODY)
 
-#define DEF_OPC_012_3(op1, op2, op3, BODY) \
-    DEF_OPC_012(op1, BODY)            \
-    DEF_OPC_012(op2, BODY)            \
+#define DEF_OPC_012_3(op1, op2, op3, BODY)      \
+    DEF_OPC_012(op1, BODY)                      \
+    DEF_OPC_012(op2, BODY)                      \
     DEF_OPC_012(op3, BODY)
 
 #define DEF_OPC_012_4(op1, op2, op3, op4, BODY) \
-    DEF_OPC_012(op1, BODY)            \
-    DEF_OPC_012(op2, BODY)            \
-    DEF_OPC_012(op3, BODY)            \
+    DEF_OPC_012(op1, BODY)                      \
+    DEF_OPC_012(op2, BODY)                      \
+    DEF_OPC_012(op3, BODY)                      \
     DEF_OPC_012(op4, BODY)
 
-#define DEF_OPC_210(opcode, BODY)     \
+#define DEF_OPC_210(opcode, BODY)               \
     DEF_OPC_012(opcode, ({BODY});)
 
-#define DEF_OPC_210_2(op1, op2, BODY) \
+#define DEF_OPC_210_2(op1, op2, BODY)           \
     DEF_OPC_012_2(op1, op2, ({BODY});)
 
-#define DEF_OPC_RW(opcode, BODY)          \
+#define DEF_OPC_RW(opcode, BODY)                \
     DEF_OPC_012(opcode, ({BODY});)
 
-#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY) \
+#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY)  \
     DEF_OPC_012_4(op1, op2, op3, op4, ({BODY});)
 
 #endif /* USE_CACHE */
 
 #define DISPATCH_FIRST                  \
-    goto *pc->handler;
-
-#define DISPATCH_FIRST3                  \
     goto *pc->handler;
 
 #define DISPATCH_SWITCH
