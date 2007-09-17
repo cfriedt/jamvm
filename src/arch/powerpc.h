@@ -78,35 +78,24 @@
 #define LOCKWORD_COMPARE_AND_SWAP(addr, old_val, new_val) \
         COMPARE_AND_SWAP(addr, old_val, new_val)
 
+#define CACHE_LINE_LEN 32
+
 #define FLUSH_CACHE(addr, length)                   \
 {                                                   \
-    int temp;                                       \
-    __asm__ __volatile__ ("                         \
-                add     %1,%0,%1\n                  \
-                rlwinm  %0,%0,0,0,26\n              \
-                addi    %1,%1,31\n                  \
-                rlwinm  %1,%1,0,0,26\n              \
-                mr      %2,%0\n                     \
-        1:                                          \
-                cmplw   %0,%1\n                     \
-                bge     0f\n                        \
-                dcbst   0,%0\n                      \
-                addi    %0,%0,32\n                  \
-                b       1b\n                        \
-        0:                                          \
-                sync\n                              \
-        1:                                          \
-                cmplw   %2,%1\n                     \
-                bge     0f\n                        \
-                icbi    0,%2\n                      \
-                addi    %2,%2,32\n                  \
-                b       1b\n                        \
-        0:                                          \
-                sync\n                              \
-                isync\n                             \
-    ":                                              \
-     : "b" (addr), "r" (length), "r" (temp)         \
-     : "cc", "memory");                             \
+    uintptr_t end = ((uintptr_t) addr) + length;    \
+    uintptr_t start = ((uintptr_t) addr)            \
+                      & ~(CACHE_LINE_LEN - 1);      \
+    uintptr_t i;                                    \
+                                                    \
+    for(i = start; i < end; i += CACHE_LINE_LEN)    \
+        __asm__ ("dcbst 0, %0" :: "r" (i));         \
+                                                    \
+    __asm__ ("sync");                               \
+                                                    \
+    for(i = start; i < end; i += CACHE_LINE_LEN)    \
+        __asm__ ("icbi 0, %0" :: "r" (i));          \
+                                                    \
+    __asm__ ("sync; isync");                        \
 }
 
 #define MBARRIER() __asm__ __volatile__ ("sync" ::: "memory")
