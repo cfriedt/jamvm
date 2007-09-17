@@ -46,6 +46,8 @@ extern void setDoublePrecision();
     result;                                        \
 })
 
+#define FLUSH_CACHE(addr, length)
+
 #define LOCKWORD_READ(addr) *addr
 #define LOCKWORD_WRITE(addr, value) *addr = value
 #define LOCKWORD_COMPARE_AND_SWAP(addr, old_val, new_val) \
