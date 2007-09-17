@@ -112,7 +112,7 @@ void showVersionAndCopyright() {
     printf("\n");
 #endif /* USE_CACHE */
 #else /* THREADED */
-    printf("switch interpreter\n");
+    printf("switch-based interpreter\n");
 #endif /*THREADED */
 
 #if defined(__GNUC__) && defined(__VERSION__)
@@ -252,22 +252,21 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
         } else if(strcmp(argv[i], "-Xcompactalways") == 0) {
             args->compact_specified = args->do_compact = TRUE;
 #ifdef INLINING
-        } else if(strncmp(argv[i], "-Xnoinlining") == 0) {
+        } else if(strcmp(argv[i], "-Xnoinlining") == 0) {
             /* Turning inlining off is equivalent to setting
                code memory to zero */
             args->codemem = 0;
 
         } else if(strncmp(argv[i], "-Xreplication:", 14) == 0) {
             char *pntr = argv[i] + 14;
-            int val;
 
             if(strcmp(pntr, "none") == 0)
-                val = INT_MAX;
+                args->replication = INT_MAX;
             else
                 if(strcmp(pntr, "always") == 0)
-                    val = 0;
+                    args->replication = 0;
                 else
-                    val = strtol(pntr, NULL, 0);
+                    args->replication = strtol(pntr, NULL, 0);
 
         } else if(strncmp(argv[i], "-Xcodemem:", 10) == 0) {
             char *pntr = argv[i] + 10;
