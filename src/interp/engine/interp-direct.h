@@ -222,50 +222,49 @@ opc##x##_##y##_##z:
 #endif /* USE_CACHE */
 
 #ifdef PREFETCH
-#define DISPATCH_FIRST                  \
-{                                       \
-    next_handler = pc[1].handler;       \
-    REDISPATCH                          \
+#define DISPATCH_FIRST                          \
+{                                               \
+    next_handler = pc[1].handler;               \
+    REDISPATCH                                  \
 }
 
-#define DISPATCH(level, ins_len)        \
-{                                       \
-    const void *dispatch = next_handler;\
-    next_handler = (++pc)[1].handler;   \
-    goto *dispatch;                     \
+#define DISPATCH(level, ins_len)                \
+{                                               \
+    const void *dispatch = next_handler;        \
+    next_handler = (++pc)[1].handler;           \
+    goto *dispatch;                             \
 }
 #else
-#define DISPATCH_FIRST                  \
+#define DISPATCH_FIRST                          \
     REDISPATCH
 
-#define DISPATCH(level, ins_len)        \
+#define DISPATCH(level, ins_len)                \
     goto *(++pc)->handler;
 
 #endif /* PREFETCH */
 
-#define BRANCH(TEST)                    \
-    if(TEST) {                          \
-        pc = (Instruction*)             \
-             pc->operand.pntr;          \
-        DISPATCH_FIRST                  \
-    } else                              \
+#define BRANCH(TEST)                            \
+    if(TEST) {                                  \
+        pc = (Instruction*)pc->operand.pntr;    \
+        DISPATCH_FIRST                          \
+    } else                                      \
         DISPATCH(0,0)
 
-#define REDISPATCH                      \
+#define REDISPATCH                              \
     goto *pc->handler;
 
-#define DISPATCH_RET(ins_len)           \
-    pc++;                               \
+#define DISPATCH_RET(ins_len)                   \
+    pc++;                                       \
     DISPATCH_FIRST
 
-#define DISPATCH_METHOD_RET(ins_len)    \
+#define DISPATCH_METHOD_RET(ins_len)            \
     DISPATCH_RET(ins_len)
 
-#define DISPATCH_SWITCH                 \
+#define DISPATCH_SWITCH                         \
     DISPATCH_FIRST
 
-#define PREPARE_MB(mb)                  \
-    if((uintptr_t)mb->code & 0x3)       \
+#define PREPARE_MB(mb)                          \
+    if((uintptr_t)mb->code & 0x3)               \
         prepare(mb, handlers)
 
 #define ARRAY_TYPE(pc)        pc->operand.i
@@ -308,10 +307,10 @@ opc##x##_##y##_##z:
     }                                                                      \
 }
 
-#define ZERO_DIVISOR_CHECK(value)                          \
-    if(value == 0)                                         \
-        THROW_EXCEPTION("java/lang/ArithmeticException",   \
-                        "division by zero");
+#define ZERO_DIVISOR_CHECK(value)                                          \
+    if(value == 0)                                                         \
+        THROW_EXCEPTION("java/lang/ArithmeticException", "division by zero");
+
 
 extern void initialiseDirect(InitArgs *args);
 extern void prepare(MethodBlock *mb, const void ***handlers);

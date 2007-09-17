@@ -107,6 +107,43 @@ opc##x##_##y##_##z:
     DEF_OPC(op2, level, BODY);                  \
     DEF_OPC(op3, level, BODY);
 
+#define DEF_OPC_012_2(op1, op2, BODY)           \
+    DEF_OPC_012(op1, BODY)                      \
+    DEF_OPC_012(op2, BODY)
+
+#define DEF_OPC_012_3(op1, op2, op3, BODY)      \
+    DEF_OPC_012(op1, BODY)                      \
+    DEF_OPC_012(op2, BODY)                      \
+    DEF_OPC_012(op3, BODY)
+
+#define DEF_OPC_012_4(op1, op2, op3, op4, BODY) \
+    DEF_OPC_012(op1, BODY)                      \
+    DEF_OPC_012(op2, BODY)                      \
+    DEF_OPC_012(op3, BODY)                      \
+    DEF_OPC_012(op4, BODY)
+
+#define DEF_OPC_210_2(op1, op2, BODY)           \
+    DEF_OPC_210(op1, BODY)                      \
+    DEF_OPC_210(op2, BODY)
+
+#define RW_LABELS(opcode)                       \
+    RW_LABEL(opcode, START)                     \
+    RW_LABEL(opcode, ENTRY)                     \
+    RW_LABEL(opcode, END) 
+
+#define DEF_OPC_RW(opcode, BODY)                \
+    RW_LABELS(opcode)                           \
+        BODY                                    \
+        goto *pc->handler;
+
+#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY)  \
+    RW_LABELS(op1)                              \
+    RW_LABELS(op2)                              \
+    RW_LABELS(op3)                              \
+    RW_LABELS(op4)                              \
+        BODY                                    \
+        goto *pc->handler;
+
 #ifdef USE_CACHE
 #define DEF_OPC_012(opcode, BODY)               \
     DEF_OPC(opcode, 0, ({                       \
@@ -125,22 +162,6 @@ opc##x##_##y##_##z:
                                                 \
     DEF_OPC(opcode, 2, ({BODY});)
         
-        
-#define DEF_OPC_012_2(op1, op2, BODY)           \
-    DEF_OPC_012(op1, BODY)                      \
-    DEF_OPC_012(op2, BODY)
-
-#define DEF_OPC_012_3(op1, op2, op3, BODY)      \
-    DEF_OPC_012(op1, BODY)                      \
-    DEF_OPC_012(op2, BODY)                      \
-    DEF_OPC_012(op3, BODY)
-
-#define DEF_OPC_012_4(op1, op2, op3, op4, BODY) \
-    DEF_OPC_012(op1, BODY)                      \
-    DEF_OPC_012(op2, BODY)                      \
-    DEF_OPC_012(op3, BODY)                      \
-    DEF_OPC_012(op4, BODY)
-
 #define DEF_OPC_210(opcode, BODY)               \
     DEF_OPC(opcode, 2, ({                       \
         *ostack++ = cache.i.v1;                 \
@@ -157,92 +178,48 @@ opc##x##_##y##_##z:
                                                 \
     DEF_OPC(opcode, 0, ({BODY});)
         
-#define DEF_OPC_210_2(op1, op2, BODY)           \
-    DEF_OPC_210(op1, BODY)                      \
-    DEF_OPC_210(op2, BODY)
-
-#define LABEL(opcode, lbl)                      \
+#define RW_LABEL(opcode, lbl)                   \
     label(opcode, 0, lbl)                       \
     label(opcode, 1, lbl)                       \
     label(opcode, 2, lbl)
-
-#define LABELS(opcode)                          \
-    LABEL(opcode, START)                        \
-    LABEL(opcode, ENTRY)                        \
-    LABEL(opcode, END) 
-
-#define DEF_OPC_RW(opcode, BODY)                \
-    LABELS(opcode)                              \
-        BODY                                    \
-        goto *pc->handler;
-
-#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY)  \
-    LABELS(op1)                                 \
-    LABELS(op2)                                 \
-    LABELS(op3)                                 \
-    LABELS(op4)                                 \
-        BODY                                    \
-        goto *pc->handler;
 
 #else /* USE_CACHE */
 
 #define DEF_OPC_012(opcode, BODY)               \
     DEF_OPC(opcode, 0, BODY)
 
-#define DEF_OPC_012_2(op1, op2, BODY)           \
-    DEF_OPC_012(op1, BODY)                      \
-    DEF_OPC_012(op2, BODY)
-
-#define DEF_OPC_012_3(op1, op2, op3, BODY)      \
-    DEF_OPC_012(op1, BODY)                      \
-    DEF_OPC_012(op2, BODY)                      \
-    DEF_OPC_012(op3, BODY)
-
-#define DEF_OPC_012_4(op1, op2, op3, op4, BODY) \
-    DEF_OPC_012(op1, BODY)                      \
-    DEF_OPC_012(op2, BODY)                      \
-    DEF_OPC_012(op3, BODY)                      \
-    DEF_OPC_012(op4, BODY)
-
 #define DEF_OPC_210(opcode, BODY)               \
-    DEF_OPC_012(opcode, ({BODY});)
+    DEF_OPC(opcode, 0, BODY)
 
-#define DEF_OPC_210_2(op1, op2, BODY)           \
-    DEF_OPC_012_2(op1, op2, ({BODY});)
-
-#define DEF_OPC_RW(opcode, BODY)                \
-    DEF_OPC_012(opcode, ({BODY});)
-
-#define DEF_OPC_RW_4(op1, op2, op3, op4, BODY)  \
-    DEF_OPC_012_4(op1, op2, op3, op4, ({BODY});)
+#define RW_LABEL(opcode, lbl)                   \
+    label(opcode, 0, lbl)
 
 #endif /* USE_CACHE */
 
-#define DISPATCH_FIRST                  \
+#define DISPATCH_FIRST                          \
     goto *pc->handler;
 
 #define DISPATCH_SWITCH
 
 #define REDISPATCH ;
 
-#define DISPATCH_RET(ins_len)           \
+#define DISPATCH_RET(ins_len)                   \
     pc++;
 
-#define DISPATCH_METHOD_RET(ins_len)    \
+#define DISPATCH_METHOD_RET(ins_len)            \
     goto *(++pc)->handler;
 
-#define DISPATCH(level, ins_len)        \
+#define DISPATCH(level, ins_len)                \
     pc++;
 
-#define BRANCH(TEST)                    \
-    if(TEST) {                          \
-        pc = (Instruction*)             \
-             pc->operand.pntr;          \
-    } else                              \
+#define BRANCH(TEST)                            \
+    if(TEST)                                    \
+        pc = (Instruction*) pc->operand.pntr;   \
+    else                                        \
         pc++;
 
-#define PREPARE_MB(mb)                  \
-    if((uintptr_t)mb->code & 0x3)       \
+#define PREPARE_MB(mb)                          \
+    if((uintptr_t)mb->code & 0x3)               \
         prepare(mb, handlers)
 
 #define ARRAY_TYPE(pc)        pc->operand.i
