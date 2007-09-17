@@ -296,14 +296,14 @@ retry:
                 case OPC_RETURN: case OPC_IRETURN:  case OPC_ARETURN:
                 case OPC_FRETURN: case OPC_LRETURN: case OPC_DRETURN:
                 case OPC_ATHROW:
+#if defined(USE_CACHE) || defined(INLINING)
                     pc += 1;
 #ifdef INLINING
                     info[pc] |= END;
 #endif
-                    break;
 #ifdef USE_CACHE
                     cache = 0;
-                    pc += 1;
+#endif
                     break;
 #endif
                 case OPC_ACONST_NULL: case OPC_ICONST_M1: case OPC_ICONST_0:
