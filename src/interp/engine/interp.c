@@ -145,18 +145,6 @@ uintptr_t *executeJava() {
     int oob_array_index;
 #endif
 
-    CodePntr pc;
-    ExecEnv *ee = getExecEnv();
-    Frame *frame = ee->last_frame;
-    MethodBlock *mb = frame->mb;
-    uintptr_t *lvars = frame->lvars;
-    uintptr_t *ostack = frame->ostack;
-    ConstantPool *cp = &(CLASS_CB(mb->class)->constant_pool);
-
-    Object *this = (Object*)lvars[0];
-    Class *new_class;
-    MethodBlock *new_mb;
-    uintptr_t *arg1;
 #ifdef PREFETCH
     const void *next_handler;
 #endif
@@ -169,32 +157,43 @@ uintptr_t *executeJava() {
         long long l;
     } cache;
 #endif
+#endif
+
+    CodePntr pc;
+    ExecEnv *ee = getExecEnv();
+    Frame *frame = ee->last_frame;
+    MethodBlock *mb = frame->mb;
+    uintptr_t *lvars = frame->lvars;
+    uintptr_t *ostack = frame->ostack;
+    ConstantPool *cp = &(CLASS_CB(mb->class)->constant_pool);
+
+    Object *this = (Object*)lvars[0];
+    Class *new_class;
+    MethodBlock *new_mb;
+    uintptr_t *arg1;
 
     PREPARE_MB(mb);
     pc = (CodePntr)mb->code;
 
-#else /* THREADED */
-
-    pc = (CodePntr)mb->code;
-
+#ifdef THREADED
+rewrite_lock:
+    DISPATCH_FIRST
+#else
     while(TRUE) {
         switch(*pc) {
             default:
 #endif
 
-#ifndef DIRECT
 unused:
+#ifndef DIRECT
     jam_printf("Unrecognised opcode %d in: %s.%s\n", *pc, CLASS_CB(mb->class)->name, mb->name);
     exitVM(1);
-#else
-rewrite_lock:
-    DISPATCH_FIRST
-unused:
+#endif
+
 #ifdef INLINING
     throwOOBLabel = NULL;
     throwNullLabel = NULL;
     throwArithmeticExcepLabel = NULL;
-#endif
 #endif
 
 #define MULTI_LEVEL_OPCODES(level)                         \
@@ -1277,7 +1276,7 @@ unused:
 #endif
 
 #define FCMP(TYPE, isNan)                                 \
-{                                                         \
+({                                                        \
     int res;                                              \
     TYPE v1, v2;                                          \
     ostack -= sizeof(TYPE)/4; v2 = *(TYPE *)ostack;       \
@@ -1291,7 +1290,7 @@ unused:
     else                                                  \
          res = isNan;                                     \
     PUSH_0(res, 1);                                       \
-}
+})
 
     DEF_OPC_210(OPC_DCMPG,
         FCMP(double, 1);
