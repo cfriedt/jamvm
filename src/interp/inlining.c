@@ -546,18 +546,27 @@ void inlineBlockWrappedOpcode(Instruction *pc, PrepareInfo *prepare_info) {
     free(prepare_info);
 }
 
+/* A method's quick prepare info list holds prepare information for all
+   blocks within the method that end with a quickened instruction.  If
+   the quickened instruction being executed is in the list we must have
+   reached the end of a block and we need to inline it */
 void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
-    QuickPrepareInfo *info = mb->quick_prepare_info;
 
-    if(info) {
-        QuickPrepareInfo *last = NULL;
+    /* As there could be multiple threads executing this method,
+       the list must be protecthed with a lock.  However, the 
+       fast case of an empty list doesn't need locking. */
+    if(mb->quick_prepare_info) {
+        QuickPrepareInfo *info, *last = NULL;
         Thread *self = threadSelf();
 
         disableSuspend(self);
         lockVMWaitLock(quick_prepare_lock, self);
 
+        /* Search list */
+        info = mb->quick_prepare_info;
         for(; info && info->quickened != pc; last = info, info = info->next);
 
+        /* If prepare info found, remove it from the list */
         if(info) {
             if(last)
                 last->next = info->next;
@@ -568,6 +577,8 @@ void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
         unlockVMWaitLock(quick_prepare_lock, self);
         enableSuspend(self);
 
+        /* If prepare info found, inline block (no need to
+           hold lock) */
         if(info) {
             inlineBlock(&info->block);
             free(info);
