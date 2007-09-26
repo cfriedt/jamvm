@@ -24,6 +24,33 @@
 #ifndef USE_FFI
 #include <stdio.h>
 
+#ifdef __ARM_EABI__
+int nativeExtraArg(MethodBlock *mb) {
+    char *sig = mb->type;
+    int args = 0;
+
+    while(*++sig != ')')
+        switch(*sig) {
+            case 'J':
+            case 'D':
+                args = (args + 15) & ~7;
+                break;
+
+            default:
+                args += 4;
+
+                if(*sig == '[')
+                    while(*++sig == '[');
+                if(*sig == 'L')
+                    while(*++sig != ';');
+                break;
+        }
+
+    return args;
+}
+
+#else
+
 int nativeExtraArg(MethodBlock *mb) {
     int len = strlen(mb->type);
     if(mb->type[len-2] == ')')
@@ -49,4 +76,5 @@ int nativeExtraArg(MethodBlock *mb) {
     return 4;
 #endif
 }
+#endif
 #endif
