@@ -81,8 +81,8 @@ single:
 
 double:
         /* Ensure address is 8 byte aligned */
-        add     r2, r2, 7
-        and     r2, r2, ~7
+        add     r2, r2, #7
+        bic     r2, r2, #7
         
         ldr     r3, [lr], #4
         str     r3, [r2], #4
