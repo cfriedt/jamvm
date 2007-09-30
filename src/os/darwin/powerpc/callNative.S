@@ -23,8 +23,8 @@
 
 #ifndef USE_FFI
 #ifdef __ppc64__
-#include "callNative64.inc"
+#include "callNative64.S"
 #else
-#include "callNative32.inc"
+#include "callNative32.S"
 #endif
 #endif

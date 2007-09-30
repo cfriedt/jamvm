@@ -23,8 +23,8 @@
 
 #ifndef USE_FFI
 #ifdef __ARM_EABI__
-#include "callNativeEABI.inc"
+#include "callNativeEABI.S"
 #else
-#include "callNativeOABI.inc"
+#include "callNativeOABI.S"
 #endif
 #endif

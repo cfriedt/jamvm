@@ -1,4 +1,4 @@
-EXTRA_DIST = callNativeOABI.inc callNativeEABI.inc
+EXTRA_DIST = callNativeOABI.S callNativeEABI.S
 
 noinst_LTLIBRARIES = libnative.la
 libnative_la_SOURCES = init.c dll_md.c callNative.S
