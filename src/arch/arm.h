@@ -95,6 +95,22 @@ do {                                                      \
     : "cc", "memory");                                    \
 } while(0)
 
+
+#ifdef __ARM_EABI__
+#define FLUSH_CACHE(addr, length)                         \
+{                                                         \
+    __asm__ __volatile__ ("                               \
+        mov r0, %0\n                                      \
+        mov r1, %1\n                                      \
+        mov r2, #0\n                                      \
+        mov r7, #0xf0000\n                                \
+        add r7, r7, #2\n                                  \
+        swi 0\n                                           \
+    ":                                                    \
+     : "r" (addr), "r" (addr + length - 1)                \
+     : "r0", "r1", "r2", "r7");                           \
+}
+#else
 #define FLUSH_CACHE(addr, length)                         \
 {                                                         \
     __asm__ __volatile__ ("                               \
@@ -103,9 +119,10 @@ do {                                                      \
         mov r2, #0\n                                      \
         swi 0x9f0002\n                                    \
     ":                                                    \
-     : "r" (addr), "r" (addr + length - 1),               \
+     : "r" (addr), "r" (addr + length - 1)                \
      : "r0", "r1", "r2");                                 \
 }
+#endif
 
 #define MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
