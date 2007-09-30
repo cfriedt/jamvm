@@ -46,7 +46,10 @@ int nativeExtraArg(MethodBlock *mb) {
                 break;
         }
 
-    return args;
+    /* For efficiency, callNativeEABI.inc pushes all arguments
+       onto stack, and pops into r2/r3 before calling function,
+       so minimum stack requirement is 8 bytes. */
+    return args < 8 ? 8 : args;
 }
 
 #else

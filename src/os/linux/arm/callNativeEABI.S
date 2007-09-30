@@ -52,7 +52,7 @@ callJNIMethod:
         mov     r2, sp                  /* init loop pntr */
 
 scan_sig:
-        ldr     r3, [r5], #1
+        ldrb    r3, [r5], #1
 
         cmp     r3, #41                 /* ')' */
         beq     done
@@ -63,14 +63,14 @@ scan_sig:
 
 skip_brackets:
         cmp     r3, #91                 /* '[' */
-        ldreq   r3, [r5], #1
+        ldreqb  r3, [r5], #1
         beq     skip_brackets
 
         cmp     r3, #76                 /* 'L' */
         bne     single
 
 skip_ref:
-        ldr     r3, [r5], #1
+        ldrb    r3, [r5], #1
         cmp     r3, #59                 /* ';' */
         bne     skip_ref
 
@@ -98,12 +98,14 @@ done:
         mov     lr, pc
         bx      ip
 
-        subs    r4, r4, #8
+        subs    r4, r4, #8              /* Pop argument area */
+                                        /* (minus 8 for r2/r3) */
         add     sp, sp, r4
 
-        ldr     r4, [sp, #12]
+        ldr     r4, [sp, #12]           /* Reload ostack for */
+                                        /* address of return value */
 
-        ldr     r3, [r5]                /* Return type */
+        ldrb    r3, [r5]                /* Return type */
 
         cmp     r3, #86                 /* 'V' */
         beq     return
@@ -115,7 +117,7 @@ done:
         streq   r1, [r4], #4            /* High word */
 
 return:
-        mov     r0, r4
+        mov     r0, r4                  /* return ostack */
         ldmfd   sp!, {r4, r5, lr}
         bx      lr
 
