@@ -806,7 +806,7 @@ extern void *executeMethodList(Object *ob, Class *class, MethodBlock *mb, u8 *ar
 
 /* excep */
 
-extern Object *exceptionOccured();
+extern Object *exceptionOccurred();
 extern void signalChainedException(char *excep_name, char *excep_mess, Object *cause);
 extern void setException(Object *excep);
 extern void clearException();

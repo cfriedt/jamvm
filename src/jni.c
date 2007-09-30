@@ -397,7 +397,7 @@ void Jam_DeleteWeakGlobalRef(JNIEnv *env, jweak obj) {
 }
 
 jboolean Jam_ExceptionCheck(JNIEnv *env) {
-    return exceptionOccured() ? JNI_TRUE : JNI_FALSE;
+    return exceptionOccurred() ? JNI_TRUE : JNI_FALSE;
 }
 
 /* JNI 1.1 interface */
@@ -443,7 +443,7 @@ jint Jam_ThrowNew(JNIEnv *env, jclass clazz, const char *message) {
 }
 
 jthrowable Jam_ExceptionOccurred(JNIEnv *env) {
-    return (jthrowable) addJNILref(exceptionOccured());
+    return (jthrowable) addJNILref(exceptionOccurred());
 }
 
 void Jam_ExceptionDescribe(JNIEnv *env) {

@@ -501,7 +501,7 @@ uintptr_t *forName0(uintptr_t *ostack, int resolve, Object *loader) {
 
 out:
     if(class == NULL) {
-        Object *e = exceptionOccured();
+        Object *e = exceptionOccurred();
         clearException();
         signalChainedException("java/lang/ClassNotFoundException", cstr, e);
     } else

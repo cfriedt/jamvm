@@ -165,7 +165,7 @@ retry:
             resolved_class = resolveClass(class, cl_idx, FALSE);
             resolved_cb = CLASS_CB(resolved_class);
 
-            if(exceptionOccured())
+            if(exceptionOccurred())
                 return NULL;
 
             if(resolved_cb->access_flags & ACC_INTERFACE) {
@@ -230,7 +230,7 @@ retry:
             methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
             resolved_class = resolveClass(class, cl_idx, FALSE);
 
-            if(exceptionOccured())
+            if(exceptionOccurred())
                 return NULL;
 
             if(!(CLASS_CB(resolved_class)->access_flags & ACC_INTERFACE)) {
@@ -290,7 +290,7 @@ retry:
             fieldtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
             resolved_class = resolveClass(class, cl_idx, FALSE);
 
-            if(exceptionOccured())
+            if(exceptionOccurred())
                 return NULL;
 
             fb = lookupField(resolved_class, fieldname, fieldtype);

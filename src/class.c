@@ -283,7 +283,7 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
        u2 index;
        READ_TYPE_INDEX(index, constant_pool, CONSTANT_Class, ptr, len);
        interfaces[i] = resolveClass(class, index, FALSE);
-       if(exceptionOccured())
+       if(exceptionOccurred())
            return NULL; 
     }
 
@@ -535,7 +535,7 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
 
     classblock->super = super_idx ? resolveClass(class, super_idx, FALSE) : NULL;
 
-    if(exceptionOccured())
+    if(exceptionOccurred())
        return NULL;
 
     classblock->state = CLASS_LOADED;
@@ -1115,7 +1115,7 @@ Class *initClass(Class *class) {
    if(!(cb->access_flags & ACC_INTERFACE) && cb->super
               && (CLASS_CB(cb->super)->state != CLASS_INITED)) {
       initClass(cb->super);
-      if(exceptionOccured()) {
+      if(exceptionOccurred()) {
           objectLock((Object *)class);
           cb->state = CLASS_BAD;
           goto notify;
@@ -1138,7 +1138,7 @@ Class *initClass(Class *class) {
    if((mb = findMethod(class, "<clinit>", "()V")) != NULL)
       executeStaticMethod(class, mb);
 
-   if((excep = exceptionOccured())) {
+   if((excep = exceptionOccurred())) {
        Class *error, *eiie;
        Object *ob;
 
@@ -1266,7 +1266,7 @@ Class *findSystemClass0(char *classname) {
    if(class == NULL)
        class = loadSystemClass(classname);
 
-   if(!exceptionOccured())
+   if(!exceptionOccurred())
        linkClass(class);
 
    return class;
@@ -1275,7 +1275,7 @@ Class *findSystemClass0(char *classname) {
 Class *findSystemClass(char *classname) {
    Class *class = findSystemClass0(classname);
 
-   if(!exceptionOccured())
+   if(!exceptionOccurred())
        initClass(class);
 
    return class;
@@ -1358,7 +1358,7 @@ Class *findNonArrayClassFromClassLoader(char *classname, Object *loader) {
         class = *(Class**)executeMethod(loader,
                     CLASS_CB(loader->class)->method_table[loadClass_mtbl_idx], string);
 
-        if((excep = exceptionOccured())) {
+        if((excep = exceptionOccurred())) {
             clearException();
             signalChainedException("java/lang/NoClassDefFoundError", classname, excep);
             return NULL;
@@ -1385,14 +1385,14 @@ Class *findClassFromClassLoader(char *classname, Object *loader) {
 Object *getSystemClassLoader() {
     Class *class_loader = findSystemClass("java/lang/ClassLoader");
 
-    if(!exceptionOccured()) {
+    if(!exceptionOccurred()) {
         MethodBlock *mb;
 
         if((mb = findMethod(class_loader, "getSystemClassLoader",
                                           "()Ljava/lang/ClassLoader;")) != NULL) {
             Object *system_loader = *(Object**)executeStaticMethod(class_loader, mb);
 
-            if(!exceptionOccured()) 
+            if(!exceptionOccurred()) 
                 return system_loader;
         }
     }

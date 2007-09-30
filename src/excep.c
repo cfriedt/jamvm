@@ -57,7 +57,7 @@ void initialiseException() {
     }
 }
 
-Object *exceptionOccured() {
+Object *exceptionOccurred() {
    return getExecEnv()->exception; 
 }
 
@@ -72,7 +72,7 @@ void signalChainedException(char *excep_name, char *message, Object *cause) {
     } else {
         Class *exception = findSystemClass(excep_name);
 
-        if(!exceptionOccured()) {
+        if(!exceptionOccurred()) {
             Object *exp = allocObject(exception);
             Object *str = message == NULL ? NULL : Cstr2String(message);
             MethodBlock *init = lookupMethod(exception,
@@ -80,7 +80,7 @@ void signalChainedException(char *excep_name, char *message, Object *cause) {
             if(exp && init) {
                 executeMethod(exp, init, str);
 
-                if(cause && !exceptionOccured()) {
+                if(cause && !exceptionOccurred()) {
                     MethodBlock *mb = lookupMethod(exception, "initCause",
                                             "(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
                     if(mb)
@@ -272,13 +272,13 @@ Object *convertStackTrace(Object *vmthrwble) {
         Object *ste = allocObject(ste_class);
         sysFree(dot_name);
 
-        if(exceptionOccured())
+        if(exceptionOccurred())
             return NULL;
 
         executeMethod(ste, vmthrow_init_mb, filename, isNative ? -1 : mapPC2LineNo(mb, pc),
                         classname, methodname, isNative);
 
-        if(exceptionOccured())
+        if(exceptionOccurred())
             return NULL;
 
         dest[j] = ste;

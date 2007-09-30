@@ -319,7 +319,7 @@ int main(int argc, char *argv[]) {
     if((main_class = findClassFromClassLoader(argv[class_arg], system_loader)) != NULL)
         initClass(main_class);
 
-    if(exceptionOccured()) {
+    if(exceptionOccurred()) {
         printException();
         exitVM(1);
     }
@@ -346,9 +346,9 @@ int main(int argc, char *argv[]) {
             executeStaticMethod(main_class, mb, array);
     }
 
-    /* ExceptionOccured returns the exception or NULL, which is OK
+    /* ExceptionOccurred returns the exception or NULL, which is OK
        for normal conditionals, but not here... */
-    if((status = exceptionOccured() ? 1 : 0))
+    if((status = exceptionOccurred() ? 1 : 0))
         printException();
 
     /* Wait for all but daemon threads to die */

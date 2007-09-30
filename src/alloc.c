@@ -1617,7 +1617,7 @@ void initialiseGC(InitArgs *args) {
 
     MethodBlock *init;
     Class *oom_clazz = findSystemClass("java/lang/OutOfMemoryError");
-    if(exceptionOccured()) {
+    if(exceptionOccurred()) {
         printException();
         exitVM(1);
     }

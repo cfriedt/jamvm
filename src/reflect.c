@@ -559,7 +559,7 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
                 return NULL;
 
             enum_obj = *(Object**)executeStaticMethod(enum_class, enum_valueof_mb, type_class, const_name);
-            if(exceptionOccured())
+            if(exceptionOccurred())
                 return NULL;
 
             return enum_obj;
@@ -606,7 +606,7 @@ Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len) {
         return NULL;
 
     executeMethod(map, map_init_mb);
-    if(exceptionOccured())
+    if(exceptionOccurred())
         return NULL;
 
     READ_TYPE_INDEX(type_idx, cp, CONSTANT_Utf8, *data_ptr, *data_len);
@@ -627,12 +627,12 @@ Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len) {
             return NULL;
 
         executeMethod(map, map_put_mb, element_name, element_value);
-        if(exceptionOccured())
+        if(exceptionOccurred())
             return NULL;
     }
 
     anno = *(Object**)executeStaticMethod(anno_inv_class, anno_create_mb, type_class, map);
-    if(exceptionOccured())
+    if(exceptionOccurred())
         return NULL;
 
     return anno;
@@ -912,7 +912,7 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
 
     POP_TOP_FRAME(ee);
 
-    if((excep = exceptionOccured())) {
+    if((excep = exceptionOccurred())) {
         Object *ite_excep;
         MethodBlock *init;
         Class *ite_class;
@@ -920,7 +920,7 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
         clearException();        
         ite_class = findSystemClass("java/lang/reflect/InvocationTargetException");
 
-        if(!exceptionOccured() && (ite_excep = allocObject(ite_class)) &&
+        if(!exceptionOccurred() && (ite_excep = allocObject(ite_class)) &&
                         (init = lookupMethod(ite_class, "<init>", "(Ljava/lang/Throwable;)V"))) {
             executeMethod(ite_excep, init, excep);
             setException(ite_excep);

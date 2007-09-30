@@ -451,7 +451,7 @@ void detachThread(Thread *thread) {
 
     /* If there's an uncaught exception, call uncaughtException on the thread's
        exception handler, or the thread's group if this is unset */
-    if((excep = exceptionOccured())) {
+    if((excep = exceptionOccurred())) {
         FieldBlock *fb = findField(thread_class, "exceptionHandler",
                                                  "Ljava/lang/Thread$UncaughtExceptionHandler;");
         Object *thread_handler = fb == NULL ? NULL : (Object *)INST_DATA(jThread)[fb->offset];
