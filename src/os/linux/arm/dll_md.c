@@ -25,6 +25,12 @@
 #include <stdio.h>
 
 #ifdef __ARM_EABI__
+
+/* EABI requires 8 byte alignment of long longs and doubles.
+ * To do this, the signature must be scanned, first to work
+ * out stack requirements and then to push arguments.  To
+ * save the first scan at call time, the signature is pre-
+ * scanned and stack requirement stored in the extra argument. */
 int nativeExtraArg(MethodBlock *mb) {
     char *sig = mb->type;
     int args = 0;
@@ -47,13 +53,18 @@ int nativeExtraArg(MethodBlock *mb) {
         }
 
     /* For efficiency, callNativeEABI.inc pushes all arguments
-       onto stack, and pops into r2/r3 before calling function,
-       so minimum stack requirement is 8 bytes. */
+       onto stack, and pops into r2/r3 before calling the
+       native method, so minimum stack requirement is 8 bytes. */
     return args < 8 ? 8 : args;
 }
 
 #else
 
+/* Under OABI, arguments can be copied onto the stack "as is"
+ * from the operand stack.  As the signature isn't scanned
+ * the return type must be pre-computed.  We take the
+ * opportunity to turn it into a jump-table index number.
+ */
 int nativeExtraArg(MethodBlock *mb) {
     int len = strlen(mb->type);
     if(mb->type[len-2] == ')')
