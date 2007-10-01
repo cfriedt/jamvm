@@ -139,8 +139,9 @@ uintptr_t *executeJava() {
     extern int inlining_inited;
     if(!inlining_inited) return (uintptr_t*)handlers;
 
-    void *throwNullLabel = &&throwNull;
     void *throwOOBLabel = &&throwOOB;
+    void *throwNullLabel = &&throwNull;
+    void *methodReturnLabel = &&methodReturn;
     void *throwArithmeticExcepLabel = &&throwArithmeticExcep;
     int oob_array_index;
 #endif
@@ -193,6 +194,7 @@ unused:
 #ifdef INLINING
     throwOOBLabel = NULL;
     throwNullLabel = NULL;
+    methodReturnLabel = NULL;
     throwArithmeticExcepLabel = NULL;
 #endif
 
@@ -264,7 +266,7 @@ unused:
     DEF_OPC_2(OPC_ILOAD_0,                                 \
               OPC_FLOAD_0, level,                          \
         PUSH_##level(lvars[0], 1)                          \
-    );                                                     \
+    )                                                      \
                                                            \
     DEF_OPC_3(OPC_ILOAD_1,                                 \
               OPC_FLOAD_1,                                 \
@@ -441,7 +443,7 @@ unused:
     )                                                      \
                                                            \
     DEF_OPC(OPC_RETURN, level,                             \
-        goto methodReturn;                           \
+        goto METHOD_RETURN_LABEL;                          \
     )                                                      \
                                                            \
     DEF_OPC(OPC_GETSTATIC_QUICK, level,                    \
@@ -522,15 +524,15 @@ unused:
 
 #define RETURN_0                                           \
     *lvars++ = *--ostack;                                  \
-    goto methodReturn;
+    goto METHOD_RETURN_LABEL;
 
 #define RETURN_1                                           \
     *lvars++ = cache.i.v1;                                 \
-    goto methodReturn;
+    goto METHOD_RETURN_LABEL;
 
 #define RETURN_2                                           \
     *lvars++ = cache.i.v2;                                 \
-    goto methodReturn;
+    goto METHOD_RETURN_LABEL;
 
 #define GETFIELD_QUICK_0                                   \
 {                                                          \
@@ -1344,7 +1346,7 @@ unused:
         *(u8*)lvars = *(u8*)ostack;
 #endif
         lvars += 2;
-        goto methodReturn;
+        goto METHOD_RETURN_LABEL;
     )
 
     DEF_OPC_210(OPC_ARRAYLENGTH, {
