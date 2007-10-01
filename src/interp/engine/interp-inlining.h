@@ -222,6 +222,8 @@ opc##x##_##y##_##z:
     if((uintptr_t)mb->code & 0x3)               \
         prepare(mb, handlers)
 
+#define METHOD_RETURN_LABEL   *methodReturnLabel
+
 #define ARRAY_TYPE(pc)        pc->operand.i
 #define SINGLE_INDEX(pc)      pc->operand.i
 #define DOUBLE_INDEX(pc)      pc->operand.i
