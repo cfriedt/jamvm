@@ -506,7 +506,8 @@ void inlineBlock(CodeBlock *block) {
         }
 
         if(op1 > 0) {
-            opcode = handler_entry_points[cache_depth][op1] == (char*) block->start[i].handler ? op1 : op2;
+            opcode = handler_entry_points[cache_depth][op1]
+                            == (char*) block->start[i].handler ? op1 : op2;
             block->opcodes[i].opcode = opcode;
         }
 
