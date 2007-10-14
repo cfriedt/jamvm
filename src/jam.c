@@ -48,7 +48,7 @@ void showNonStandardOptions() {
     printf("  -Xcompactalways  always compact the heap when garbage-collecting\n");
     printf("  -Xnocompact\t   turn off heap-compaction\n");
 #ifdef INLINING
-    printf("  -Xnoinlining\t  turn off interpreter inlining\n");
+    printf("  -Xnoinlining\t   turn off interpreter inlining\n");
     printf("  -Xshowreloc\t   show opcode relocatability\n");
     printf("  -Xreplication:[none|always|<value>]\n");
     printf("\t\t   none : always re-use super-instructions\n");
