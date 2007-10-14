@@ -252,6 +252,7 @@ AC_CONFIG_FILES(
     Makefile \
     src/Makefile \
     src/interp/Makefile \
+    src/interp/engine/Makefile \
     src/arch/Makefile \
     src/os/Makefile \
     src/os/linux/Makefile \
