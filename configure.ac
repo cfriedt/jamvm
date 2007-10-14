@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.4.6-pre)
+AM_INIT_AUTOMAKE(jamvm, 1.5.0)
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
 
@@ -68,6 +68,24 @@ AC_ARG_ENABLE(tracethread,
         AC_DEFINE([TRACETHREAD],1,[defined if thread creation tracing enabled for debugging])
     fi],)
 
+AC_ARG_ENABLE(tracecompact,
+    [AS_HELP_STRING(--enable-tracecompact,add GC compaction phase tracing (for debugging))],
+    [if test "$enableval" != no; then
+        AC_DEFINE([TRACECOMPACT],1,[defined if GC compaction phase tracing enabled for debugging])
+    fi],)
+
+AC_ARG_ENABLE(tracedirect,
+    [AS_HELP_STRING(--enable-tracedirect,add interpreter direct-mode tracing (for debugging))],
+    [if test "$enableval" != no; then
+        AC_DEFINE([TRACEDIRECT],1,[defined if interpreter direct-mode tracing enabled for debugging])
+    fi],)
+
+AC_ARG_ENABLE(traceinlining,
+    [AS_HELP_STRING(--enable-traceinlining,add interpreter inlining tracing (for debugging))],
+    [if test "$enableval" != no; then
+        AC_DEFINE([TRACEINLINING],1,[defined if interpreter inlining tracing enabled for debugging])
+    fi],)
+
 AC_ARG_ENABLE(trace,
     [AS_HELP_STRING(--enable-trace,add all tracing (for debugging))],
     [if test "$enableval" != no; then
@@ -77,6 +95,9 @@ AC_ARG_ENABLE(trace,
         AC_DEFINE([TRACEDLL],1,[defined if library loading/unloading tracing enabled for debugging])
         AC_DEFINE([TRACELOCK],1,[defined if object locking tracing enabled for debugging])
         AC_DEFINE([TRACETHREAD],1,[defined if thread creation tracing enabled for debugging])
+        AC_DEFINE([TRACECOMPACT],1,[defined if GC compaction phase tracing enabled for debugging])
+        AC_DEFINE([TRACEDIRECT],1,[defined if interpreter direct-mode tracing enabled for debugging])
+        AC_DEFINE([TRACEINLINING],1,[defined if interpreter inlining tracing enabled for debugging])
     fi],)
 
 AC_ARG_ENABLE(int-threading,
@@ -87,17 +108,20 @@ AC_ARG_ENABLE(int-direct,
 
 AC_ARG_ENABLE(int-caching,
     [AS_HELP_STRING(--enable-int-caching,enable stack-caching version of the interpreter
-                   (default powerpc,arm enabled : i386 disabled))],,
-    [if test "$host_cpu" = i386; then
+                   (disabled by default on x86-64, enabled otherwise))],,
+    [if test "$host_cpu" = x86_64; then
          enable_int_caching=no
      fi])
 
 AC_ARG_ENABLE(int-prefetch,
     [AS_HELP_STRING(--enable-int-prefetch,enable prefetching version of the interpreter
-                   (default powerpc enabled : i386,arm disabled))],,
+                   (by default enabled on powerpc, disabled otherwise))],,
     [if test "$host_cpu" != powerpc; then
          enable_int_prefetch=no
      fi])
+
+AC_ARG_ENABLE(int-inlining,
+    [AS_HELP_STRING(--enable-int-inlining,enable inline threaded version of the interpreter (default enabled))],,)
 
 if test "$enable_int_threading" != no; then
     AC_DEFINE([THREADED],1,[interpreter threaded])
@@ -113,7 +137,14 @@ if test "$enable_int_threading" != no; then
     if test "$enable_int_prefetch" != no; then
         AC_DEFINE([PREFETCH],1,[interpreter uses prefetching])
     fi
+
+    if test "$enable_int_inlining" != no; then
+        AC_DEFINE([INLINING],1,[interpreter inlining])
+        interp_cflags=-fno-reorder-blocks 
+    fi
 fi
+
+AC_SUBST(interp_cflags)
 
 AC_ARG_ENABLE(ffi,
     [AS_HELP_STRING(--enable-ffi,use libffi to call native methods)],,
