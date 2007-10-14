@@ -44,7 +44,7 @@
 #define SCAVENGE(ptr) ptr == DELETED
 #define DELETED ((void*)-1)
 
-/* Global lock for ... */
+/* Global lock for protecting all method "quick-prepare" lists... */
 static VMWaitLock quick_prepare_lock;
 
 #define LABELS_SIZE  256
@@ -192,10 +192,6 @@ int initialiseInlining(InitArgs *args) {
         code_increment = ROUND(CODE_INCREMENT, sys_page_size);
 
         replication_threshold = args->replication;
-
-printf("sys_page_size %d\n", sys_page_size);
-printf("max_code_size %u\n", max_code_size);
-printf("code_increment %d\n", code_increment);
     }
 
     inlining_inited = TRUE;
@@ -337,9 +333,11 @@ CodeBlockHeader *allocCodeMemory(int size) {
     CodeBlockHeader *last = NULL;
     CodeBlockHeader *block = code_free_list;
 
+    /* Search free list for big enough block */
     for(; block && block->len < size; last = block, block = block->u.next);
 
     if(block) {
+        /* Found one.  If not exact fit, need to split. */
         if(block->len > size) {
             CodeBlockHeader *rem = (CodeBlockHeader*)((char*)block + size);
 
@@ -349,12 +347,15 @@ CodeBlockHeader *allocCodeMemory(int size) {
             block->len = size;
             block->u.next = rem;
         }
+
         if(last)
             last->u.next = block->u.next;
         else
             code_free_list = block->u.next;
-    } else
+    } else {
+        /* No block big enough.  Need to allocate a new code chunk */
         block = expandCodeMemory(size);
+    }
 
     return block;
 }
@@ -388,6 +389,8 @@ CodeBlockHeader *foundExistingBlock(CodeBlockHeader *block) {
     return block;
 }
 
+/* Executed when the code block does not already exist in the
+   hash table */
 CodeBlockHeader *allocCodeBlock(CodeBlockHeader *block) {
     CodeBlockHeader *new_block = allocCodeMemory(block->len);
 
@@ -402,6 +405,7 @@ CodeBlockHeader *allocCodeBlock(CodeBlockHeader *block) {
 CodeBlockHeader *findCodeBlock(CodeBlockHeader *block) {
     CodeBlockHeader *hashed_block;
 
+    /* Search hash table.  Add if absent, scavenge and locked */
     findHashEntry(code_hash_table, block, hashed_block, TRUE, TRUE, TRUE);
 
     return hashed_block;
@@ -447,7 +451,7 @@ void inlineSequence(CodeBlock *info, int start, int len) {
 
     /* Look up new block in inlined block cache */
     hashed_block = findCodeBlock(block);
-    free(block);
+    sysFree(block);
 
     if(hashed_block != NULL) {
         /* Replace first handler with new inlined block */
@@ -467,6 +471,9 @@ void inlineBlock(CodeBlock *block) {
         int opcode = block->opcodes[i].opcode;
         int op1, op2;
 
+        /* The block opcodes contain the "un-quickened" opcode.
+           This could have been quickened to one of several quick
+           versions. */
         switch(opcode) {
             case OPC_LDC:
                 op1 = OPC_LDC_QUICK;
@@ -506,11 +513,13 @@ void inlineBlock(CodeBlock *block) {
         }
 
         if(op1 > 0) {
+            /* Match which quickened opcode */
             opcode = handler_entry_points[cache_depth][op1]
                             == (char*) block->start[i].handler ? op1 : op2;
             block->opcodes[i].opcode = opcode;
         }
 
+        /* A non-relocatable opcode ends a sequence */
         if(handler_sizes[cache_depth][opcode] == -1) {
             len = i - start;
 
@@ -521,30 +530,35 @@ void inlineBlock(CodeBlock *block) {
         }
     }
 
+    /* Inline the remaining sequence */
     len = block->length - start;
     if(len > 0)
         inlineSequence(block, start, len);
 
-    free(block->opcodes);
+    sysFree(block->opcodes);
 }
 
 void inlineBlockWrappedOpcode(Instruction *pc, PrepareInfo *prepare_info) {
     OpcodeInfo *info;
 
+    /* Lock the instruction during rewriting by replacing
+       handler with DISPATCH */
     pc->handler = handler_entry_points[0][GOTO_START];
     MBARRIER();
 
     if(!LOCKWORD_COMPARE_AND_SWAP(&pc->operand, prepare_info, 0))
         return;
 
+    /* Unwrap the original handler's operand */
     LOCKWORD_WRITE(&pc->operand, prepare_info->operand);
     MBARRIER();
 
+    /* Unwrap the original handler */
     info = &prepare_info->block.opcodes[prepare_info->block.length-1];
     pc->handler = handler_entry_points[info->cache_depth][info->opcode];
 
     inlineBlock(&prepare_info->block);
-    free(prepare_info);
+    sysFree(prepare_info);
 }
 
 /* A method's quick prepare info list holds prepare information for all
@@ -554,7 +568,7 @@ void inlineBlockWrappedOpcode(Instruction *pc, PrepareInfo *prepare_info) {
 void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
 
     /* As there could be multiple threads executing this method,
-       the list must be protecthed with a lock.  However, the 
+       the list must be protected with a lock.  However, the 
        fast case of an empty list doesn't need locking. */
     if(mb->quick_prepare_info) {
         QuickPrepareInfo *info, *last = NULL;
@@ -582,7 +596,7 @@ void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
            hold lock) */
         if(info) {
             inlineBlock(&info->block);
-            free(info);
+            sysFree(info);
         }
     }
 }
