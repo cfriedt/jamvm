@@ -44,8 +44,8 @@
 #define SCAVENGE(ptr) ptr == DELETED
 #define DELETED ((void*)-1)
 
-/* Global lock for protecting all method "quick-prepare" lists... */
-static VMWaitLock quick_prepare_lock;
+/* Global lock for ... */
+static VMLock rewrite_lock;
 
 #define LABELS_SIZE  256
 #define GOTO_START   230
@@ -184,7 +184,7 @@ int initialiseInlining(InitArgs *args) {
     int enabled = args->codemem > 0 ? checkRelocatability(args) : FALSE;
 
     if(enabled) {
-        initVMWaitLock(quick_prepare_lock);
+        initVMLock(rewrite_lock);
         initHashTable(code_hash_table, HASHTABSZE, TRUE);
 
         sys_page_size = getpagesize();
@@ -538,19 +538,42 @@ void inlineBlock(CodeBlock *block) {
     sysFree(block->opcodes);
 }
 
-void inlineBlockWrappedOpcode(Instruction *pc, PrepareInfo *prepare_info) {
+void rewriteLock(Thread *self) {
+    /* Only disable/enable suspension (slow) if
+       we have to block */
+    if(!tryLockVMLock(rewrite_lock, self)) {
+        disableSuspend(self);
+        lockVMLock(rewrite_lock, self);
+        enableSuspend(self);
+    }
+}
+
+void rewriteUnlock(Thread *self) {
+    unlockVMLock(rewrite_lock, self);
+}
+
+void inlineBlockWrappedOpcode(Instruction *pc) {
+    PrepareInfo *prepare_info = pc->operand.pntr;
     OpcodeInfo *info;
+    int i;
 
-    /* Lock the instruction during rewriting by replacing
-       handler with DISPATCH */
-    pc->handler = handler_entry_points[0][GOTO_START];
-    MBARRIER();
+    Thread *self = threadSelf();
+    rewriteLock(self);
 
-    if(!LOCKWORD_COMPARE_AND_SWAP(&pc->operand, prepare_info, 0))
+    for(i = 0; i < HANDLERS; i++)
+        if(pc->handler == handler_entry_points[i][OPC_INLINE_REWRITER])
+            break;
+
+    if(i == HANDLERS) {
+        rewriteUnlock(self);
         return;
+    }
+
+    pc->handler = handler_entry_points[0][GOTO_START];
+    rewriteUnlock(self);
 
     /* Unwrap the original handler's operand */
-    LOCKWORD_WRITE(&pc->operand, prepare_info->operand);
+    pc->operand = prepare_info->operand;
     MBARRIER();
 
     /* Unwrap the original handler */
@@ -572,10 +595,9 @@ void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
        fast case of an empty list doesn't need locking. */
     if(mb->quick_prepare_info) {
         QuickPrepareInfo *info, *last = NULL;
-        Thread *self = threadSelf();
 
-        disableSuspend(self);
-        lockVMWaitLock(quick_prepare_lock, self);
+        Thread *self = threadSelf();
+        rewriteLock(self);
 
         /* Search list */
         info = mb->quick_prepare_info;
@@ -589,8 +611,7 @@ void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
                 mb->quick_prepare_info = info->next;
         }
 
-        unlockVMWaitLock(quick_prepare_lock, self);
-        enableSuspend(self);
+        rewriteUnlock(self);
 
         /* If prepare info found, inline block (no need to
            hold lock) */

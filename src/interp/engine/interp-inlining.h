@@ -36,28 +36,12 @@
         goto *pc->handler;                                 \
 }
 
-#define WITH_OPCODE_CHANGE_OPERAND(opcode, operand)        \
-{                                                          \
-    operand = pc->operand;                                 \
-    if(pc->handler != L(opcode, 0, ENTRY) &&               \
-       pc->handler != L(opcode, 1, ENTRY) &&               \
-       pc->handler != L(opcode, 2, ENTRY))                 \
-        goto *pc->handler;                                 \
-}
-
 #else /* USE_CACHE */
 
 #define WITH_OPCODE_CHANGE_CP_DINDEX(opcode, index, cache) \
 {                                                          \
     index = pc->operand.uui.u1;                            \
     cache = pc->operand.uui.i;                             \
-    if(pc->handler != L(opcode, 0, ENTRY))                 \
-        goto *pc->handler;                                 \
-}
-
-#define WITH_OPCODE_CHANGE_OPERAND(opcode, operand)        \
-{                                                          \
-    operand = pc->operand;                                 \
     if(pc->handler != L(opcode, 0, ENTRY))                 \
         goto *pc->handler;                                 \
 }
@@ -274,5 +258,5 @@ opc##x##_##y##_##z:
 #endif
 
 extern void initialiseDirect(InitArgs *args);
+extern void inlineBlockWrappedOpcode(Instruction *pc);
 extern void prepare(MethodBlock *mb, const void ***handlers);
-extern void inlineBlockWrappedOpcode(Instruction *pc, PrepareInfo *prepare_info);
