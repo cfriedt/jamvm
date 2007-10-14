@@ -2198,11 +2198,7 @@ unused:
 
     DEF_OPC_RW(OPC_INLINE_REWRITER, ({
 #ifdef INLINING
-        Operand operand;
-
-        WITH_OPCODE_CHANGE_OPERAND(OPC_INLINE_REWRITER, operand);
-
-        inlineBlockWrappedOpcode(pc, operand.pntr);
+        inlineBlockWrappedOpcode(pc);
 #endif
     });)
 
