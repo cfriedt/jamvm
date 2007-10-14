@@ -141,7 +141,6 @@ uintptr_t *executeJava() {
 
     void *throwOOBLabel = &&throwOOB;
     void *throwNullLabel = &&throwNull;
-    void *methodReturnLabel = &&methodReturn;
     void *throwArithmeticExcepLabel = &&throwArithmeticExcep;
     int oob_array_index;
 #endif
@@ -169,8 +168,8 @@ uintptr_t *executeJava() {
     ConstantPool *cp = &(CLASS_CB(mb->class)->constant_pool);
 
     Object *this = (Object*)lvars[0];
-    Class *new_class;
     MethodBlock *new_mb;
+    Class *new_class;
     uintptr_t *arg1;
 
     PREPARE_MB(mb);
@@ -194,7 +193,6 @@ unused:
 #ifdef INLINING
     throwOOBLabel = NULL;
     throwNullLabel = NULL;
-    methodReturnLabel = NULL;
     throwArithmeticExcepLabel = NULL;
 #endif
 
@@ -443,7 +441,7 @@ unused:
     )                                                      \
                                                            \
     DEF_OPC(OPC_RETURN, level,                             \
-        goto METHOD_RETURN_LABEL;                          \
+        goto methodReturn;                                 \
     )                                                      \
                                                            \
     DEF_OPC(OPC_GETSTATIC_QUICK, level,                    \
@@ -524,15 +522,15 @@ unused:
 
 #define RETURN_0                                           \
     *lvars++ = *--ostack;                                  \
-    goto METHOD_RETURN_LABEL;
+    goto methodReturn;
 
 #define RETURN_1                                           \
     *lvars++ = cache.i.v1;                                 \
-    goto METHOD_RETURN_LABEL;
+    goto methodReturn;
 
 #define RETURN_2                                           \
     *lvars++ = cache.i.v2;                                 \
-    goto METHOD_RETURN_LABEL;
+    goto methodReturn;
 
 #define GETFIELD_QUICK_0                                   \
 {                                                          \
@@ -1346,7 +1344,7 @@ unused:
         *(u8*)lvars = *(u8*)ostack;
 #endif
         lvars += 2;
-        goto METHOD_RETURN_LABEL;
+        goto methodReturn;
     )
 
     DEF_OPC_210(OPC_ARRAYLENGTH, {

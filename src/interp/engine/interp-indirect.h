@@ -229,8 +229,6 @@ opc##x##_##y##_##z:
    indirect interpreter */
 #define PREPARE_MB(mb)
 
-#define METHOD_RETURN_LABEL   methodReturn
-
 #define ARRAY_TYPE(pc)        pc->operand.i
 #define SINGLE_INDEX(pc)      pc->operand.i
 #define DOUBLE_INDEX(pc)      pc->operand.i
