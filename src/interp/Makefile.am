@@ -19,11 +19,19 @@
 ## Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 ##
 
-noinst_LTLIBRARIES   = libinterp.la
-libinterp_la_SOURCES = interp.c interp2.c direct.c inlining.c \
-                       interp.h interp-direct.h interp-indirect.h \
-                       interp-inlining.h
+SUBDIRS = engine
 
-AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src
-AM_CFLAGS = @interp_cflags@
+noinst_LTLIBRARIES   = libinterp.la
+libinterp_la_SOURCES = direct.c inlining.c inlining.h
+
+libinterp_la_LIBADD  = engine/libengine.la
+
+inlining.lo: relocatability.inc
+
+relocatability.inc: engine/relocatability
+	engine/relocatability
+
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/src/interp/engine -I$(top_builddir)/src
+
+DISTCLEANFILES = relocatability.inc
 

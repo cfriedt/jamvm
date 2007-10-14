@@ -28,6 +28,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include "hash.h"
+#include "inlining.h"
+#include "relocatability.inc"
 
 #ifdef TRACE
 #define TRACE_INLINING(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
@@ -46,22 +48,6 @@
 
 /* Global lock for ... */
 static VMLock rewrite_lock;
-
-#define LABELS_SIZE  256
-#define GOTO_START   230
-#define GOTO_END     255
-
-#ifdef USE_CACHE
-#define HANDLERS     3
-#define ENTRY_LABELS 0
-#define START_LABELS 3
-#define END_LABELS   6
-#else
-#define HANDLERS     1
-#define ENTRY_LABELS 0
-#define START_LABELS 1
-#define END_LABELS   2
-#endif
 
 #define CODE_INCREMENT 128*KB
 #define ALIGN(size) ROUND(size, sizeof(CodeBlockHeader))
@@ -89,89 +75,35 @@ static char *min_entry_point = (char*)-1;
 static char *max_entry_point  = NULL;
 
 int inlining_inited = FALSE;
-static int handler_sizes[HANDLERS][LABELS_SIZE];
 static char **handler_entry_points[HANDLERS];
 static char *goto_start;
-static int goto_len;
-
-int compare(const void *pntr1, const void *pntr2) {
-    char *v1 = *(char **)pntr1;
-    char *v2 = *(char **)pntr2;
-
-    return v1 - v2;
-}
-
-char *findNextLabel(char **pntrs, char *pntr) {
-    int i = 0;
-
-    for(i = 0; i < LABELS_SIZE; i++)
-        if(pntrs[i] > pntr)
-            return pntrs[i];
-
-    return NULL;
-}
-
-#define SHOWRELOC(args, fmt, ...) do {   \
-    if(args->showreloc)                  \
-        jam_printf(fmt, ## __VA_ARGS__); \
-} while(0)
 
 int checkRelocatability(InitArgs *args) {
     char ***handlers1 = (char ***)executeJava();
-    char ***handlers2 = (char ***)executeJava2();
-    char *sorted_ends[LABELS_SIZE];
     int i;
 
     /* Check relocatability of the indirect goto.  This is copied onto the end
        of each super-instruction.  If this is un-relocatable,  inlining is
        disabled. */
 
-    goto_start = handlers1[ENTRY_LABELS][GOTO_START];
-    goto_len = handlers1[ENTRY_LABELS][GOTO_END] - goto_start;
-
-    if(!memcmp(goto_start, handlers2[ENTRY_LABELS][GOTO_START], goto_len))
-        SHOWRELOC(args, "Goto is relocatable\n");
-    else {
-        SHOWRELOC(args, "Goto is not relocatable : disabling inlining.\n");
+    if(goto_len < 0)
         return FALSE;
-    }
+
+    goto_start = handlers1[ENTRY_LABELS][GOTO_START];
 
     /* Check relocatability of each handler. */
 
     for(i = 0; i < HANDLERS; i++) {
         int j;
 
-        memcpy(sorted_ends, handlers1[END_LABELS+i], LABELS_SIZE * sizeof(char *));
-        qsort(sorted_ends, LABELS_SIZE, sizeof(char *), compare);
-
         for(j = 0; j < LABELS_SIZE; j++) {
             char *entry = handlers1[ENTRY_LABELS+i][j];
-            char *end = handlers1[END_LABELS+i][j];
-            int len = end - entry;
 
             if(entry < min_entry_point)
                 min_entry_point = entry;
 
             if(entry > max_entry_point)
                 max_entry_point = entry;
-
-            if(len > 0) {
-                char *nearest_end = findNextLabel(sorted_ends, entry);
-
-                if(nearest_end == end)
-                    if(!memcmp(entry, handlers2[ENTRY_LABELS+i][j], len)) {
-                        SHOWRELOC(args, "Handler %d is relocatable\n", j);
-                        handler_sizes[i][j] = len;
-                        continue;
-                    } else
-                        SHOWRELOC(args, "Memcmp failed : handler %d is not relocatable\n", j);
-                else
-                    SHOWRELOC(args, "Re-ordered end label : handler %d is not relocatable\n", j);
-            } else
-                SHOWRELOC(args, "End label < entry : handler %d is not relocatable\n", j);
-
-            /* Flag handler as non-relocatable */
-            handler_sizes[i][j] = -1;
         }
 
         handler_entry_points[i] = handlers1[ENTRY_LABELS+i];
@@ -214,6 +146,13 @@ int codeBlockComp(CodeBlockHeader *block, CodeBlockHeader *hashed_block) {
         return FALSE;
 
     return memcmp(block + 1, hashed_block + 1, block->len - sizeof(CodeBlockHeader)) == 0;
+}
+
+int compare(const void *pntr1, const void *pntr2) {
+    char *v1 = *(char **)pntr1;
+    char *v2 = *(char **)pntr2;
+
+    return v1 - v2;
 }
 
 void addToFreeList(CodeBlockHeader **blocks, int len) {
@@ -520,7 +459,7 @@ void inlineBlock(CodeBlock *block) {
         }
 
         /* A non-relocatable opcode ends a sequence */
-        if(handler_sizes[cache_depth][opcode] == -1) {
+        if(handler_sizes[cache_depth][opcode] < 0) {
             len = i - start;
 
             if(len > 0)
