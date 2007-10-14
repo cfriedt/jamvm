@@ -687,7 +687,7 @@ typedef struct InitArgs {
    a StackOverflow exception */
 #define STACK_RED_ZONE_SIZE 1*KB
 
-#define JAVA_COMPAT_VERSION "1.4.2"
+#define JAVA_COMPAT_VERSION "1.5.0"
 
 /* --------------------- Function prototypes  --------------------------- */
 
