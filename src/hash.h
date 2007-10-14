@@ -22,8 +22,8 @@
 #include "thread.h"
 
 typedef struct hash_entry {
-    int hash;
     void *data;
+    int hash;
 } HashEntry;
 
 typedef struct hash_table {
@@ -86,12 +86,16 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
                 if((table.hash_count * 4) > (table.hash_size * 3)) {               \
                     int new_size;                                                  \
                     if(scavenge) {                                                 \
-                        int n;                                                     \
-                        for(i = 0, n = table.hash_count; n--; i++) {               \
-                            void *data = table.hash_table[i].data;                 \
-                            if(data && SCAVENGE(data)) {                           \
-                                table.hash_table[i].data = NULL;                   \
-                                table.hash_count--;                                \
+                        HashEntry *entry = table.hash_table;                       \
+                        int cnt = table.hash_count;                                \
+                        for(; cnt; entry++) {                                      \
+                            void *data = entry->data;                              \
+                            if(data) {                                             \
+                                if(SCAVENGE(data)) {                               \
+                                    entry->data = NULL;                            \
+                                    table.hash_count--;                            \
+                                }                                                  \
+                                cnt--;                                             \
                             }                                                      \
                         }                                                          \
                         if((table.hash_count * 3) > (table.hash_size * 2))         \
@@ -141,23 +145,29 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
 
 #define hashIterate(table)                                                         \
 {                                                                                  \
-    int i;                                                                         \
+    HashEntry *entry = table.hash_table;                                           \
+    int cnt = table.hash_count;                                                    \
                                                                                    \
-    for(i = table.hash_size-1; i >= 0; i--) {                                      \
-        void *data = table.hash_table[i].data;                                     \
-        if(data)                                                                   \
+    while(cnt) {                                                                   \
+        void *data = entry++->data;                                                \
+        if(data) {                                                                 \
             ITERATE(data);                                                         \
+            cnt--;                                                                 \
+        }                                                                          \
     }                                                                              \
 }
 
 #define hashIterateP(table)                                                        \
 {                                                                                  \
-    int i;                                                                         \
+    HashEntry *entry = table.hash_table;                                           \
+    int cnt = table.hash_count;                                                    \
                                                                                    \
-    for(i = table.hash_size-1; i >= 0; i--) {                                      \
-        void **data = &table.hash_table[i].data;                                   \
-        if(*data)                                                                  \
-            ITERATE(data);                                                         \
+    while(cnt) {                                                                   \
+        void **data_pntr = &entry++->data;                                         \
+        if(*data_pntr) {                                                           \
+            ITERATE(data_pntr);                                                    \
+            cnt--;                                                                 \
+        }                                                                          \
     }                                                                              \
 }
 
