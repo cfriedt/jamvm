@@ -266,7 +266,8 @@ void initialiseAlloc(InitArgs *args) {
     min = max;
     if(mem == NULL) {
 #else
-    char *mem = (char*)mmap(0, args->max_heap, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+    char *mem = (char*)mmap(0, args->max_heap, PROT_READ|PROT_WRITE,
+                                               MAP_PRIVATE|MAP_ANON, -1, 0);
     if(mem == MAP_FAILED) {
 #endif
         perror("Aborting the VM -- couldn't allocate the heap");
