@@ -136,6 +136,8 @@ retry:
         cache_depth[mb->exception_table[i].handler_pc] = 0;
 #endif
 #ifdef INLINING
+    /* Mark the start opcode of each exception handler as an
+       exception */
     memset(info, FALSE, code_len + 1);
     for(i = 0; i < mb->exception_table_size; i++)
         info[mb->exception_table[i].handler_pc] = EXCEPTION;
@@ -893,6 +895,6 @@ retry:
 
     /* We don't need the old bytecode stream anymore */
     if(!mb->access_flags & ACC_ABSTRACT)
-        free(code);
+        sysFree(code);
 }
 #endif
