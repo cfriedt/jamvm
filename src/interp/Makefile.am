@@ -30,6 +30,7 @@ inlining.lo: relocatability.inc
 
 relocatability.inc: engine/relocatability
 	engine/relocatability
+	touch $@
 
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/src/interp/engine -I$(top_builddir)/src
 
