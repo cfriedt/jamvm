@@ -121,7 +121,11 @@ AC_ARG_ENABLE(int-prefetch,
      fi])
 
 AC_ARG_ENABLE(int-inlining,
-    [AS_HELP_STRING(--enable-int-inlining,enable inline threaded version of the interpreter (default enabled))],,)
+    [AS_HELP_STRING(--enable-int-inlining,enable inline threaded version of the interpreter
+                   (by default enabled on x86_64, i386 and powerpc, disabled otherwise))],,
+    [if test "$host_cpu" = x86_64 -o "$host_cpu" = i386 -o "$host_cpu" = powerpc; then
+         enable_int_inlining=yes
+     fi])
 
 if test "$enable_int_threading" != no; then
     AC_DEFINE([THREADED],1,[interpreter threaded])
