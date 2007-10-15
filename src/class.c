@@ -34,7 +34,7 @@
 #include "hash.h"
 #include "zip.h"
 #include "class.h"
-#include "interp/interp.h"
+#include "interp.h"
 
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
