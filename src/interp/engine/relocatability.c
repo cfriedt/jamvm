@@ -22,6 +22,7 @@
 /* Must be included first to get configure options */
 #include "jam.h"
 
+#ifdef INLINING
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -139,9 +140,10 @@ void writeIncludeFile() {
     fclose(fd);
 }
 
-main() {
+int main() {
     calculateRelocatability();
     writeIncludeFile();
+    return 0;
 }
 
 
@@ -233,3 +235,8 @@ void inlineBlockWrappedOpcode(Instruction *pc) {
 
 void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
 }
+#else
+int main() {
+    return 0;
+}
+#endif
