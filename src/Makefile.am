@@ -41,4 +41,6 @@ jamvm_LDADD = libcore.la
 libjvm_la_LIBADD = libcore.la
 libcore_la_LIBADD = interp/libinterp.la os/@os@/@arch@/libnative.la os/@os@/libos.la
 
+AM_CPPFLAGS = -I$(top_srcdir)/src/interp/engine
+
 DISTCLEANFILES = arch.h
