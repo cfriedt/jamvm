@@ -1121,6 +1121,7 @@ void initialiseMainThread(InitArgs *args) {
     return;
 
 error:
-    jam_fprintf(stderr, "Error initialising VM (initialiseMainThread)\n");
+    jam_fprintf(stderr, "Error initialising VM (initialiseMainThread)\nCheck "
+                        "the README for compatible versions of GNU Classpath\n");
     exitVM(1);
 }
