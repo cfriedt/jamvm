@@ -275,7 +275,9 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
                 INT_MAX : parseMemValue(pntr);
 
         } else if(strcmp(argv[i], "-Xshowreloc") == 0) {
-            args->showreloc = TRUE;
+            showRelocatability();
+            status = 0;
+            goto exit;
 #endif
         } else {
             printf("Unrecognised command line option: %s\n", argv[i]);
@@ -294,12 +296,13 @@ int main(int argc, char *argv[]) {
     Object *system_loader, *array;
     MethodBlock *mb;
     InitArgs args;
+    int class_arg;
     char *cpntr;
     int status;
     int i;
 
     setDefaultInitArgs(&args);
-    int class_arg = parseCommandLine(argc, argv, &args);
+    class_arg = parseCommandLine(argc, argv, &args);
 
     args.main_stack_base = &array_class;
     initVM(&args);
