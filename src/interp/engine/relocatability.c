@@ -30,10 +30,6 @@
 
 #include "inlining.h"
 
-int handler_sizes[HANDLERS][LABELS_SIZE];
-int inlining_inited = FALSE;
-int goto_len;
-
 int compare(const void *pntr1, const void *pntr2) {
     char *v1 = *(char **)pntr1;
     char *v2 = *(char **)pntr2;
@@ -51,11 +47,12 @@ char *findNextLabel(char **pntrs, char *pntr) {
     return NULL;
 }
 
-void calculateRelocatability() {
+int calculateRelocatability(int handler_sizes[HANDLERS][LABELS_SIZE]) {
     char ***handlers1 = (char ***)executeJava();
     char ***handlers2 = (char ***)executeJava2();
     char *sorted_ends[LABELS_SIZE];
     char *goto_start;
+    int goto_len;
     int i;
 
     /* Check relocatability of the indirect goto.  This is copied onto the end
@@ -98,145 +95,8 @@ void calculateRelocatability() {
             handler_sizes[i][j] = len;
         }
     }
-}
 
-char *value2Str(int value, char *buff) {
-    switch(value) {
-        case MEMCMP_FAILED:
-            return "MEMCMP_FAILED";
-        case END_REORDERED:
-            return "END_REORDERED";
-        case END_BEFORE_ENTRY:
-            return "END_BEFORE_ENTRY";
-
-        default:
-            sprintf(buff, "%d", value);
-            return buff;
-    }
-}
-  
-void writeIncludeFile() {
-    char buff[256];
-    FILE *fd;
-    int i, j;
-
-    fd = fopen("relocatability.inc", "w");
-
-    fprintf(fd, "static int goto_len = %s;\n", value2Str(goto_len, buff));
-    fprintf(fd, "static int handler_sizes[%d][%d] = {\n", HANDLERS, LABELS_SIZE);
-
-    for(i = 0; i < HANDLERS; i++) {
-        if(i > 0)
-            fprintf(fd, ",\n");
-        fprintf(fd, "    {\n");
-
-        for(j = 0; j < LABELS_SIZE - 1; j++)
-            fprintf(fd, "        %s,\n", value2Str(handler_sizes[i][j], buff));
-
-        fprintf(fd, "        %s\n    }", value2Str(handler_sizes[i][LABELS_SIZE-1], buff));
-    }
-
-    fprintf(fd, "\n};\n");
-    fclose(fd);
-}
-
-int main() {
-    calculateRelocatability();
-    writeIncludeFile();
-    return 0;
-}
-
-
-/* Stubs for functions called from executeJava */
-
-Object *allocObject(Class *class) {
-    return NULL;
-}
-
-Object *allocArray(Class *class, int size, int el_size) {
-    return NULL;
-}
-
-Object *allocTypeArray(int type, int size) {
-    return NULL;
-}
-
-Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
-    return NULL;
-}
-
-void *sysMalloc(int n) {
-    return NULL;
-}
-
-Class *findArrayClassFromClassLoader(char *name, Object *loader) {
-    return NULL;
-}
-
-Class *resolveClass(Class *class, int index, int init) {
-    return NULL;
-}
-
-MethodBlock *resolveMethod(Class *class, int index) {
-    return NULL;
-}
-
-MethodBlock *resolveInterfaceMethod(Class *class, int index) {
-    return NULL;
-}
-
-FieldBlock *resolveField(Class *class, int index) {
-    return NULL;
-}
-
-uintptr_t resolveSingleConstant(Class *class, int index) {
-    return 0;
-}
-
-char isInstanceOf(Class *class, Class *test) {
-    return 0;
-}
-
-char arrayStoreCheck(Class *class, Class *test) {
-    return 0;
-}
-
-void signalChainedException(char *excep_name, char *excep_mess, Object *cause) {
-}
-
-CodePntr findCatchBlock(Class *exception) {
-    return NULL;
-}
-
-ExecEnv *getExecEnv() {
-    return NULL;
-}
-
-void exitVM(int status) {
-}
-
-void jam_fprintf(FILE *stream, const char *fmt, ...) {
-}
-
-void initialiseDirect(InitArgs *args) {
-}
-
-void prepare(MethodBlock *mb, const void ***handlers) {
-}
-
-void objectLock(Object *ob) {
-}
-
-void objectUnlock(Object *ob) {
-}
-
-void inlineBlockWrappedOpcode(Instruction *pc) {
-}
-
-void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
-}
-#else
-int main() {
-    return 0;
+    return goto_len;
 }
 #endif
+
