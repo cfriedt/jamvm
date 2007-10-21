@@ -1443,9 +1443,6 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
 
             args->codemem = strncmp(pntr, "unlimited", 10) == 0 ?
                 INT_MAX : parseMemValue(pntr);
-
-        } else if(strcmp(string, "-Xshowreloc") == 0) {
-            args->showreloc = TRUE;
 #endif
         } else if(!vm_args->ignoreUnrecognized)
             goto error;
@@ -1500,3 +1497,4 @@ void *getJNIInterface() {
     return &Jam_JNINativeInterface;
 }
 #endif
+
