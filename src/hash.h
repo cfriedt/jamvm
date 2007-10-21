@@ -39,7 +39,7 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
 
 #define initHashTable(table, initial_size, create_lock)                            \
 {                                                                                  \
-    table.hash_table = (HashEntry*)sysMalloc(sizeof(HashEntry)*initial_size);      \
+    table.hash_table = (HashEntry*)gcMemMalloc(sizeof(HashEntry)*initial_size);    \
     memset(table.hash_table, 0, sizeof(HashEntry)*initial_size);                   \
     table.hash_size = initial_size;                                                \
     table.hash_count = 0;                                                          \
@@ -172,8 +172,8 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
 }
 
 #define gcFreeHashTable(table)                                                     \
-    gcPendingFree(table.hash_table);
+    gcMemFree(table.hash_table);
 
 #define freeHashTable(table)                                                       \
-    sysFree(table.hash_table);
+    gcMemFree(table.hash_table);
 
