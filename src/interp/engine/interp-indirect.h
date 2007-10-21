@@ -229,53 +229,6 @@ opc##x##_##y##_##z:
    indirect interpreter */
 #define PREPARE_MB(mb)
 
-#define ARRAY_TYPE(pc)        pc->operand.i
-#define SINGLE_INDEX(pc)      pc->operand.i
-#define DOUBLE_INDEX(pc)      pc->operand.i
-#define SINGLE_SIGNED(pc)     pc->operand.i
-#define DOUBLE_SIGNED(pc)     pc->operand.i
-#define IINC_LVAR_IDX(pc)     pc->operand.ii.i1
-#define IINC_DELTA(pc)        pc->operand.ii.i2
-#define INV_QUICK_ARGS(pc)    pc->operand.uu.u1
-#define INV_QUICK_IDX(pc)     pc->operand.uu.u2
-#define INV_INTF_IDX(pc)      pc->operand.uu.u1
-#define INV_INTF_CACHE(pc)    pc->operand.uu.u2
-#define MULTI_ARRAY_DIM(pc)   pc->operand.uui.u2
-#define RESOLVED_CONSTANT(pc) pc->operand.u
-#define RESOLVED_FIELD(pc)    ((FieldBlock*)pc->operand.pntr)
-#define RESOLVED_METHOD(pc)   ((MethodBlock*)pc->operand.pntr)
-#define RESOLVED_CLASS(pc)    (Class *)CP_INFO(cp, pc->operand.uui.u1)
-
-/* Macros for checking for common exceptions */
-
-#define THROW_EXCEPTION(excep_name, message)                               \
-{                                                                          \
-    frame->last_pc = pc;                                                   \
-    signalException(excep_name, message);                                  \
-    goto throwException;                                                   \
-}
-
-#define NULL_POINTER_CHECK(ref)                                            \
-    if(!ref) THROW_EXCEPTION("java/lang/NullPointerException", NULL);
-
-#define MAX_INT_DIGITS 11
-
-#define ARRAY_BOUNDS_CHECK(array, idx)                                     \
-{                                                                          \
-    if(idx >= ARRAY_LEN(array)) {                                          \
-        char buff[MAX_INT_DIGITS];                                         \
-        snprintf(buff, MAX_INT_DIGITS, "%d", idx);                         \
-        THROW_EXCEPTION("java/lang/ArrayIndexOutOfBoundsException", buff); \
-    }                                                                      \
-}
-
-#define ZERO_DIVISOR_CHECK(value)                                          \
-    if(value == 0)                                                         \
-        THROW_EXCEPTION("java/lang/ArithmeticException", "division by zero");
-
-
-extern void initialiseDirect(InitArgs *args);
-extern void prepare(MethodBlock *mb, const void ***handlers);
 #define ARRAY_TYPE(pc)        READ_U1_OP(pc)
 #define SINGLE_INDEX(pc)      READ_U1_OP(pc)
 #define DOUBLE_INDEX(pc)      READ_U2_OP(pc)
