@@ -26,11 +26,12 @@ libinterp_la_SOURCES = direct.c inlining.c inlining.h
 
 libinterp_la_LIBADD  = engine/libengine.la
 
+if COMPILE_TIME_RELOC_CHECKS
 inlining.lo: relocatability.inc
+endif
 
-relocatability.inc: engine/relocatability
-	engine/relocatability
-	touch $@
+relocatability.inc: engine/compute_relocatability
+	engine/compute_relocatability
 
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/src/interp/engine -I$(top_builddir)/src
 
