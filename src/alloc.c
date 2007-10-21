@@ -161,6 +161,12 @@ static int reference_start     = 0;
 static int reference_end       = 0;
 static int reference_size      = 0;
 
+/* Flags set during GC if a thread needs to be woken up.  The
+   notification is done after the world is resumed, to remove
+   the use of "unsafe" calls while threads are suspended. */
+static int notify_reference_thread;
+static int notify_finaliser_thread;
+
 /* Internal locks protecting the GC lists and heap */
 static VMLock heap_lock;
 static VMLock has_fnlzr_lock;
@@ -610,11 +616,9 @@ static void doMark(Thread *self, int mark_soft_refs) {
     if(j != has_finaliser_count) {
         has_finaliser_count = j;
 
-        /* Extra finalizers to be ran, so signal the finalizer thread
-           in case it needs waking up.  It won't run until it's
-           resumed */
-
-        notifyAllVMWaitLock(run_finaliser_lock, self);
+        /* Extra finalizers to be ran, so we need to signal the
+           finalizer thread in case it needs waking up. */
+        notify_finaliser_thread = TRUE;
     }
 
     /* Mark the objects waiting to be finalized.  We must mark them
@@ -675,7 +679,9 @@ int handleMarkedSpecial(Object *ob) {
 
             if((Object *)INST_DATA(ob)[ref_queue_offset] != NULL) {
                 TRACE_GC("FREE: Adding to list for enqueuing.\n");
+
                 ADD_TO_OBJECT_LIST(reference, ob);
+                notify_reference_thread = TRUE;
             }
         }
     }
@@ -1134,7 +1140,9 @@ int threadChildren(Object *ob, Object *new_addr) {
 
                         if(body[ref_queue_offset] != NULL) {
                             TRACE_GC("Adding to list for enqueuing.\n");
+
                             ADD_TO_OBJECT_LIST(reference, new_addr);
+                            notify_reference_thread = TRUE;
                         }
 out:
                         if(!cleared)
@@ -1404,6 +1412,7 @@ static long endTime(struct timeval *start) {
 }
 
 unsigned long gc0(int mark_soft_refs, int compact) {
+
     Thread *self = threadSelf();
     uintptr_t largest;
 
@@ -1412,9 +1421,9 @@ unsigned long gc0(int mark_soft_refs, int compact) {
     if(compact_override)
         compact = compact_value;
 
-    /* Stop the world */
-    disableSuspend(self);
-    suspendAllThreads(self);
+    /* Reset flags.  Will be set during GC if a thread needs
+       to be woken up */
+    notify_finaliser_thread = notify_reference_thread = FALSE;
 
     /* Grab locks associated with the suspension blocked
        regions.  This ensures all threads have suspended
@@ -1429,6 +1438,10 @@ unsigned long gc0(int mark_soft_refs, int compact) {
 
     /* Held by the reference handler thread */
     lockVMWaitLock(reference_lock, self);
+
+    /* Stop the world */
+    disableSuspend(self);
+    suspendAllThreads(self);
 
     if(verbosegc) {
         struct timeval start;
@@ -1450,13 +1463,19 @@ unsigned long gc0(int mark_soft_refs, int compact) {
         largest = compact ? doCompact() : doSweep(self);
     }
 
-    /* Notify the reference handler.  If there's no
-       work to be done it'll go back to sleep */
-    notifyAllVMWaitLock(reference_lock, self);
-
     /* Restart the world */
     resumeAllThreads(self);
     enableSuspend(self);
+
+    /* Notify the finaliser thread if new finalisers
+       need to be ran */
+    if(notify_finaliser_thread)
+        notifyAllVMWaitLock(run_finaliser_lock, self);
+
+    /* Notify the reference thread if new references
+       have been enqueued */
+    if(notify_reference_thread)
+        notifyAllVMWaitLock(reference_lock, self);
 
     /* Release the locks */
     unlockVMLock(has_fnlzr_lock, self);
