@@ -39,3 +39,4 @@
 #define END_REORDERED    -2
 #define END_BEFORE_ENTRY -3
 
+extern int calculateRelocatability(int handler_sizes[HANDLERS][LABELS_SIZE]);
