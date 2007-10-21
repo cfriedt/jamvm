@@ -29,12 +29,18 @@
 #include <unistd.h>
 #include "hash.h"
 #include "inlining.h"
-#include "relocatability.inc"
 
-#ifdef TRACE
-#define TRACE_INLINING(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
+#ifdef RUNTIME_RELOC_CHECKS
+static int handler_sizes[HANDLERS][LABELS_SIZE];
+static int goto_len;
 #else
-#define TRACE_INLINING(fmt, ...)
+#include "relocatability.inc"
+#endif
+
+#ifdef TRACEINLINING
+#define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
+#else
+#define TRACE(fmt, ...)
 #endif
 
 #define HASHTABSZE 1<<10
@@ -46,7 +52,7 @@
 #define SCAVENGE(ptr) ptr == DELETED
 #define DELETED ((void*)-1)
 
-/* Global lock for ... */
+/* Global lock protecting handler rewriting */
 static VMLock rewrite_lock;
 
 #define CODE_INCREMENT 128*KB
@@ -78,9 +84,54 @@ int inlining_inited = FALSE;
 static char **handler_entry_points[HANDLERS];
 static char *goto_start;
 
-int checkRelocatability(InitArgs *args) {
-    char ***handlers1 = (char ***)executeJava();
+char *reason(int reason) {
+    switch(reason) {
+        case MEMCMP_FAILED:
+            return "memory compare failed";
+
+        case END_REORDERED:
+            return "end label re-ordered";
+
+        case END_BEFORE_ENTRY:
+            return "end label before entry label";
+    }
+}
+
+void showRelocatability() {
     int i;
+
+#ifdef RUNTIME_RELOC_CHECKS
+    goto_len = calculateRelocatability(handler_sizes);
+#endif
+
+    if(goto_len >= 0)
+        printf("Dispatch sequence is relocatable\n");
+    else
+        printf("Dispatch sequence is not relocatable (%s)\n", reason(goto_len));
+
+    for(i = 0; i < HANDLERS; i++) {
+        int j;
+
+        printf("Opcodes at depth %d: \n", i);
+
+        for(j = 0; j < LABELS_SIZE; j++) {
+            int size = handler_sizes[i][j];
+
+            if(size >= 0)
+                printf("%d : is relocatable\n", j);
+            else
+                printf("%d : is not relocatable (%s)\n", j, reason(size));
+        }
+    }
+}
+
+int checkRelocatability() {
+    char ***handlers = (char ***)executeJava();
+    int i;
+
+#ifdef RUNTIME_RELOC_CHECKS
+    goto_len = calculateRelocatability(handler_sizes);
+#endif
 
     /* Check relocatability of the indirect goto.  This is copied onto the end
        of each super-instruction.  If this is un-relocatable,  inlining is
@@ -89,7 +140,7 @@ int checkRelocatability(InitArgs *args) {
     if(goto_len < 0)
         return FALSE;
 
-    goto_start = handlers1[ENTRY_LABELS][GOTO_START];
+    goto_start = handlers[ENTRY_LABELS][GOTO_START];
 
     /* Check relocatability of each handler. */
 
@@ -97,7 +148,7 @@ int checkRelocatability(InitArgs *args) {
         int j;
 
         for(j = 0; j < LABELS_SIZE; j++) {
-            char *entry = handlers1[ENTRY_LABELS+i][j];
+            char *entry = handlers[ENTRY_LABELS+i][j];
 
             if(entry < min_entry_point)
                 min_entry_point = entry;
@@ -106,14 +157,14 @@ int checkRelocatability(InitArgs *args) {
                 max_entry_point = entry;
         }
 
-        handler_entry_points[i] = handlers1[ENTRY_LABELS+i];
+        handler_entry_points[i] = handlers[ENTRY_LABELS+i];
     }
 
     return TRUE;
 }
 
 int initialiseInlining(InitArgs *args) {
-    int enabled = args->codemem > 0 ? checkRelocatability(args) : FALSE;
+    int enabled = args->codemem > 0 ? checkRelocatability() : FALSE;
 
     if(enabled) {
         initVMLock(rewrite_lock);
@@ -148,7 +199,7 @@ int codeBlockComp(CodeBlockHeader *block, CodeBlockHeader *hashed_block) {
     return memcmp(block + 1, hashed_block + 1, block->len - sizeof(CodeBlockHeader)) == 0;
 }
 
-int compare(const void *pntr1, const void *pntr2) {
+int compareLabels(const void *pntr1, const void *pntr2) {
     char *v1 = *(char **)pntr1;
     char *v2 = *(char **)pntr2;
 
@@ -160,7 +211,7 @@ void addToFreeList(CodeBlockHeader **blocks, int len) {
     CodeBlockHeader **block_pntr = blocks;
     CodeBlockHeader *free_pntr = code_free_list;
 
-    qsort(blocks, len, sizeof(CodeBlockHeader*), compare);
+    qsort(blocks, len, sizeof(CodeBlockHeader*), compareLabels);
 
     for(; len--; block_pntr++) {
         for(; free_pntr && free_pntr < *block_pntr; last = free_pntr, free_pntr = free_pntr->u.next);
@@ -397,8 +448,8 @@ void inlineSequence(CodeBlock *info, int start, int len) {
         instructions[0].handler = hashed_block + 1;
         MBARRIER();
 
-        TRACE_INLINING("InlineSequence start %p (%d) instruction len %d code len %d sequence %p\n",
-                       instructions, start, len, code_len, instructions[0].handler);
+        TRACE("InlineSequence start %p (%d) instruction len %d code len %d sequence %p\n",
+              instructions, start, len, code_len, instructions[0].handler);
     }
 }
 
