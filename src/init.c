@@ -55,7 +55,6 @@ void setDefaultInitArgs(InitArgs *args) {
 
 #ifdef INLINING
     args->replication = 10;
-    args->showreloc = FALSE;
     args->codemem = args->max_heap / 4;
 #endif
 }
