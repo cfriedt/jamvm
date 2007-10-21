@@ -605,7 +605,6 @@ typedef struct InitArgs {
 #ifdef INLINING
     unsigned int codemem;
     int replication;
-    int showreloc;
 #endif
 } InitArgs;
 
@@ -716,6 +715,10 @@ extern unsigned long maxHeapMem();
 extern void *sysMalloc(int n);
 extern void sysFree(void *ptr);
 extern void *sysRealloc(void *ptr, int n);
+
+extern void *gcMemMalloc(int n);
+extern void gcMemFree(void *ptr);
+extern void *gcMemRealloc(void *ptr, int n);
 
 extern void registerStaticObjectRef(Object **ob);
 extern void registerStaticObjectRefLocked(Object **ob);
@@ -874,7 +877,7 @@ extern uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb, uintptr_t 
 extern void unloadClassLoaderDlls(Object *loader);
 extern void threadLiveClassLoaderDlls();
 
-/* Dll OS */
+/* OS */
 
 extern char *nativeLibPath();
 extern void *nativeLibOpen(char *path);
