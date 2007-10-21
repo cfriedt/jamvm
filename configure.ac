@@ -1,4 +1,26 @@
+##
+## Copyright (C) 2003, 2004, 2005, 2006, 2007
+## Robert Lougher <rob@lougher.org.uk>.
+##
+## This file is part of JamVM.
+##
+## This program is free software; you can redistribute it and/or
+## modify it under the terms of the GNU General Public License
+## as published by the Free Software Foundation; either version 2,
+## or (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program; if not, write to the Free Software
+## Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+##
+
 dnl Process this file with autoconf to produce a configure script.
+
 AC_INIT(src/jam.c)
 AM_INIT_AUTOMAKE(jamvm, 1.5.0)
 AC_CONFIG_HEADERS([src/config.h])
@@ -127,6 +149,10 @@ AC_ARG_ENABLE(int-inlining,
          enable_int_inlining=yes
      fi])
 
+AC_ARG_ENABLE(runtime-reloc-checks,
+    [AS_HELP_STRING(--enable-runtime-reloc-checks,compute relocatability at runtime (inlining interpreter))],,
+        enable_runtime_reloc_checks=no)
+
 if test "$enable_int_threading" != no; then
     AC_DEFINE([THREADED],1,[interpreter threaded])
 
@@ -145,10 +171,17 @@ if test "$enable_int_threading" != no; then
     if test "$enable_int_inlining" != no; then
         AC_DEFINE([INLINING],1,[interpreter inlining])
         interp_cflags=-fno-reorder-blocks 
+
+        if test "$enable_runtime_reloc_checks" != no; then
+            AC_DEFINE([RUNTIME_RELOC_CHECKS],1,[compute relocatability at runtime])
+        else
+            compile_time_reloc_checks=yes
+        fi
     fi
 fi
 
 AC_SUBST(interp_cflags)
+AM_CONDITIONAL(COMPILE_TIME_RELOC_CHECKS, test "$compile_time_reloc_checks" = yes)
 
 AC_ARG_ENABLE(ffi,
     [AS_HELP_STRING(--enable-ffi,use libffi to call native methods)],,
