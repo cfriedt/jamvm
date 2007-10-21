@@ -39,7 +39,7 @@ void unlockHashTable0(HashTable *table, Thread *self) {
 }
 
 void resizeHash(HashTable *table, int new_size) {
-    HashEntry *new_table = (HashEntry*)sysMalloc(sizeof(HashEntry)*new_size);
+    HashEntry *new_table = (HashEntry*)gcMemMalloc(sizeof(HashEntry)*new_size);
     int i;
 
     memset(new_table, 0, sizeof(HashEntry)*new_size);
@@ -58,7 +58,7 @@ void resizeHash(HashTable *table, int new_size) {
         }
     }
 
-    sysFree(table->hash_table);
+    gcMemFree(table->hash_table);
     table->hash_table = new_table;
     table->hash_size = new_size;
 }
