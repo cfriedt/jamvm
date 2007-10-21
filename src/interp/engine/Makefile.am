@@ -21,10 +21,12 @@
 
 noinst_LTLIBRARIES    = libengine.la
 libengine_la_SOURCES  = interp.c interp2.c interp.h interp-direct.h \
-                        interp-indirect.h interp-inlining.h
+                        interp-indirect.h interp-inlining.h relocatability.c
 
-noinst_PROGRAMS = relocatability
-relocatability_LDADD = libengine.la
+if COMPILE_TIME_RELOC_CHECKS
+noinst_PROGRAMS = compute_relocatability
+compute_relocatability_LDADD = libengine.la
+endif
 
 AM_CFLAGS   = @interp_cflags@
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/src/interp -I$(top_builddir)/src
