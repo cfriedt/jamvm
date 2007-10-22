@@ -156,26 +156,26 @@ AC_ARG_ENABLE(runtime-reloc-checks,
 if test "$enable_int_threading" != no; then
     AC_DEFINE([THREADED],1,[interpreter threaded])
 
-    if test "$enable_int_direct" != no; then
-        AC_DEFINE([DIRECT],1,[interpreter direct])
-    fi
-
     if test "$enable_int_caching" != no; then
         AC_DEFINE([USE_CACHE],1,[interpreter uses caching])
     fi
 
-    if test "$enable_int_prefetch" != no; then
-        AC_DEFINE([PREFETCH],1,[interpreter uses prefetching])
-    fi
+    if test "$enable_int_direct" != no; then
+        AC_DEFINE([DIRECT],1,[interpreter direct])
 
-    if test "$enable_int_inlining" != no; then
-        AC_DEFINE([INLINING],1,[interpreter inlining])
-        interp_cflags=-fno-reorder-blocks 
+        if test "$enable_int_prefetch" != no; then
+            AC_DEFINE([PREFETCH],1,[interpreter uses prefetching])
+        fi
 
-        if test "$enable_runtime_reloc_checks" != no; then
-            AC_DEFINE([RUNTIME_RELOC_CHECKS],1,[compute relocatability at runtime])
-        else
-            compile_time_reloc_checks=yes
+        if test "$enable_int_inlining" != no; then
+            AC_DEFINE([INLINING],1,[interpreter inlining])
+            interp_cflags=-fno-reorder-blocks 
+
+            if test "$enable_runtime_reloc_checks" != no; then
+                AC_DEFINE([RUNTIME_RELOC_CHECKS],1,[compute relocatability at runtime])
+            else
+                compile_time_reloc_checks=yes
+            fi
         fi
     fi
 fi
