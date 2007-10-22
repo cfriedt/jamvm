@@ -46,9 +46,15 @@ uintptr_t *executeJava() {
 #define L(opcode, level, label) &&opc##opcode##_##level##_##label
 
 #ifdef DIRECT
-#define I(opcode, level, label) &&rewrite_lock
+#define D(opcode, level, label) &&rewrite_lock
 #else
+#define D(opcode, level, label) L(opcode, level, label)
+#endif
+
+#ifdef INLINING
 #define I(opcode, level, label) L(opcode, level, label)
+#else
+#define I(opcode, level, label) &&rewrite_lock
 #endif
 
 #ifdef INLINING
@@ -66,12 +72,12 @@ uintptr_t *executeJava() {
         L(0,lvl,lbl), L(1,lvl,lbl), L(2,lvl,lbl), L(3,lvl,lbl), L(4,lvl,lbl),           \
         L(5,lvl,lbl), L(6,lvl,lbl), L(7,lvl,lbl), L(8,lvl,lbl), L(9,lvl,lbl),           \
         L(10,lvl,lbl), L(11,lvl,lbl), L(12,lvl,lbl), L(13,lvl,lbl), L(14,lvl,lbl),      \
-        L(15,lvl,lbl), L(16,lvl,lbl), L(17,lvl,lbl), L(18,lvl,lbl), I(19,lvl,lbl),      \
+        L(15,lvl,lbl), L(16,lvl,lbl), L(17,lvl,lbl), L(18,lvl,lbl), D(19,lvl,lbl),      \
         L(20,lvl,lbl), L(21,lvl,lbl), L(22,lvl,lbl), L(23,lvl,lbl), L(24,lvl,lbl),      \
         L(25,lvl,lbl), L(26,lvl,lbl), L(27,lvl,lbl), L(28,lvl,lbl), L(29,lvl,lbl),      \
         L(30,lvl,lbl), L(31,lvl,lbl), L(32,lvl,lbl), L(33,lvl,lbl), L(34,lvl,lbl),      \
         L(35,lvl,lbl), L(36,lvl,lbl), L(37,lvl,lbl), L(38,lvl,lbl), L(39,lvl,lbl),      \
-        L(40,lvl,lbl), L(41,lvl,lbl), I(42,lvl,lbl), L(43,lvl,lbl), L(44,lvl,lbl),      \
+        L(40,lvl,lbl), L(41,lvl,lbl), D(42,lvl,lbl), L(43,lvl,lbl), L(44,lvl,lbl),      \
         L(45,lvl,lbl), L(46,lvl,lbl), L(47,lvl,lbl), L(48,lvl,lbl), L(49,lvl,lbl),      \
         L(50,lvl,lbl), L(51,lvl,lbl), L(52,lvl,lbl), L(53,lvl,lbl), L(54,lvl,lbl),      \
         L(55,lvl,lbl), L(56,lvl,lbl), L(57,lvl,lbl), L(58,lvl,lbl), L(59,lvl,lbl),      \
@@ -102,16 +108,16 @@ uintptr_t *executeJava() {
         L(180,lvl,lbl), L(181,lvl,lbl), L(182,lvl,lbl), L(183,lvl,lbl), L(184,lvl,lbl), \
         L(185,lvl,lbl), &&unused, L(187,lvl,lbl), L(188,lvl,lbl), L(189,lvl,lbl),       \
         L(190,lvl,lbl), L(191,lvl,lbl), L(192,lvl,lbl), L(193,lvl,lbl), L(194,lvl,lbl), \
-        L(195,lvl,lbl), I(196,lvl,lbl), L(197,lvl,lbl), L(198,lvl,lbl), L(199,lvl,lbl), \
+        L(195,lvl,lbl), D(196,lvl,lbl), L(197,lvl,lbl), L(198,lvl,lbl), L(199,lvl,lbl), \
         L(200,lvl,lbl), L(201,lvl,lbl), &&unused, L(203,lvl,lbl), L(204,lvl,lbl),       \
         &&unused, L(206,lvl,lbl), L(207,lvl,lbl), L(208,lvl,lbl), L(209,lvl,lbl),       \
         L(210,lvl,lbl), L(211,lvl,lbl), L(212,lvl,lbl), L(213,lvl,lbl), L(214,lvl,lbl), \
         L(215,lvl,lbl), L(216,lvl,lbl), &&unused, &&unused, &&unused, &&unused,         \
-        &&unused, &&unused, &&unused, &&unused, &&unused, I(226,lvl,lbl),               \
-        I(227,lvl,lbl), I(228,lvl,lbl), L(229,lvl,lbl), I(230,lvl,lbl), L(231,lvl,lbl), \
+        &&unused, &&unused, &&unused, &&unused, &&unused, D(226,lvl,lbl),               \
+        D(227,lvl,lbl), D(228,lvl,lbl), L(229,lvl,lbl), D(230,lvl,lbl), L(231,lvl,lbl), \
         L(232,lvl,lbl), L(233,lvl,lbl), &&unused, L(235,lvl,lbl), &&unused,             \
         &&unused, L(238,lvl,lbl), L(239,lvl,lbl), &&unused, &&unused, &&unused,         \
-        L(243,lvl,lbl), L(244,lvl,lbl), L(245,lvl,lbl), L(246,lvl,lbl), &&unused,       \
+        L(243,lvl,lbl), L(244,lvl,lbl), L(245,lvl,lbl), I(246,lvl,lbl), &&unused,       \
         &&unused, &&unused, &&unused, &&unused, &&unused, &&unused, &&unused,           \
         &&unused}
 
@@ -2196,11 +2202,11 @@ unused:
         goto throwException;
     })
 
-    DEF_OPC_RW(OPC_INLINE_REWRITER, ({
 #ifdef INLINING
+    DEF_OPC_RW(OPC_INLINE_REWRITER, ({
         inlineBlockWrappedOpcode(pc);
-#endif
     });)
+#endif
 
     DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK, {
         arg1 = ostack - INV_QUICK_ARGS(pc);
