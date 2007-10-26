@@ -260,3 +260,5 @@ opc##x##_##y##_##z:
 extern void initialiseDirect(InitArgs *args);
 extern void inlineBlockWrappedOpcode(Instruction *pc);
 extern void prepare(MethodBlock *mb, const void ***handlers);
+extern void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb);
+
