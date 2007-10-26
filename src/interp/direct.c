@@ -144,7 +144,9 @@ retry:
 #endif
 
     for(pass = 0; pass < 2; pass++) {
+#ifdef INLINING
         int block_start = 0;
+#endif
         int cache = 0;
         int pc;
 
