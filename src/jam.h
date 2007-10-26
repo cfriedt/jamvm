@@ -841,6 +841,7 @@ extern Object *findInternedString(Object *string);
 extern Object *createString(char *utf8);
 extern Object *createStringFromUnicode(unsigned short *unicode, int len);
 extern char *String2Cstr(Object *string);
+extern char *String2Buff(Object *string, char *buff, int buff_len);
 extern int getStringLen(Object *string);
 extern unsigned short *getStringChars(Object *string);
 extern Object *getStringCharsArray(Object *string);
@@ -863,6 +864,7 @@ extern char *findUtf8String(char *string);
 extern int utf8CharLen(unsigned short *unicode, int len);
 extern char *unicode2Utf8(unsigned short *unicode, int len, char *utf8);
 extern char *slash2dots(char *utf8);
+extern char *slash2dots2buff(char *utf8, char *buff, int buff_len);
 extern void initialiseUtf8();
 
 /* Dll */
@@ -981,3 +983,5 @@ extern void jamvm_exit(int status);
 /* inlining */
 
 extern void freeMethodInlinedInfo(MethodBlock *mb);
+extern int  initialiseInlining(InitArgs *args);
+extern void showRelocatability();
