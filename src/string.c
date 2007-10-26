@@ -141,18 +141,31 @@ void threadInternedStrings() {
     hashIterateP(hash_table);
 }
 
-char *String2Cstr(Object *string) {
-    Object *array =(Object *)(INST_DATA(string)[value_offset]);
-    int len = INST_DATA(string)[count_offset];
+char *String2Buff0(Object *string, char *buff, int len) {
     int offset = INST_DATA(string)[offset_offset];
-    char *cstr = (char *)sysMalloc(len + 1), *spntr;
+    Object *array =(Object *)(INST_DATA(string)[value_offset]);
     unsigned short *str = ((unsigned short *)ARRAY_DATA(array))+offset;
+    char *pntr;
 
-    for(spntr = cstr; len > 0; len--)
-        *spntr++ = *str++;
+    for(pntr = buff; len > 0; len--)
+        *pntr++ = *str++;
 
-    *spntr = '\0';
-    return cstr;
+    *pntr = '\0';
+    return buff;
+}
+
+char *String2Buff(Object *string, char *buff, int buff_len) {
+    int str_len = INST_DATA(string)[count_offset];
+    int len = buff_len-1 < str_len ? buff_len-1 : str_len;
+
+    return String2Buff0(string, buff, len);
+}
+
+char *String2Cstr(Object *string) {
+    int len = INST_DATA(string)[count_offset];
+    char *buff = (char *)sysMalloc(len + 1);
+
+    return String2Buff0(string, buff, len);
 }
 
 void initialiseString() {
