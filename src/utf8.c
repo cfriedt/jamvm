@@ -114,6 +114,18 @@ char *slash2dots(char *utf8) {
     return conv;
 }
 
+char *slash2dots2buff(char *utf8, char *buff, int buff_len) {
+    char *pntr = buff;
+
+    while(*utf8 != '\0' && --buff_len) {
+        char c = *utf8++;
+        *pntr++ = c == '/' ? '.' : c;
+    }
+
+    *pntr = '\0';
+    return buff;
+}
+
 void initialiseUtf8() {
     /* Init hash table, and create lock */
     initHashTable(hash_table, HASHTABSZE, TRUE);
