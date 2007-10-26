@@ -39,4 +39,7 @@
 #define END_REORDERED    -2
 #define END_BEFORE_ENTRY -3
 
+#ifdef INLINING
+extern uintptr_t *executeJava2();
 extern int calculateRelocatability(int handler_sizes[HANDLERS][LABELS_SIZE]);
+#endif
