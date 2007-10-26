@@ -1483,7 +1483,8 @@ void freeClassData(Class *class) {
 #ifdef DIRECT
         if(!((uintptr_t)mb->code & 0x3)) {
 #ifdef INLINING
-            freeMethodInlinedInfo(mb);
+            if(cb->state >= CLASS_LINKED)
+                freeMethodInlinedInfo(mb);
 #endif
             gcPendingFree(mb->code);
         } else
