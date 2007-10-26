@@ -503,8 +503,8 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
     switch(tag) {
         default: {
             int cp_tag = CONSTANT_Integer;
+            int prim_type_no = 0;
             int const_val_idx;
-            int prim_type_no;
 
             switch(tag) {
                 case 'Z':
