@@ -30,6 +30,13 @@
 #include "hash.h"
 #include "inlining.h"
 
+/* To do inlining, we must know which handlers are relocatable.  This
+   can be calculated either at runtime or at compile-time as part of
+   the build.  Doing it at compile-time saves having a second copy of
+   the interpreter and the runtime checks, reducing executable size by
+   approx 20-30%.  However, it cannot be done at compile-time when
+   cross-compiling (at least without extra effort).
+*/
 #ifdef RUNTIME_RELOC_CHECKS
 static int handler_sizes[HANDLERS][LABELS_SIZE];
 static int goto_len;
@@ -95,6 +102,7 @@ char *reason(int reason) {
         case END_BEFORE_ENTRY:
             return "end label before entry label";
     }
+    return "unknown reason";
 }
 
 void showRelocatability() {
@@ -142,7 +150,10 @@ int checkRelocatability() {
 
     goto_start = handlers[ENTRY_LABELS][GOTO_START];
 
-    /* Check relocatability of each handler. */
+    /* Calculate handler code range within the program text.
+       This is used to tell which handlers in a method have
+       been rewritten when freeing the method data on class
+       unloading */
 
     for(i = 0; i < HANDLERS; i++) {
         int j;
