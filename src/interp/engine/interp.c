@@ -145,10 +145,10 @@ uintptr_t *executeJava() {
     extern int inlining_inited;
     if(!inlining_inited) return (uintptr_t*)handlers;
 
+    int oob_array_index = 0;
     void *throwOOBLabel = &&throwOOB;
     void *throwNullLabel = &&throwNull;
     void *throwArithmeticExcepLabel = &&throwArithmeticExcep;
-    int oob_array_index;
 #endif
 
 #ifdef PREFETCH
