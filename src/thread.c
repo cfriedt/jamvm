@@ -251,6 +251,7 @@ char *getThreadStateString(Thread *thread) {
         case BLOCKED:
             return "BLOCKED";
     }
+    return "INVALID";
 }
 
 int getThreadsCount() {
@@ -857,6 +858,7 @@ void fastEnableSuspend(Thread *thread) {
 }
 
 void dumpThreadsLoop(Thread *self) {
+    char buffer[256];
     Thread *thread;
     sigset_t mask;
     int sig;
@@ -880,24 +882,27 @@ void dumpThreadsLoop(Thread *self) {
 
         for(thread = &main_thread; thread != NULL; thread = thread->next) {
             uintptr_t *thr_data = INST_DATA(thread->ee->thread);
-            char *name = String2Cstr((Object*)thr_data[name_offset]);
             int priority = thr_data[priority_offset];
             int daemon = thr_data[daemon_offset];
             Frame *last = thread->ee->last_frame;
 
+            /* Get thread name; we don't use String2Cstr(), as this mallocs memory
+               and may deadlock with a thread suspended in malloc/realloc/free */
+            String2Buff((Object*)thr_data[name_offset], buffer, sizeof(buffer));
+
             jam_printf("\n\"%s\"%s %p priority: %d tid: %p id: %d state: %s (%d)\n",
-                  name, daemon ? " (daemon)" : "", thread, priority, thread->tid,
+                  buffer, daemon ? " (daemon)" : "", thread, priority, thread->tid,
                   thread->id, getThreadStateString(thread), thread->state);
-            sysFree(name);
 
             while(last->prev != NULL) {
                 for(; last->mb != NULL; last = last->prev) {
                     MethodBlock *mb = last->mb;
                     ClassBlock *cb = CLASS_CB(mb->class);
-                    char *dot_name = slash2dots(cb->name);
 
-                    jam_printf("\tat %s.%s(", dot_name, mb->name);
-                    sysFree(dot_name);
+                    /* Convert slashes in class name to dots.  Similar to above,
+                       we don't use slash2dots(), as this mallocs memory */
+                    slash2dots2buff(cb->name, buffer, sizeof(buffer)); 
+                    jam_printf("\tat %s.%s(", buffer, mb->name);
 
                     if(mb->access_flags & ACC_NATIVE)
                         jam_printf("Native method");
