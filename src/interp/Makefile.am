@@ -35,5 +35,5 @@ relocatability.inc: engine/compute_relocatability
 
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/src/interp/engine -I$(top_builddir)/src
 
-DISTCLEANFILES = relocatability.inc
+CLEANFILES = relocatability.inc
 
