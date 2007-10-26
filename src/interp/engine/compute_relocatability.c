@@ -43,12 +43,17 @@ char *value2Str(int value, char *buff) {
     }
 }
   
-void writeIncludeFile() {
+int writeIncludeFile() {
     char buff[256];
     FILE *fd;
     int i, j;
 
     fd = fopen("relocatability.inc", "w");
+
+    if(fd == NULL) {
+        printf("ERROR : cannot write relocatability.inc (check permissions).\n");
+        return 1;
+    }
 
     fprintf(fd, "static int goto_len = %s;\n", value2Str(goto_len, buff));
     fprintf(fd, "static int handler_sizes[%d][%d] = {\n", HANDLERS, LABELS_SIZE);
@@ -66,12 +71,13 @@ void writeIncludeFile() {
 
     fprintf(fd, "\n};\n");
     fclose(fd);
+
+    return 0;
 }
 
 int main() {
     goto_len = calculateRelocatability(handler_sizes);
-    writeIncludeFile();
-    return 0;
+    return writeIncludeFile();
 }
 
 
