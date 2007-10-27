@@ -34,6 +34,8 @@ install-data-local:
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
 	@use_zip_yes@ cp -p inst_classes.zip $(DESTDIR)$(pkgdatadir)/classes.zip
 	@use_zip_no@ unzip -o inst_classes.zip -d $(DESTDIR)$(pkgdatadir)/classes
+	@use_zip_yes@ $(mkinstalldirs) $(DESTDIR)$(libdir)
+	@use_zip_yes@ ln -fs $(GLIBJ_ZIP) $(DESTDIR)$(libdir)/rt.jar
 
 uninstall-local:
 	rm -rf $(DESTDIR)$(pkgdatadir)
