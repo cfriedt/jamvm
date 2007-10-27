@@ -66,6 +66,11 @@ extern CasLock cas_lock;
 #define LOCKWORD_COMPARE_AND_SWAP(addr, old_val, new_val) \
         COMPARE_AND_SWAP(addr, old_val, new_val)
 
+#ifdef INLINING
+#error Inlining not supported as FLUSH_CACHE unimplemented \
+       on this architecture
+#endif
+
 #define MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define JMM_LOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
