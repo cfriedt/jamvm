@@ -39,5 +39,6 @@ install-data-local:
 
 uninstall-local:
 	rm -rf $(DESTDIR)$(pkgdatadir)
+	rm $(DESTDIR)$(libdir)/rt.jar
 
 DISTCLEANFILES = inst_classes.zip
