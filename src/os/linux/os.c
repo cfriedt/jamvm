@@ -34,7 +34,7 @@ void *nativeStackBase() {
 #else
     pthread_attr_t attr;
     void *addr;
-    int size;
+    size_t size;
 
     pthread_getattr_np(pthread_self(), &attr);
     pthread_attr_getstack(&attr, &addr, &size);
