@@ -89,17 +89,17 @@ A summary of changes since 1.4.5:
 
 - Fix race-condition in thread deletion.
 
-- Fix bug in hash table "scavenge".  This could lead to entries
-  not being freed, and exhaustion of Monitors on embedded systems.
+- Fix bug in hash table "scavenge".  This could lead to entries not being
+  freed, and exhaustion of Monitors on embedded systems.
 
-- Removed use of malloc/free in thread dump.  Removes potential
-  deadlock with threads suspended in malloc/realloc/free.
+- Removed use of malloc/free in thread dump.  Removes potential deadlock
+  with threads suspended in malloc/realloc/free.
 
-- Added symbolic link from lib/rt.jar to Classpath's glibj.zip
-  (fixes programs such as ecj which locates rt.jar via java.home).
+- Added symbolic link from lib/rt.jar to Classpath's glibj.zip (fixes
+  programs such as ecj which locates rt.jar via java.home).
 
-- Bumped Java compatible version to 1.5.0 as Classpath is
-  now the generics branch (since Classpath 0.95).
+- Bumped Java compatible version to 1.5.0 as Classpath is now the generics
+  branch (since Classpath 0.95).
 
 
 JamVM 1.4.5 released on 4th February 2007
