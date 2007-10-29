@@ -1636,9 +1636,9 @@ void scanDirForJars(char *dir) {
 
             sysFree(bootpath);
             bootpath = buff;
-            sysFree(namelist[n]);
+            free(namelist[n]);
         }
-        sysFree(namelist);
+        free(namelist);
     }
 }
 

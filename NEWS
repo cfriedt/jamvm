@@ -1,3 +1,107 @@
+JamVM 1.5.0 released on 28th October 2007
+=========================================
+
+A summary of changes since 1.4.5:
+
+- Substantially modified the interpreter to implement inline-threading
+  (also known as super-instructions or code-copying).  This copies
+  code sequences together to produce native code that executes without
+  the normal interpreter dispatch overhead (similar to a simple JIT).
+
+  - Supported on i386, AMD64, PowerPC and ARM, with or without stack-
+    caching.  It is enabled by default on i386, AMD64 and PowerPC.
+
+  - Performance improvement upto 300% on Pentium 4 (NetBurst), and upto
+    200% on Athlon 64.  Less on Core 2 Duo (upto 70% faster as it has
+    indirect branch prediction), and PowerPC which was already very
+    optimised (upto 30% faster).
+
+  - Tested on gcc 3.4 (i386, AMD64, PowerPC), 4.0 (i386), 4.1
+    (i386, AMD64, PowerPC, ARM), 4.2 (i386, AMD64)
+
+  - Several new command line options to control inlining:
+
+      -Xreplication : determines whether duplicate code sequences
+       are replicated or shared.  Can be set to 'none' (no replication),
+       'always' (all sequences are copies) or a threshold value (e.g.
+       10, when sharing of a sequence reaches the threshold the sequence
+       is replicated).
+
+      -Xcodemem : the maximum amount of memory for super-instructions.
+       Once the maximum is reached no new super-instructions are generated
+       but existing super-instructions are reused (class unloading will
+       also free unused sequences).  Can be set to a value or 'unlimited'.
+       This option can be used to limit code memory on systems with little
+       RAM (i.e. embedded).
+
+      -Xshowreloc : debugging option, which shows which opcodes were
+       determined to be relocatable, and for opcodes which aren't why
+       they aren't relocatable.  When using stack-caching there are
+       three versions of each opcode (for 3 stack-cache levels).
+
+      -Xnoinlining : turns off inlining (equivalent to setting codemem
+       to zero).
+
+  - Opcode relocatability is determined by default at build time, but
+    this doesn't work when cross-compiling (so inlining is disabled).
+    Relocatability can be determined at runtime using configure option
+    --enable-runtime-reloc-checks, but this increases executable size
+    by approx 30%.
+
+- Command line options -version and -showversion now shows build
+  information.  This includes the execution engine (e.g. inline-
+  threaded interpreter with stack-caching), the gcc version which
+  was used to compile JamVM (useful for debugging) and the "built in"
+  boot library path and classpath.
+
+- Ported to ARM systems using EABI.  This is a full port, with hand-
+  coded assembler to handle the construction of a call-frame for calling
+  JNI native methods.
+
+- Refactored GC to remove all possible calls which may deadlock
+  with threads suspended in "unsafe" operations.  This includes
+  use of malloc/realloc/free and pthreads operations.
+
+- In allocClass() check if gcMalloc() returns NULL (i.e. OOM).
+
+- Copy Sun's behaviour when dealing with an empty property key or no
+  equals after key.
+
+- Add java.util.concurrent.atomic.AtomicLong.VMSupportsCS8.
+
+- In method and field access checks, put back in access check for
+  class (removed previously because it caused regressions, since
+  fixed in Classpath).
+
+- Enable suspend on thread creation (parent thread created thread with
+  suspension disabled).  Effects threads which immediately call a long
+  running native method.
+
+- Fixed race condition in thread creation and compaction (start function
+  obtains class reference when it is not suspendable, if compaction
+  occurs, the reference may be threaded, or moved).
+
+- Fix potential deadlock in threadInterrupt under Linuxthreads.
+
+- Protect lock operation in resetPeakThreadsCount().
+
+- In createJavaThread(), re-enable suspension if pthread_create fails.
+
+- Fix race-condition in thread deletion.
+
+- Fix bug in hash table "scavenge".  This could lead to entries
+  not being freed, and exhaustion of Monitors on embedded systems.
+
+- Removed use of malloc/free in thread dump.  Removes potential
+  deadlock with threads suspended in malloc/realloc/free.
+
+- Added symbolic link from lib/rt.jar to Classpath's glibj.zip
+  (fixes programs such as ecj which locates rt.jar via java.home).
+
+- Bumped Java compatible version to 1.5.0 as Classpath is
+  now the generics branch (since Classpath 0.95).
+
+
 JamVM 1.4.5 released on 4th February 2007
 =========================================
 
