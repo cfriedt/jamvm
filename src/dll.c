@@ -321,7 +321,7 @@ void *lookupLoadedDlls0(char *name, Object *loader) {
 void unloadDll(DllEntry *dll) {
     void *on_unload;
 
-    TRACE("<DLL: Unloading DLL %s\n" dll->name);
+    TRACE("<DLL: Unloading DLL %s\n", dll->name);
 
     if((on_unload = nativeLibSym(dll->handle, "JNI_OnUnload")) != NULL)
         (*(void (*)(JavaVM*, void*))on_unload)(&invokeIntf, NULL);
@@ -345,7 +345,7 @@ void threadLiveClassLoaderDlls() {
 void unloadClassLoaderDlls(Object *loader) {
     int unloaded = 0;
 
-    TRACE("<DLL: Unloading DLLs for loader %x\n" loader);
+    TRACE("<DLL: Unloading DLLs for loader %x\n", loader);
 
 #undef ITERATE
 #define ITERATE(ptr)                                          \
