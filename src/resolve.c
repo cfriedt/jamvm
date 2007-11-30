@@ -238,7 +238,8 @@ retry:
                 return NULL;
             }
             
-            if((mb = lookupMethod(resolved_class, methodname, methodtype)) == NULL) {
+            mb = lookupMethod(resolved_class, methodname, methodtype);
+            if(mb == NULL) {
                 ClassBlock *cb = CLASS_CB(resolved_class);
                 int i;
 
