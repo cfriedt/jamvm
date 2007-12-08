@@ -415,8 +415,17 @@ jclass Jam_FindClass(JNIEnv *env, const char *name) {
        However, if this has been called from an attached thread there may
        be no native Java frame.  In this case use the system class loader */
     Frame *last = getExecEnv()->last_frame;
-    Object *loader = last->prev ? CLASS_CB(last->mb->class)->class_loader
-                                : getSystemClassLoader();
+    Object *loader;
+
+    if(last->prev) {
+        ClassBlock *cb = CLASS_CB(last->mb->class);
+        loader = cb->class_loader;
+
+        /* Ensure correct context if called from JNI_OnLoad */
+        if(loader == NULL && strcmp(cb->name, "java/lang/VMRuntime") == 0)
+            loader = (Object*)last->lvars[1];
+    } else
+        loader = getSystemClassLoader();
 
     return (jclass) findClassFromClassLoader((char*) name, loader);
 }
