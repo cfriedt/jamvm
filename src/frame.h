@@ -40,7 +40,7 @@
             exitVM(1);                                          \
         }                                                       \
         ee->stack_end += STACK_RED_ZONE_SIZE;                   \
-        signalException("java/lang/StackOverflowError", NULL);  \
+        signalException(java_lang_StackOverflowError, NULL);    \
         return NULL;                                            \
     }                                                           \
                                                                 \
