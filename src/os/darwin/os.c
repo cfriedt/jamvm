@@ -75,7 +75,6 @@ void *nativeLibOpen(char *path) {
             handle = dlopen(buff, RTLD_LAZY);
         }
     }
-
     return handle;
 }
 
