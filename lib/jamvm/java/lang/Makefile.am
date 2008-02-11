@@ -20,4 +20,5 @@
 ##
 
 EXTRA_DIST = \
-JarLauncher.java
+JarLauncher.java \
+VMClassLoaderData.java
