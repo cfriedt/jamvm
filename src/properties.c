@@ -25,6 +25,7 @@
 #include <sys/utsname.h>
 
 #include "jam.h"
+#include "symbol.h"
 
 /* If we have endian.h include it.  Otherwise, include sys/param.h
    if we have it. If the BYTE_ORDER macro is still undefined, we
@@ -63,8 +64,8 @@ void setProperty(Object *properties, char *key, char *value) {
     Object *k = Cstr2String(key);
     Object *v = Cstr2String(value ? value : "?");
 
-    MethodBlock *mb = lookupMethod(properties->class, "put",
-                           "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+    MethodBlock *mb = lookupMethod(properties->class, SYMBOL(put),
+                           SYMBOL(_java_lang_Object_java_lang_Object__java_lang_Object));
     executeMethod(properties, mb, k, v);
 }
 
@@ -164,7 +165,7 @@ void addDefaultProperties(Object *properties) {
     setProperty(properties, "java.vendor", "GNU Classpath");
     setProperty(properties, "java.vendor.url", "http://www.classpath.org");
     setProperty(properties, "java.home", getJavaHome());
-    setProperty(properties, "java.specification.version", "1.4");
+    setProperty(properties, "java.specification.version", "1.5");
     setProperty(properties, "java.specification.vendor", "Sun Microsystems, Inc.");
     setProperty(properties, "java.specification.name", "Java Platform API Specification");
     setProperty(properties, "java.vm.specification.version", "1.0");
