@@ -87,6 +87,7 @@ static CodeBlockHeader *code_free_list = NULL;
 static char *min_entry_point = (char*)-1;
 static char *max_entry_point  = NULL;
 
+static int enabled;
 int inlining_inited = FALSE;
 static char **handler_entry_points[HANDLERS];
 static char *goto_start;
@@ -175,7 +176,7 @@ int checkRelocatability() {
 }
 
 int initialiseInlining(InitArgs *args) {
-    int enabled = args->codemem > 0 ? checkRelocatability() : FALSE;
+    enabled = args->codemem > 0 ? checkRelocatability() : FALSE;
 
     if(enabled) {
         initVMLock(rewrite_lock);
@@ -253,6 +254,9 @@ void freeMethodInlinedInfo(MethodBlock *mb) {
     CodeBlockHeader **blocks = mb->code;
     QuickPrepareInfo *info;
     int i;
+
+    if(!enabled)
+        return;
 
     /* Scan handlers within the method */
 
@@ -412,7 +416,7 @@ CodeBlockHeader *findCodeBlock(CodeBlockHeader *block) {
     return hashed_block;
 }
 
-void inlineSequence(CodeBlock *info, int start, int len) {
+void inlineSequence(MethodBlock *mb, CodeBlock *info, int start, int len) {
     int code_len = goto_len + sizeof(CodeBlockHeader);
     Instruction *instructions = &info->start[start];
     OpcodeInfo *opcodes = &info->opcodes[start];
@@ -459,12 +463,12 @@ void inlineSequence(CodeBlock *info, int start, int len) {
         instructions[0].handler = hashed_block + 1;
         MBARRIER();
 
-        TRACE("InlineSequence start %p (%d) instruction len %d code len %d sequence %p\n",
-              instructions, start, len, code_len, instructions[0].handler);
+        TRACE("InlineSequence %s start %p (%d) instruction len %d code len %d sequence %p\n",
+              mb->name, instructions, start, len, code_len, instructions[0].handler);
     }
 }
 
-void inlineBlock(CodeBlock *block) {
+void inlineBlock(MethodBlock *mb, CodeBlock *block) {
     int start, len, i;
 
     for(start = i = 0; i < block->length; i++) {
@@ -525,7 +529,7 @@ void inlineBlock(CodeBlock *block) {
             len = i - start;
 
             if(len > 0)
-                inlineSequence(block, start, len);
+                inlineSequence(mb, block, start, len);
 
             start = i + 1;
         }
@@ -534,7 +538,7 @@ void inlineBlock(CodeBlock *block) {
     /* Inline the remaining sequence */
     len = block->length - start;
     if(len > 0)
-        inlineSequence(block, start, len);
+        inlineSequence(mb, block, start, len);
 
     sysFree(block->opcodes);
 }
@@ -553,7 +557,7 @@ void rewriteUnlock(Thread *self) {
     unlockVMLock(rewrite_lock, self);
 }
 
-void inlineBlockWrappedOpcode(Instruction *pc) {
+void inlineBlockWrappedOpcode(MethodBlock *mb, Instruction *pc) {
     PrepareInfo *prepare_info = pc->operand.pntr;
     OpcodeInfo *info;
     int i;
@@ -581,7 +585,7 @@ void inlineBlockWrappedOpcode(Instruction *pc) {
     info = &prepare_info->block.opcodes[prepare_info->block.length-1];
     pc->handler = handler_entry_points[info->cache_depth][info->opcode];
 
-    inlineBlock(&prepare_info->block);
+    inlineBlock(mb, &prepare_info->block);
     sysFree(prepare_info);
 }
 
@@ -617,7 +621,7 @@ void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
         /* If prepare info found, inline block (no need to
            hold lock) */
         if(info) {
-            inlineBlock(&info->block);
+            inlineBlock(mb, &info->block);
             sysFree(info);
         }
     }
