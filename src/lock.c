@@ -31,6 +31,8 @@
 #include "hash.h"
 #include "alloc.h"
 #include "lock.h"
+#include "symbol.h"
+#include "excep.h"
 
 /* Trace lock operations and inflation/deflation */
 #ifdef TRACELOCK
@@ -282,7 +284,7 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns, int locked) {
 
     if(interrupted) {
         self->interrupted = FALSE;
-        signalException("java/lang/InterruptedException", NULL);
+        signalException(java_lang_InterruptedException, NULL);
     }
 
     return TRUE;
@@ -484,7 +486,7 @@ void objectWait(Object *obj, long long ms, int ns) {
         return;
 
 not_owner:
-    signalException("java/lang/IllegalMonitorStateException", "thread not owner");
+    signalException(java_lang_IllegalMonitorStateException, "thread not owner");
 }
 
 void objectNotify(Object *obj) {
@@ -503,7 +505,7 @@ void objectNotify(Object *obj) {
             return;
     }
 
-    signalException("java/lang/IllegalMonitorStateException", "thread not owner");
+    signalException(java_lang_IllegalMonitorStateException, "thread not owner");
 }
 
 void objectNotifyAll(Object *obj) {
@@ -522,7 +524,7 @@ void objectNotifyAll(Object *obj) {
             return;
     }
 
-    signalException("java/lang/IllegalMonitorStateException", "thread not owner");
+    signalException(java_lang_IllegalMonitorStateException, "thread not owner");
 }
 
 int objectLockedByCurrent(Object *obj) {
