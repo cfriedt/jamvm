@@ -22,7 +22,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.5.0)
+AM_INIT_AUTOMAKE(jamvm, 1.5.1)
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
 
@@ -32,6 +32,7 @@ case "$host" in
 i[[3456]]86-*-linux*) host_cpu=i386 host_os=linux ;;
 i[[3456]]86-*-kfreebsd*) host_cpu=i386 host_os=linux ;;
 i[[3456]]86-*-darwin*) host_cpu=i386 host_os=darwin ;;
+arm*-*-darwin*) host_cpu=arm host_os=darwin libdl_needed=no ;;
 i386-*-openbsd*) host_os=bsd libdl_needed=no ;;
 i386-*-freebsd*) host_os=bsd libdl_needed=no ;;
 x86_64-*-linux*) host_os=linux ;;
@@ -188,7 +189,7 @@ AM_CONDITIONAL(COMPILE_TIME_RELOC_CHECKS, test "$compile_time_reloc_checks" = ye
 
 AC_ARG_ENABLE(ffi,
     [AS_HELP_STRING(--enable-ffi,use libffi to call native methods)],,
-    [if test "$host_cpu" != x86_64 -a "$host_cpu" != parisc; then
+    [if test "$host_cpu" != parisc; then
         enable_ffi=no
      fi])
 
@@ -305,6 +306,7 @@ AC_CONFIG_FILES(
     src/os/linux/parisc/Makefile \
     src/os/linux/mips/Makefile \
     src/os/darwin/i386/Makefile \
+    src/os/darwin/arm/Makefile \
     src/os/darwin/powerpc/Makefile \
     src/os/bsd/powerpc/Makefile \
     src/os/bsd/arm/Makefile \
@@ -320,7 +322,7 @@ AC_CONFIG_FILES(
     lib/java/security/Makefile \
     lib/gnu/Makefile \
     lib/sun/reflect/annotation/Makefile \
-    lib/sun/reflect//Makefile \
+    lib/sun/reflect/Makefile \
     lib/sun/Makefile \
     lib/gnu/classpath/Makefile)
 
