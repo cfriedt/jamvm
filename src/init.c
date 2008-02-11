@@ -74,20 +74,16 @@ void initVM(InitArgs *args) {
     initialiseClass(args);
     initialiseDll(args);
     initialiseUtf8();
+    initialiseThread(args);
+    initialiseSymbol();
     initialiseMonitor();
+    initialiseString();
+    initialiseException();
+    initialiseNatives();
+    initialiseJNI();
     initialiseInterpreter(args);
     initialiseMainThread(args);
-    initialiseException();
-    initialiseString();
     initialiseGC(args);
-    initialiseJNI();
-    initialiseNatives();
-
-    /* No need to check for exception - if one occurs, signalException aborts VM */
-    findSystemClass("java/lang/NoClassDefFoundError");
-    findSystemClass("java/lang/ClassFormatError");
-    findSystemClass("java/lang/NoSuchFieldError");
-    findSystemClass("java/lang/NoSuchMethodError");
 
     VM_initing = FALSE;
 }
