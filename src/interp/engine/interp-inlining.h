@@ -68,7 +68,7 @@
  */
 #if (__GNUC__ == 2) && (__GNUC_MINOR__ <= 95)
 #define label(x, y, z)                          \
-opc##x##_##y##:
+opc##x##_##y##_##z##:
 #else
 #define label(x, y, z)                          \
 opc##x##_##y##_##z:
@@ -225,10 +225,10 @@ opc##x##_##y##_##z:
 
 /* Macros for checking for common exceptions */
 
-#define THROW_EXCEPTION(excep_name, message)   \
+#define THROW_EXCEPTION(excep_enum, message)   \
 {                                              \
     frame->last_pc = pc;                       \
-    signalException(excep_name, message);      \
+    signalException(excep_enum, message);      \
     goto throwException;                       \
 }
 
@@ -258,7 +258,7 @@ opc##x##_##y##_##z:
 #endif
 
 extern void initialiseDirect(InitArgs *args);
-extern void inlineBlockWrappedOpcode(Instruction *pc);
+extern void inlineBlockWrappedOpcode(MethodBlock *mb, Instruction *pc);
 extern void prepare(MethodBlock *mb, const void ***handlers);
 extern void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb);
 
