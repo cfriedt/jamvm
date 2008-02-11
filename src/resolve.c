@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "jam.h"
+#include "symbol.h"
+#include "excep.h"
 
 MethodBlock *findMethod(Class *class, char *methodname, char *type) {
    ClassBlock *cb = CLASS_CB(class);
@@ -29,7 +31,7 @@ MethodBlock *findMethod(Class *class, char *methodname, char *type) {
    int i;
 
    for(i = 0; i < cb->methods_count; i++,mb++)
-       if((strcmp(mb->name, methodname) == 0) && (strcmp(mb->type, type) == 0))
+       if(mb->name == methodname && mb->type == type)
           return mb;
 
    return NULL;
@@ -45,7 +47,7 @@ FieldBlock *findField(Class *class, char *fieldname, char *type) {
     int i;
 
     for(i = 0; i < cb->fields_count; i++,fb++)
-        if(strcmp(fb->name, fieldname) == 0 && (strcmp(fb->type, type) == 0))
+        if(fb->name == fieldname && fb->type == type)
             return fb;
 
     return NULL;
@@ -116,7 +118,7 @@ retry:
                 return NULL;
 
             if(!checkClassAccess(resolved_class, class)) {
-                signalException("java/lang/IllegalAccessException", "class is not accessible");
+                signalException(java_lang_IllegalAccessException, "class is not accessible");
                 return NULL;
             }
 
@@ -169,7 +171,7 @@ retry:
                 return NULL;
 
             if(resolved_cb->access_flags & ACC_INTERFACE) {
-                signalException("java/lang/IncompatibleClassChangeError", NULL);
+                signalException(java_lang_IncompatibleClassChangeError, NULL);
                 return NULL;
             }
             
@@ -178,12 +180,12 @@ retry:
             if(mb) {
                 if((mb->access_flags & ACC_ABSTRACT) &&
                        !(resolved_cb->access_flags & ACC_ABSTRACT)) {
-                    signalException("java/lang/AbstractMethodError", methodname);
+                    signalException(java_lang_AbstractMethodError, methodname);
                     return NULL;
                 }
 
                 if(!checkMethodAccess(mb, class)) {
-                    signalException("java/lang/IllegalAccessException", "method is not accessible");
+                    signalException(java_lang_IllegalAccessException, "method is not accessible");
                     return NULL;
                 }
 
@@ -195,7 +197,7 @@ retry:
                 MBARRIER();
                 CP_TYPE(cp, cp_index) = CONSTANT_Resolved;
             } else
-                signalException("java/lang/NoSuchMethodError", methodname);
+                signalException(java_lang_NoSuchMethodError, methodname);
 
             break;
         }
@@ -234,7 +236,7 @@ retry:
                 return NULL;
 
             if(!(CLASS_CB(resolved_class)->access_flags & ACC_INTERFACE)) {
-                signalException("java/lang/IncompatibleClassChangeError", NULL);
+                signalException(java_lang_IncompatibleClassChangeError, NULL);
                 return NULL;
             }
             
@@ -256,7 +258,7 @@ retry:
                 MBARRIER();
                 CP_TYPE(cp, cp_index) = CONSTANT_Resolved;
             } else
-                signalException("java/lang/NoSuchMethodError", methodname);
+                signalException(java_lang_NoSuchMethodError, methodname);
 
             break;
         }
@@ -298,7 +300,7 @@ retry:
 
             if(fb) {
                 if(!checkFieldAccess(fb, class)) {
-                    signalException("java/lang/IllegalAccessException", "field is not accessible");
+                    signalException(java_lang_IllegalAccessException, "field is not accessible");
                     return NULL;
                 }
 
@@ -310,7 +312,7 @@ retry:
                 MBARRIER();
                 CP_TYPE(cp, cp_index) = CONSTANT_Resolved;
             } else
-                signalException("java/lang/NoSuchFieldError", fieldname);
+                signalException(java_lang_NoSuchFieldError, fieldname);
 
             break;
         }
@@ -372,7 +374,7 @@ MethodBlock *lookupVirtualMethod(Object *ob, MethodBlock *mb) {
                    (mb->class != cb->imethod_table[i].interface); i++);
 
         if(i == cb->imethod_table_size) {
-            signalException("java/lang/IncompatibleClassChangeError",
+            signalException(java_lang_IncompatibleClassChangeError,
                             "unimplemented interface");
             return NULL;
         }
@@ -382,7 +384,7 @@ MethodBlock *lookupVirtualMethod(Object *ob, MethodBlock *mb) {
     mb = cb->method_table[mtbl_idx];
 
     if(mb->access_flags & ACC_ABSTRACT) {
-        signalException("java/lang/AbstractMethodError", mb->name);
+        signalException(java_lang_AbstractMethodError, mb->name);
         return NULL;
     }
 
