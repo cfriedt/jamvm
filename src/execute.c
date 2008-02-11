@@ -24,36 +24,44 @@
 #include "sig.h"
 #include "frame.h"
 #include "lock.h"
+#include "symbol.h"
+#include "excep.h"
 
-#define VA_DOUBLE(args, sp)  *(u8*)sp = va_arg(args, u8); sp+=2
-#define VA_SINGLE(args, sp)                   \
-    if(*sig == 'L' || *sig == '[')            \
-        *sp = va_arg(args, uintptr_t);        \
-    else if(*sig == 'F') {                    \
-            *(u4*)sp = va_arg(args, u4);      \
-        } else                                \
-            *sp = va_arg(args, u4);           \
+#define VA_DOUBLE(args, sp)                     \
+    if(*sig == 'D')                             \
+        *(double*)sp = va_arg(args, double);    \
+    else                                        \
+        *(u8*)sp = va_arg(args, u8);            \
+    sp+=2
+
+#define VA_SINGLE(args, sp)                     \
+    if(*sig == 'L' || *sig == '[')              \
+        *sp = va_arg(args, uintptr_t);          \
+    else if(*sig == 'F') {                      \
+            *(float*)sp = va_arg(args, double); \
+        } else                                  \
+            *sp = va_arg(args, u4);             \
     sp++
 
 #define JA_DOUBLE(args, sp)  *(u8*)sp = *args++; sp+=2
-#define JA_SINGLE(args, sp)                   \
-    switch(*sig) {                            \
-        case 'L': case '[': case 'F':         \
-            *sp = *(uintptr_t*)args;          \
-            break;                            \
-        case 'B': case 'Z':                   \
-            *sp = *(signed char*)args;        \
-            break;                            \
-        case 'C':                             \
-            *sp = *(unsigned short*)args;     \
-            break;                            \
-        case 'S':                             \
-            *sp = *(signed short*)args;       \
-            break;                            \
-        case 'I':                             \
-            *sp = *(signed int*)args;         \
-            break;                            \
-    }                                         \
+#define JA_SINGLE(args, sp)                     \
+    switch(*sig) {                              \
+        case 'L': case '[': case 'F':           \
+            *sp = *(uintptr_t*)args;            \
+            break;                              \
+        case 'B': case 'Z':                     \
+            *sp = *(signed char*)args;          \
+            break;                              \
+        case 'C':                               \
+            *sp = *(unsigned short*)args;       \
+            break;                              \
+        case 'S':                               \
+            *sp = *(signed short*)args;         \
+            break;                              \
+        case 'I':                               \
+            *sp = *(signed int*)args;           \
+            break;                              \
+    }                                           \
     sp++; args++
 
 void *executeMethodArgs(Object *ob, Class *class, MethodBlock *mb, ...) {
