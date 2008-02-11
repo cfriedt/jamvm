@@ -29,6 +29,8 @@
 #include "thread.h"
 #include "lock.h"
 #include "hash.h"
+#include "symbol.h"
+#include "excep.h"
 
 #ifdef TRACETHREAD
 #define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
@@ -453,13 +455,13 @@ void detachThread(Thread *thread) {
     /* If there's an uncaught exception, call uncaughtException on the thread's
        exception handler, or the thread's group if this is unset */
     if((excep = exceptionOccurred())) {
-        FieldBlock *fb = findField(thread_class, "exceptionHandler",
-                                                 "Ljava/lang/Thread$UncaughtExceptionHandler;");
+        FieldBlock *fb = findField(thread_class, SYMBOL(exceptionHandler),
+                                                 SYMBOL(sig_java_lang_Thread_UncaughtExceptionHandler));
         Object *thread_handler = fb == NULL ? NULL : (Object *)INST_DATA(jThread)[fb->offset];
         Object *handler = thread_handler == NULL ? group : thread_handler;
 
-        MethodBlock *uncaught_exp = lookupMethod(handler->class, "uncaughtException",
-                                                 "(Ljava/lang/Thread;Ljava/lang/Throwable;)V");
+        MethodBlock *uncaught_exp = lookupMethod(handler->class, SYMBOL(uncaughtException),
+                                                 SYMBOL(_java_lang_Thread_java_lang_Throwable__V));
 
         if(uncaught_exp) {
             clearException();
@@ -571,7 +573,7 @@ void createJavaThread(Object *jThread, long long stack_size) {
     if(INST_DATA(jThread)[vmthread_offset]) {
         pthread_mutex_unlock(&lock);
         enableSuspend(self);
-        signalException("java/lang/IllegalThreadStateException", "thread already started");
+        signalException(java_lang_IllegalThreadStateException, "thread already started");
         return;
     }
 
@@ -594,7 +596,7 @@ void createJavaThread(Object *jThread, long long stack_size) {
         INST_DATA(jThread)[vmthread_offset] = 0;
         sysFree(ee);
         enableSuspend(self);
-        signalException("java/lang/OutOfMemoryError", "can't create thread");
+        signalException(java_lang_OutOfMemoryError, "can't create thread");
         return;
     }
 
@@ -971,9 +973,9 @@ void exitVM(int status) {
        it returns, fall through and exit. */
 
     if(!VMInitialising()) {
-        Class *system = findSystemClass("java/lang/System");
+        Class *system = findSystemClass(SYMBOL(java_lang_System));
         if(system) {
-            MethodBlock *exit = findMethod(system, "exit", "(I)V");
+            MethodBlock *exit = findMethod(system, SYMBOL(exit), SYMBOL(_I__V));
             if(exit)
                 executeStaticMethod(system, exit, status);
         }
@@ -998,18 +1000,14 @@ void mainThreadWaitToExitVM() {
 }
 
 void mainThreadSetContextClassLoader(Object *loader) {
-    FieldBlock *fb = findField(thread_class, "contextClassLoader", "Ljava/lang/ClassLoader;");
+    FieldBlock *fb = findField(thread_class, SYMBOL(contextClassLoader),
+                                             SYMBOL(sig_java_lang_ClassLoader));
     if(fb != NULL)
         INST_DATA(main_ee.thread)[fb->offset] = (uintptr_t)loader;
 }
 
-void initialiseMainThread(InitArgs *args) {
+void initialiseThread(InitArgs *args) {
     size_t size;
-    Object *java_thread;
-    Class *thrdGrp_class;
-    MethodBlock *run, *remove_thread;
-    FieldBlock *group, *priority, *root, *threadId;
-    FieldBlock *vmData, *vmThread, *thread, *daemon, *name;
 
     /* Set the default size of the Java stack for each _new_ thread */
     dflt_stack_size = args->java_stack;
@@ -1029,7 +1027,7 @@ void initialiseMainThread(InitArgs *args) {
     /* Ensure the thread stacks are at least 1 megabyte in size */
     pthread_attr_getstacksize(&attributes, &size);
     if(size < 1*MB)
-        pthread_attr_setstacksize(&attributes, 2*MB);
+        pthread_attr_setstacksize(&attributes, 1*MB);
 
     monitorInit(&sleep_mon);
     initHashTable(thread_id_map, HASHTABSZE, TRUE);
@@ -1048,32 +1046,43 @@ void initialiseMainThread(InitArgs *args) {
 
     initialiseJavaStack(&main_ee);
     setThreadSelf(&main_thread);
+}
 
-    /* As we're initialising, VM will abort if Thread can't be found */
-    thread_class = findSystemClass0("java/lang/Thread");
+void initialiseMainThread(InitArgs *args) {
+    Object *java_thread;
+    Class *thrdGrp_class;
+    MethodBlock *run, *remove_thread;
+    FieldBlock *group, *priority, *root, *threadId;
+    FieldBlock *vmThread = NULL, *thread = NULL;
+    FieldBlock *vmData, *daemon, *name;
 
-    /* Register class reference for compaction threading */
+    /* Load thread class and register reference for compaction threading */
+    thread_class = findSystemClass0(SYMBOL(java_lang_Thread));
     registerStaticClassRef(&thread_class);
 
-    vmThread = findField(thread_class, "vmThread", "Ljava/lang/VMThread;");
-    daemon = findField(thread_class, "daemon", "Z");
-    name = findField(thread_class, "name", "Ljava/lang/String;");
-    group = findField(thread_class, "group", "Ljava/lang/ThreadGroup;");
-    priority = findField(thread_class, "priority", "I");
-    threadId = findField(thread_class, "threadId", "J");
+    if(thread_class != NULL) {
+        vmThread = findField(thread_class, SYMBOL(vmThread), SYMBOL(sig_java_lang_VMThread));
+        daemon = findField(thread_class, SYMBOL(daemon), SYMBOL(Z));
+        name = findField(thread_class, SYMBOL(name), SYMBOL(sig_java_lang_String));
+        group = findField(thread_class, SYMBOL(group), SYMBOL(sig_java_lang_ThreadGroup));
+        priority = findField(thread_class, SYMBOL(priority), SYMBOL(I));
+        threadId = findField(thread_class, SYMBOL(threadId), SYMBOL(J));
 
-    init_mb = findMethod(thread_class, "<init>",
-                         "(Ljava/lang/VMThread;Ljava/lang/String;IZ)V");
-    run = findMethod(thread_class, "run", "()V");
+        init_mb = findMethod(thread_class, SYMBOL(object_init),
+                             SYMBOL(_java_lang_VMThread_java_lang_String_I_Z__V));
+        run = findMethod(thread_class, SYMBOL(run), SYMBOL(___V));
 
-    vmthread_class = findSystemClass0("java/lang/VMThread");
-    CLASS_CB(vmthread_class)->flags |= VMTHREAD;
+        vmthread_class = findSystemClass0(SYMBOL(java_lang_VMThread));
+        CLASS_CB(vmthread_class)->flags |= VMTHREAD;
 
-    /* Register class reference for compaction threading */
-    registerStaticClassRef(&vmthread_class);
+        /* Register class reference for compaction threading */
+        registerStaticClassRef(&vmthread_class);
 
-    thread = findField(vmthread_class, "thread", "Ljava/lang/Thread;");
-    vmData = findField(vmthread_class, "vmData", "I");
+        if(vmthread_class != NULL) {
+            thread = findField(vmthread_class, SYMBOL(thread), SYMBOL(sig_java_lang_Thread));
+            vmData = findField(vmthread_class, SYMBOL(vmData), SYMBOL(I));
+        }
+    }
 
     /* findField and findMethod do not throw an exception... */
     if((init_mb == NULL) || (vmData == NULL) || (run == NULL) || (daemon == NULL) ||
@@ -1091,16 +1100,20 @@ void initialiseMainThread(InitArgs *args) {
     name_offset = name->offset;
     run_mtbl_idx = run->method_table_index;
 
-    /* Initialise the Java-level thread objects representing this thread */
+    /* Initialise the Java-level thread objects for the main thread */
     java_thread = initJavaThread(&main_thread, FALSE, "main");
 
     /* Main thread is now sufficiently setup to be able to run the thread group
        initialiser.  This is essential to create the root thread group */
-    thrdGrp_class = findSystemClass("java/lang/ThreadGroup");
+    thrdGrp_class = findSystemClass(SYMBOL(java_lang_ThreadGroup));
 
-    root = findField(thrdGrp_class, "root", "Ljava/lang/ThreadGroup;");
-    addThread_mb = findMethod(thrdGrp_class, "addThread", "(Ljava/lang/Thread;)V");
-    remove_thread = findMethod(thrdGrp_class, "removeThread", "(Ljava/lang/Thread;)V");
+    root = findField(thrdGrp_class, SYMBOL(root), SYMBOL(sig_java_lang_ThreadGroup));
+
+    addThread_mb = findMethod(thrdGrp_class, SYMBOL(addThread),
+                                             SYMBOL(_java_lang_Thread_args__void));
+
+    remove_thread = findMethod(thrdGrp_class, SYMBOL(removeThread),
+                                              SYMBOL(_java_lang_Thread_args__void));
 
     /* findField and findMethod do not throw an exception... */
     if((root == NULL) || (addThread_mb == NULL) || (remove_thread == NULL))
@@ -1128,5 +1141,6 @@ void initialiseMainThread(InitArgs *args) {
 error:
     jam_fprintf(stderr, "Error initialising VM (initialiseMainThread)\nCheck "
                         "the README for compatible versions of GNU Classpath\n");
+    printException();
     exitVM(1);
 }
