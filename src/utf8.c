@@ -91,13 +91,23 @@ int utf8Comp(char *ptr, char *ptr2) {
     return TRUE;
 }
 
-char *findUtf8String(char *string) {
+char *findHashedUtf8(char *string, int add_if_absent) {
     char *interned;
 
     /* Add if absent, no scavenge, locked */
-    findHashEntry(hash_table, string, interned, TRUE, FALSE, TRUE);
+    findHashEntry(hash_table, string, interned, add_if_absent, FALSE, TRUE);
 
     return interned;
+}
+
+char *copyUtf8(char *string) {
+    char *buff = strcpy(sysMalloc(strlen(string) + 1), string);
+    char *found = findHashedUtf8(buff, TRUE);
+
+    if(found != buff)
+        sysFree(buff);
+
+    return found;
 }
 
 char *slash2dots(char *utf8) {
