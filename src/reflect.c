@@ -26,6 +26,8 @@
 #include "frame.h"
 #include "lock.h"
 #include "class.h"
+#include "symbol.h"
+#include "excep.h"
 
 static char inited = FALSE;
 
@@ -39,39 +41,39 @@ static int initReflection() {
     FieldBlock *cons_slot_fb, *mthd_slot_fb, *fld_slot_fb;
     FieldBlock *cons_class_fb, *mthd_class_fb, *fld_class_fb;
 
-    class_array_class = findArrayClass("[Ljava/lang/Class;");
-    cons_array_class = findArrayClass("[Ljava/lang/reflect/Constructor;");
-    cons_reflect_class = findSystemClass("java/lang/reflect/Constructor");
-    method_array_class = findArrayClass("[Ljava/lang/reflect/Method;");
-    method_reflect_class = findSystemClass("java/lang/reflect/Method");
-    field_array_class = findArrayClass("[Ljava/lang/reflect/Field;");
-    field_reflect_class = findSystemClass("java/lang/reflect/Field");
+    class_array_class = findArrayClass(SYMBOL(array_java_lang_Class));
+    cons_array_class = findArrayClass(SYMBOL(array_java_lang_reflect_Constructor));
+    cons_reflect_class = findSystemClass(SYMBOL(java_lang_reflect_Constructor));
+    method_array_class = findArrayClass(SYMBOL(array_java_lang_reflect_Method));
+    method_reflect_class = findSystemClass(SYMBOL(java_lang_reflect_Method));
+    field_array_class = findArrayClass(SYMBOL(array_java_lang_reflect_Field));
+    field_reflect_class = findSystemClass(SYMBOL(java_lang_reflect_Field));
 
     if(!cons_array_class || !cons_reflect_class || !method_array_class ||
           !method_reflect_class || !field_array_class || !field_reflect_class)
         return FALSE;
 
-    cons_init_mb = findMethod(cons_reflect_class, "<init>",
-               "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;I)V");
+    cons_init_mb = findMethod(cons_reflect_class, SYMBOL(object_init),
+                              SYMBOL(_java_lang_Class_array_java_lang_Class_array_java_lang_Class_I__V));
 
-    method_init_mb = findMethod(method_reflect_class, "<init>",
-          "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;I)V");
+    method_init_mb = findMethod(method_reflect_class, SYMBOL(object_init), SYMBOL(
+         _java_lang_Class_array_java_lang_Class_array_java_lang_Class_java_lang_Class_java_lang_String_I__V));
 
-    field_init_mb = findMethod(field_reflect_class, "<init>",
-                        "(Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;I)V");
+    field_init_mb = findMethod(field_reflect_class, SYMBOL(object_init),
+                               SYMBOL(_java_lang_Class_java_lang_Class_java_lang_String_I__V));
 
-    cons_slot_fb = findField(cons_reflect_class, "slot", "I");
-    mthd_slot_fb = findField(method_reflect_class, "slot", "I");
-    fld_slot_fb = findField(field_reflect_class, "slot", "I");
-    cons_class_fb = findField(cons_reflect_class, "declaringClass", "Ljava/lang/Class;");
-    mthd_class_fb = findField(method_reflect_class, "declaringClass", "Ljava/lang/Class;");
-    fld_class_fb = findField(field_reflect_class, "declaringClass", "Ljava/lang/Class;");
+    cons_slot_fb = findField(cons_reflect_class, SYMBOL(slot), SYMBOL(I));
+    mthd_slot_fb = findField(method_reflect_class, SYMBOL(slot), SYMBOL(I));
+    fld_slot_fb = findField(field_reflect_class, SYMBOL(slot), SYMBOL(I));
+    cons_class_fb = findField(cons_reflect_class, SYMBOL(declaringClass), SYMBOL(sig_java_lang_Class));
+    mthd_class_fb = findField(method_reflect_class, SYMBOL(declaringClass), SYMBOL(sig_java_lang_Class));
+    fld_class_fb = findField(field_reflect_class, SYMBOL(declaringClass), SYMBOL(sig_java_lang_Class));
 
     if(!cons_init_mb || ! method_init_mb || !field_init_mb ||
            !cons_slot_fb || !mthd_slot_fb || !fld_slot_fb ||
            !cons_class_fb || !mthd_class_fb || !fld_class_fb) {
         /* Find Field/Method doesn't throw an exception... */
-        signalException("java/lang/InternalError", "Expected field/method doesn't exist");
+        signalException(java_lang_InternalError, "Expected field/method doesn't exist");
         return FALSE;
     }
 
@@ -201,7 +203,7 @@ Object *getClassConstructors(Class *class, int public) {
 
     for(i = 0; i < cb->methods_count; i++) {
         MethodBlock *mb = &cb->methods[i];
-        if((strcmp(mb->name, "<init>") == 0) && (!public || (mb->access_flags & ACC_PUBLIC)))
+        if((mb->name == SYMBOL(object_init)) && (!public || (mb->access_flags & ACC_PUBLIC)))
             count++;
     }
 
@@ -212,7 +214,7 @@ Object *getClassConstructors(Class *class, int public) {
     for(i = 0, j = 0; j < count; i++) {
         MethodBlock *mb = &cb->methods[i];
 
-        if((strcmp(mb->name, "<init>") == 0) && (!public || (mb->access_flags & ACC_PUBLIC)))
+        if((mb->name == SYMBOL(object_init)) && (!public || (mb->access_flags & ACC_PUBLIC)))
             if((cons[j++] = createConstructorObject(mb)) == NULL)
                 return NULL;
     }
@@ -407,7 +409,7 @@ MethodBlock *getEnclosingMethod(Class *class) {
 
             /* The "reference implementation" throws an InternalError if a method
                with the name and type cannot be found in the enclosing class */
-            signalException("java/lang/InternalError", "Enclosing method doesn't exist");
+            signalException(java_lang_InternalError, "Enclosing method doesn't exist");
         }
     }
 
@@ -417,7 +419,7 @@ MethodBlock *getEnclosingMethod(Class *class) {
 Object *getEnclosingMethodObject(Class *class) {
     MethodBlock *mb = getEnclosingMethod(class);
 
-    if(mb != NULL && strcmp(mb->name, "<init>") != 0)
+    if(mb != NULL && mb->name == SYMBOL(object_init))
         return createMethodObject(mb);
 
     return NULL;
@@ -426,7 +428,7 @@ Object *getEnclosingMethodObject(Class *class) {
 Object *getEnclosingConstructorObject(Class *class) {
     MethodBlock *mb = getEnclosingMethod(class);
 
-    if(mb != NULL && strcmp(mb->name, "<init>") == 0)
+    if(mb != NULL && mb->name == SYMBOL(object_init))
         return createConstructorObject(mb);
 
     return NULL;
@@ -451,18 +453,19 @@ static int initAnnotation() {
                    || !anno_array_class || !dbl_anno_array_class)
         return FALSE;
 
-    map_init_mb = findMethod(map_class, "<init>", "()V");
-    map_put_mb = findMethod(map_class, "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+    map_init_mb = findMethod(map_class, SYMBOL(object_init), SYMBOL(___V));
+    map_put_mb = findMethod(map_class, SYMBOL(put),
+                            newUtf8("(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"));
 
-    anno_create_mb = findMethod(anno_inv_class, "create",
-                                "(Ljava/lang/Class;Ljava/util/Map;)Ljava/lang/annotation/Annotation;");
+    anno_create_mb = findMethod(anno_inv_class, newUtf8("create"),
+                                newUtf8("(Ljava/lang/Class;Ljava/util/Map;)Ljava/lang/annotation/Annotation;"));
 
-    enum_valueof_mb = findMethod(enum_class, "valueOf",
-                          "(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Enum;");
+    enum_valueof_mb = findMethod(enum_class, newUtf8("valueOf"),
+                                 newUtf8("(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Enum;"));
 
     if(!map_init_mb || !map_put_mb || !anno_create_mb || !enum_valueof_mb) {
         /* FindMethod doesn't throw an exception... */
-        signalException("java/lang/InternalError", "Expected field/method doesn't exist");
+        signalException(java_lang_InternalError, "Expected field/method doesn't exist");
         return FALSE;
     }
 
@@ -730,29 +733,30 @@ Object *getMethodDefaultValue(MethodBlock *mb) {
 }
 
 int getWrapperPrimTypeIndex(Object *arg) {
-    ClassBlock *cb;
+    if(arg != NULL)  {
+        ClassBlock *cb = CLASS_CB(arg->class);
 
-    if(arg == NULL) return 0;
+        if(cb->name == SYMBOL(java_lang_Boolean))
+            return 1;
 
-    cb = CLASS_CB(arg->class);
-    if(strncmp(cb->name, "java/lang/", 10) != 0)
-        return 0;
-    if(strcmp(&cb->name[10], "Boolean") == 0)
-        return 1;
-    if(strcmp(&cb->name[10], "Byte") == 0)
-        return 2;
-    if(strcmp(&cb->name[10], "Character") == 0)
-        return 3;
-    if(strcmp(&cb->name[10], "Short") == 0)
-        return 4;
-    if(strcmp(&cb->name[10], "Integer") == 0)
-        return 5;
-    if(strcmp(&cb->name[10], "Float") == 0)
-        return 6;
-    if(strcmp(&cb->name[10], "Long") == 0)
-        return 7;
-    if(strcmp(&cb->name[10], "Double") == 0)
-        return 8;
+        if(cb->super_name == SYMBOL(java_lang_Number)) {
+            if(cb->name == SYMBOL(java_lang_Byte))
+                return 2;
+            if(cb->name == SYMBOL(java_lang_Character))
+                return 3;
+            if(cb->name == SYMBOL(java_lang_Short))
+                return 4;
+            if(cb->name == SYMBOL(java_lang_Integer))
+                return 5;
+            if(cb->name == SYMBOL(java_lang_Float))
+                return 6;
+            if(cb->name == SYMBOL(java_lang_Long))
+                return 7;
+            if(cb->name == SYMBOL(java_lang_Double))
+                return 8;
+        }
+    }
+
     return 0;
 }
 
@@ -878,13 +882,13 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
     if(check_access) {
         Class *caller = getCallerCallerClass();
         if(!checkClassAccess(mb->class, caller) || !checkMethodAccess(mb, caller)) {
-            signalException("java/lang/IllegalAccessException", "method is not accessible");
+            signalException(java_lang_IllegalAccessException, "method is not accessible");
             return NULL;
         }
     }
 
     if(args_len != types_len) {
-        signalException("java/lang/IllegalArgumentException", "wrong number of args");
+        signalException(java_lang_IllegalArgumentException, "wrong number of args");
         return NULL;
     }
 
@@ -895,7 +899,7 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
     for(i = 0; i < args_len; i++)
         if((sp = unwrapAndWidenObject(*types++, *args++, sp)) == NULL) {
             POP_TOP_FRAME(ee);
-            signalException("java/lang/IllegalArgumentException", "arg type mismatch");
+            signalException(java_lang_IllegalArgumentException, "arg type mismatch");
             return NULL;
         }
 
@@ -921,7 +925,7 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
         ite_class = findSystemClass("java/lang/reflect/InvocationTargetException");
 
         if(!exceptionOccurred() && (ite_excep = allocObject(ite_class)) &&
-                        (init = lookupMethod(ite_class, "<init>", "(Ljava/lang/Throwable;)V"))) {
+                        (init = lookupMethod(ite_class, SYMBOL(object_init), SYMBOL(_java_lang_Throwable__V)))) {
             executeMethod(ite_excep, init, excep);
             setException(ite_excep);
         }
