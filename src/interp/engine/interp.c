@@ -30,6 +30,8 @@
 #include "thread.h"
 #include "lock.h"
 #include "interp.h"
+#include "excep.h"
+#include "symbol.h"
 
 #ifdef DIRECT
 #ifdef INLINING
@@ -481,7 +483,8 @@ unused:
     DISPATCH(1, ins_len);
 #else
 #define PUSH_0(value, ins_len)                             \
-    *ostack++ = value;                                     \
+    *ostack = value;                                       \
+    ostack++;                                              \
     DISPATCH(0, ins_len);
 #endif
 
@@ -841,7 +844,7 @@ unused:
         ARRAY_BOUNDS_CHECK(array, idx);
 
         if((obj != NULL) && !arrayStoreCheck(array->class, obj->class))
-            THROW_EXCEPTION("java/lang/ArrayStoreException", NULL);
+            THROW_EXCEPTION(java_lang_ArrayStoreException, NULL);
 
         ((Object**)ARRAY_DATA(array))[idx] = obj;
         DISPATCH(0, 1);
@@ -884,8 +887,9 @@ unused:
     })
 
     DEF_OPC_012(OPC_DUP_X2, {
-        *ostack++ = ostack[-1];
-        ostack[-2] = cache.i.v2;
+        ostack[0] = ostack[-1];
+        ostack[-1] = cache.i.v2;
+        ostack++;
         DISPATCH(2, 1);
     })
 
@@ -1535,9 +1539,15 @@ unused:
         if(exceptionOccured0(ee))
             goto throwException;
 
-        operand.uu.u1 = new_mb->args_count;
-        operand.uu.u2 = new_mb->method_table_index;
-        OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK, cache, operand);
+        if(new_mb->access_flags & ACC_PRIVATE) {
+            operand.pntr = new_mb;
+            OPCODE_REWRITE(OPC_INVOKENONVIRTUAL_QUICK, cache, operand);
+        } else {
+            operand.uu.u1 = new_mb->args_count;
+            operand.uu.u2 = new_mb->method_table_index;
+            OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK, cache, operand);
+        }
+
         REDISPATCH
     });)
 
@@ -1638,7 +1648,7 @@ unused:
         if(opcode == OPC_NEW) {
             ClassBlock *cb = CLASS_CB(class);
             if(cb->access_flags & (ACC_INTERFACE | ACC_ABSTRACT)) {
-                signalException("java/lang/InstantiationError", cb->name);
+                signalException(java_lang_InstantiationError, cb->name);
                 goto throwException;
             }
         }
@@ -1936,7 +1946,7 @@ unused:
         
         cb = CLASS_CB(class);
         if(cb->access_flags & (ACC_INTERFACE | ACC_ABSTRACT)) {
-            signalException("java/lang/InstantiationError", cb->name);
+            signalException(java_lang_InstantiationError, cb->name);
             goto throwException;
         }
 
@@ -2091,7 +2101,7 @@ unused:
                            (new_mb->class != cb->imethod_table[cache].interface); cache++);
 
             if(cache == cb->imethod_table_size)
-                THROW_EXCEPTION("java/lang/IncompatibleClassChangeError",
+                THROW_EXCEPTION(java_lang_IncompatibleClassChangeError,
                                  "unimplemented interface");
 
             INV_INTF_CACHE(pc) = cache;
@@ -2125,7 +2135,7 @@ unused:
         frame->last_pc = pc;
 
         if(count < 0) {
-            signalException("java/lang/NegativeArraySizeException", NULL);
+            signalException(java_lang_NegativeArraySizeException, NULL);
             goto throwException;
         }
 
@@ -2153,7 +2163,7 @@ unused:
         Object *obj = (Object*)ostack[-1]; 
                
         if((obj != NULL) && !isInstanceOf(class, obj->class))
-            THROW_EXCEPTION("java/lang/ClassCastException", CLASS_CB(obj->class)->name);
+            THROW_EXCEPTION(java_lang_ClassCastException, CLASS_CB(obj->class)->name);
     
         DISPATCH(0, 3);
     })
@@ -2178,7 +2188,7 @@ unused:
 
         for(i = 0; i < dim; i++)
             if((intptr_t)ostack[i] < 0) {
-                signalException("java/lang/NegativeArraySizeException", NULL);
+                signalException(java_lang_NegativeArraySizeException, NULL);
                 goto throwException;
             }
 
@@ -2198,13 +2208,13 @@ unused:
         ee->last_frame = frame->prev;
 
         /* Throw the exception */
-        signalException("java/lang/AbstractMethodError", mb->name);
+        signalException(java_lang_AbstractMethodError, mb->name);
         goto throwException;
     })
 
 #ifdef INLINING
     DEF_OPC_RW(OPC_INLINE_REWRITER, ({
-        inlineBlockWrappedOpcode(pc);
+        inlineBlockWrappedOpcode(mb, pc);
     });)
 #endif
 
@@ -2238,7 +2248,7 @@ invokeMethod:
             exitVM(1);
         }
         ee->stack_end += STACK_RED_ZONE_SIZE;
-        THROW_EXCEPTION("java/lang/StackOverflowError", NULL);
+        THROW_EXCEPTION(java_lang_StackOverflowError, NULL);
     }
 
     new_frame->mb = new_mb;
@@ -2308,16 +2318,16 @@ methodReturn:
 
 #ifdef INLINING
 throwNull:
-    THROW_EXCEPTION("java/lang/NullPointerException", NULL);
+    THROW_EXCEPTION(java_lang_NullPointerException, NULL);
 
 throwArithmeticExcep:
-    THROW_EXCEPTION("java/lang/ArithmeticException", "division by zero");
+    THROW_EXCEPTION(java_lang_ArithmeticException, "division by zero");
 
 throwOOB:
     {
         char buff[MAX_INT_DIGITS];
         snprintf(buff, MAX_INT_DIGITS, "%d", oob_array_index);
-        THROW_EXCEPTION("java/lang/ArrayIndexOutOfBoundsException", buff);
+        THROW_EXCEPTION(java_lang_ArrayIndexOutOfBoundsException, buff);
     }
 #endif
 
