@@ -30,6 +30,8 @@
 #include "hash.h"
 #include "jni.h"
 #include "natives.h"
+#include "symbol.h"
+#include "excep.h"
 
 /* Set by call to initialise -- if true, prints out
     results of dynamic method resolution */
@@ -205,7 +207,7 @@ uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack
     void *func = resolveNativeMethod(mb);
 
     if(func == NULL) {
-        signalException("java/lang/UnsatisfiedLinkError", mb->name);
+        signalException(java_lang_UnsatisfiedLinkError, mb->name);
         return ostack;
     }
     return (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))func)(class, mb, ostack);
@@ -260,7 +262,10 @@ int resolveDll(char *name, Object *loader) {
         TRACE("<DLL: Successfully opened library %s>\n", name);
 
         if((onload = nativeLibSym(handle, "JNI_OnLoad")) != NULL) {
-            int ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
+            int ver;
+
+            initJNILrefs();
+            ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 
             if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4) {
                 TRACE("<DLL: JNI_OnLoad returned unsupported version %d.\n>", ver);
