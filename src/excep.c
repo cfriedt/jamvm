@@ -23,23 +23,32 @@
 #include <stdlib.h>
 #include "jam.h"
 #include "lock.h"
+#include "symbol.h"
+#include "excep.h"
 
 static Class *ste_class, *ste_array_class, *throw_class, *vmthrow_class;
 static MethodBlock *vmthrow_init_mb;
 static int backtrace_offset;
 static int inited = FALSE;
 
+Class *exceptions[MAX_EXCEPTION_ENUM];
+
+int exception_symbols[] = {
+    EXCEPTIONS_DO(SYMBOL_NAME_ENUM)
+};
+
 void initialiseException() {
     if(!inited) {
         FieldBlock *bcktrce;
+        int i;
 
-        ste_class = findSystemClass("java/lang/StackTraceElement");
-        ste_array_class = findArrayClass("[Ljava/lang/StackTraceElement;");
-        vmthrow_class = findSystemClass("java/lang/VMThrowable");
-        throw_class = findSystemClass("java/lang/Throwable");
-        bcktrce = findField(vmthrow_class, "backtrace", "Ljava/lang/Object;");
-        vmthrow_init_mb = findMethod(ste_class, "<init>",
-                             "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Z)V");
+        ste_class = findSystemClass0(SYMBOL(java_lang_StackTraceElement));
+        ste_array_class = findArrayClass(SYMBOL(array_java_lang_StackTraceElement));
+        vmthrow_class = findSystemClass0(SYMBOL(java_lang_VMThrowable));
+        throw_class = findSystemClass0(SYMBOL(java_lang_Throwable));
+        bcktrce = findField(vmthrow_class, SYMBOL(backtrace), SYMBOL(sig_java_lang_Object));
+        vmthrow_init_mb = findMethod(ste_class, SYMBOL(object_init),
+                             SYMBOL(_java_lang_String_I_java_lang_String_java_lang_String_Z__V));
 
         if((bcktrce == NULL) || (vmthrow_init_mb == NULL)) {
             jam_fprintf(stderr, "Error initialising VM (initialiseException)\n");
@@ -53,44 +62,18 @@ void initialiseException() {
         registerStaticClassRef(&vmthrow_class);
         registerStaticClassRef(&throw_class);
 
+        /* */
+        for(i = 0; i < MAX_EXCEPTION_ENUM; i++) {
+            exceptions[i] = findSystemClass0(symbol_values[exception_symbols[i]]);
+            registerStaticClassRef(&exceptions[i]);
+        }
+
         inited = TRUE;
     }
 }
 
 Object *exceptionOccurred() {
    return getExecEnv()->exception; 
-}
-
-void signalChainedException(char *excep_name, char *message, Object *cause) {
-    if(VMInitialising()) {
-        jam_fprintf(stderr, "Exception occurred while VM initialising.\n");
-        if(message)
-            jam_fprintf(stderr, "%s: %s\n", excep_name, message);
-        else
-            jam_fprintf(stderr, "%s\n", excep_name);
-        exitVM(1);
-    } else {
-        Class *exception = findSystemClass(excep_name);
-
-        if(!exceptionOccurred()) {
-            Object *exp = allocObject(exception);
-            Object *str = message == NULL ? NULL : Cstr2String(message);
-            MethodBlock *init = lookupMethod(exception,
-                                          "<init>", "(Ljava/lang/String;)V");
-            if(exp && init) {
-                executeMethod(exp, init, str);
-
-                if(cause && !exceptionOccurred()) {
-                    MethodBlock *mb = lookupMethod(exception, "initCause",
-                                            "(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
-                    if(mb)
-                        executeMethod(exp, mb, cause);
-                }
-
-                getExecEnv()->exception = exp;
-            }
-        }
-    }
 }
 
 void setException(Object *exp) {
@@ -107,12 +90,62 @@ void clearException() {
     ee->exception = NULL;
 }
 
+void signalChainedExceptionClass(Class *exception, char *message, Object *cause) {
+    Object *exp = allocObject(exception);
+    Object *str = message == NULL ? NULL : Cstr2String(message);
+    MethodBlock *init = lookupMethod(exception, SYMBOL(object_init),
+                                                SYMBOL(_java_lang_String__V));
+    if(exp && init) {
+        executeMethod(exp, init, str);
+
+        if(cause && !exceptionOccurred()) {
+            MethodBlock *mb = lookupMethod(exception, SYMBOL(initCause),
+                                           SYMBOL(_java_lang_Throwable__java_lang_Throwable));
+            if(mb)
+                executeMethod(exp, mb, cause);
+        }
+        setException(exp);
+    }
+}
+
+void signalChainedExceptionName(char *excep_name, char *message, Object *cause) {
+    if(!inited) {
+        jam_fprintf(stderr, "Exception occurred while VM initialising.\n");
+        if(message)
+            jam_fprintf(stderr, "%s: %s\n", excep_name, message);
+        else
+            jam_fprintf(stderr, "%s\n", excep_name);
+        exit(1);
+    } else {
+        Class *exception = findSystemClass(excep_name);
+
+        if(!exceptionOccurred())
+            signalChainedExceptionClass(exception, message, cause);
+    }
+}
+
+void signalChainedExceptionEnum(int excep_enum, char *message, Object *cause) {
+    if(!inited) {
+        char *excep_name = symbol_values[exception_symbols[excep_enum]];
+
+        jam_fprintf(stderr, "Exception occurred while VM initialising.\n");
+        if(message)
+            jam_fprintf(stderr, "%s: %s\n", excep_name, message);
+        else
+            jam_fprintf(stderr, "%s\n", excep_name);
+        exit(1);
+    }
+
+    signalChainedExceptionClass(exceptions[excep_enum], message, cause);
+}
+
 void printException() {
     ExecEnv *ee = getExecEnv();
     Object *exception = ee->exception;
 
     if(exception != NULL) {
-        MethodBlock *mb = lookupMethod(exception->class, "printStackTrace", "()V");
+        MethodBlock *mb = lookupMethod(exception->class, SYMBOL(printStackTrace),
+                                                         SYMBOL(___V));
         clearException();
         executeMethod(exception, mb);
 
@@ -120,7 +153,7 @@ void printException() {
          * OutOfMemory, but then been unable to print any part of it!  In
          * this case the VM just seems to stop... */
         if(ee->exception) {
-            jam_fprintf(stderr, "Exception occured while printing exception (%s)...\n",
+            jam_fprintf(stderr, "Exception occurred while printing exception (%s)...\n",
                             CLASS_CB(ee->exception->class)->name);
             jam_fprintf(stderr, "Original exception was %s\n", CLASS_CB(exception->class)->name);
         }
