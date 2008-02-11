@@ -34,11 +34,14 @@
 #include "thread.h"
 #include "lock.h"
 #include "natives.h"
+#include "symbol.h"
+#include "excep.h"
 
 static int pd_offset;
 
 void initialiseNatives() {
-    FieldBlock *pd = findField(java_lang_Class, "pd", "Ljava/security/ProtectionDomain;");
+    FieldBlock *pd = findField(java_lang_Class, SYMBOL(pd),
+                               SYMBOL(sig_java_security_ProtectionDomain));
 
     if(pd == NULL) {
         jam_fprintf(stderr, "Error initialising VM (initialiseNatives)\n");
@@ -96,7 +99,7 @@ uintptr_t *arraycopy(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     int length = ostack[4];
 
     if((src == NULL) || (dest == NULL))
-        signalException("java/lang/NullPointerException", NULL);
+        signalException(java_lang_NullPointerException, NULL);
     else {
         ClassBlock *scb = CLASS_CB(src->class);
         ClassBlock *dcb = CLASS_CB(dest->class);
@@ -109,7 +112,7 @@ uintptr_t *arraycopy(Class *class, MethodBlock *mb, uintptr_t *ostack) {
         if((start1 < 0) || (start2 < 0) || (length < 0)
                         || ((start1 + length) > ARRAY_LEN(src))
                         || ((start2 + length) > ARRAY_LEN(dest))) {
-            signalException("java/lang/ArrayIndexOutOfBoundsException", NULL);
+            signalException(java_lang_ArrayIndexOutOfBoundsException, NULL);
             return ostack;
         }
 
@@ -170,7 +173,7 @@ uintptr_t *arraycopy(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 
 storeExcep:
-    signalException("java/lang/ArrayStoreException", NULL);
+    signalException(java_lang_ArrayStoreException, NULL);
     return ostack;
 }
 
@@ -271,7 +274,7 @@ uintptr_t *isAssignableFrom(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *clazz2 = (Class*)ostack[1];
 
     if(clazz2 == NULL)
-        signalException("java/lang/NullPointerException", NULL);
+        signalException(java_lang_NullPointerException, NULL);
     else
         *ostack++ = (uintptr_t)isInstanceOf(clazz, clazz2);
 
@@ -452,7 +455,7 @@ uintptr_t *forName0(uintptr_t *ostack, int resolve, Object *loader) {
     char *cstr;
     
     if(string == NULL) {
-        signalException("java/lang/NullPointerException", NULL);
+        signalException(java_lang_NullPointerException, NULL);
         return ostack;
     }
 
@@ -503,7 +506,7 @@ out:
     if(class == NULL) {
         Object *e = exceptionOccurred();
         clearException();
-        signalChainedException("java/lang/ClassNotFoundException", cstr, e);
+        signalChainedException(java_lang_ClassNotFoundException, cstr, e);
     } else
         if(resolve)
             initClass(class);
@@ -527,7 +530,8 @@ uintptr_t *throwException(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *hasClassInitializer(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *clazz = (Class*)ostack[0];
-    *ostack++ = findMethod(clazz, "<clinit>", "()V") == NULL ? FALSE : TRUE;
+    *ostack++ = findMethod(clazz, SYMBOL(class_init),
+                                  SYMBOL(___V)) == NULL ? FALSE : TRUE;
     return ostack;
 }
 
@@ -632,11 +636,11 @@ uintptr_t *defineClass0(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
     Class *class = NULL;
 
     if(array == NULL)
-        signalException("java/lang/NullPointerException", NULL);
+        signalException(java_lang_NullPointerException, NULL);
     else
         if((offset < 0) || (data_len < 0) ||
                            ((offset + data_len) > ARRAY_LEN(array)))
-            signalException("java/lang/ArrayIndexOutOfBoundsException", NULL);
+            signalException(java_lang_ArrayIndexOutOfBoundsException, NULL);
         else {
             char *data = ARRAY_DATA(array);
             char *cstr = string ? String2Utf8(string) : NULL;
@@ -666,7 +670,7 @@ uintptr_t *findLoadedClass(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
     int len, i;
 
     if(string == NULL) {
-        signalException("java/lang/NullPointerException", NULL);
+        signalException(java_lang_NullPointerException, NULL);
         return ostack;
     }
 
@@ -715,7 +719,7 @@ uintptr_t *constructNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Object *ob = NULL;
 
     if(cb->access_flags & ACC_ABSTRACT)
-        signalException("java/lang/InstantiationError", cb->name);
+        signalException(java_lang_InstantiationError, cb->name);
     else
         ob = allocObject(mb->class);
 
@@ -801,12 +805,12 @@ Object *getAndCheckObject(uintptr_t *ostack, Class *type) {
     Object *ob = (Object*)ostack[1];
 
     if(ob == NULL) {
-        signalException("java/lang/NullPointerException", NULL);
+        signalException(java_lang_NullPointerException, NULL);
         return NULL;
     }
 
     if(!isInstanceOf(type, ob->class)) {
-        signalException("java/lang/IllegalArgumentException",
+        signalException(java_lang_IllegalArgumentException,
                         "object is not an instance of declaring class");
         return NULL;
     }
@@ -823,7 +827,7 @@ uintptr_t *getPntr2Field(uintptr_t *ostack) {
     if(!no_access_check) {
         Class *caller = getCallerCallerClass();
         if(!checkClassAccess(decl_class, caller) || !checkFieldAccess(fb, caller)) {
-            signalException("java/lang/IllegalAccessException", "field is not accessible");
+            signalException(java_lang_IllegalAccessException, "field is not accessible");
             return NULL;
         }
     }
@@ -860,7 +864,7 @@ uintptr_t *getPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     /* If field is static, getPntr2Field also initialises the field's declaring class */
     if(((field = getPntr2Field(ostack)) != NULL) && (!(IS_PRIMITIVE(type_cb)) ||
                  ((ostack = widenPrimitiveValue(getPrimTypeIndex(type_cb), type_no, field, ostack)) == NULL)))
-        signalException("java/lang/IllegalArgumentException", "field type mismatch");
+        signalException(java_lang_IllegalArgumentException, "field type mismatch");
 
     return ostack;
 }
@@ -873,7 +877,7 @@ uintptr_t *setField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     /* If field is static, getPntr2Field also initialises the field's declaring class */
     if(((field = getPntr2Field(ostack)) != NULL) &&
                      (unwrapAndWidenObject(field_type, value, field) == NULL))
-        signalException("java/lang/IllegalArgumentException", "field type mismatch");
+        signalException(java_lang_IllegalArgumentException, "field type mismatch");
 
     return ostack;
 }
@@ -888,7 +892,7 @@ uintptr_t *setPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     /* If field is static, getPntr2Field also initialises the field's declaring class */
     if(((field = getPntr2Field(ostack)) != NULL) && (!(IS_PRIMITIVE(type_cb)) ||
                  (widenPrimitiveValue(type_no, getPrimTypeIndex(type_cb), &ostack[7], field) == NULL)))
-        signalException("java/lang/IllegalArgumentException", "field type mismatch");
+        signalException(java_lang_IllegalArgumentException, "field type mismatch");
 
     return ostack;
 }
@@ -1007,7 +1011,7 @@ uintptr_t *nativeSetPriority(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 uintptr_t *holdsLock(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *ob = (Object *)ostack[0];
     if(ob == NULL)
-        signalException("java/lang/NullPointerException", NULL);
+        signalException(java_lang_NullPointerException, NULL);
     else
         *ostack++ = objectLockedByCurrent(ob);
     return ostack;
@@ -1106,9 +1110,9 @@ uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb, uintptr_t *ostack) 
         Class *info_class = findSystemClass("java/lang/management/ThreadInfo");
 
         if(info_class != NULL) {
-            MethodBlock *init = findMethod(info_class, "<init>",
-                                           "(Ljava/lang/Thread;JJLjava/lang/Object;"
-                                           "Ljava/lang/Thread;JJZZ[Ljava/lang/StackTraceElement;)V");
+            MethodBlock *init = findMethod(info_class, SYMBOL(object_init),
+                                           newUtf8("(Ljava/lang/Thread;JJLjava/lang/Object;"
+                                                   "Ljava/lang/Thread;JJZZ[Ljava/lang/StackTraceElement;)V"));
             if(init != NULL) {
                 Frame *last;
                 int in_native;
