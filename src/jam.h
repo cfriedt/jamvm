@@ -810,7 +810,9 @@ extern void *executeMethodList(Object *ob, Class *class, MethodBlock *mb, u8 *ar
 /* excep */
 
 extern Object *exceptionOccurred();
-extern void signalChainedException(char *excep_name, char *excep_mess, Object *cause);
+extern void signalChainedExceptionEnum(int excep_enum, char *excep_mess, Object *cause);
+extern void signalChainedExceptionName(char *excep_name, char *excep_mess, Object *cause);
+extern void signalChainedExceptionClass(Class *excep_class, char *excep_mess, Object *cause);
 extern void setException(Object *excep);
 extern void clearException();
 extern void printException();
@@ -825,7 +827,13 @@ extern void initialiseException();
     ee->exception
 
 #define signalException(excep_name, excep_mess) \
-    signalChainedException(excep_name, excep_mess, NULL)
+    signalChainedExceptionEnum(EXCEPTION_ENUM(excep_name), excep_mess, NULL)
+
+#define signalChainedException(excep_name, excep_mess, cause) \
+    signalChainedExceptionEnum(EXCEPTION_ENUM(excep_name), excep_mess, cause)
+
+#define signalExceptionClass(excep_class, excep_mess) \
+    signalChainedExceptionClass(excep_class, excep_mess, NULL)
 
 #define setStackTrace() \
     setStackTrace0(getExecEnv(), INT_MAX)
@@ -860,12 +868,19 @@ extern int utf8Len(char *utf8);
 extern int utf8Hash(char *utf8);
 extern int utf8Comp(char *utf81, char *utf82);
 extern void convertUtf8(char *utf8, unsigned short *buff);
-extern char *findUtf8String(char *string);
+extern char *findHashedUtf8(char *string, int add_if_absent);
+extern char *copyUtf8(char *string);
 extern int utf8CharLen(unsigned short *unicode, int len);
 extern char *unicode2Utf8(unsigned short *unicode, int len, char *utf8);
 extern char *slash2dots(char *utf8);
 extern char *slash2dots2buff(char *utf8, char *buff, int buff_len);
 extern void initialiseUtf8();
+
+#define findUtf8(string) \
+    findHashedUtf8(string, FALSE)
+
+#define newUtf8(string) \
+    findHashedUtf8(string, TRUE)
 
 /* Dll */
 
