@@ -31,6 +31,8 @@
 #include "alloc.h"
 #include "thread.h"
 #include "lock.h"
+#include "symbol.h"
+#include "excep.h"
 
 /* Trace GC heap mark/sweep phases - useful for debugging heap
  * corruption */
@@ -276,7 +278,7 @@ void initialiseAlloc(InitArgs *args) {
                                                MAP_PRIVATE|MAP_ANON, -1, 0);
     if(mem == MAP_FAILED) {
 #endif
-        perror("Aborting the VM -- couldn't allocate the heap");
+        perror("Couldn't allocate the heap; try reducing the max heap size (-Xmx)\n");
         exitVM(1);
     }
 
@@ -579,10 +581,6 @@ static void doMark(Thread *self, int mark_soft_refs) {
         uintptr_t hdr = HEADER(ptr);
         uintptr_t size = HDR_SIZE(hdr);
 
-#ifdef DEBUG
-        jam_printf("Block @%p size %d alloced %d\n", ptr, size, HDR_ALLOCED(hdr));
-#endif
-
         if(HDR_ALLOCED(hdr)) {
             Object *ob = (Object*)(ptr+HEADER_SIZE);
 
@@ -846,14 +844,6 @@ out_last_marked:
        this leads to a search - use largest instead? */
     chunkpp = &freelist;
 
-#ifdef DEBUG
-{
-    Chunk *c;
-    for(c = freelist; c != NULL; c = c->next)
-        jam_printf("Chunk @%p size: %d\n", c, c->header);
-}
-#endif
- 
     if(verbosegc) {
         long long size = heaplimit-heapbase;
         long long pcnt_used = ((long long)heapfree)*100/size;
@@ -1636,14 +1626,14 @@ void initialiseGC(InitArgs *args) {
      * when we're really low on heap space, and can create FA... */
 
     MethodBlock *init;
-    Class *oom_clazz = findSystemClass("java/lang/OutOfMemoryError");
+    Class *oom_clazz = findSystemClass(SYMBOL(java_lang_OutOfMemoryError));
     if(exceptionOccurred()) {
         printException();
         exitVM(1);
     }
 
     /* Initialize it */
-    init = lookupMethod(oom_clazz, "<init>", "(Ljava/lang/String;)V");
+    init = lookupMethod(oom_clazz, SYMBOL(object_init), SYMBOL(_java_lang_String__V));
     oom = allocObject(oom_clazz);
     registerStaticObjectRef(&oom);
 
@@ -1802,7 +1792,7 @@ void *gcMalloc(int len) {
 
                 state = throw_oom;
                 unlockVMLock(heap_lock, self);
-                signalException("java/lang/OutOfMemoryError", NULL);
+                signalException(java_lang_OutOfMemoryError, NULL);
                 return NULL;
                 break;
 
@@ -1897,7 +1887,7 @@ Object *allocArray(Class *class, int size, int el_size) {
 
     /* Special check to protect against integer overflow */
     if(size > (INT_MAX - sizeof(u4) - sizeof(Object)) / el_size) {
-        signalException("java/lang/OutOfMemoryError", NULL);
+        signalException(java_lang_OutOfMemoryError, NULL);
         return NULL;
     }
 
@@ -1917,7 +1907,7 @@ Object *allocTypeArray(int type, int size) {
     int el_size;
 
     if(size < 0) {
-        signalException("java/lang/NegativeArraySizeException", NULL);
+        signalException(java_lang_NegativeArraySizeException, NULL);
         return NULL;
     }
 
