@@ -20,7 +20,7 @@
 ##
 
 SUBDIRS = @arch@
-DIST_SUBDIRS = powerpc i386
+DIST_SUBDIRS = powerpc i386 arm
 
 noinst_LTLIBRARIES = libos.la
 libos_la_SOURCES = os.c
