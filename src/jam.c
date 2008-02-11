@@ -26,6 +26,7 @@
 
 #include "jam.h"
 #include "class.h"
+#include "symbol.h"
 
 #ifdef USE_ZIP
 #define BCP_MESSAGE "<jar/zip files and directories separated by :>"
@@ -327,7 +328,7 @@ int main(int argc, char *argv[]) {
         exitVM(1);
     }
 
-    mb = lookupMethod(main_class, "main", "([Ljava/lang/String;)V");
+    mb = lookupMethod(main_class, SYMBOL(main), SYMBOL(_array_java_lang_String__V));
     if(!mb || !(mb->access_flags & ACC_STATIC)) {
         printf("Static method \"main\" not found in %s\n", argv[class_arg]);
         exitVM(1);
@@ -336,7 +337,7 @@ int main(int argc, char *argv[]) {
     /* Create the String array holding the command line args */
 
     i = class_arg + 1;
-    if((array_class = findArrayClass("[Ljava/lang/String;")) &&
+    if((array_class = findArrayClass(SYMBOL(array_java_lang_String))) &&
            (array = allocArray(array_class, argc - i, sizeof(Object*))))  {
         Object **args = (Object**)ARRAY_DATA(array) - i;
 
