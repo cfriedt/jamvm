@@ -135,7 +135,10 @@ char arrayStoreCheck(Class *class, Class *test) {
     return 0;
 }
 
-void signalChainedException(char *excep_name, char *excep_mess, Object *cause) {
+void signalChainedExceptionName(char *excep_name, char *excep_mess, Object *cause) {
+}
+
+void signalChainedExceptionEnum(int excep_enum, char *excep_mess, Object *cause) {
 }
 
 CodePntr findCatchBlock(Class *exception) {
