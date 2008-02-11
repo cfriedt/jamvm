@@ -26,6 +26,8 @@
 #include "jam.h"
 #include "thread.h"
 #include "lock.h"
+#include "symbol.h"
+#include "excep.h"
 
 #define JNI_VERSION JNI_VERSION_1_4
 
@@ -55,24 +57,27 @@ static char nio_init_OK = FALSE;
 
 void initialiseJNI() {
     FieldBlock *buffCap_fb, *buffAddr_fb, *rawdata_fb;
-    Class *buffer_class;
+    Class *buffer_class = NULL;
 
     /* Initialise the global references table */
     initJNIGrefs();
 
     /* Cache class and method/fields for JNI 1.4 NIO support */
 
-    buffer_class = findSystemClass0("java/nio/Buffer");
-    buffImpl_class = findSystemClass0("java/nio/DirectByteBufferImpl$ReadWrite");
-    rawdata_class = findSystemClass0(sizeof(uintptr_t) == 4 ? "gnu/classpath/Pointer32"
-                                                            : "gnu/classpath/Pointer64");
+    buffer_class = findSystemClass0(SYMBOL(java_nio_Buffer));
+    buffImpl_class = findSystemClass0(SYMBOL(java_nio_DirectByteBufferImpl_ReadWrite));
+    rawdata_class = findSystemClass0(sizeof(uintptr_t) == 4 ? SYMBOL(gnu_classpath_Pointer32)
+                                                            : SYMBOL(gnu_classpath_Pointer64));
 
-    buffImpl_init_mb = findMethod(buffImpl_class, "<init>",
-                      "(Ljava/lang/Object;Lgnu/classpath/Pointer;III)V");
+    if(buffer_class != NULL && buffImpl_class != NULL && rawdata_class != NULL) {
+        buffImpl_init_mb = findMethod(buffImpl_class, SYMBOL(object_init),
+                      SYMBOL(_java_lang_Object_gnu_classpath_Pointer_III__V));
 
-    buffCap_fb = findField(buffer_class, "cap", "I");
-    rawdata_fb = findField(rawdata_class, "data", sizeof(uintptr_t) == 4 ? "I" : "J");
-    buffAddr_fb = findField(buffer_class, "address", "Lgnu/classpath/Pointer;");
+        buffCap_fb = findField(buffer_class, SYMBOL(cap), SYMBOL(I));
+        rawdata_fb = findField(rawdata_class, SYMBOL(data), sizeof(uintptr_t) == 4 ? SYMBOL(I)
+                                                                                   : SYMBOL(J));
+        buffAddr_fb = findField(buffer_class, SYMBOL(address), SYMBOL(sig_gnu_classpath_Pointer));
+    }
 
     if(buffImpl_init_mb == NULL || buffCap_fb == NULL ||
              rawdata_fb == NULL || buffAddr_fb == NULL) {
@@ -123,7 +128,7 @@ JNIFrame *ensureJNILrefCapacity(int cap) {
             incr = sizeof(JNIFrame)/sizeof(Object*);
 
         if((frame = expandJNILrefs(ee, frame, incr)) == NULL)
-            signalException("java/lang/OutOfMemoryError", "JNI local references");
+            signalException(java_lang_OutOfMemoryError, "JNI local references");
     }
 
     return frame;
@@ -163,7 +168,7 @@ JNIFrame *pushJNILrefFrame(int cap) {
     JNIFrame *new_frame = (JNIFrame*)((Object**)(frame + 1) + cap);
 
     if((char*)(new_frame + 1) > ee->stack_end) {
-        signalException("java/lang/OutOfMemoryError", "JNI local references");
+        signalException(java_lang_OutOfMemoryError, "JNI local references");
         return NULL;
     }
 
@@ -328,7 +333,7 @@ jfieldID Jam_FromReflectedField(JNIEnv *env, jobject field) {
 
 jobject Jam_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID methodID, jboolean isStatic) {
     MethodBlock *mb = (MethodBlock *)methodID;
-    if(strcmp(mb->name, "<init>") == 0)
+    if(mb->name == SYMBOL(object_init))
         return (jobject) createReflectConstructorObject(mb);
     else
         return (jobject) createReflectMethodObject(mb);
@@ -357,14 +362,14 @@ jint Jam_EnsureLocalCapacity(JNIEnv *env, jint capacity) {
 
 void Jam_GetStringRegion(JNIEnv *env, jstring string, jsize start, jsize len, jchar *buf) {
     if((start + len) > getStringLen((Object*)string))
-        signalException("java/lang/StringIndexOutOfBoundsException", NULL);
+        signalException(java_lang_StringIndexOutOfBoundsException, NULL);
     else
         memcpy(buf, getStringChars((Object*)string) + start, len * sizeof(short));
 }
 
 void Jam_GetStringUTFRegion(JNIEnv *env, jstring string, jsize start, jsize len, char *buf) {
     if((start + len) > getStringLen((Object*)string))
-        signalException("java/lang/StringIndexOutOfBoundsException", NULL);
+        signalException(java_lang_StringIndexOutOfBoundsException, NULL);
     else
         StringRegion2Utf8((Object*)string, start, len, buf);
 }
@@ -422,7 +427,7 @@ jclass Jam_FindClass(JNIEnv *env, const char *name) {
         loader = cb->class_loader;
 
         /* Ensure correct context if called from JNI_OnLoad */
-        if(loader == NULL && strcmp(cb->name, "java/lang/VMRuntime") == 0)
+        if(loader == NULL && cb->name == SYMBOL(java_lang_VMRuntime))
             loader = (Object*)last->lvars[1];
     } else
         loader = getSystemClassLoader();
@@ -441,13 +446,12 @@ jboolean Jam_IsAssignableFrom(JNIEnv *env, jclass clazz1, jclass clazz2) {
 
 jint Jam_Throw(JNIEnv *env, jthrowable obj) {
     Object *ob = (Object*)obj;
-    setStackTrace();
     setException(ob);
     return JNI_TRUE;
 }
 
 jint Jam_ThrowNew(JNIEnv *env, jclass clazz, const char *message) {
-    signalException(CLASS_CB((Class*)clazz)->name, (char*)message);
+    signalExceptionClass((Class*)clazz, (char*)message);
     return JNI_TRUE;
 }
 
@@ -496,42 +500,60 @@ jboolean Jam_IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
     return (obj == NULL) || isInstanceOf((Class*)clazz, ((Object*)obj)->class);
 }
 
-jmethodID Jam_GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
+jmethodID getMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig, char is_static) {
     Class *class = initClass((Class *)clazz);
-    MethodBlock *mb = lookupMethod(class, (char*)name, (char*)sig);
+    MethodBlock *mb = NULL;
 
-    if(mb == NULL)
-        signalException("java/lang/NoSuchMethodError", (char *)name);
+    if(!IS_PRIMITIVE(CLASS_CB(class))) {
+        char *method_name = findUtf8((char*)name), *method_sig = findUtf8((char*)sig);
+
+        if(method_name != NULL && method_sig != NULL) {
+            if(method_name == SYMBOL(object_init) ||
+               method_name == SYMBOL(class_init))
+                mb = findMethod(class, method_name, method_sig);
+            else
+                mb = lookupMethod(class, method_name, method_sig);
+        }
+    }
+
+    if(mb == NULL || ((mb->access_flags & ACC_STATIC) != 0) != is_static)
+        signalException(java_lang_NoSuchMethodError, (char*)name);
 
     return (jmethodID) mb;
 }
 
+jmethodID Jam_GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
+    return getMethodID(env, clazz, name, sig, FALSE);
+}
+
 jfieldID Jam_GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
+    char *field_name = findUtf8((char*)name), *field_sig = findUtf8((char*)sig);
     Class *class = initClass((Class *)clazz);
-    FieldBlock *fb = lookupField(class, (char*)name, (char*)sig);
+    FieldBlock *fb = NULL;
+
+    if(field_name != NULL && field_sig != NULL)
+        fb = lookupField(class, field_name, field_sig);
 
     if(fb == NULL)
-        signalException("java/lang/NoSuchFieldError", (char *)name);
+        signalException(java_lang_NoSuchFieldError, field_name);
 
     return (jfieldID) fb;
 }
 
 jmethodID Jam_GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-    Class *class = initClass((Class *)clazz);
-    MethodBlock *mb = findMethod(class, (char*)name, (char*)sig);
-
-    if(mb == NULL)
-        signalException("java/lang/NoSuchMethodError", (char *)name);
-
-    return (jmethodID) mb;
+    return getMethodID(env, clazz, name, sig, TRUE);
 }
 
 jfieldID Jam_GetStaticFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
+    char *field_name = findUtf8((char*)name), *field_sig = findUtf8((char*)sig);
     Class *class = initClass((Class *)clazz);
-    FieldBlock *fb = findField(class, (char*)name, (char*)sig);
+    FieldBlock *fb = NULL;
+
+    if(field_name != NULL && field_sig != NULL)
+        fb = findField(class, field_name, field_sig);
 
     if(fb == NULL)
-        signalException("java/lang/NoSuchFieldError", (char *)name);
+        signalException(java_lang_NoSuchFieldError, field_name);
 
     return (jfieldID) fb;
 }
@@ -619,7 +641,7 @@ jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass, jobjec
     Class *array_class;
 
     if(length < 0) {
-        signalException("java/lang/NegativeArraySizeException", NULL);
+        signalException(java_lang_NegativeArraySizeException, NULL);
         return NULL;
     }
 
