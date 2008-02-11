@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include "jam.h"
 #include "hash.h"
+#include "symbol.h"
 
 #define HASHTABSZE 1<<10
 #define HASH(ptr) stringHash(ptr)
@@ -170,15 +171,16 @@ char *String2Cstr(Object *string) {
 
 void initialiseString() {
     if(!inited) {
-        FieldBlock *count, *value, *offset;
+        FieldBlock *count = NULL, *value, *offset;
 
-        /* As we're initialising, VM will abort if String can't be found */
-        string_class = findSystemClass0("java/lang/String");
+        string_class = findSystemClass0(SYMBOL(java_lang_String));
         registerStaticClassRef(&string_class);
 
-        count = findField(string_class, "count", "I");
-        value = findField(string_class, "value", "[C");
-        offset = findField(string_class, "offset", "I");
+        if(string_class != NULL) {
+            count = findField(string_class, SYMBOL(count), SYMBOL(I));
+            value = findField(string_class, SYMBOL(value), SYMBOL(array_C));
+            offset = findField(string_class, SYMBOL(offset), SYMBOL(I));
+        }
 
         /* findField doesn't throw an exception... */
         if((count == NULL) || (value == NULL) || (offset == NULL)) {
