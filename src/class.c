@@ -65,6 +65,7 @@ int ldr_vmdata_offset = -1;
 
 
 static Class *loader_data_class = NULL;
+static MethodBlock *ldr_new_unloader;
 static int ldr_data_tbl_offset;
 
 /* Instance of java.lang.Class for java.lang.Class */
@@ -109,21 +110,6 @@ static Class *addClassToHash(Class *class, Object *class_loader) {
         Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
 
         if(vmdata == NULL) {
-            if(loader_data_class == NULL) {
-                FieldBlock *fb = NULL;
-
-                loader_data_class = findSystemClass0(SYMBOL(jamvm_java_lang_VMClassLoaderData));
-                if(loader_data_class != NULL) {
-                    fb = findField(loader_data_class, SYMBOL(hashtable), SYMBOL(I));
-                }
-
-                if(fb == NULL) {
-                    jam_fprintf(stderr, "Fatal error: Bad VMClassLoaderData (missing or corrupt)\n");
-                    exitVM(1);
-                }
-                ldr_data_tbl_offset = fb->offset;
-            }
-
             objectLock(class_loader);
             vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
 
@@ -1390,8 +1376,8 @@ Class *findNonArrayClassFromClassLoader(char *classname, Object *loader) {
             loadClass_mtbl_idx = mb->method_table_index;
         }
 
-        // Although GNU Classpath's ClassLoader loadClass is synchronised, the
-        // public loadClass is not.
+        /* The public loadClass is not synchronized.
+           Lock the class-loader to be thread-safe */
         objectLock(loader);
         class = *(Class**)executeMethod(loader,
                     CLASS_CB(loader->class)->method_table[loadClass_mtbl_idx], string);
@@ -1586,10 +1572,21 @@ void freeClassLoaderData(Object *class_loader) {
     Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
 
     if(vmdata != NULL) {
-        HashTable **table = ARRAY_DATA(vmdata);
-        gcFreeHashTable((**table));
-        gcPendingFree(*table);
+        HashTable *table = (HashTable*)INST_DATA(vmdata)[ldr_data_tbl_offset];
+        gcFreeHashTable((*table));
+        gcPendingFree(table);
     }
+}
+
+/* Add a library unloader object to the class loader for the
+   library contained within entry.  The library has an unload
+   function, which will be called from the unloader finalizer
+   when the class loader is garbage collected */
+void newLibraryUnloader(Object *class_loader, void *entry) {
+    Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+    
+    if(vmdata != NULL)
+        executeMethod(vmdata, ldr_new_unloader, (long long)(uintptr_t)entry);
 }
 
 int parseBootClassPath(char *cp_var) {
@@ -1670,7 +1667,8 @@ void scanDirForJars(char *dir) {
             bootpathlen += strlen(namelist[n]->d_name) + dirlen + 2;
             buff = sysMalloc(bootpathlen);
 
-            strcat(strcat(strcat(strcat(strcpy(buff, dir), "/"), namelist[n]->d_name), ":"), bootpath);
+            strcat(strcat(strcat(strcat(strcpy(buff, dir), "/"),
+                                 namelist[n]->d_name), ":"), bootpath);
 
             sysFree(bootpath);
             bootpath = buff;
@@ -1782,6 +1780,7 @@ Object *bootClassPathResource(char *filename, int index) {
 
 void initialiseClass(InitArgs *args) {
     char *bcp = setBootClassPath(args->bootpath, args->bootpathopt);
+    FieldBlock *hashtable = NULL;
 
     if(!(bcp && parseBootClassPath(bcp))) {
         jam_fprintf(stderr, "bootclasspath is empty!\n");
@@ -1794,8 +1793,22 @@ void initialiseClass(InitArgs *args) {
     /* Init hash table, and create lock */
     initHashTable(loaded_classes, INITSZE, TRUE);
 
+    loader_data_class = findSystemClass0(SYMBOL(jamvm_java_lang_VMClassLoaderData));
+    registerStaticClassRef(&loader_data_class);
+
+    if(loader_data_class != NULL) {
+        ldr_new_unloader = findMethod(loader_data_class, SYMBOL(newLibraryUnloader),
+                                                         SYMBOL(_J__V));
+        hashtable = findField(loader_data_class, SYMBOL(hashtable), SYMBOL(I));
+    }
+
+    if(hashtable == NULL || ldr_new_unloader == NULL) {
+        jam_fprintf(stderr, "Fatal error: Bad VMClassLoaderData (missing or corrupt)\n");
+        exitVM(1);
+    }
+    ldr_data_tbl_offset = hashtable->offset;
+
     /* Register the address of where the java.lang.Class ref _will_ be */
     registerStaticClassRef(&java_lang_Class);
-    registerStaticClassRef(&loader_data_class);
 }
 
