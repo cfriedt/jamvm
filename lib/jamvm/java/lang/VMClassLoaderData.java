@@ -19,7 +19,30 @@
  */
 
 package jamvm.java.lang;
+import java.util.ArrayList;
 
 public class VMClassLoaderData {
+    ArrayList unloaders;
     int hashtable;
+
+    synchronized void newLibraryUnloader(long dllEntry) {
+        if(unloaders == null)
+            unloaders = new ArrayList(4);
+
+        unloaders.add(new Unloader(dllEntry));
+    }
+
+    private static class Unloader {
+        long dllEntry;
+
+        Unloader(long entry) {
+            dllEntry = entry;
+        }
+
+        public void finalize() {
+            nativeUnloadDll(dllEntry);
+        }
+
+        native void nativeUnloadDll(long dllEntry);
+    }
 }
