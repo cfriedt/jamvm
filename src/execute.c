@@ -37,9 +37,10 @@
 #define VA_SINGLE(args, sp)                     \
     if(*sig == 'L' || *sig == '[')              \
         *sp = va_arg(args, uintptr_t);          \
-    else if(*sig == 'F') {                      \
+    else                                        \
+        if(*sig == 'F')                         \
             *(float*)sp = va_arg(args, double); \
-        } else                                  \
+        else                                    \
             *sp = va_arg(args, u4);             \
     sp++
 
