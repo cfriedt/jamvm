@@ -23,6 +23,7 @@ extern char *symbol_values[];
 #define SYMBOL(name) symbol_values[SYMBOL_NAME_ENUM(name)]
 
 #define SYMBOLS_DO(action) \
+    /* Method and field names, etc. */\
     action(I, "I"), \
     action(J, "J"), \
     action(Z, "Z"), \
@@ -64,9 +65,11 @@ extern char *symbol_values[];
     action(printStackTrace, "printStackTrace"), \
     action(exceptionHandler, "exceptionHandler"), \
     action(uncaughtException, "uncaughtException"), \
+    action(newLibraryUnloader, "newLibraryUnloader"), \
     action(contextClassLoader, "contextClassLoader"), \
     action(getSystemClassLoader, "getSystemClassLoader"), \
     \
+    /* Constant pool attribute names */\
     action(Code, "Code"), \
     action(Signature, "Signature"), \
     action(Synthetic, "Synthetic"), \
@@ -80,6 +83,7 @@ extern char *symbol_values[];
     action(RuntimeVisibleAnnotations, "RuntimeVisibleAnnotations"), \
     action(RuntimeVisibleParameterAnnotations, "RuntimeVisibleParameterAnnotations"), \
     \
+    /* Primitive type names */\
     action(int, "int"), \
     action(void, "void"), \
     action(byte, "byte"), \
@@ -89,9 +93,12 @@ extern char *symbol_values[];
     action(float, "float"), \
     action(double, "double"), \
     action(boolean, "boolean"), \
+    \
+    /* Class and object initialiser names */\
     action(object_init, "<init>"), \
     action(class_init, "<clinit>"), \
     \
+    /* Class names */\
     action(java_lang_Byte, "java/lang/Byte"), \
     action(java_lang_Long, "java/lang/Long"), \
     action(java_lang_Enum, "java/lang/Enum"), \
@@ -133,6 +140,7 @@ extern char *symbol_values[];
     action(jamvm_java_lang_VMClassLoaderData, "jamvm/java/lang/VMClassLoaderData"), \
     action(java_nio_DirectByteBufferImpl_ReadWrite, "java/nio/DirectByteBufferImpl$ReadWrite"), \
     \
+    /* Exception class names */\
     action(java_lang_Error, "java/lang/Error"), \
     action(java_lang_LinkageError, "java/lang/LinkageError"), \
     action(java_lang_InternalError, "java/lang/InternalError"), \
@@ -161,6 +169,7 @@ extern char *symbol_values[];
     action(java_lang_ArrayIndexOutOfBoundsException, "java/lang/ArrayIndexOutOfBoundsException"), \
     action(java_lang_StringIndexOutOfBoundsException, "java/lang/StringIndexOutOfBoundsException"), \
     \
+    /* Array class names */\
     action(array_C, "[C"), \
     action(array_java_lang_Class, "[Ljava/lang/Class;"), \
     action(array_java_lang_String, "[Ljava/lang/String;"), \
@@ -169,6 +178,7 @@ extern char *symbol_values[];
     action(array_java_lang_StackTraceElement, "[Ljava/lang/StackTraceElement;"), \
     action(array_java_lang_reflect_Constructor, "[Ljava/lang/reflect/Constructor;"), \
     \
+    /* Field signatures */\
     action(sig_java_lang_Class, "Ljava/lang/Class;"), \
     action(sig_java_lang_Object, "Ljava/lang/Object;"), \
     action(sig_java_lang_String, "Ljava/lang/String;"), \
@@ -181,9 +191,11 @@ extern char *symbol_values[];
     action(sig_java_security_ProtectionDomain, "Ljava/security/ProtectionDomain;"), \
     action(sig_java_lang_Thread_UncaughtExceptionHandler, "Ljava/lang/Thread$UncaughtExceptionHandler;"), \
     \
+    /* Method signatures */\
     action(___V, "()V"), \
     action(___Z, "()Z"), \
     action(_I__V, "(I)V"), \
+    action(_J__V, "(J)V"), \
     action(_java_lang_Thread_java_lang_Throwable__V, \
            "(Ljava/lang/Thread;Ljava/lang/Throwable;)V"), \
     action(_java_lang_VMThread_java_lang_String_I_Z__V, \
