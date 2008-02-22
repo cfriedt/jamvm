@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -303,7 +303,7 @@ opc##x##_##y##_##z:
     if(idx >= ARRAY_LEN(array)) {                                          \
         char buff[MAX_INT_DIGITS];                                         \
         snprintf(buff, MAX_INT_DIGITS, "%d", idx);                         \
-        THROW_EXCEPTION(java_lang_ArrayIndexOutOfBoundsException, buff); \
+        THROW_EXCEPTION(java_lang_ArrayIndexOutOfBoundsException, buff);   \
     }                                                                      \
 }
 
