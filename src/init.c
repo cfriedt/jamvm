@@ -71,18 +71,18 @@ void initVM(InitArgs *args) {
     initialiseHooks(args);
     initialiseProperties(args);
     initialiseAlloc(args);
-    initialiseClass(args);
     initialiseDll(args);
     initialiseUtf8();
-    initialiseThread(args);
+    initialiseThreadStage1(args);
     initialiseSymbol();
+    initialiseClass(args);
     initialiseMonitor();
     initialiseString();
     initialiseException();
     initialiseNatives();
     initialiseJNI();
     initialiseInterpreter(args);
-    initialiseMainThread(args);
+    initialiseThreadStage2(args);
     initialiseGC(args);
 
     VM_initing = FALSE;
