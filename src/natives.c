@@ -718,6 +718,9 @@ uintptr_t *constructNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     int no_access_check = ostack[5]; 
     Object *ob = NULL;
 
+    /* Class may not have been initialised yet */
+    initClass(decl_class);
+
     if(cb->access_flags & ACC_ABSTRACT)
         signalException(java_lang_InstantiationError, cb->name);
     else
@@ -1357,6 +1360,13 @@ uintptr_t *vmSupportsCS8(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
+/* jamvm.java.lang.VMClassLoaderData */
+
+uintptr_t *nativeUnloadDll(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    unloaderUnloadDll((uintptr_t)*(long long*)&ostack[1]);
+    return ostack;
+}
+
 VMMethod vm_object[] = {
     {"getClass",                    getClass},
     {"clone",                       jamClone},
@@ -1555,6 +1565,11 @@ VMMethod concurrent_atomic_long[] = {
     {NULL,                          NULL}
 };
 
+VMMethod vm_class_loader_data[] = {
+    {"nativeUnloadDll",             nativeUnloadDll},
+    {NULL,                          NULL}
+};
+
 VMClass native_methods[] = {
     {"java/lang/VMClass",                           vm_class},
     {"java/lang/VMObject",                          vm_object},
@@ -1572,6 +1587,7 @@ VMClass native_methods[] = {
     {"gnu/classpath/VMStackWalker",                 vm_stack_walker},
     {"gnu/java/lang/management/VMThreadMXBeanImpl", vm_threadmx_bean_impl},
     {"sun/misc/Unsafe",                             sun_misc_unsafe},
+    {"jamvm/java/lang/VMClassLoaderData$Unloader",  vm_class_loader_data},
     {"java/util/concurrent/atomic/AtomicLong",      concurrent_atomic_long},
     {NULL,                                          NULL}
 };
