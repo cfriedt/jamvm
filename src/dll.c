@@ -41,7 +41,6 @@ extern int nativeExtraArg(MethodBlock *mb);
 extern uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int extra,
                                 uintptr_t *ostack, unsigned char *native_func, int args);
 extern struct _JNINativeInterface Jam_JNINativeInterface;
-extern int initJNILrefs();
 extern JavaVM invokeIntf; 
 
 #define HASHTABSZE 1<<4
@@ -286,6 +285,14 @@ int resolveDll(char *name, Object *loader) {
 
         /* Add if absent, no scavenge, locked */
         findHashEntry(hash_table, dll, dll2, TRUE, FALSE, TRUE);
+
+        /* If the library has an OnUnload function it must be
+           called from a running Java thread (i.e. not within
+           the GC!). Create an unloader object which will be
+           finalised when the class loader is collected */
+        if(nativeLibSym(dll->handle, "JNI_OnUnload") != NULL)
+            newLibraryUnloader(loader, dll);
+
     } else
         if(dll->loader != loader)
             return FALSE;
@@ -307,7 +314,7 @@ char *getDllName(char *name) {
 }
 
 void *lookupLoadedDlls0(char *name, Object *loader) {
-    TRACE("<DLL: Looking up %s loader %x in loaded DLL's>\n", name, loader);
+    TRACE("<DLL: Looking up %s loader %p in loaded DLL's>\n", name, loader);
 
 #define ITERATE(ptr)                                          \
 {                                                             \
@@ -323,16 +330,25 @@ void *lookupLoadedDlls0(char *name, Object *loader) {
     return NULL;
 }
 
-void unloadDll(DllEntry *dll) {
-    void *on_unload;
+void unloadDll(DllEntry *dll, int unloader) {
+    void *on_unload = nativeLibSym(dll->handle, "JNI_OnUnload");
 
-    TRACE("<DLL: Unloading DLL %s\n", dll->name);
+    if(unloader || on_unload == NULL) {
+        TRACE("<DLL: Unloading DLL %s\n", dll->name);
 
-    if((on_unload = nativeLibSym(dll->handle, "JNI_OnUnload")) != NULL)
-        (*(void (*)(JavaVM*, void*))on_unload)(&invokeIntf, NULL);
+        if(on_unload != NULL) {
+            initJNILrefs();
+            (*(void (*)(JavaVM*, void*))on_unload)(&invokeIntf, NULL);
+        }
 
-    nativeLibClose(dll->handle);
-    sysFree(dll);
+        nativeLibClose(dll->handle);
+        sysFree(dll->name);
+        sysFree(dll);
+    }
+}
+
+void unloaderUnloadDll(uintptr_t entry) {
+    unloadDll((DllEntry*)entry, TRUE);
 }
 
 #undef ITERATE
@@ -350,14 +366,14 @@ void threadLiveClassLoaderDlls() {
 void unloadClassLoaderDlls(Object *loader) {
     int unloaded = 0;
 
-    TRACE("<DLL: Unloading DLLs for loader %x\n", loader);
+    TRACE("<DLL: Unloading DLLs for loader %p\n", loader);
 
 #undef ITERATE
 #define ITERATE(ptr)                                          \
 {                                                             \
     DllEntry *dll = (DllEntry*)*ptr;                          \
     if(dll->loader == loader) {                               \
-        unloadDll(dll);                                       \
+        unloadDll(dll, FALSE);                                \
         *ptr = NULL;                                          \
         unloaded++;                                           \
     }                                                         \
