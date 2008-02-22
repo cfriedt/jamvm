@@ -31,45 +31,47 @@ static MethodBlock *vmthrow_init_mb;
 static int backtrace_offset;
 static int inited = FALSE;
 
-Class *exceptions[MAX_EXCEPTION_ENUM];
+static Class *exceptions[MAX_EXCEPTION_ENUM];
 
-int exception_symbols[] = {
+static int exception_symbols[] = {
     EXCEPTIONS_DO(SYMBOL_NAME_ENUM)
 };
 
 void initialiseException() {
-    if(!inited) {
-        FieldBlock *bcktrce;
-        int i;
+    FieldBlock *bcktrce;
+    int i;
 
-        ste_class = findSystemClass0(SYMBOL(java_lang_StackTraceElement));
-        ste_array_class = findArrayClass(SYMBOL(array_java_lang_StackTraceElement));
-        vmthrow_class = findSystemClass0(SYMBOL(java_lang_VMThrowable));
-        throw_class = findSystemClass0(SYMBOL(java_lang_Throwable));
-        bcktrce = findField(vmthrow_class, SYMBOL(backtrace), SYMBOL(sig_java_lang_Object));
-        vmthrow_init_mb = findMethod(ste_class, SYMBOL(object_init),
-                             SYMBOL(_java_lang_String_I_java_lang_String_java_lang_String_Z__V));
+    ste_class = findSystemClass0(SYMBOL(java_lang_StackTraceElement));
+    ste_array_class = findArrayClass(SYMBOL(array_java_lang_StackTraceElement));
+    vmthrow_class = findSystemClass0(SYMBOL(java_lang_VMThrowable));
+    throw_class = findSystemClass0(SYMBOL(java_lang_Throwable));
+    bcktrce = findField(vmthrow_class, SYMBOL(backtrace), SYMBOL(sig_java_lang_Object));
+    vmthrow_init_mb = findMethod(ste_class, SYMBOL(object_init),
+                         SYMBOL(_java_lang_String_I_java_lang_String_java_lang_String_Z__V));
 
-        if((bcktrce == NULL) || (vmthrow_init_mb == NULL)) {
-            jam_fprintf(stderr, "Error initialising VM (initialiseException)\n");
-            exitVM(1);
-        }
-        CLASS_CB(vmthrow_class)->flags |= VMTHROWABLE;
-        backtrace_offset = bcktrce->offset;
-
-        registerStaticClassRef(&ste_class);
-        registerStaticClassRef(&ste_array_class);
-        registerStaticClassRef(&vmthrow_class);
-        registerStaticClassRef(&throw_class);
-
-        /* */
-        for(i = 0; i < MAX_EXCEPTION_ENUM; i++) {
-            exceptions[i] = findSystemClass0(symbol_values[exception_symbols[i]]);
-            registerStaticClassRef(&exceptions[i]);
-        }
-
-        inited = TRUE;
+    if((bcktrce == NULL) || (vmthrow_init_mb == NULL)) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseException)\n");
+        exitVM(1);
     }
+
+    CLASS_CB(vmthrow_class)->flags |= VMTHROWABLE;
+    backtrace_offset = bcktrce->offset;
+
+    registerStaticClassRef(&ste_class);
+    registerStaticClassRef(&ste_array_class);
+    registerStaticClassRef(&vmthrow_class);
+    registerStaticClassRef(&throw_class);
+
+    /* Load and register the exceptions used within the VM.
+       These are preloaded to speed up access.  The VM will
+       abort if any can't be loaded */
+
+    for(i = 0; i < MAX_EXCEPTION_ENUM; i++) {
+        exceptions[i] = findSystemClass0(symbol_values[exception_symbols[i]]);
+        registerStaticClassRef(&exceptions[i]);
+    }
+
+    inited = TRUE;
 }
 
 Object *exceptionOccurred() {
@@ -226,9 +228,6 @@ Object *setStackTrace0(ExecEnv *ee, int max_depth) {
     uintptr_t *data;
     int depth = 0;
 
-    if(!inited)
-        initialiseException();
-
     if(last->prev == NULL) {
         if((array = allocTypeArray(sizeof(uintptr_t) == 4 ? T_INT : T_LONG, 0)) == NULL)
             return NULL;
@@ -276,9 +275,6 @@ Object *convertStackTrace(Object *vmthrwble) {
     int depth, i, j;
     uintptr_t *src;
     Object **dest;
-
-    if(!inited)
-        initialiseException();
 
     if((array = (Object *)INST_DATA(vmthrwble)[backtrace_offset]) == NULL)
         return NULL;
