@@ -238,10 +238,9 @@ AC_CHECK_LIB(z,inflate,,
         enable_zip=no
     fi])
 
-AC_CHECK_LIB(ffi,ffi_call,,
-    [if test "$enable_ffi" != no; then
-        AC_MSG_ERROR(cannot find libffi)
-    fi])
+if test "$enable_ffi" != no; then
+    AC_CHECK_LIB(ffi,ffi_call,,AC_MSG_ERROR(cannot find libffi))
+fi
 
 dnl Checks for header files.
 AC_HEADER_STDC
@@ -252,10 +251,9 @@ AC_CHECK_HEADER(zlib.h,,
         enable_zip=no
     fi])
 
-AC_CHECK_HEADER(ffi.h,,
-    [if test "$enable_ffi" != no; then
-        AC_MSG_ERROR(cannot find ffi.h)
-    fi])
+if test "$enable_ffi" != no; then
+    AC_CHECK_HEADER(ffi.h,,AC_MSG_ERROR(cannot find ffi.h))
+fi
 
 if test "$enable_zip" != no; then
     AC_DEFINE([USE_ZIP],1,[use zip])
