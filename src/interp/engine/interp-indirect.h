@@ -256,7 +256,7 @@ opc##x##_##y##_##z:
 }
 
 #define NULL_POINTER_CHECK(ref)                                            \
-    if(!ref) THROW_EXCEPTION("java/lang/NullPointerException", NULL);
+    if(!ref) THROW_EXCEPTION(java_lang_NullPointerException, NULL);
 
 #define MAX_INT_DIGITS 11
 
@@ -265,11 +265,11 @@ opc##x##_##y##_##z:
     if(idx >= ARRAY_LEN(array)) {                                          \
         char buff[MAX_INT_DIGITS];                                         \
         snprintf(buff, MAX_INT_DIGITS, "%d", idx);                         \
-        THROW_EXCEPTION("java/lang/ArrayIndexOutOfBoundsException", buff); \
+        THROW_EXCEPTION(java_lang_ArrayIndexOutOfBoundsException, buff);   \
     }                                                                      \
 }
 
 #define ZERO_DIVISOR_CHECK(value)                                          \
     if(value == 0)                                                         \
-        THROW_EXCEPTION("java/lang/ArithmeticException", "division by zero");
+        THROW_EXCEPTION(java_lang_ArithmeticException, "division by zero");
 
