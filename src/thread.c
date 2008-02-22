@@ -1006,7 +1006,7 @@ void mainThreadSetContextClassLoader(Object *loader) {
         INST_DATA(main_ee.thread)[fb->offset] = (uintptr_t)loader;
 }
 
-void initialiseThread(InitArgs *args) {
+void initialiseThreadStage1(InitArgs *args) {
     size_t size;
 
     /* Set the default size of the Java stack for each _new_ thread */
@@ -1048,7 +1048,7 @@ void initialiseThread(InitArgs *args) {
     setThreadSelf(&main_thread);
 }
 
-void initialiseMainThread(InitArgs *args) {
+void initialiseThreadStage2(InitArgs *args) {
     Object *java_thread;
     Class *thrdGrp_class;
     MethodBlock *run, *remove_thread;
