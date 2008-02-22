@@ -773,6 +773,7 @@ extern void markBootClasses();
 extern void markLoaderClasses(Object *loader, int mark, int mark_soft_refs);
 extern void threadBootClasses();
 extern void threadLoaderClasses(Object *class_loader);
+extern void newLibraryUnloader(Object *class_loader, void *entry);
 extern void initialiseClass(InitArgs *args);
 
 /* resolve */
@@ -891,6 +892,7 @@ extern char *getBootDllPath();
 extern char *getDllName(char *name);
 extern void initialiseDll(InitArgs *args);
 extern uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern void unloaderUnloadDll(uintptr_t entry);
 extern void unloadClassLoaderDlls(Object *loader);
 extern void threadLiveClassLoaderDlls();
 
@@ -906,7 +908,8 @@ extern int nativeAvailableProcessors();
 
 /* Threading */
 
-extern void initialiseMainThread(InitArgs *args);
+extern void initialiseThreadStage1(InitArgs *args);
+extern void initialiseThreadStage2(InitArgs *args);
 extern ExecEnv *getExecEnv();
 
 extern void createJavaThread(Object *jThread, long long stack_size);
@@ -954,6 +957,7 @@ extern Class *getReflectMethodClass();
 
 /* jni */
 
+extern int initJNILrefs();
 extern void initialiseJNI();
 extern void *getJNIInterface();
 extern void markJNIGlobalRefs();
@@ -1000,3 +1004,7 @@ extern void jamvm_exit(int status);
 extern void freeMethodInlinedInfo(MethodBlock *mb);
 extern int  initialiseInlining(InitArgs *args);
 extern void showRelocatability();
+
+/* symbol */
+extern void initialiseSymbol();
+
