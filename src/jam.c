@@ -86,7 +86,7 @@ void showUsage(char *name) {
 void showVersionAndCopyright() {
     printf("java version \"%s\"\n", JAVA_COMPAT_VERSION);
     printf("JamVM version %s\n", VERSION);
-    printf("Copyright (C) 2003-2007 Robert Lougher <rob@lougher.org.uk>\n\n");
+    printf("Copyright (C) 2003-2008 Robert Lougher <rob@lougher.org.uk>\n\n");
     printf("This program is free software; you can redistribute it and/or\n");
     printf("modify it under the terms of the GNU General Public License\n");
     printf("as published by the Free Software Foundation; either version 2,\n");
