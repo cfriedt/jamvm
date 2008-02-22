@@ -41,8 +41,6 @@ static int offset_offset;
 
 static HashTable hash_table;
 
-static int inited = FALSE;
-
 int stringHash(Object *ptr) {
     Object *array = (Object*)INST_DATA(ptr)[value_offset]; 
     int len = INST_DATA(ptr)[count_offset];
@@ -82,9 +80,6 @@ Object *createString(char *utf8) {
     unsigned short *data;
     Object *array;
     Object *ob;
-
-    if(!inited)
-        initialiseString();
 
     if((array = allocTypeArray(T_CHAR, len)) == NULL ||
        (ob = allocObject(string_class)) == NULL)
@@ -170,32 +165,29 @@ char *String2Cstr(Object *string) {
 }
 
 void initialiseString() {
-    if(!inited) {
-        FieldBlock *count = NULL, *value, *offset;
+    FieldBlock *count = NULL, *value, *offset;
 
-        string_class = findSystemClass0(SYMBOL(java_lang_String));
-        registerStaticClassRef(&string_class);
+    string_class = findSystemClass0(SYMBOL(java_lang_String));
+    registerStaticClassRef(&string_class);
 
-        if(string_class != NULL) {
-            count = findField(string_class, SYMBOL(count), SYMBOL(I));
-            value = findField(string_class, SYMBOL(value), SYMBOL(array_C));
-            offset = findField(string_class, SYMBOL(offset), SYMBOL(I));
-        }
-
-        /* findField doesn't throw an exception... */
-        if((count == NULL) || (value == NULL) || (offset == NULL)) {
-            jam_fprintf(stderr, "Error initialising VM (initialiseString)\n");
-            exitVM(1);
-        }
-
-        count_offset = count->offset;
-        value_offset = value->offset;
-        offset_offset = offset->offset;
-
-        /* Init hash table and create lock */
-        initHashTable(hash_table, HASHTABSZE, TRUE);
-        inited = TRUE;
+    if(string_class != NULL) {
+        count = findField(string_class, SYMBOL(count), SYMBOL(I));
+        value = findField(string_class, SYMBOL(value), SYMBOL(array_C));
+        offset = findField(string_class, SYMBOL(offset), SYMBOL(I));
     }
+
+    /* findField doesn't throw an exception... */
+    if((count == NULL) || (value == NULL) || (offset == NULL)) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseString)\n");
+        exitVM(1);
+    }
+
+    count_offset = count->offset;
+    value_offset = value->offset;
+    offset_offset = offset->offset;
+
+    /* Init hash table and create lock */
+    initHashTable(hash_table, HASHTABSZE, TRUE);
 }
 
 #ifndef NO_JNI
