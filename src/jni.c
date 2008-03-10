@@ -488,8 +488,27 @@ jboolean Jam_IsSameObject(JNIEnv *env, jobject obj1, jobject obj2) {
     return obj1 == obj2;
 }
 
+/* JNI helper function.  The class may be invalid
+   or it may not have been initialised yet */
+Object *allocObjectClassCheck(Class *class) {
+    ClassBlock *cb = CLASS_CB(class);
+
+    /* Check the class can be instantiated */
+    if(cb->access_flags & (ACC_INTERFACE | ACC_ABSTRACT)) {
+        signalException(java_lang_InstantiationError, cb->name);
+        return NULL;
+    }
+
+    /* Creating an instance of a class is an active use;
+       make sure it is initialised */
+    if(initClass(class) == NULL)
+        return NULL;
+        
+    return allocObject(class);
+}
+
 jobject Jam_AllocObject(JNIEnv *env, jclass clazz) {
-    return (jobject) addJNILref(allocObject((Class*)clazz));
+    return (jobject) addJNILref(allocObjectClassCheck((Class*)clazz));
 }
 
 jclass Jam_GetObjectClass(JNIEnv *env, jobject obj) {
@@ -504,20 +523,22 @@ jmethodID getMethodID(JNIEnv *env, jclass clazz, const char *name, const char *s
     Class *class = initClass((Class *)clazz);
     MethodBlock *mb = NULL;
 
-    if(!IS_PRIMITIVE(CLASS_CB(class))) {
-        char *method_name = findUtf8((char*)name), *method_sig = findUtf8((char*)sig);
+    if(class != NULL) {
+        if(!IS_PRIMITIVE(CLASS_CB(class))) {
+            char *method_name = findUtf8((char*)name), *method_sig = findUtf8((char*)sig);
 
-        if(method_name != NULL && method_sig != NULL) {
-            if(method_name == SYMBOL(object_init) ||
-               method_name == SYMBOL(class_init))
-                mb = findMethod(class, method_name, method_sig);
-            else
-                mb = lookupMethod(class, method_name, method_sig);
+            if(method_name != NULL && method_sig != NULL) {
+                if(method_name == SYMBOL(object_init) ||
+                   method_name == SYMBOL(class_init))
+                    mb = findMethod(class, method_name, method_sig);
+                else
+                    mb = lookupMethod(class, method_name, method_sig);
+            }
         }
-    }
 
-    if(mb == NULL || ((mb->access_flags & ACC_STATIC) != 0) != is_static)
-        signalException(java_lang_NoSuchMethodError, (char*)name);
+        if(mb == NULL || ((mb->access_flags & ACC_STATIC) != 0) != is_static)
+            signalException(java_lang_NoSuchMethodError, (char*)name);
+    }
 
     return (jmethodID) mb;
 }
@@ -531,11 +552,13 @@ jfieldID Jam_GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char 
     Class *class = initClass((Class *)clazz);
     FieldBlock *fb = NULL;
 
-    if(field_name != NULL && field_sig != NULL)
-        fb = lookupField(class, field_name, field_sig);
+    if(class != NULL) {
+        if(field_name != NULL && field_sig != NULL)
+            fb = lookupField(class, field_name, field_sig);
 
-    if(fb == NULL)
-        signalException(java_lang_NoSuchFieldError, field_name);
+        if(fb == NULL)
+            signalException(java_lang_NoSuchFieldError, field_name);
+    }
 
     return (jfieldID) fb;
 }
@@ -549,11 +572,13 @@ jfieldID Jam_GetStaticFieldID(JNIEnv *env, jclass clazz, const char *name, const
     Class *class = initClass((Class *)clazz);
     FieldBlock *fb = NULL;
 
-    if(field_name != NULL && field_sig != NULL)
-        fb = findField(class, field_name, field_sig);
+    if(class != NULL) {
+        if(field_name != NULL && field_sig != NULL)
+            fb = findField(class, field_name, field_sig);
 
-    if(fb == NULL)
-        signalException(java_lang_NoSuchFieldError, field_name);
+        if(fb == NULL)
+            signalException(java_lang_NoSuchFieldError, field_name);
+    }
 
     return (jfieldID) fb;
 }
@@ -609,7 +634,7 @@ jsize Jam_GetArrayLength(JNIEnv *env, jarray array) {
 }
 
 jobject Jam_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, ...) {
-    Object *ob =  allocObject((Class*)clazz);
+    Object *ob =  allocObjectClassCheck((Class*)clazz);
 
     if(ob) {
         va_list jargs;
@@ -622,14 +647,14 @@ jobject Jam_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, ...) {
 }
 
 jobject Jam_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID, jvalue *args) {
-    Object *ob =  allocObject((Class*)clazz);
+    Object *ob =  allocObjectClassCheck((Class*)clazz);
 
     if(ob) executeMethodList(ob, ob->class, (MethodBlock*)methodID, (u8*)args);
     return (jobject) addJNILref(ob);
 }
 
 jobject Jam_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID, va_list args) {
-    Object *ob =  allocObject((Class*)clazz);
+    Object *ob =  allocObjectClassCheck((Class*)clazz);
 
     if(ob) executeMethodVaList(ob, ob->class, (MethodBlock*)methodID, args);
     return (jobject) addJNILref(ob);
