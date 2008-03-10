@@ -175,7 +175,8 @@ void monitorUnlock(Monitor *mon, Thread *self) {
     }
 }
 
-int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns, int locked) {
+int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
+                 int blocked, int interruptible) {
     char timed = (ms != 0) || (ns != 0);
     char interrupted = FALSE;
     char timeout = FALSE;
@@ -221,12 +222,12 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns, int locked) {
 
        self->state = TIMED_WAITING;
     } else
-       self->state = locked ? BLOCKED : WAITING;
+       self->state = blocked ? BLOCKED : WAITING;
 
-    if(self->interrupted && !locked)
+    if(interruptible && self->interrupted)
         interrupted = TRUE;
     else {
-        if(locked)
+        if(blocked)
             self->blocked_count++;
         else
             self->waited_count++;
@@ -257,7 +258,7 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns, int locked) {
 
     if(self->interrupting || timeout) {
         /* An interrupt after a timeout remains pending */
-        interrupted = !(locked || timeout);
+        interrupted = interruptible && !timeout;
 
         if(self->wait_next != NULL)
             waitSetUnlinkThread(mon, self);
@@ -405,7 +406,7 @@ try_again2:
         if(LOCKWORD_COMPARE_AND_SWAP(&obj->lock, 0, thin_locked))
             inflate(obj, mon, self);
         else
-            monitorWait0(mon, self, 0, 0, TRUE);
+            monitorWait0(mon, self, 0, 0, TRUE, FALSE);
     }
 }
 
@@ -463,7 +464,7 @@ retry:
     }
 }
 
-void objectWait(Object *obj, long long ms, int ns) {
+void objectWait0(Object *obj, long long ms, int ns, int interruptible) {
     uintptr_t lockword = LOCKWORD_READ(&obj->lock);
     Thread *self = threadSelf();
     Monitor *mon;
@@ -482,7 +483,7 @@ void objectWait(Object *obj, long long ms, int ns) {
     } else
         mon = (Monitor*) (lockword & ~SHAPE_BIT);
 
-    if(monitorWait(mon, self, ms, ns))
+    if(monitorWait0(mon, self, ms, ns, FALSE, interruptible))
         return;
 
 not_owner:
