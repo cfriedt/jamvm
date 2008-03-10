@@ -29,6 +29,7 @@
 
 #include "thread.h"
 #include "interp.h"
+#include "symbol.h"
 
 #ifdef TRACEDIRECT
 #define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
@@ -55,7 +56,7 @@
 static VMWaitLock prepare_lock;
 
 #ifdef INLINING
-int inlining_enabled = -1;
+int inlining_enabled;
 #endif
 
 void initialiseDirect(InitArgs *args) {
@@ -76,6 +77,7 @@ void prepare(MethodBlock *mb, const void ***handlers) {
     signed char cache_depth[code_len];
 #endif
 #ifdef INLINING
+    int inlining = inlining_enabled && mb->name != SYMBOL(class_init);
     OpcodeInfo opcodes[code_len];
     char info[code_len + 1];
 #endif
@@ -826,7 +828,7 @@ retry:
 #endif
             } else {
 #ifdef INLINING
-                if(inlining_enabled && info[pc]) {
+                if(inlining && info[pc]) {
                     TRACE("Block start %d end %d (info %d @ pc %d opcode %d)\n",
                                               block_start, ins_count, info[pc], pc, opcode);
 
