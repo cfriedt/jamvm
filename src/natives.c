@@ -689,7 +689,12 @@ uintptr_t *findLoadedClass(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *resolveClass0(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *clazz = (Class *)*ostack;
-    initClass(clazz);
+
+    if(clazz == NULL)
+        signalException(java_lang_NullPointerException, NULL);
+    else
+        initClass(clazz);
+
     return ostack;
 }
 
@@ -716,19 +721,23 @@ uintptr_t *constructNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     ClassBlock *cb = CLASS_CB(decl_class); 
     MethodBlock *mb = &(cb->methods[ostack[4]]); 
     int no_access_check = ostack[5]; 
-    Object *ob = NULL;
+    Object *ob;
 
-    /* Class may not have been initialised yet */
-    initClass(decl_class);
-
-    if(cb->access_flags & ACC_ABSTRACT)
+    if(cb->access_flags & ACC_ABSTRACT) {
         signalException(java_lang_InstantiationError, cb->name);
-    else
-        ob = allocObject(mb->class);
+        return ostack;
+    }
 
-    if(ob) invoke(ob, mb, array, param_types, !no_access_check);
+    /* Creating an instance of the class is an
+       active use; make sure it is initialised */
+    if(initClass(decl_class) == NULL)
+        return ostack;
 
-    *ostack++ = (uintptr_t) ob;
+    if((ob = allocObject(decl_class)) != NULL) {
+        invoke(ob, mb, array, param_types, !no_access_check);
+        *ostack++ = (uintptr_t) ob;
+    }
+
     return ostack;
 }
 
@@ -836,7 +845,10 @@ uintptr_t *getPntr2Field(uintptr_t *ostack) {
     }
 
     if(fb->access_flags & ACC_STATIC) {
-        initClass(decl_class);
+        /* Setting/getting a static field of a class is an
+           active use; make sure it is initialised */
+        if(initClass(decl_class) == NULL)
+            return NULL;
         return &fb->static_value;
     }
 
@@ -907,23 +919,22 @@ uintptr_t *invokeNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Class *decl_class = (Class*)ostack[3];
     Object *param_types = (Object*)ostack[4];
     Class *ret_type = (Class*)ostack[5];
-    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[6]]); 
+    ClassBlock *cb = CLASS_CB(decl_class);
+    MethodBlock *mb = &(cb->methods[ostack[6]]); 
     int no_access_check = ostack[7]; 
     Object *ob = NULL;
     uintptr_t *ret;
 
-    /* If it's a static method, class may not be initialised */
-    if(mb->access_flags & ACC_STATIC)
-        initClass(decl_class);
-    else {
-        /* Interfaces are not normally initialised. */
-        if(IS_INTERFACE(CLASS_CB(decl_class)))
-            initClass(decl_class);
-
-        if(((ob = getAndCheckObject(ostack, decl_class)) == NULL) ||
-                                     ((mb = lookupVirtualMethod(ob, mb)) == NULL))
+    /* If it's a static method, class may not be initialised;
+       interfaces are also not normally initialised. */
+    if((mb->access_flags & ACC_STATIC) || IS_INTERFACE(cb))
+        if(initClass(decl_class) == NULL)
             return ostack;
-    }
+
+    if(!(mb->access_flags & ACC_STATIC))
+        if(((ob = getAndCheckObject(ostack, decl_class)) == NULL) ||
+                                   ((mb = lookupVirtualMethod(ob, mb)) == NULL))
+            return ostack;
  
     if((ret = (uintptr_t*) invoke(ob, mb, array, param_types, !no_access_check)) != NULL)
         *ostack++ = (uintptr_t) getReflectReturnObject(ret_type, ret);
