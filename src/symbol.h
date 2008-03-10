@@ -151,6 +151,7 @@ extern char *symbol_values[];
     action(java_lang_ClassCastException, "java/lang/ClassCastException"), \
     action(java_lang_StackOverflowError, "java/lang/StackOverflowError"), \
     action(java_lang_InstantiationError, "java/lang/InstantiationError"), \
+    action(java_lang_IllegalAccessError, "java/lang/IllegalAccessError"), \
     action(java_lang_ArithmeticException, "java/lang/ArithmeticException"), \
     action(java_lang_AbstractMethodError, "java/lang/AbstractMethodError"), \
     action(java_lang_ArrayStoreException, "java/lang/ArrayStoreException"), \
