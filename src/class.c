@@ -1098,7 +1098,7 @@ Class *initClass(Class *class) {
    FieldBlock *fb = cb->fields;
    MethodBlock *mb;
    Object *excep;
-   int i;
+   int state, i;
 
    if(cb->state >= CLASS_INITED)
       return class;
@@ -1107,22 +1107,29 @@ Class *initClass(Class *class) {
    objectLock((Object *)class);
 
    while(cb->state == CLASS_INITING)
-      if(cb->initing_tid == threadSelf()->id)
-          goto unlock;
-      else
-          objectWait((Object *)class, 0, 0);
+      if(cb->initing_tid == threadSelf()->id) {
+         objectUnlock((Object *)class);
+         return class;
+      } else {
+          /* FALSE means this wait is non-interruptible.
+             An interrupt will appear as if the initialiser
+             failed (below), and clearing will lose the
+             interrupt status */
+          objectWait0((Object *)class, 0, 0, FALSE);
+      }
 
-   if(cb->state >= CLASS_INITED)
-      goto unlock;
+   if(cb->state >= CLASS_INITED) {
+      objectUnlock((Object *)class);
+      return class;
+   }
 
    if(cb->state == CLASS_BAD) {
        objectUnlock((Object *)class);
        signalException(java_lang_NoClassDefFoundError, cb->name);
-       return class;
+       return NULL;
    }
 
    cb->state = CLASS_INITING;
-
    cb->initing_tid = threadSelf()->id;
 
    objectUnlock((Object *)class);
@@ -1131,9 +1138,8 @@ Class *initClass(Class *class) {
               && (CLASS_CB(cb->super)->state != CLASS_INITED)) {
       initClass(cb->super);
       if(exceptionOccurred()) {
-          objectLock((Object *)class);
-          cb->state = CLASS_BAD;
-          goto notify;
+          state = CLASS_BAD;
+          goto set_state_and_notify;
       }
    }
 
@@ -1155,7 +1161,6 @@ Class *initClass(Class *class) {
 
    if((excep = exceptionOccurred())) {
        Class *error, *eiie;
-       Object *ob;
 
        clearException(); 
 
@@ -1163,26 +1168,29 @@ Class *initClass(Class *class) {
        if((error = findSystemClass0(SYMBOL(java_lang_Error)))
                  && !isInstanceOf(error, excep->class)
                  && (eiie = findSystemClass(SYMBOL(java_lang_ExceptionInInitializerError)))
-                 && (mb = findMethod(eiie, SYMBOL(object_init), SYMBOL(_java_lang_Throwable__V)))
-                 && (ob = allocObject(eiie))) {
-           executeMethod(ob, mb, excep);
-           setException(ob);
+                 && (mb = findMethod(eiie, SYMBOL(object_init), SYMBOL(_java_lang_Throwable__V)))) {
+
+           Object *ob = allocObject(eiie);
+
+           if(ob != NULL) {
+               executeMethod(ob, mb, excep);
+               setException(ob);
+           }
        } else
            setException(excep);
 
-       objectLock((Object *)class);
-       cb->state = CLASS_BAD;
-   } else {
-       objectLock((Object *)class);
-       cb->state = CLASS_INITED;
-   }
+       state = CLASS_BAD;
+   } else
+       state = CLASS_INITED;
    
-notify:
-   objectNotifyAll((Object *)class);
+set_state_and_notify:
+   objectLock((Object *)class);
+   cb->state = state;
 
-unlock:
+   objectNotifyAll((Object *)class);
    objectUnlock((Object *)class);
-   return class;
+
+   return state == CLASS_BAD ? NULL : class;
 }
 
 char *findFileEntry(char *path, int *file_len) {
@@ -1383,7 +1391,7 @@ Class *findNonArrayClassFromClassLoader(char *classname, Object *loader) {
                     CLASS_CB(loader->class)->method_table[loadClass_mtbl_idx], string);
         objectUnlock(loader);
 
-        if((excep = exceptionOccurred())) {
+        if((excep = exceptionOccurred()) || class == NULL) {
             clearException();
             signalChainedException(java_lang_NoClassDefFoundError, classname, excep);
             return NULL;
