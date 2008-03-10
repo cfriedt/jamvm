@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2006 Robert Lougher <rob@lougher.org.uk>.
+ * Copyright (C) 2003, 2004, 2006, 2008 Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -46,6 +46,7 @@ public class JarLauncher {
                     Class mainClass = Class.forName(mainAttr, true, sysLoader);
                     Method meth = mainClass.getMethod("main", new Class[] {args.getClass()});
 
+                    meth.setAccessible(true);
                     meth.invoke(null, new Object[] {args});
                 }
             }
