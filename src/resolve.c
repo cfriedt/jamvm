@@ -118,7 +118,7 @@ retry:
                 return NULL;
 
             if(!checkClassAccess(resolved_class, class)) {
-                signalException(java_lang_IllegalAccessException, "class is not accessible");
+                signalException(java_lang_IllegalAccessError, "class is not accessible");
                 return NULL;
             }
 
@@ -185,11 +185,12 @@ retry:
                 }
 
                 if(!checkMethodAccess(mb, class)) {
-                    signalException(java_lang_IllegalAccessException, "method is not accessible");
+                    signalException(java_lang_IllegalAccessError, "method is not accessible");
                     return NULL;
                 }
 
-                initClass(mb->class);
+                if(initClass(mb->class) == NULL)
+                    return NULL;
 
                 CP_TYPE(cp, cp_index) = CONSTANT_Locked;
                 MBARRIER();
@@ -300,11 +301,12 @@ retry:
 
             if(fb) {
                 if(!checkFieldAccess(fb, class)) {
-                    signalException(java_lang_IllegalAccessException, "field is not accessible");
+                    signalException(java_lang_IllegalAccessError, "field is not accessible");
                     return NULL;
                 }
 
-                initClass(fb->class);
+                if(initClass(fb->class) == NULL)
+                    return NULL;
 
                 CP_TYPE(cp, cp_index) = CONSTANT_Locked;
                 MBARRIER();
