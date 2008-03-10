@@ -232,27 +232,24 @@ if test "$libdl_needed" != no; then
     AC_CHECK_LIB(dl,dlopen,,AC_MSG_ERROR(libdl is missing))
 fi
 
-AC_CHECK_LIB(z,inflate,,
-    [if test "$enable_zip" != no; then
-        AC_MSG_WARN(cannot find libz -- zip/jar support in bootclasspath is disabled)
-        enable_zip=no
-    fi])
+if test "$enable_zip" != no; then
+    AC_CHECK_LIB(z,inflate,,AC_MSG_ERROR(zlib is missing))
+fi
 
 if test "$enable_ffi" != no; then
-    AC_CHECK_LIB(ffi,ffi_call,,AC_MSG_ERROR(cannot find libffi))
+    AC_CHECK_LIB(ffi,ffi_call,,AC_MSG_ERROR(libffi is missing))
 fi
 
 dnl Checks for header files.
 AC_HEADER_STDC
+AC_CHECK_HEADERS(sys/time.h unistd.h endian.h sys/param.h locale.h)
 
-AC_CHECK_HEADER(zlib.h,,
-    [if test "$enable_zip" != no; then
-        AC_MSG_WARN(cannot find zlib.h -- zip/jar support in bootclasspath is disabled)
-        enable_zip=no
-    fi])
+if test "$enable_zip" != no; then
+    AC_CHECK_HEADER(zlib.h,,AC_MSG_ERROR(zlib.h is missing))
+fi
 
 if test "$enable_ffi" != no; then
-    AC_CHECK_HEADER(ffi.h,,AC_MSG_ERROR(cannot find ffi.h))
+    AC_CHECK_HEADER(ffi.h,,AC_MSG_ERROR(ffi.h is missing))
 fi
 
 if test "$enable_zip" != no; then
@@ -270,8 +267,6 @@ AC_SUBST(use_zip_no)
 if test "$enable_ffi" != no; then
     AC_DEFINE([USE_FFI],1,[use FFI])
 fi
-
-AC_CHECK_HEADERS(sys/time.h unistd.h endian.h sys/param.h locale.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
