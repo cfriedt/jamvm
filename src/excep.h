@@ -25,6 +25,7 @@
     action(java_lang_NoSuchFieldError), \
     action(java_lang_OutOfMemoryError), \
     action(java_lang_NoSuchMethodError), \
+    action(java_lang_IllegalAccessError), \
     action(java_lang_ClassCastException), \
     action(java_lang_StackOverflowError), \
     action(java_lang_InstantiationError), \
