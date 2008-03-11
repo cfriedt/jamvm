@@ -1,7 +1,91 @@
-JamVM 1.5.1 released on 21st February 2007
-==========================================
+JamVM 1.5.1 released on 10th March 2008
+=======================================
 
 A summary of changes since 1.5.0:
+
+- Implemented a new internal VM symbol framework.  This ensures that
+  all class, method, field names, etc. are unique thus removing the
+  need to use strcmp for comparison.
+
+- Implemented a new internal VM exception mechanism for frequent
+  exceptions thrown within the VM.
+
+- Hand-coded support for AMD64 ABI.  Previously AMD64 required libffi
+  but this is not individually packaged on some Linux distributions.
+  On a random set of signatures the hand-coded assembler is 4.6 times
+  faster (and jBYTEmark FP Index is 30% faster).
+
+- Ported to Darwin/ARM (i.e. the iPhone).  Built using unofficial
+  toolchain and tested on jailbroken iPhone (1.1.3 firmware)
+
+- Class initialisation/first active use fixes
+  
+  - initialise if first active use is object allocation via reflection
+    (newInstance)
+
+  - initialise if first active use is object allocation via JNI
+    (AllocObject/NewObject)
+
+  - The wait in step 2 of the initialisation sequence must be
+    non-interruptible (not specified in the JVM or Java spec).
+
+  - If allocation of the ExceptionInInitializerError fails,
+    OutOfMemoryError should be thrown not the original exception
+
+  - Don't resolve if initialiser throws ExceptionInInitializerError
+    (subsequent resolution will not see the class is erroneous)
+
+- JNI_OnLoad fixes
+
+  - initialise JNI local refs before calling
+
+  - if JNI_FindClass is called from JNI_OnLoad, ensure correct class
+    loader context is used.
+
+- JNI_OnUnload fixes
+
+  - initialise JNI local refs before calling
+
+  - If a library defines JNI_OnUnload, and the class loader which
+    loaded it is GCed JNI_OnUnload is called and the library is
+    unloaded.  Previously this was done within the GC.  If OnUnload
+    allocated objects it could corrupt the heap.  Dummy unloader
+    objects are now created, and JNI_OnUnload is called from the
+    finalize method by the finalizer thread.
+
+- Fix variable argument passing of floats When calling Java methods from
+  native code
+
+- Rework VM initialisation/start-up sequence
+
+- Fix for JNI_ThrowNew and exceptions loaded by non-bootstrap classloader
+
+- Fix for JNI_GetMethodID and object/class initialiser methods
+  (do not search class hierarchy)
+
+- During resolution throw IllegalAccessError and not IllegalAccessException
+
+- handle loadClass returning null without throwing exception
+
+- Fix for running Jar files where the main class is package-protected
+
+- Interpeter inlining changes
+
+  - Do not inline class initialisers (<clinit>).  No performance
+    improvement as they are only ran once.  Reduces memory usage 
+
+  - Fix for class unloading when inlining disabled (-Xnoinlining)
+
+- Bump java.specification.version to 1.5
+
+- Improve error messages if VM aborts during initialisation
+
+- During configure, do not disable zip/jar file support if zlib library
+  or header can't be found (now aborts).  Users never saw the warning
+  and they ended up with a build which "didn't work".
+
+- Various compiler warnings.
+
 
 JamVM 1.5.0 released on 28th October 2007
 =========================================

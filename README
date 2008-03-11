@@ -1,12 +1,12 @@
-JamVM 1.5.0
+JamVM 1.5.1
 ===========
 
-Welcome to the twenty-third release of JamVM!
+Welcome to the twenty-fourth release of JamVM!
 
 JamVM is a Java Virtual Machine which conforms to the JVM
 specification version 2 (blue book).  In comparison to most other
 VM's (free and commercial) it is extremely small, with a stripped
-executable on PowerPC of only ~170K, and Intel 130K.  However, unlike
+executable on PowerPC of only ~200K, and Intel 180K.  However, unlike
 other small VMs (e.g. KVM) it is designed to support the full
 specification, and includes support for object finalisation, 
 soft/weak/phantom references, the Java Native Interface (JNI) and
@@ -58,6 +58,7 @@ Mac OS X/Darwin
 - i386: JamVM has been built and tested on the Apple MacBook Pro
         (Intel Core Duo and Core 2 Duo).
 
+- ARM: iPhone (jailbroken)
 
 BSD Variants
 ------------
@@ -73,14 +74,14 @@ Class Libraries
 JamVM is designed to use the GNU classpath Java class library (see
 http://www.gnu.org/software/classpath).  A number of classes are
 reference classes which must be modified for a particular VM.  These are
-provided and built along with JamVM (see INSTALL).  JamVM 1.5.0 works with
-Classpath from version 0.92 to 0.96 (the latest development snapshot).
+provided and built along with JamVM (see INSTALL).  JamVM 1.5.1 works with
+Classpath from version 0.92 to 0.97 (the latest development snapshot).
 It should also work with the latest version direct from CVS (but check
 the Classpath mailing lists for possible patches).  Later snapshots of
 Classpath may also work, if no modifications have been made to the VM
 interface.
 
-Note, JamVM 1.5.0 will not work with versions of Classpath earlier than
+Note, JamVM 1.5.1 will not work with versions of Classpath earlier than
 0.92, nor will it work with the class library from Sun or IBM's Virtual
 Machines, or OpenJDK.
 
