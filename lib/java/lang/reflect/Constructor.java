@@ -43,6 +43,8 @@ This Classpath reference implementation has been modified to work with JamVM.
 package java.lang.reflect;
 
 import gnu.java.lang.ClassHelper;
+import gnu.java.lang.CPStringBuilder;
+
 import gnu.java.lang.reflect.MethodSignatureParser;
 import java.util.Arrays;
 import java.lang.annotation.Annotation;
@@ -231,7 +233,7 @@ public final class Constructor
   public String toString()
   {
     // 128 is a reasonable buffer initial size for constructor
-    StringBuilder sb = new StringBuilder(128);
+    CPStringBuilder sb = new CPStringBuilder(128);
     Modifier.toString(getModifiers(), sb).append(' ');
     sb.append(getDeclaringClass().getName()).append('(');
     Class[] c = getParameterTypes();
@@ -253,7 +255,7 @@ public final class Constructor
   }
 
   /* FIXME[GENERICS]: Add X extends GenericDeclaration and TypeVariable<X> */
-  static void addTypeParameters(StringBuilder sb, TypeVariable[] typeArgs)
+  static void addTypeParameters(CPStringBuilder sb, TypeVariable[] typeArgs)
   {
     if (typeArgs.length == 0)
       return;
@@ -269,7 +271,7 @@ public final class Constructor
 
   public String toGenericString()
   {
-    StringBuilder sb = new StringBuilder(128);
+    CPStringBuilder sb = new CPStringBuilder(128);
     Modifier.toString(getModifiers(), sb).append(' ');
     addTypeParameters(sb, getTypeParameters());
     sb.append(getDeclaringClass().getName()).append('(');

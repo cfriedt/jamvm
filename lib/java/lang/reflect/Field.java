@@ -44,6 +44,8 @@ This Classpath reference implementation has been modified to work with JamVM.
 package java.lang.reflect;
 
 import gnu.java.lang.ClassHelper;
+import gnu.java.lang.CPStringBuilder;
+
 import gnu.java.lang.reflect.FieldSignatureParser;
 import java.lang.annotation.Annotation;
 
@@ -204,7 +206,7 @@ extends AccessibleObject implements Member
   public String toString()
   {
     // 64 is a reasonable buffer initial size for field
-    StringBuilder sb = new StringBuilder(64);
+    CPStringBuilder sb = new CPStringBuilder(64);
     Modifier.toString(getModifiers(), sb).append(' ');
     sb.append(ClassHelper.getUserName(getType())).append(' ');
     sb.append(getDeclaringClass().getName()).append('.');
@@ -214,7 +216,7 @@ extends AccessibleObject implements Member
  
   public String toGenericString()
   {
-    StringBuilder sb = new StringBuilder(64);
+    CPStringBuilder sb = new CPStringBuilder(64);
     Modifier.toString(getModifiers(), sb).append(' ');
     sb.append(getGenericType()).append(' ');
     sb.append(getDeclaringClass().getName()).append('.');
