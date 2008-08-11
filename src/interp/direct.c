@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -30,8 +30,12 @@
 #include "thread.h"
 #include "interp.h"
 #include "symbol.h"
+#include "inlining.h"
 
-#ifdef TRACEDIRECT
+#include "shared.h"
+
+//#ifdef TRACEDIRECT
+#if 0
 #define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
 #else
 #define TRACE(fmt, ...)
@@ -66,18 +70,14 @@ void initialiseDirect(InitArgs *args) {
     initVMWaitLock(prepare_lock);
 }
 
-#define FALLTHROUGH 1
-#define EXCEPTION   2
-#define TARGET      4
-#define END         8
-
 void prepare(MethodBlock *mb, const void ***handlers) {
     int code_len = mb->code_size;
 #ifdef USE_CACHE
-    signed char cache_depth[code_len];
+    signed char cache_depth[code_len + 1];
 #endif
 #ifdef INLINING
     int inlining = inlining_enabled && mb->name != SYMBOL(class_init);
+    CodeBlock *last_block = NULL;
     OpcodeInfo opcodes[code_len];
     char info[code_len + 1];
 #endif
@@ -129,7 +129,7 @@ retry:
 #ifdef USE_CACHE
     /* Initialise cache depth array, indicating that
        the depth of every bytecode is unknown */
-    memset(cache_depth, DEPTH_UNKNOWN, code_len);
+    memset(cache_depth, DEPTH_UNKNOWN, code_len + 1);
 
     /* Exception handlers are entered at cache-depth zero.  Initialise
        the start of each handler to trap "fall-through" into the handler
@@ -146,6 +146,7 @@ retry:
 #endif
 
     for(pass = 0; pass < 2; pass++) {
+            int block_quickened = FALSE;
 #ifdef INLINING
         int block_start = 0;
 #endif
@@ -161,26 +162,6 @@ retry:
             int ins_cache;
             int opcode;
 
-#ifdef USE_CACHE
-            /* If the instruction is reached via a branch (or catching an exception) the
-               depth will already be known.  If this is different to the depth "falling
-               through" we have a conflict.  Resolve it by inserting a NOP at the
-               appropriate depth which re-caches.  This also handles dead-code.  Note,
-               this generally only happens in the x ? y : z code sequence. */
-
-            if((cache_depth[pc] != DEPTH_UNKNOWN) && (cache_depth[pc] != cache)) {
-                TRACE("CONFLICT @ addr: %d depth1 %d depth2 %d\n", pc, cache_depth[pc], cache);
-
-                if(pass == 1)
-                    new_code[ins_count].handler = handlers[cache][OPC_NOP];
-#ifdef INLINING
-                opcodes[ins_count].opcode = OPC_NOP;
-                opcodes[ins_count].cache_depth = cache;
-#endif
-                cache = 0;
-                ins_count++;
-            }
-#endif
             /* Load the opcode -- we change it if it's WIDE, or ALOAD_0
                and the method is an instance method */
             opcode = code[pc];
@@ -221,9 +202,10 @@ retry:
                     if(cache < 2) 
                         cache++;
 #endif
-                    /* If the next instruction is GETFIELD, and this is an instance method
-                       rewrite it to ALOAD_THIS.  This will be rewritten in the interpreter
-                       to GETFIELD_THIS */
+                    /* If the next instruction is GETFIELD, this is an instance method
+                       and the field is not 2-slots rewrite it to GETFIELD_THIS.  We
+                       can safely resolve the field because as an instance method
+                       the class must be initialised */
 
                     if((code[++pc] == OPC_GETFIELD) && !(mb->access_flags & ACC_STATIC)
                                     && (fb = resolveField(mb->class, READ_U2_OP(code + pc)))
@@ -522,6 +504,7 @@ retry:
 #endif
                     }
 
+                    opcode = OPC_GOTO;
                     break;
                 }
         
@@ -577,6 +560,9 @@ retry:
 #ifdef USE_CACHE
                     cache = 0;
 #endif    
+#ifdef INLINING
+                    info[pc] |= END;
+#endif    
                     break;
                 }
         
@@ -631,6 +617,9 @@ retry:
                     pc = (unsigned char*)&aligned_pc[i] - code;
 #ifdef USE_CACHE
                     cache = 0;
+#endif        
+#ifdef INLINING
+                    info[pc] |= END;
 #endif        
                     break;
                 }
@@ -721,6 +710,8 @@ retry:
                         info[dest] |= TARGET;
 #endif
                     }
+
+                    opcode = OPC_JSR;
                     break;
                 }
     
@@ -771,7 +762,7 @@ retry:
                    rewrite OPC_WIDE to the actual widened instruction */
                 case OPC_WIDE:
                 {
-                   opcode = code[pc + 1];
+                    opcode = code[pc + 1];
         
                     switch(opcode) {
                         case OPC_ILOAD:
@@ -821,6 +812,38 @@ retry:
                 }
             }
 
+            opcode = shared_opcodes[opcode];
+
+#ifdef USE_CACHE
+            /* If the next instruction is reached via a branch (or catching an
+               exception) the depth will already be known.  If this is
+               different to the depth "falling through" we have a conflict.
+               Resolve it by inserting a NOP at the appropriate depth which
+               re-caches.  This also handles dead-code.  Note, this generally
+               only happens in the x ? y : z code sequence.
+
+               The NOP is inserted by writing the current instruction and then
+               replacing it with a NOP.  This is done so that the basic block
+               (calculated below) includes the NOP */
+
+            if((cache_depth[pc] != DEPTH_UNKNOWN) && (cache_depth[pc] != cache)) {
+                TRACE("CONFLICT @ addr: %d depth1 %d depth2 %d\n", pc, cache_depth[pc], cache);
+
+                if(pass == 1) {
+                    new_code[ins_count].handler = handlers[ins_cache][opcode];
+                    new_code[ins_count].operand = operand;
+		}
+#ifdef INLINING
+                opcodes[ins_count].opcode = opcode;
+                opcodes[ins_count].cache_depth = ins_cache;
+#endif
+		opcode = OPC_NOP;
+		ins_cache = cache;
+                cache = 0;
+                ins_count++;
+            }
+#endif
+
             if(pass == 0) {
 #ifdef INLINING
                 opcodes[ins_count].opcode = opcode;
@@ -828,41 +851,61 @@ retry:
 #endif
             } else {
 #ifdef INLINING
+                block_quickened = block_quickened || quickened;
+
                 if(inlining && info[pc]) {
-                    TRACE("Block start %d end %d (info %d @ pc %d opcode %d)\n",
-                                              block_start, ins_count, info[pc], pc, opcode);
+                    TRACE("Info %x @ pc %d opcode %d\n", info[pc], pc, opcode);
 
                     if(block_start != -1) {
-                        int block_len = ins_count - block_start + 1;
-                        CodeBlock *block;
+                        int ins_start = map[block_start];
+                        int block_len = ins_count - ins_start + 1;
+                        CodeBlock *block = sysMalloc(sizeof(CodeBlock));
+
+//printf("************* last_block %p\n", last_block);
+
+                        TRACE("Block start %d end %d length %d last opcode quickened %d\n",
+                              ins_start, ins_count, block_len, quickened);
 
                         if(quickened) {
                             QuickPrepareInfo *prepare_info;
-                            TRACE("Last opcode is quickened.  Adding to linked-list.\n");
 
                             prepare_info = sysMalloc(sizeof(QuickPrepareInfo));
                             prepare_info->quickened = &new_code[ins_count];
                             prepare_info->next = mb->quick_prepare_info;
                             mb->quick_prepare_info = prepare_info;
-                            block = &prepare_info->block;
+                            prepare_info->block = block;
                         } else {
                             PrepareInfo *prepare_info;
-                            TRACE("Wrapping handler in inline preparer.\n");
 
                             prepare_info = sysMalloc(sizeof(PrepareInfo));
                             prepare_info->operand = operand;
                             operand.pntr = prepare_info;
                             opcode = OPC_INLINE_REWRITER;
-                            block = &prepare_info->block;
+                            prepare_info->block = block;
                         }
+#if 1
+                        if((block->prev = last_block) != NULL)
+                            last_block->next = block;
+                        last_block = info[pc] & END ? NULL : block;
+#else
+                        block->prev = NULL;
+#endif
+
+                        block->next = NULL;
+                        block->u.profile.profiled = NULL;
+
+//printf("block_quickened %d\n", block_quickened);
+//                        block_quickened = TRUE;
+                        block->u.profile.quickened = block_quickened;
+                        block_quickened = FALSE;
 
                         block->length = block_len;
-                        block->start = &new_code[block_start];
+                        block->start = &new_code[ins_start];
                         block->opcodes = sysMalloc(block_len * sizeof(OpcodeInfo));
-                        memcpy(block->opcodes, &opcodes[block_start], block_len * sizeof(OpcodeInfo));
+                        memcpy(block->opcodes, &opcodes[ins_start], block_len * sizeof(OpcodeInfo));
                     }
 
-                    block_start = info[pc] == END ? -1 : ins_count + 1;
+                    block_start = info[pc] == END ? -1 : pc;
                 }
 #endif
                 /* Store the new instruction */
