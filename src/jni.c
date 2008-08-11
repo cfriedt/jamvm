@@ -495,7 +495,7 @@ Object *allocObjectClassCheck(Class *class) {
 
     /* Check the class can be instantiated */
     if(cb->access_flags & (ACC_INTERFACE | ACC_ABSTRACT)) {
-        signalException(java_lang_InstantiationError, cb->name);
+        signalException(java_lang_InstantiationException, cb->name);
         return NULL;
     }
 
