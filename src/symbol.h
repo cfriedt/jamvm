@@ -161,6 +161,7 @@ extern char *symbol_values[];
     action(java_lang_NoClassDefFoundError, "java/lang/NoClassDefFoundError"), \
     action(java_lang_IllegalAccessException, "java/lang/IllegalAccessException"), \
     action(java_lang_ClassNotFoundException, "java/lang/ClassNotFoundException"), \
+    action(java_lang_InstantiationException, "java/lang/InstantiationException"), \
     action(java_lang_IllegalArgumentException, "java/lang/IllegalArgumentException"), \
     action(java_lang_NegativeArraySizeException, "java/lang/NegativeArraySizeException"), \
     action(java_lang_ExceptionInInitializerError, "java/lang/ExceptionInInitializerError"), \
