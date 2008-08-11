@@ -40,7 +40,7 @@
 
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
-#define FOUND(ptr) ptr
+#define FOUND(ptr1, ptr2) ptr2
 
 static int verbose;
 static char *bootpath;

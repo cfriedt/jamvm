@@ -189,7 +189,7 @@ void *resolveNativeMethod(MethodBlock *mb) {
     }
 
     /* First see if it's an internal native method */
-    func  = lookupInternal(mb);
+    func = lookupInternal(mb);
 
 #ifndef NO_JNI
     if(func == NULL)
@@ -246,7 +246,7 @@ int resolveDll(char *name, Object *loader) {
                   ((hash1 == hash2) && (strcmp(ptr1, ptr2->name) == 0))
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
-#define FOUND(ptr) ptr
+#define FOUND(ptr1, ptr2) ptr2
 
     /* Do not add if absent, no scavenge, locked */
     findHashEntry(hash_table, name, dll, FALSE, FALSE, TRUE);
