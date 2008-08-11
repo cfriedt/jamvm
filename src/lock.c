@@ -47,10 +47,10 @@
 #define PREPARE(obj) allocMonitor(obj)
 #define HASH(obj) (getObjectHashcode(obj) >> LOG_OBJECT_GRAIN)
 #define COMPARE(obj, mon, hash1, hash2) hash1 == hash2 && mon->obj == obj
-#define FOUND(ptr)                                          \
-({                                                          \
-     LOCKWORD_COMPARE_AND_SWAP(&ptr->entering, UN_USED, 0); \
-     ptr;                                                   \
+#define FOUND(ptr1, ptr2)                                    \
+({                                                           \
+     LOCKWORD_COMPARE_AND_SWAP(&ptr2->entering, UN_USED, 0); \
+     ptr2;                                                   \
 })
 
 /* lockword format in "thin" mode

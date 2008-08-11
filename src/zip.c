@@ -39,7 +39,7 @@
 #define COMPARE(ptr1, ptr2, hash1, hash2) (hash1 == hash2) && utf8Comp(ptr1, ptr2) 
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
-#define FOUND(ptr) ptr
+#define FOUND(ptr1, ptr2) ptr2
 
 /* zlib window size */
 #define MAX_WINDOW_BITS 15

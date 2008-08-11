@@ -305,8 +305,8 @@ long long javaThreadId(Thread *thread) {
 
 Thread *findHashedThread(Thread *thread, long long id) {
 
-#define FOUND(ptr) ptr
 #define DELETED ((void*)-1)
+#define FOUND(ptr1, ptr2) ptr2
 #define PREPARE(thread_id) thread
 #define SCAVENGE(ptr) ptr == DELETED
 #define HASH(thread_id) (int)thread_id
@@ -767,7 +767,7 @@ void resumeAllThreads(Thread *self) {
     all_threads_suspended = FALSE;
     if(threads_waiting_to_start) {
         TRACE("%d threads waiting to start...\n", threads_waiting_to_start);
-	    pthread_cond_broadcast(&cv);
+        pthread_cond_broadcast(&cv);
     }
 
     TRACE("All threads resumed...\n");
