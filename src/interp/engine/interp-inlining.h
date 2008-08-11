@@ -23,6 +23,56 @@
 #error Direct interpreter cannot be built non-threaded
 #endif
 
+#include "interp-threading.h"
+
+#define I(opcode, level, label) L(opcode, level, label)
+#define D(opcode, level, label) &&rewrite_lock
+#define X(opcode, level, label) &&rewrite_lock
+
+#define DEF_HANDLER_TABLES(level)    \
+    DEF_HANDLER_TABLE(level, START); \
+    DEF_HANDLER_TABLE(level, ENTRY); \
+    DEF_HANDLER_TABLE(level, END);
+
+#define B(level, cond) &&branch_##level##_##cond
+
+#define DEF_BRANCH_TABLE(level)                                         \
+    HANDLER_TABLE_T *TBL_NAME(level, BRANCH)[] = {                      \
+        B(level,EQ),    B(level,NE),    B(level,LT),    B(level,GE),    \
+        B(level,GT),    B(level,LE),    B(level,CMPEQ), B(level,CMPNE), \
+        B(level,CMPLT), B(level,CMPGE), B(level,CMPGT), B(level,CMPLE), \
+        B(level,CMPEQ), B(level,CMPNE), B(level,GOTO),  B(level,JSR)}
+
+#define DEF_DUMMY_TABLE                                                    \
+    HANDLER_TABLE_T *dummy_table[] = {                                     \
+        &&d1, &&d2, &&d3, &&d4, &&d5, &&d6, &&d7, &&d8, &&d9, &&d10,&&d11, \
+        &&d12,&&d13,&&d14,&&d15,&&d16,&&d17,&&d18,&&d19,&&d20,&&d21,&&d22, \
+        &&d23,&&d24,&&d25,&&d26,&&d27,&&d28,&&d29,&&d30,&&d31,&&d32,&&d33, \
+        &&d34,&&d35,&&d36,&&d37,&&d38,&&d39,&&d40,&&d41,&&d42,&&d43,&&d44, \
+        &&d45,&&d46,&&d47,&&d48,&&d49,&&d50,&&d51,&&d52,&&d53,&&d54,&&d55, \
+        &&d56,&&d57,&&d58,&&d59,&&d60,&&d61,&&d62,&&d63,&&d64,&&d65,&&d66, \
+        &&d67,&&d68,&&d69,&&d70,&&d71,&&d72,&&d73,&&d74,&&d75,&&d76,&&d77, \
+        &&d78,&&d79,&&d80,&&d81,&&d82,&&d83,&&d84,&&d85,&&d86,&&d87,&&d88, \
+        &&d89,&&d90,&&d91,&&d92,&&d93,&&d94,&&d95,&&d96,&&d97,&&d98,&&d99};
+
+#define H(X)           \
+d##X: {                \
+    lvars[X] = X;      \
+    goto rewrite_lock; \
+}
+
+#define DEF_DUMMY_HANDLERS                                                \
+    H(1);  H(2);  H(3);  H(4);  H(5);  H(6);  H(7);  H(8);  H(9);  H(10); \
+    H(11); H(12); H(13); H(14); H(15); H(16); H(17); H(18); H(19); H(20); \
+    H(21); H(22); H(23); H(24); H(25); H(26); H(27); H(28); H(29); H(31); \
+    H(32); H(33); H(34); H(35); H(36); H(37); H(38); H(39); H(30); H(40); \
+    H(41); H(42); H(43); H(44); H(45); H(46); H(47); H(48); H(49); H(50); \
+    H(51); H(52); H(53); H(54); H(55); H(56); H(57); H(58); H(59); H(60); \
+    H(61); H(62); H(63); H(64); H(65); H(66); H(67); H(68); H(69); H(70); \
+    H(71); H(72); H(73); H(74); H(75); H(76); H(77); H(78); H(79); H(80); \
+    H(81); H(82); H(83); H(84); H(85); H(86); H(87); H(88); H(89); H(90); \
+    H(92); H(91); H(93); H(94); H(95); H(96); H(97); H(98); H(99); 
+
 /* Macros for handler/bytecode rewriting */
 
 #ifdef USE_CACHE
@@ -74,41 +124,34 @@ opc##x##_##y##_##z##:
 opc##x##_##y##_##z:
 #endif
 
-#define DEF_OPC(opcode, level, BODY)            \
+#define DEF_OPC_LBLS(opcode, level, BODY)       \
     label(opcode, level, START)                 \
         PAD                                     \
     label(opcode, level, ENTRY)                 \
         BODY                                    \
-    label(opcode, level, END)                   \
-        goto *pc->handler;
+    label(opcode, level, END)
+
+#define DEF_OPC(opcode, level, BODY)            \
+    DEF_OPC_LBLS(opcode, level, BODY)           \
+    goto *pc->handler;
 
 #define DEF_OPC_2(op1, op2, level, BODY)        \
-    DEF_OPC(op1, level, BODY);                  \
-    DEF_OPC(op2, level, BODY);
+    DEF_OPC(op1, level, BODY)
 
 #define DEF_OPC_3(op1, op2, op3, level, BODY)   \
-    DEF_OPC(op1, level, BODY);                  \
-    DEF_OPC(op2, level, BODY);                  \
-    DEF_OPC(op3, level, BODY);
+    DEF_OPC(op1, level, BODY)
 
 #define DEF_OPC_012_2(op1, op2, BODY)           \
-    DEF_OPC_012(op1, BODY)                      \
-    DEF_OPC_012(op2, BODY)
+    DEF_OPC_012(op1, BODY)
 
 #define DEF_OPC_012_3(op1, op2, op3, BODY)      \
-    DEF_OPC_012(op1, BODY)                      \
-    DEF_OPC_012(op2, BODY)                      \
-    DEF_OPC_012(op3, BODY)
+    DEF_OPC_012(op1, BODY)
 
 #define DEF_OPC_012_4(op1, op2, op3, op4, BODY) \
-    DEF_OPC_012(op1, BODY)                      \
-    DEF_OPC_012(op2, BODY)                      \
-    DEF_OPC_012(op3, BODY)                      \
-    DEF_OPC_012(op4, BODY)
+    DEF_OPC_012(op1, BODY)
 
 #define DEF_OPC_210_2(op1, op2, BODY)           \
-    DEF_OPC_210(op1, BODY)                      \
-    DEF_OPC_210(op2, BODY)
+    DEF_OPC_210(op1, BODY)
 
 #define RW_LABELS(opcode)                       \
     RW_LABEL(opcode, START)                     \
@@ -162,6 +205,25 @@ opc##x##_##y##_##z:
                                                 \
     DEF_OPC(opcode, 0, ({BODY});)
         
+#define DEF_OPC_JMP(TYPE, BODY)                 \
+    DEF_OPC_LBLS(OPC_##TYPE, 2, ({              \
+        *ostack++ = cache.i.v1;                 \
+        *ostack++ = cache.i.v2;                 \
+        BODY                                    \
+        BRANCH(TYPE, 2, TRUE);                  \
+    });)                                        \
+                                                \
+    DEF_OPC_LBLS(OPC_##TYPE, 1, ({              \
+        *ostack++ = cache.i.v1;                 \
+        BODY                                    \
+        BRANCH(TYPE, 1, TRUE);                  \
+    });)                                        \
+                                                \
+    DEF_OPC_LBLS(OPC_##TYPE, 0, ({              \
+        BODY                                    \
+        BRANCH(TYPE, 0, TRUE);                  \
+    });)
+
 #define RW_LABEL(opcode, lbl)                   \
     label(opcode, 0, lbl)                       \
     label(opcode, 1, lbl)                       \
@@ -174,6 +236,12 @@ opc##x##_##y##_##z:
 
 #define DEF_OPC_210(opcode, BODY)               \
     DEF_OPC(opcode, 0, BODY)
+
+#define DEF_OPC_JMP(TYPE, BODY)                 \
+    DEF_OPC_LBLS(OPC_##TYPE, 0, ({              \
+        BODY                                    \
+        BRANCH(TYPE, 0, TRUE);                  \
+    });)
 
 #define RW_LABEL(opcode, lbl)                   \
     label(opcode, 0, lbl)
@@ -196,10 +264,12 @@ opc##x##_##y##_##z:
 #define DISPATCH(level, ins_len)                \
     pc++;
 
-#define BRANCH(TEST)                            \
-    if(TEST)                                    \
+#define BRANCH(type, level, TEST)               \
+    if(TEST) {                                  \
         pc = (Instruction*) pc->operand.pntr;   \
-    else                                        \
+branch_##level##_##type:                        \
+        goto *pc->handler;                      \
+    } else                                      \
         pc++;
 
 #define PREPARE_MB(mb)                          \
@@ -261,4 +331,5 @@ extern void initialiseDirect(InitArgs *args);
 extern void inlineBlockWrappedOpcode(MethodBlock *mb, Instruction *pc);
 extern void prepare(MethodBlock *mb, const void ***handlers);
 extern void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb);
+extern void *inlineProfiledBlock(Instruction *pc, MethodBlock *mb, int force_inlining);
 
