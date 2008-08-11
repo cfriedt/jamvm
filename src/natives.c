@@ -724,7 +724,7 @@ uintptr_t *constructNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Object *ob;
 
     if(cb->access_flags & ACC_ABSTRACT) {
-        signalException(java_lang_InstantiationError, cb->name);
+        signalException(java_lang_InstantiationException, cb->name);
         return ostack;
     }
 
