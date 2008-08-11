@@ -223,6 +223,7 @@
 #define OPC_INVOKESPECIAL               183
 #define OPC_INVOKESTATIC                184
 #define OPC_INVOKEINTERFACE             185
+#define OPC_GETFIELD_THIS               186
 #define OPC_NEW                         187
 #define OPC_NEWARRAY                    188
 #define OPC_ANEWARRAY                   189
@@ -254,7 +255,7 @@
 #define OPC_INVOKEVIRTUAL_QUICK_W       226
 #define OPC_GETFIELD_QUICK_W            227
 #define OPC_PUTFIELD_QUICK_W            228
-#define OPC_GETFIELD_THIS               229
+//#define OPC_GETFIELD_THIS               229
 #define OPC_LOCK                        230
 #define OPC_ALOAD_THIS                  231
 #define OPC_INVOKESTATIC_QUICK          232
@@ -266,6 +267,7 @@
 #define OPC_INVOKEINTERFACE_QUICK       244
 #define OPC_ABSTRACT_METHOD_ERROR       245
 #define OPC_INLINE_REWRITER             246
+#define OPC_PROFILE_REWRITER            247
 
 #define CONSTANT_Utf8                   1
 #define CONSTANT_Integer                3
@@ -420,22 +422,44 @@ typedef struct opcode_info {
     unsigned char cache_depth;
 } OpcodeInfo;
 
+typedef struct profile_info ProfileInfo;
+
 typedef struct code_block {
+    union {
+        struct {
+            int quickened;
+            ProfileInfo *profiled;
+        } profile;
+        struct {
+            char *addr;
+            struct code_block *next;
+        } patch;
+    } u;
     int length;
     Instruction *start;
     OpcodeInfo *opcodes;
+    struct code_block *prev;
+    struct code_block *next;
 } CodeBlock;
 
 typedef struct quick_prepare_info {
-    CodeBlock block;
+    CodeBlock *block;
     Instruction *quickened;
     struct quick_prepare_info *next;
 } QuickPrepareInfo;
 
 typedef struct prepare_info {
-    CodeBlock block;
+    CodeBlock *block;
     Operand operand;
 } PrepareInfo;
+
+struct profile_info {
+    CodeBlock *block;
+    int profile_count;
+    const void *handler;
+    struct profile_info *next;
+    struct profile_info *prev;
+};
 #endif
 
 typedef Instruction *CodePntr;
@@ -477,6 +501,7 @@ typedef struct methodblock {
    MethodAnnotationData *annotations;
 #ifdef INLINING
    QuickPrepareInfo *quick_prepare_info;
+   ProfileInfo *profile_info;
 #endif
 } MethodBlock;
 
