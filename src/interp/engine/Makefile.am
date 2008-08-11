@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007
+## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
 ## Robert Lougher <rob@lougher.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -20,8 +20,8 @@
 ##
 
 noinst_LTLIBRARIES    = libengine.la
-libengine_la_SOURCES  = interp.c interp2.c interp.h interp-direct.h \
-                        interp-indirect.h interp-inlining.h relocatability.c
+libengine_la_SOURCES  = interp.c interp2.c relocatability.c interp.h \
+                        interp-direct.h interp-indirect.h interp-threading.h
 
 if COMPILE_TIME_RELOC_CHECKS
 noinst_PROGRAMS = compute_relocatability
