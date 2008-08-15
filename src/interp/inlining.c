@@ -521,15 +521,6 @@ char *insSeqCodeCopy(char *code_pntr, Instruction *ins_start_pntr, char **map,
 
 void *inlineProfiledBlock(Instruction *pc, MethodBlock *mb, int force_inlining);
 
-#define GEN_REL_JMP(target_addr, patch_addr) \
-{\
-    int offset = target_addr - patch_addr - 5; \
-    char *ptr = patch_addr; \
-    \
-    *ptr++ = 0xe9; \
-    *(int*)ptr = offset; \
-}
-
 char *blockSeqCodeCopy(MethodBlock *mb, TestCodeBlock *block, CodeBlock *start,
                        int ins_start, CodeBlock *end, int ins_end) {
 
@@ -565,7 +556,7 @@ char *blockSeqCodeCopy(MethodBlock *mb, TestCodeBlock *block, CodeBlock *start,
             GEN_REL_JMP(map[target - ins_start_pntr],
                         patchers->u.patch.addr);
         } else {
-//            inlineProfiledBlock(target, mb, TRUE);
+            inlineProfiledBlock(target, mb, TRUE);
 
             patchers->u.patch.next = ext_patchers;
             ext_patchers = patchers;
