@@ -46,6 +46,15 @@ extern void setDoublePrecision();
     result;                                        \
 })
 
+#define GEN_REL_JMP(target_addr, patch_addr)       \
+{                                                  \
+    int offset = target_addr - patch_addr - 5;     \
+    char *ptr = patch_addr;                        \
+                                                   \
+    *ptr++ = 0xe9;                                 \
+    *(int*)ptr = offset;                           \
+}
+
 #define FLUSH_CACHE(addr, length)
 
 #define LOCKWORD_READ(addr) *addr
