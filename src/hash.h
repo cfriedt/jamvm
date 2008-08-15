@@ -75,7 +75,7 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
     }                                                                              \
                                                                                    \
     if(ptr2) {                                                                     \
-        ptr2 = FOUND(ptr2);                                                        \
+        ptr2 = FOUND(ptr, ptr2);                                                   \
     } else                                                                         \
         if(add_if_absent) {                                                        \
             table.hash_table[i].hash = hash;                                       \
