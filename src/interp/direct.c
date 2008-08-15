@@ -716,14 +716,10 @@ retry:
                 }
     
                 case OPC_RET:
+                    operand.i = READ_U1_OP(code + pc);
 #ifdef USE_CACHE
-                    operand.i = READ_U1_OP(code + pc);
                     cache = 0;
-                    pc += 2;
-                    break;
 #endif
-                    operand.i = READ_U1_OP(code + pc);
-                    cache = 0;
                     pc += 2;
 #ifdef INLINING
                     info[pc] |= END;
