@@ -337,13 +337,7 @@ uintptr_t *getEnclosingConstructor(Class *class, MethodBlock *mb, uintptr_t *ost
 
 uintptr_t *getClassSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
-    Object *string = NULL;
-
-    if(cb->signature != NULL) {
-        char *dot_name = slash2dots(cb->signature);
-        string = createString(dot_name);
-        sysFree(dot_name);
-    }
+    Object *string = cb->signature == NULL ? NULL : createString(cb->signature);
 
     *ostack++ = (uintptr_t)string;
     return ostack;
@@ -751,13 +745,7 @@ uintptr_t *getMethodModifiers(Class *class, MethodBlock *mb2, uintptr_t *ostack)
 uintptr_t *getMethodSignature(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Class *decl_class = (Class*)ostack[1];
     MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
-    Object *string = NULL;
-
-    if(mb->signature != NULL) {
-        char *dot_name = slash2dots(mb->signature);
-        string = createString(dot_name);
-        sysFree(dot_name);
-    }
+    Object *string = mb->signature == NULL ? NULL : createString(mb->signature);
 
     *ostack++ = (uintptr_t)string;
     return ostack;
@@ -794,13 +782,7 @@ uintptr_t *getFieldModifiers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 uintptr_t *getFieldSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *decl_class = (Class*)ostack[1];
     FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[2]]); 
-    Object *string = NULL;
-
-    if(fb->signature != NULL) {
-        char *dot_name = slash2dots(fb->signature);
-        string = createString(dot_name);
-        sysFree(dot_name);
-    }
+    Object *string = fb->signature == NULL ? NULL : createString(fb->signature);
 
     *ostack++ = (uintptr_t)string;
     return ostack;
