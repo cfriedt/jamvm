@@ -22,7 +22,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.5.1)
+AM_INIT_AUTOMAKE(jamvm, 1.5.1-cvs)
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
 
