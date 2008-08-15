@@ -98,6 +98,15 @@
     __asm__ ("sync; isync");                        \
 }
 
+#define GEN_REL_JMP(target_addr, patch_addr)        \
+{                                                   \
+    size_t offset = target_addr - patch_addr;       \
+                                                    \
+    if(offset >= -1<<25 && offset < 1<<25)          \
+        *(int*)patch_addr = offset & 0x3ffffff      \
+                                   | 0x48000000;    \
+}
+
 #define MBARRIER() __asm__ __volatile__ ("sync" ::: "memory")
 #define UNLOCK_MBARRIER() __asm__ __volatile__ ("sync" ::: "memory")
 #define JMM_LOCK_MBARRIER() __asm__ __volatile__ ("isync" ::: "memory")
