@@ -223,7 +223,6 @@
 #define OPC_INVOKESPECIAL               183
 #define OPC_INVOKESTATIC                184
 #define OPC_INVOKEINTERFACE             185
-#define OPC_GETFIELD_THIS               186
 #define OPC_NEW                         187
 #define OPC_NEWARRAY                    188
 #define OPC_ANEWARRAY                   189
@@ -252,10 +251,18 @@
 #define OPC_INVOKEVIRTUAL_QUICK         214
 #define OPC_INVOKENONVIRTUAL_QUICK      215
 #define OPC_INVOKESUPER_QUICK           216
+#define OPC_GETFIELD_THIS_0             217
+#define OPC_GETFIELD_THIS_1             218
+#define OPC_GETFIELD_THIS_2             219
+#define OPC_GETFIELD_THIS_3             220
+#define OPC_GETFIELD_QUICK_0            221
+#define OPC_GETFIELD_QUICK_1            222
+#define OPC_GETFIELD_QUICK_2            223
+#define OPC_GETFIELD_QUICK_3            224
 #define OPC_INVOKEVIRTUAL_QUICK_W       226
 #define OPC_GETFIELD_QUICK_W            227
 #define OPC_PUTFIELD_QUICK_W            228
-//#define OPC_GETFIELD_THIS               229
+#define OPC_GETFIELD_THIS               229
 #define OPC_LOCK                        230
 #define OPC_ALOAD_THIS                  231
 #define OPC_INVOKESTATIC_QUICK          232
@@ -424,7 +431,7 @@ typedef struct opcode_info {
 
 typedef struct profile_info ProfileInfo;
 
-typedef struct code_block {
+typedef struct basic_block {
     union {
         struct {
             int quickened;
@@ -432,29 +439,29 @@ typedef struct code_block {
         } profile;
         struct {
             char *addr;
-            struct code_block *next;
+            struct basic_block *next;
         } patch;
     } u;
     int length;
     Instruction *start;
     OpcodeInfo *opcodes;
-    struct code_block *prev;
-    struct code_block *next;
-} CodeBlock;
+    struct basic_block *prev;
+    struct basic_block *next;
+} BasicBlock;
 
 typedef struct quick_prepare_info {
-    CodeBlock *block;
+    BasicBlock *block;
     Instruction *quickened;
     struct quick_prepare_info *next;
 } QuickPrepareInfo;
 
 typedef struct prepare_info {
-    CodeBlock *block;
+    BasicBlock *block;
     Operand operand;
 } PrepareInfo;
 
 struct profile_info {
-    CodeBlock *block;
+    BasicBlock *block;
     int profile_count;
     const void *handler;
     struct profile_info *next;
@@ -629,7 +636,13 @@ typedef struct InitArgs {
 
 #ifdef INLINING
     unsigned int codemem;
-    int replication;
+    int replication_threshold;
+    int profile_threshold;
+    int branch_patching_dup;
+    int branch_patching;
+    int print_codestats;
+    int join_blocks;
+    int profiling;
 #endif
 } InitArgs;
 
@@ -867,6 +880,7 @@ extern void initialiseException();
 /* interp */
 
 extern uintptr_t *executeJava();
+extern void shutdownInterpreter();
 extern void initialiseInterpreter(InitArgs *args);
 
 /* String */
@@ -1016,6 +1030,10 @@ extern unsigned long parseMemValue(char *str);
 extern void initVM(InitArgs *args);
 extern int VMInitialising();
 
+/* shutdown */
+
+extern void shutdownVM(int status);
+
 /* hooks */
 
 extern void initialiseHooks(InitArgs *args);
@@ -1029,6 +1047,7 @@ extern void jamvm_exit(int status);
 extern void freeMethodInlinedInfo(MethodBlock *mb);
 extern int  initialiseInlining(InitArgs *args);
 extern void showRelocatability();
+extern void shutdownInlining();
 
 /* symbol */
 extern void initialiseSymbol();
