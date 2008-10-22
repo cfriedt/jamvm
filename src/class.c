@@ -1653,9 +1653,13 @@ char *getClassPath() {
     return classpath;
 }
 
+#ifdef __linux__
+int filter(const struct dirent *entry) {
+#else
 int filter(struct dirent *entry) {
+#endif
     int len = strlen(entry->d_name);
-    char *ext = &entry->d_name[len-4];
+    char *ext = (char*)&entry->d_name[len-4];
 
     return len >= 4 && (strcasecmp(ext, ".zip") == 0 ||
                         strcasecmp(ext, ".jar") == 0);
