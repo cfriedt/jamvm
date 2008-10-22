@@ -221,7 +221,7 @@
         L(OPC_INVOKESPECIAL,          level, label), \
         L(OPC_INVOKESTATIC,           level, label), \
         L(OPC_INVOKEINTERFACE,        level, label), \
-        L(OPC_GETFIELD_THIS,          level, label), \
+        &&unused,                                    \
         L(OPC_NEW,                    level, label), \
         L(OPC_NEWARRAY,               level, label), \
         L(OPC_ANEWARRAY,              level, label), \
@@ -235,8 +235,8 @@
         L(OPC_MULTIANEWARRAY,         level, label), \
         X(OPC_IFNULL,                 level, label), \
         X(OPC_IFNONNULL,              level, label), \
-        X(OPC_GOTO_W,                 level, label), \
-        X(OPC_JSR_W,                  level, label), \
+        D(OPC_GOTO_W,                 level, label), \
+        D(OPC_JSR_W,                  level, label), \
         &&unused,                                    \
         L(OPC_LDC_QUICK,              level, label), \
         L(OPC_LDC_W_QUICK,            level, label), \
@@ -252,19 +252,19 @@
         L(OPC_INVOKEVIRTUAL_QUICK,    level, label), \
         L(OPC_INVOKENONVIRTUAL_QUICK, level, label), \
         L(OPC_INVOKESUPER_QUICK,      level, label), \
-        &&unused,                                    \
-        &&unused,                                    \
-        &&unused,                                    \
-        &&unused,                                    \
-        &&unused,                                    \
-        &&unused,                                    \
-        &&unused,                                    \
-        &&unused,                                    \
+        L(OPC_GETFIELD_THIS_0,        level, label), \
+        L(OPC_GETFIELD_THIS_1,        level, label), \
+        L(OPC_GETFIELD_THIS_2,        level, label), \
+        L(OPC_GETFIELD_THIS_3,        level, label), \
+        L(OPC_GETFIELD_QUICK_0,       level, label), \
+        L(OPC_GETFIELD_QUICK_1,       level, label), \
+        L(OPC_GETFIELD_QUICK_2,       level, label), \
+        L(OPC_GETFIELD_QUICK_3,       level, label), \
         &&unused,                                    \
         D(OPC_INVOKEVIRTUAL_QUICK_W,  level, label), \
         D(OPC_GETFIELD_QUICK_W,       level, label), \
         D(OPC_PUTFIELD_QUICK_W,       level, label), \
-        &&unused,                                    \
+        L(OPC_GETFIELD_THIS,          level, label), \
         D(OPC_LOCK,                   level, label), \
         L(OPC_ALOAD_THIS,             level, label), \
         L(OPC_INVOKESTATIC_QUICK,     level, label), \
