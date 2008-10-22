@@ -19,6 +19,7 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -133,12 +134,25 @@ void setEndianProperty(Object *properties) {
 }
 
 void setUserDirProperty(Object *properties) {
-    char *cwd = getcwd(NULL, 0);
+    char *cwd = NULL;
+    int size = 256;
 
+    for(;;) {
+        cwd = sysRealloc(cwd, size);
+
+        if(getcwd(cwd, size) == NULL)
+            if(errno == ERANGE)
+               size *= 2;
+            else {
+               perror("Couldn't get cwd");
+               exitVM(1);
+            }
+        else
+            break;
+    }
+    
     setProperty(properties, "user.dir", cwd);
-
-    if(cwd != NULL)
-        sysFree(cwd);
+    sysFree(cwd);
 }
 
 void setOSProperties(Object *properties) {
