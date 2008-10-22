@@ -56,8 +56,14 @@ static pthread_cond_t exit_cv;
 /* Monitor for sleeping threads to do a timed-wait against */
 static Monitor sleep_mon;
 
-/* Thread specific key holding thread's Thread pntr */
-static pthread_key_t threadKey;
+/* If supported, use thread local storage to store the
+   thread's Thread pntr.  If not, use a pthread thread
+   specific key to hold it */
+#ifdef HAVE_TLS
+static __thread Thread *self;
+#else
+static pthread_key_t self;
+#endif
 
 /* Attributes for spawned threads */
 static pthread_attr_t attributes;
@@ -141,6 +147,24 @@ int threadIsAlive(Thread *thread) {
     return thread->state != 0;
 }
 
+void threadSleep(Thread *self, long long ms, int ns) {
+
+   /* A sleep of zero should just yield, but a wait
+      of zero is "forever".  Therefore wait for a tiny
+      amount -- this should yield and we also get the
+      interrupted checks. */
+    if(ms == 0 &&  ns == 0)
+        ns = 1;
+
+    monitorLock(&sleep_mon, self);
+    monitorWait(&sleep_mon, self, ms, ns);
+    monitorUnlock(&sleep_mon, self);
+}
+
+void threadYield(Thread *thread) {
+    sched_yield();
+}
+
 int threadInterrupted(Thread *thread) {
     int r = thread->interrupted;
     thread->interrupted = FALSE;
@@ -151,32 +175,14 @@ int threadIsInterrupted(Thread *thread) {
     return thread->interrupted;
 }
 
-void threadSleep(Thread *thread, long long ms, int ns) {
-
-   /* A sleep of zero should just yield, but a wait
-      of zero is "forever".  Therefore wait for a tiny
-      amount -- this should yield and we also get the
-      interrupted checks. */
-    if(ms == 0 &&  ns == 0)
-        ns = 1;
-
-    monitorLock(&sleep_mon, thread);
-    monitorWait(&sleep_mon, thread, ms, ns);
-    monitorUnlock(&sleep_mon, thread);
-}
-
-void threadYield(Thread *thread) {
-    sched_yield();
-}
-
 void threadInterrupt(Thread *thread) {
-    Monitor *mon;
     Thread *self = threadSelf();
+    Monitor *mon;
 
-    /* monitorWait sets wait_mon _before_ checking interrupted status.  Therefore,
-       if wait_mon is null, interrupted status will be noticed.  This guards
-       against a race-condition leading to an interrupt being missed.  The memory
-       barrier ensures correct ordering on SMP systems. */
+    /* MonitorWait sets wait_mon _before_ checking interrupted status.
+       Therefore, if wait_mon is null, interrupted status will be noticed.
+       This guards against a race-condition leading to an interrupt being
+       missed.  The memory barrier ensures correct ordering on SMP systems. */
     thread->interrupted = TRUE;
     MBARRIER();
 
@@ -184,9 +190,10 @@ void threadInterrupt(Thread *thread) {
         int locked;
         thread->interrupting = TRUE;
 
-        /* Ensure the thread has actually entered the wait
-           (else the signal will be lost) */
-
+        /* The thread is waiting on a monitor, but it may not have
+           entered the wait (in which case the signal will be lost).
+           Loop until we can get ownership (i.e. the thread has released
+           it on waiting) */
         while(!(locked = !pthread_mutex_trylock(&mon->lock)) && mon->owner == NULL)
             sched_yield();
 
@@ -195,6 +202,9 @@ void threadInterrupt(Thread *thread) {
         if(locked)
             pthread_mutex_unlock(&mon->lock);
     }
+
+    /* Thread may still be parked */
+    threadUnpark(thread);
 
     /* Handle the case where the thread is blocked in a system call.
        This will knock it out with an EINTR.  The suspend signal
@@ -213,6 +223,88 @@ void threadInterrupt(Thread *thread) {
     fastEnableSuspend(self);
 }
 
+void threadPark(Thread *self, int absolute, long long time) {
+    /* If we have a permit use it and return immediately.
+       No locking as we're the only one that can change the
+       state at this point */
+    if(self->park_state == PARK_PERMIT) {
+        self->park_state == PARK_RUNNING;
+        MBARRIER();
+        return;
+    } 
+
+    /* Spin until we can get the park lock.  This avoids having
+       to disable suspension around pthread_mutex_lock */
+    while(pthread_mutex_trylock(&self->park_lock))
+        sched_yield();
+
+    /* A thread may have given us a permit while we were waiting
+       for the lock or we may be running.  Reduce the state by
+       one (PERMIT -> RUNNING, RUNNING -> BLOCKED) and wait if
+       we're now blocked */
+
+    if(--self->park_state == PARK_BLOCKED) {
+        /* Really must disable suspension now as we're
+           going to sleep */
+        disableSuspend(self);
+
+        if(time) {
+            struct timespec ts;
+
+            if(absolute)
+                getTimeoutAbsolute(&ts, time, 0);
+            else
+                getTimeoutRelative(&ts, 0, time);
+
+            self->state = TIMED_WAITING;
+            pthread_cond_timedwait(&self->park_cv, &self->park_lock, &ts);
+
+            /* On Linux/i386 systems using LinuxThreads, pthread_cond_timedwait
+               is implemented using sigjmp/longjmp.  This resets the fpu
+               control word back to 64-bit precision.  The macro is empty for
+               sane platforms. */ 
+
+            FPU_HACK;
+        } else {
+            self->state = WAITING;
+            pthread_cond_wait(&self->park_cv, &self->park_lock);
+        }
+        
+        /* If we were unparked park_state will have been updated,
+           but not if the wait timed out.  Only update if it's
+           blocked, to avoid losing a possible permit */
+        if(self->park_state == PARK_BLOCKED)
+            self->park_state == PARK_RUNNING;
+
+        self->state = RUNNING;
+
+        enableSuspend(self);
+    }
+
+    pthread_mutex_unlock(&self->park_lock);
+}
+
+void threadUnpark(Thread *thread) {
+    if(thread->park_state != PARK_PERMIT) {
+
+        /* Spin until we can get the park lock.  This avoids having
+           to disable suspension around pthread_mutex_lock */
+        while(pthread_mutex_trylock(&thread->park_lock))
+            sched_yield();
+
+        /* If another thread has given a permit while we were
+           waiting for the lock do nothing.  Else increase the
+           state by one (BLOCKED -> RUNNING, RUNNING -> PERMIT)
+           and if the thread was blocked signal it */
+
+        if(thread->park_state != PARK_PERMIT &&
+                  thread->park_state++ == PARK_BLOCKED)
+            pthread_cond_signal(&thread->park_cv);
+
+        pthread_mutex_unlock(&thread->park_lock);
+    }
+}
+
 void *getStackTop(Thread *thread) {
     return thread->stack_top;
 }
@@ -221,17 +313,29 @@ void *getStackBase(Thread *thread) {
     return thread->stack_base;
 }
 
-Thread *threadSelf0(Object *vmThread) {
+Thread *vmThread2Thread(Object *vmThread) {
     return (Thread*)(INST_DATA(vmThread)[vmData_offset]);
 }
 
+Thread *jThread2Thread(Object *jThread) {
+    Object *vmthread = (Object*)INST_DATA(jThread)[vmthread_offset];
+    return vmthread == NULL ? NULL : vmThread2Thread(vmthread);
+}
+
 Thread *threadSelf() {
-    return (Thread*)pthread_getspecific(threadKey);
+#ifdef HAVE_TLS
+    return self;
+#else
+    return (Thread*)pthread_getspecific(self);
+#endif
 }
 
 void setThreadSelf(Thread *thread) {
-    pthread_setspecific(threadKey, thread);
-    pthread_cond_init(&thread->wait_cv, NULL);
+#ifdef HAVE_TLS
+    self = thread;
+#else
+    pthread_setspecific(self, thread);
+#endif
 }
 
 ExecEnv *getExecEnv() {
@@ -360,6 +464,9 @@ Object *initJavaThread(Thread *thread, char is_daemon, char *name) {
        created or attached by the VM "outside" of Java */
     executeMethod(jlthread, init_mb, vmthread, thread_name, NORM_PRIORITY, is_daemon);
 
+    if(exceptionOccurred())
+        return NULL;
+
     /* Add thread to thread ID map hash table. */
     addThreadToHash(thread);
 
@@ -372,6 +479,13 @@ void initThread(Thread *thread, char is_daemon, void *stack_base) {
        thread-specific memory */
     initialiseJavaStack(thread->ee);
     setThreadSelf(thread);
+
+    /* Initialise wait condvar (the condvar is per-thread,
+       not per-monitor) */
+    pthread_cond_init(&thread->wait_cv, NULL);
+    thread->park_state = PARK_RUNNING;
+    pthread_cond_init(&thread->park_cv, NULL);
+    pthread_mutex_init(&thread->park_lock, NULL);
 
     /* Record the thread's stack base */
     thread->stack_base = stack_base;
@@ -407,8 +521,9 @@ void initThread(Thread *thread, char is_daemon, void *stack_base) {
     if(!is_daemon)
         non_daemon_thrds++;
 
-    /* Get a thread ID (used in thin locking) and
-       record we're now running */
+    /* Get a thread ID (used in thin locking -- done here
+       as the thread lock is held) and record we're now
+       running */
     thread->id = genThreadID();
     thread->state = RUNNING;
 
@@ -416,7 +531,9 @@ void initThread(Thread *thread, char is_daemon, void *stack_base) {
     pthread_mutex_unlock(&lock);
 }
 
-Thread *attachThread(char *name, char is_daemon, void *stack_base, Thread *thread, Object *group) {
+Thread *attachThread(char *name, char is_daemon, void *stack_base,
+                     Thread *thread, Object *group) {
+
     Object *java_thread;
 
     /* Create the ExecEnv for the thread */
@@ -1013,13 +1130,15 @@ void initialiseThreadStage1(InitArgs *args) {
     dflt_stack_size = args->java_stack;
 
     /* Initialise internal locks and pthread state */
-    pthread_key_create(&threadKey, NULL);
-
     pthread_mutex_init(&lock, NULL);
     pthread_cond_init(&cv, NULL);
 
     pthread_mutex_init(&exit_lock, NULL);
     pthread_cond_init(&exit_cv, NULL);
+
+#ifndef HAVE_TLS
+    pthread_key_create(&self, NULL);
+#endif
 
     pthread_attr_init(&attributes);
     pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
@@ -1046,43 +1165,49 @@ void initialiseThreadStage1(InitArgs *args) {
 
     initialiseJavaStack(&main_ee);
     setThreadSelf(&main_thread);
+
+    pthread_cond_init(&main_thread.wait_cv, NULL);
+
+    main_thread.park_state = PARK_RUNNING;
+    pthread_cond_init(&main_thread.park_cv, NULL);
+    pthread_mutex_init(&main_thread.park_lock, NULL);
 }
 
 void initialiseThreadStage2(InitArgs *args) {
     Object *java_thread;
     Class *thrdGrp_class;
     MethodBlock *run, *remove_thread;
-    FieldBlock *group, *priority, *root, *threadId;
-    FieldBlock *vmThread = NULL, *thread = NULL;
     FieldBlock *vmData, *daemon, *name;
+    FieldBlock *vmThread, *thread, *group;
+    FieldBlock *priority, *root, *threadId;
 
     /* Load thread class and register reference for compaction threading */
-    thread_class = findSystemClass0(SYMBOL(java_lang_Thread));
+    if((thread_class = findSystemClass0(SYMBOL(java_lang_Thread))) == NULL)
+        goto error;
+
     registerStaticClassRef(&thread_class);
 
-    if(thread_class != NULL) {
-        vmThread = findField(thread_class, SYMBOL(vmThread), SYMBOL(sig_java_lang_VMThread));
-        daemon = findField(thread_class, SYMBOL(daemon), SYMBOL(Z));
-        name = findField(thread_class, SYMBOL(name), SYMBOL(sig_java_lang_String));
-        group = findField(thread_class, SYMBOL(group), SYMBOL(sig_java_lang_ThreadGroup));
-        priority = findField(thread_class, SYMBOL(priority), SYMBOL(I));
-        threadId = findField(thread_class, SYMBOL(threadId), SYMBOL(J));
+    vmThread = findField(thread_class, SYMBOL(vmThread), SYMBOL(sig_java_lang_VMThread));
+    daemon = findField(thread_class, SYMBOL(daemon), SYMBOL(Z));
+    name = findField(thread_class, SYMBOL(name), SYMBOL(sig_java_lang_String));
+    group = findField(thread_class, SYMBOL(group), SYMBOL(sig_java_lang_ThreadGroup));
+    priority = findField(thread_class, SYMBOL(priority), SYMBOL(I));
+    threadId = findField(thread_class, SYMBOL(threadId), SYMBOL(J));
 
-        init_mb = findMethod(thread_class, SYMBOL(object_init),
-                             SYMBOL(_java_lang_VMThread_java_lang_String_I_Z__V));
-        run = findMethod(thread_class, SYMBOL(run), SYMBOL(___V));
+    init_mb = findMethod(thread_class, SYMBOL(object_init),
+                         SYMBOL(_java_lang_VMThread_java_lang_String_I_Z__V));
+    run = findMethod(thread_class, SYMBOL(run), SYMBOL(___V));
 
-        vmthread_class = findSystemClass0(SYMBOL(java_lang_VMThread));
-        CLASS_CB(vmthread_class)->flags |= VMTHREAD;
+    if((vmthread_class = findSystemClass0(SYMBOL(java_lang_VMThread))) == NULL)
+        goto error;
 
-        /* Register class reference for compaction threading */
-        registerStaticClassRef(&vmthread_class);
+    CLASS_CB(vmthread_class)->flags |= VMTHREAD;
 
-        if(vmthread_class != NULL) {
-            thread = findField(vmthread_class, SYMBOL(thread), SYMBOL(sig_java_lang_Thread));
-            vmData = findField(vmthread_class, SYMBOL(vmData), SYMBOL(I));
-        }
-    }
+    /* Register class reference for compaction threading */
+    registerStaticClassRef(&vmthread_class);
+
+    thread = findField(vmthread_class, SYMBOL(thread), SYMBOL(sig_java_lang_Thread));
+    vmData = findField(vmthread_class, SYMBOL(vmData), SYMBOL(I));
 
     /* findField and findMethod do not throw an exception... */
     if((init_mb == NULL) || (vmData == NULL) || (run == NULL) || (daemon == NULL) ||
@@ -1101,11 +1226,15 @@ void initialiseThreadStage2(InitArgs *args) {
     run_mtbl_idx = run->method_table_index;
 
     /* Initialise the Java-level thread objects for the main thread */
-    java_thread = initJavaThread(&main_thread, FALSE, "main");
+    if((java_thread = initJavaThread(&main_thread, FALSE, "main")) == NULL)
+        goto error;
 
     /* Main thread is now sufficiently setup to be able to run the thread group
        initialiser.  This is essential to create the root thread group */
     thrdGrp_class = findSystemClass(SYMBOL(java_lang_ThreadGroup));
+
+    if(exceptionOccurred())
+        goto error;
 
     root = findField(thrdGrp_class, SYMBOL(root), SYMBOL(sig_java_lang_ThreadGroup));
 
@@ -1124,6 +1253,9 @@ void initialiseThreadStage2(InitArgs *args) {
     /* Add the main thread to the root thread group */
     INST_DATA(java_thread)[group_offset] = root->static_value;
     executeMethod(((Object*)root->static_value), addThread_mb, java_thread);
+
+    if(exceptionOccurred())
+        goto error;
 
     /* Setup signal handling.  This will be inherited by all
        threads created within Java */
