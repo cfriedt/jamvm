@@ -34,7 +34,11 @@
 /* The extra used in expanding the local refs table.
  * This must be >= size of JNIFrame to be thread safe
  * wrt GC thread suspension */
-#define LIST_INCR 8
+#define LREF_LIST_INCR 8
+
+/* The extra used in expanding the global refs table.
+ * Also the initial list size */
+#define GREF_LIST_INCR 32
 
 /* The amount of local reference space "ensured" before
    entering a JNI method.  The method is garaunteed to
@@ -142,7 +146,7 @@ Object *addJNILref(Object *ref) {
         return NULL;
 
     if(frame->next_ref == (Object**)frame)
-        if((frame = expandJNILrefs(ee, frame, LIST_INCR)) == NULL) {
+        if((frame = expandJNILrefs(ee, frame, LREF_LIST_INCR)) == NULL) {
             jam_fprintf(stderr, "JNI - FatalError: cannot expand local references.\n");
             exitVM(1);
         }
@@ -195,45 +199,55 @@ static VMLock global_ref_lock;
 static Object **global_ref_table;
 static int global_ref_size = 0;
 static int global_ref_next = 0;
-static int global_ref_deleted = 0;
+static int global_ref_deleted = FALSE;
 
 static void initJNIGrefs() {
     initVMLock(global_ref_lock);
 }
 
+void lockJNIGrefs(Thread *self) {
+    /* Only disable/enable suspension (slow) if
+       we have to block */
+    if(!tryLockVMLock(global_ref_lock, self)) {
+        disableSuspend(self);
+        lockVMLock(global_ref_lock, self);
+        enableSuspend(self);
+    }
+    fastDisableSuspend(self);
+}
+
+void unlockJNIGrefs(Thread *self) {
+    fastEnableSuspend(self);
+    unlockVMLock(global_ref_lock, self);
+}
+
 static Object *addJNIGref(Object *ref) {
     Thread *self = threadSelf();
-    disableSuspend(self);
-    lockVMLock(global_ref_lock, self);
+    lockJNIGrefs(self);
 
     if(global_ref_next == global_ref_size) {
-        int new_size;
-        Object **new_table;
-        int i, j;
-               
-        if(global_ref_deleted >= LIST_INCR) {
-            new_size = global_ref_size;
-            new_table = global_ref_table;
-        } else {
-            new_size = global_ref_size + LIST_INCR - global_ref_deleted;
-            new_table = (Object**)sysMalloc(new_size * sizeof(Object*));
+
+        if(global_ref_deleted) {
+            int i, j;
+
+            for(i = 0, j = 0; i < global_ref_size; i++)
+                if(global_ref_table[i])
+                    global_ref_table[j++] = global_ref_table[i];
+
+            global_ref_deleted = FALSE;
+            global_ref_next = j;
         }
 
-        for(i = 0, j = 0; i < global_ref_size; i++)
-            if(global_ref_table[i])
-                new_table[j++] = global_ref_table[i];
-
-        global_ref_next = j;
-        global_ref_size = new_size;
-        global_ref_table = new_table;
-        global_ref_deleted = 0;
+        if(global_ref_next + GREF_LIST_INCR > global_ref_size) {
+            global_ref_size = global_ref_next + GREF_LIST_INCR;
+            global_ref_table = sysRealloc(global_ref_table,
+                                          global_ref_size * sizeof(Object*));
+        }
     }
 
     global_ref_table[global_ref_next++] = ref;
 
-    unlockVMLock(global_ref_lock, self);
-    enableSuspend(self);
-
+    unlockJNIGrefs(self);
     return ref;
 }
 
@@ -241,35 +255,32 @@ static void delJNIGref(Object *ref) {
     Thread *self = threadSelf();
     int i;
 
-    disableSuspend(self);
-    lockVMLock(global_ref_lock, self);
+    lockJNIGrefs(self);
 
-    for(i = 0; i < global_ref_next; i++)
+    for(i = global_ref_next - 1; i >= 0; i--)
         if(global_ref_table[i] == ref) {
-            global_ref_table[i] = NULL;
-            global_ref_deleted++;
+            if(i == global_ref_next - 1)
+                global_ref_next = i;
+            else {
+                global_ref_table[i] = NULL;
+                global_ref_deleted = TRUE;
+            }
             break;
         }
 
-    unlockVMLock(global_ref_lock, self);
-    enableSuspend(self);
+    unlockJNIGrefs(self);
 }
 
-/* Called during mark phase of GC.  Safe from
-   suspension but must grab lock to ensure list
-   isn't being modified by another thread. */
+/* Called during mark phase of GC.  No need to
+   grab lock as no thread can be suspended
+   while it is held */
 
 void markJNIGlobalRefs() {
-    Thread *self = threadSelf();
     int i;
-
-    lockVMLock(global_ref_lock, self);
 
     for(i = 0; i < global_ref_next; i++)
         if(global_ref_table[i])
             markConservativeRoot(global_ref_table[i]);
-
-    unlockVMLock(global_ref_lock, self);
 }
 
 /* Extensions added to JNI in JDK 1.4 */
@@ -1487,12 +1498,12 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
             char *pntr = string + 14;
 
             if(strcmp(pntr, "none") == 0)
-                args->replication = INT_MAX;
+                args->replication_threshold = INT_MAX;
             else
                 if(strcmp(pntr, "always") == 0)
-                    args->replication = 0;
+                    args->replication_threshold = 0;
                 else
-                    args->replication = strtol(pntr, NULL, 0);
+                    args->replication_threshold = strtol(pntr, NULL, 0);
 
         } else if(strncmp(string, "-Xcodemem:", 10) == 0) {
             char *pntr = string + 10;
