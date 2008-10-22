@@ -271,7 +271,7 @@ void initialiseAlloc(InitArgs *args) {
 #ifdef USE_MALLOC
     /* Don't use mmap - malloc max heap size */
     char *mem = (char*)malloc(args->max_heap);
-    min = max;
+    args->min_heap = args->max_heap;
     if(mem == NULL) {
 #else
     char *mem = (char*)mmap(0, args->max_heap, PROT_READ|PROT_WRITE,
@@ -705,7 +705,7 @@ void handleUnmarkedSpecial(Object *ob) {
                 /* Free the native thread structure (see comment
                    in detachThread (thread.c) */
                 TRACE_GC("FREE: Freeing native thread for VMThread object %p\n", ob);
-                gcPendingFree(threadSelf0(ob));
+                gcPendingFree(vmThread2Thread(ob));
             }
 }
 
