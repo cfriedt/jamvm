@@ -22,7 +22,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.5.1)
+AM_INIT_AUTOMAKE(jamvm, 1.5.2)
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
 
@@ -145,7 +145,7 @@ AC_ARG_ENABLE(int-prefetch,
 
 AC_ARG_ENABLE(runtime-reloc-checks,
     [AS_HELP_STRING(--enable-runtime-reloc-checks,compute relocatability at runtime (inlining interpreter))],,
-        enable_runtime_reloc_checks=no)
+    [enable_runtime_reloc_checks=no])
 
 AC_ARG_ENABLE(int-inlining,
     [AS_HELP_STRING(--enable-int-inlining,enable inline threaded version of the interpreter
@@ -277,6 +277,12 @@ AC_FUNC_ALLOCA
 AC_FUNC_MMAP
 AC_CHECK_FUNCS(gettimeofday strtol setlocale)
 AM_LC_MESSAGES
+
+AC_MSG_CHECKING([for __thread])
+AC_LINK_IFELSE([AC_LANG_PROGRAM(,[static __thread int foo = 0])],
+    [AC_DEFINE([HAVE_TLS],1,[__thread supported by compiler])
+     AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])])
 
 AM_MAINTAINER_MODE
 
