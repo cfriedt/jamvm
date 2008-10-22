@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -54,8 +54,14 @@ void setDefaultInitArgs(InitArgs *args) {
     args->exit     = exit;
 
 #ifdef INLINING
-    args->replication = 10;
-    args->codemem = args->max_heap / 4;
+    args->replication_threshold = 10;
+    args->profile_threshold     = 10;
+    args->branch_patching_dup   = TRUE;
+    args->branch_patching       = TRUE;
+    args->print_codestats       = FALSE;
+    args->join_blocks           = TRUE;
+    args->profiling             = TRUE;
+    args->codemem               = args->max_heap / 4;
 #endif
 }
 
