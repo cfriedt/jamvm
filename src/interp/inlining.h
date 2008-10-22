@@ -19,9 +19,6 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#define PROFILE_THRESHOLD 10
-#define BRANCH_NUM 16
-
 #define LABELS_SIZE  256
 #define GOTO_START   230
 #define GOTO_END     255
@@ -39,6 +36,9 @@
 #define END_LABELS    2
 #define BRANCH_LABELS 3
 #endif
+
+/* Number of entries in the branch patch table */
+#define BRANCH_NUM    16
 
 #define MEMCMP_FAILED    -1
 #define END_REORDERED    -2
