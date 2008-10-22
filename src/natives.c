@@ -219,9 +219,9 @@ uintptr_t *runFinalization(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *exitInternal(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     int status = ostack[0];
-    jamvm_exit(status);
+    shutdownVM(status);
     /* keep compiler happy */
-    return 0;
+    return ostack;
 }
 
 uintptr_t *nativeLoad(Class *class, MethodBlock *mb, uintptr_t *ostack) {
@@ -337,13 +337,7 @@ uintptr_t *getEnclosingConstructor(Class *class, MethodBlock *mb, uintptr_t *ost
 
 uintptr_t *getClassSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
-    Object *string = NULL;
-
-    if(cb->signature != NULL) {
-        char *dot_name = slash2dots(cb->signature);
-        string = createString(dot_name);
-        sysFree(dot_name);
-    }
+    Object *string = cb->signature == NULL ? NULL : createString(cb->signature);
 
     *ostack++ = (uintptr_t)string;
     return ostack;
@@ -751,13 +745,7 @@ uintptr_t *getMethodModifiers(Class *class, MethodBlock *mb2, uintptr_t *ostack)
 uintptr_t *getMethodSignature(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Class *decl_class = (Class*)ostack[1];
     MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
-    Object *string = NULL;
-
-    if(mb->signature != NULL) {
-        char *dot_name = slash2dots(mb->signature);
-        string = createString(dot_name);
-        sysFree(dot_name);
-    }
+    Object *string = mb->signature == NULL ? NULL : createString(mb->signature);
 
     *ostack++ = (uintptr_t)string;
     return ostack;
@@ -794,13 +782,7 @@ uintptr_t *getFieldModifiers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 uintptr_t *getFieldSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *decl_class = (Class*)ostack[1];
     FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[2]]); 
-    Object *string = NULL;
-
-    if(fb->signature != NULL) {
-        char *dot_name = slash2dots(fb->signature);
-        string = createString(dot_name);
-        sysFree(dot_name);
-    }
+    Object *string = fb->signature == NULL ? NULL : createString(fb->signature);
 
     *ostack++ = (uintptr_t)string;
     return ostack;
@@ -979,8 +961,8 @@ uintptr_t *jamSleep(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 /* instance method interrupt()V */
 uintptr_t *interrupt(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Object *this = (Object *)*ostack;
-    Thread *thread = threadSelf0(this);
+    Object *vmThread = (Object *)*ostack;
+    Thread *thread = vmThread2Thread(vmThread);
     if(thread)
         threadInterrupt(thread);
     return ostack;
@@ -988,8 +970,8 @@ uintptr_t *interrupt(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 /* instance method isAlive()Z */
 uintptr_t *isAlive(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Object *this = (Object *)*ostack;
-    Thread *thread = threadSelf0(this);
+    Object *vmThread = (Object *)*ostack;
+    Thread *thread = vmThread2Thread(vmThread);
     *ostack++ = thread ? threadIsAlive(thread) : FALSE;
     return ostack;
 }
@@ -1003,8 +985,8 @@ uintptr_t *yield(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 /* instance method isInterrupted()Z */
 uintptr_t *isInterrupted(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Object *this = (Object *)*ostack;
-    Thread *thread = threadSelf0(this);
+    Object *vmThread = (Object *)*ostack;
+    Thread *thread = vmThread2Thread(vmThread);
     *ostack++ = thread ? threadIsInterrupted(thread) : FALSE;
     return ostack;
 }
@@ -1033,8 +1015,8 @@ uintptr_t *holdsLock(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 /* instance method getState()Ljava/lang/String; */
 uintptr_t *getState(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Object *this = (Object *)*ostack;
-    Thread *thread = threadSelf0(this);
+    Object *vmThread = (Object *)*ostack;
+    Thread *thread = vmThread2Thread(vmThread);
     char *state = thread ? getThreadStateString(thread) : "TERMINATED";
 
     *ostack++ = (uintptr_t)Cstr2String(state);
@@ -1187,12 +1169,13 @@ uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *compareAndSwapInt(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     long long offset = *((long long *)&ostack[2]);
-    uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
-    uintptr_t expect = ostack[4];
-    uintptr_t update = ostack[5];
+    unsigned int *addr = (unsigned int*)((char *)ostack[1] + offset);
+    unsigned int expect = ostack[4];
+    unsigned int update = ostack[5];
     int result;
 
-#ifdef COMPARE_AND_SWAP
+//#ifdef COMPARE_AND_SWAP
+#if 0
     result = COMPARE_AND_SWAP(addr, expect, update);
 #else
     lockSpinLock();
@@ -1227,7 +1210,7 @@ uintptr_t *compareAndSwapLong(Class *class, MethodBlock *mb, uintptr_t *ostack) 
 
 uintptr_t *putOrderedInt(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     long long offset = *((long long *)&ostack[2]);
-    volatile uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+    volatile unsigned int *addr = (unsigned int*)((char *)ostack[1] + offset);
     uintptr_t value = ostack[4];
 
     *addr = value;
@@ -1252,7 +1235,7 @@ uintptr_t *putOrderedLong(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *putIntVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     long long offset = *((long long *)&ostack[2]);
-    volatile uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+    volatile unsigned int *addr = (unsigned int *)((char *)ostack[1] + offset);
     uintptr_t value = ostack[4];
 
     MBARRIER();
@@ -1263,7 +1246,7 @@ uintptr_t *putIntVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *getIntVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     long long offset = *((long long *)&ostack[2]);
-    volatile uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+    volatile unsigned int *addr = (unsigned int*)((char *)ostack[1] + offset);
 
     *ostack++ = *addr;
     MBARRIER();
@@ -1359,10 +1342,24 @@ uintptr_t *arrayIndexScale(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *unpark(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Object *jThread = (Object *)ostack[1];
+
+    if(jThread != NULL) {
+        Thread *thread = jThread2Thread(jThread);
+
+        if(thread != NULL)
+            threadUnpark(thread);
+    }
+
     return ostack;
 }
 
 uintptr_t *park(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    int absolute = ostack[1];
+    long long time = *((long long *)&ostack[2]);
+    Thread *thread = threadSelf();
+
+    threadPark(thread, absolute, time);
     return ostack;
 }
 
