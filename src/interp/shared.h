@@ -205,7 +205,7 @@ unsigned char shared_opcodes[] = {
     /* OPC_INVOKESPECIAL   */  OPC_INVOKESPECIAL,
     /* OPC_INVOKESTATIC    */  OPC_INVOKESTATIC,
     /* OPC_INVOKEINTERFACE */  OPC_INVOKEINTERFACE,
-    /* OPC_GETFIELD_THIS   */  OPC_GETFIELD_THIS,
+    /* UNUSED OPCODE       */  0,
     /* OPC_NEW             */  OPC_NEW,
     /* OPC_NEWARRAY        */  OPC_NEWARRAY,
     /* OPC_ANEWARRAY       */  OPC_ANEWARRAY,
