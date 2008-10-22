@@ -32,16 +32,17 @@
 #include "interp.h"
 #include "excep.h"
 #include "symbol.h"
+#include "frame.h"
 
 #ifdef DIRECT
 #ifdef INLINING
 #include "interp-inlining.h"
 #else
 #include "interp-direct.h"
-#endif
+#endif /* INLINING */
 #else
 #include "interp-indirect.h"
-#endif
+#endif /* DIRECT */
 
 uintptr_t *executeJava() {
 #ifdef THREADED
@@ -50,7 +51,7 @@ uintptr_t *executeJava() {
 #ifdef USE_CACHE
     DEF_HANDLER_TABLES(1);
     DEF_HANDLER_TABLES(2);
-#endif
+#endif /* USE_CACHE */
 
 #ifdef INLINING
     DEF_BRANCH_TABLE(0);
@@ -58,10 +59,10 @@ uintptr_t *executeJava() {
 #ifdef USE_CACHE
     DEF_BRANCH_TABLE(1);
     DEF_BRANCH_TABLE(2);
-#endif
+#endif /* USE_CACHE */
 
     DEF_DUMMY_TABLE;
-#endif
+#endif /* INLINING */
 
     static const void **handlers[] = {HNDLR_TBLS(ENTRY)
 #ifdef INLINING
@@ -69,9 +70,9 @@ uintptr_t *executeJava() {
                                     , HNDLR_TBLS(END)
                                     , HNDLR_TBLS(BRANCH)
                                     , dummy_table
-#endif
+#endif /* INLINING */
     };
-#endif
+#endif /* THREADED */
 
 #ifdef INLINING
     void *throwArithmeticExcepLabel = &&throwArithmeticExcep;
@@ -86,6 +87,7 @@ uintptr_t *executeJava() {
 #ifdef PREFETCH
     const void *next_handler;
 #endif
+
 #ifdef USE_CACHE
     union {
         struct {
@@ -106,7 +108,6 @@ uintptr_t *executeJava() {
 
     Object *this = (Object*)lvars[0];
     MethodBlock *new_mb;
-    Class *new_class;
     uintptr_t *arg1;
 
     PREPARE_MB(mb);
@@ -119,6 +120,7 @@ uintptr_t *executeJava() {
         switch(*pc) {
             default:
 #endif
+
 #ifndef DIRECT
 unused:
     jam_printf("Unrecognised opcode %d in: %s.%s\n",
@@ -395,11 +397,44 @@ unused:
     )                                                      \
                                                            \
     DEF_OPC(OPC_GETFIELD_THIS, level,                      \
-        GETFIELD_THIS(level);                              \
+        PUSH_##level(INST_DATA(this)                       \
+                     [GETFIELD_THIS_OFFSET(pc)], 4);       \
+    )                                                      \
+                                                           \
+    DEF_OPC(OPC_GETFIELD_THIS_0, level,                    \
+        PUSH_##level(INST_DATA(this)[0], 4);               \
+    )                                                      \
+                                                           \
+    DEF_OPC(OPC_GETFIELD_THIS_1, level,                    \
+        PUSH_##level(INST_DATA(this)[1], 4);               \
+    )                                                      \
+                                                           \
+    DEF_OPC(OPC_GETFIELD_THIS_2, level,                    \
+        PUSH_##level(INST_DATA(this)[2], 4);               \
+    )                                                      \
+                                                           \
+    DEF_OPC(OPC_GETFIELD_THIS_3, level,                    \
+        PUSH_##level(INST_DATA(this)[3], 4);               \
     )                                                      \
                                                            \
     DEF_OPC(OPC_GETFIELD_QUICK, level,                     \
-        GETFIELD_QUICK_##level;                            \
+        GETFIELD_QUICK_##level(SINGLE_INDEX(pc));          \
+    )                                                      \
+                                                           \
+    DEF_OPC(OPC_GETFIELD_QUICK_0, level,                   \
+        GETFIELD_QUICK_##level(0);                         \
+    )                                                      \
+                                                           \
+    DEF_OPC(OPC_GETFIELD_QUICK_1, level,                   \
+        GETFIELD_QUICK_##level(1);                         \
+    )                                                      \
+                                                           \
+    DEF_OPC(OPC_GETFIELD_QUICK_2, level,                   \
+        GETFIELD_QUICK_##level(2);                         \
+    )                                                      \
+                                                           \
+    DEF_OPC(OPC_GETFIELD_QUICK_3, level,                   \
+        GETFIELD_QUICK_##level(3);                         \
     )
 
 #define ZERO_DIVISOR_CHECK_0                               \
@@ -475,25 +510,25 @@ unused:
     *lvars++ = cache.i.v2;                                 \
     goto methodReturn;
 
-#define GETFIELD_QUICK_0                                   \
+#define GETFIELD_QUICK_0(offset)                           \
 {                                                          \
     Object *obj = (Object *)*--ostack;                     \
     NULL_POINTER_CHECK(obj);                               \
-    PUSH_0(INST_DATA(obj)[SINGLE_INDEX(pc)], 3);           \
+    PUSH_0(INST_DATA(obj)[offset], 3);                     \
 }
 
-#define GETFIELD_QUICK_1                                   \
+#define GETFIELD_QUICK_1(offset)                           \
 {                                                          \
     Object *obj = (Object *)cache.i.v1;                    \
     NULL_POINTER_CHECK(obj);                               \
-    PUSH_0(INST_DATA(obj)[SINGLE_INDEX(pc)], 3);           \
+    PUSH_0(INST_DATA(obj)[offset], 3);                     \
 }
 
-#define GETFIELD_QUICK_2                                   \
+#define GETFIELD_QUICK_2(offset)                           \
 {                                                          \
     Object *obj = (Object *)cache.i.v2;                    \
     NULL_POINTER_CHECK(obj);                               \
-    PUSH_1(INST_DATA(obj)[SINGLE_INDEX(pc)], 3);           \
+    PUSH_1(INST_DATA(obj)[offset], 3);                     \
 }
 
 #define UNARY_MINUS_0                                      \
@@ -551,19 +586,24 @@ unused:
 #ifdef DIRECT
 #define ALOAD_THIS(level)
 
-#define GETFIELD_THIS(level)                               \
-    PUSH_##level(INST_DATA(this)[pc->operand.i], 4);
-
 #else /* DIRECT */
 
 #define ALOAD_THIS(level)                                  \
-    if(pc[1] == OPC_GETFIELD_QUICK) {                      \
-        OPCODE_REWRITE(OPC_GETFIELD_THIS);                 \
+    if(pc[1] != OPC_GETFIELD) {                            \
+        int opcode;                                        \
+                                                           \
+        if(pc[1] == OPC_GETFIELD_QUICK)                    \
+            opcode = OPC_GETFIELD_THIS;                    \
+        else                                               \
+            if(pc[1] >= OPC_GETFIELD_QUICK_0 &&            \
+               pc[1] <= OPC_GETFIELD_QUICK_3)              \
+                opcode = OPC_GETFIELD_THIS_0 + pc[2];      \
+            else                                           \
+                opcode = OPC_ILOAD_0;                      \
+                                                           \
+        OPCODE_REWRITE(opcode);                            \
         DISPATCH(level, 0);                                \
     }
-
-#define GETFIELD_THIS(level)                               \
-    PUSH_##level(INST_DATA(this)[pc[2]], 4);
 #endif /* DIRECT */
 
     MULTI_LEVEL_OPCODES(0);
@@ -1409,9 +1449,9 @@ unused:
     });)
 
     DEF_OPC_RW(OPC_GETFIELD, ({
-        int idx, cache;
-        FieldBlock *fb;
+        int idx, cache, opcode;
         Operand operand;
+        FieldBlock *fb;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_GETFIELD, idx, cache);
 
@@ -1421,9 +1461,16 @@ unused:
         if(exceptionOccured0(ee))
             goto throwException;
 
+        if((*fb->type == 'J') || (*fb->type == 'D'))
+            opcode = OPC_GETFIELD2_QUICK;
+        else
+            if(fb->offset < 4)
+                opcode = OPC_GETFIELD_QUICK_0 + fb->offset;
+            else
+                opcode = OPC_GETFIELD_QUICK;
+
         operand.i = fb->offset;
-        OPCODE_REWRITE(((*fb->type == 'J') || (*fb->type == 'D') ? 
-                 OPC_GETFIELD2_QUICK : OPC_GETFIELD_QUICK), cache, operand);
+        OPCODE_REWRITE(opcode, cache, operand);
 
         REDISPATCH
     });)
@@ -1665,8 +1712,8 @@ unused:
         DISPATCH(0, 0);
     })
 
-    DEF_OPC_210(OPC_GETFIELD, {
-        int idx;
+    DEF_OPC_210(OPC_GETFIELD, ({
+        int idx, opcode;
         FieldBlock *fb;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_GETFIELD, idx);
@@ -1679,12 +1726,20 @@ unused:
 
         if(fb->offset > 255)
             OPCODE_REWRITE(OPC_GETFIELD_QUICK_W);
-        else
-            OPCODE_REWRITE_OPERAND1(((*fb->type == 'J') || (*fb->type == 'D') ? 
-                 OPC_GETFIELD2_QUICK : OPC_GETFIELD_QUICK), fb->offset);
+        else {
+            if((*fb->type == 'J') || (*fb->type == 'D'))
+                opcode = OPC_GETFIELD2_QUICK;
+            else
+                if(fb->offset < 4)
+                    opcode = OPC_GETFIELD_QUICK_0 + fb->offset;
+                else
+                    opcode = OPC_GETFIELD_QUICK;
+
+            OPCODE_REWRITE_OPERAND1(opcode, fb->offset);
+        }
 
         DISPATCH(0, 0);
-    })
+    });)
 
     DEF_OPC_210(OPC_PUTFIELD, {
         int idx;
@@ -1779,8 +1834,10 @@ unused:
     })
 
     DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK_W, {
+        Class *new_class;
+
         new_mb = RESOLVED_METHOD(pc);
-        arg1 = ostack - (new_mb->args_count);
+        arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
 
         new_class = (*(Object **)arg1)->class;
@@ -1800,8 +1857,10 @@ unused:
             goto throwException;
 
         /* Check if invoking a super method... */
-        if((CLASS_CB(mb->class)->access_flags & ACC_SUPER) &&
-              ((new_mb->access_flags & ACC_PRIVATE) == 0) && (new_mb->name[0] != '<')) {
+        if((CLASS_CB(mb->class)->access_flags & ACC_SUPER)
+              && ((new_mb->access_flags & ACC_PRIVATE) == 0)
+              && (new_mb->name[0] != '<')) {
+
             OPCODE_REWRITE_OPERAND2(OPC_INVOKESUPER_QUICK,
                     new_mb->method_table_index >> 8,
                     new_mb->method_table_index & 0xff);
@@ -1986,14 +2045,14 @@ unused:
 
     DEF_OPC_210(OPC_INVOKESUPER_QUICK, {
         new_mb = CLASS_CB(CLASS_CB(mb->class)->super)->method_table[DOUBLE_INDEX(pc)];
-        arg1 = ostack - (new_mb->args_count);
+        arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
         goto invokeMethod;
     })
 
     DEF_OPC_210(OPC_INVOKENONVIRTUAL_QUICK, {
         new_mb = RESOLVED_METHOD(pc);
-        arg1 = ostack - (new_mb->args_count);
+        arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
         goto invokeMethod;
     })
@@ -2014,7 +2073,7 @@ unused:
 
         NULL_POINTER_CHECK(*arg1);
 
-        cb = CLASS_CB(new_class = (*(Object **)arg1)->class);
+        cb = CLASS_CB((*(Object **)arg1)->class);
 
         if((cache >= cb->imethod_table_size) ||
                   (new_mb->class != cb->imethod_table[cache].interface)) {
@@ -2141,14 +2200,14 @@ unused:
     DEF_OPC_RW(OPC_PROFILE_REWRITER, ({
         void *handler = inlineProfiledBlock(pc, mb, FALSE);
 
-        if(handler) {
-//            printf("DISPATCHING TO WRAPPED...\n");
+        if(handler != NULL)
             goto *handler;
-        }
     });)
 #endif
 
     DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK, {
+        Class *new_class;
+
         arg1 = ostack - INV_QUICK_ARGS(pc);
         NULL_POINTER_CHECK(*arg1);
 
@@ -2167,7 +2226,7 @@ invokeMethod:
     Object *sync_ob = NULL;
 
     frame->last_pc = pc;
-    ostack = (uintptr_t *)(new_frame+1);
+    ostack = ALIGN_OSTACK(new_frame + 1);
 
     if((char*)(ostack + new_mb->max_stack) > ee->stack_end) {
         if(ee->overflow++) {
@@ -2189,7 +2248,8 @@ invokeMethod:
     ee->last_frame = new_frame;
 
     if(new_mb->access_flags & ACC_SYNCHRONIZED) {
-        sync_ob = new_mb->access_flags & ACC_STATIC ? (Object*)new_mb->class : (Object*)*arg1;
+        sync_ob = new_mb->access_flags & ACC_STATIC ? (Object*)new_mb->class
+                                                    : (Object*)*arg1;
         objectLock(sync_ob);
     }
 
@@ -2230,7 +2290,8 @@ methodReturn:
     }
 
     if(mb->access_flags & ACC_SYNCHRONIZED) {
-        Object *sync_ob = mb->access_flags & ACC_STATIC ? (Object*)mb->class : this;
+        Object *sync_ob = mb->access_flags & ACC_STATIC ? (Object*)mb->class
+                                                        : this;
         objectUnlock(sync_ob);
     }
 
@@ -2311,6 +2372,12 @@ throwException:
 void initialiseInterpreter(InitArgs *args) {
 #ifdef DIRECT
     initialiseDirect(args);
+#endif
+}
+
+void shutdownInterpreter() {
+#ifdef INLINING
+    shutdownInlining();
 #endif
 }
 #endif
