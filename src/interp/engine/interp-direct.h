@@ -23,6 +23,15 @@
 #error Direct interpreter cannot be built non-threaded
 #endif
 
+#include "interp-threading.h"
+
+#define I(opcode, level, label) &&rewrite_lock
+#define D(opcode, level, label) &&rewrite_lock
+#define X(opcode, level, label) L(opcode, level, label)
+
+#define DEF_HANDLER_TABLES(level)    \
+    DEF_HANDLER_TABLE(level, ENTRY);
+
 /* Macros for handler/bytecode rewriting */
 
 #ifdef USE_CACHE
@@ -84,6 +93,12 @@ opc##x##_##y##_##z:
     label(op2, level, ENTRY)                    \
     label(op3, level, ENTRY)                    \
         BODY
+
+#define DEF_OPC_JMP(TYPE, BODY)                 \
+    DEF_OPC_210(OPC_##TYPE, ({                  \
+        BODY                                    \
+        BRANCH(TYPE, 0, TRUE);                  \
+    });)
 
 #ifdef USE_CACHE
 #define DEF_OPC_012(opcode, BODY)               \
@@ -243,7 +258,7 @@ opc##x##_##y##_##z:
 
 #endif /* PREFETCH */
 
-#define BRANCH(TEST)                            \
+#define BRANCH(type, level, TEST)               \
     if(TEST) {                                  \
         pc = (Instruction*)pc->operand.pntr;    \
         DISPATCH_FIRST                          \
@@ -267,22 +282,23 @@ opc##x##_##y##_##z:
     if((uintptr_t)mb->code & 0x3)               \
         prepare(mb, handlers)
 
-#define ARRAY_TYPE(pc)        pc->operand.i
-#define SINGLE_INDEX(pc)      pc->operand.i
-#define DOUBLE_INDEX(pc)      pc->operand.i
-#define SINGLE_SIGNED(pc)     pc->operand.i
-#define DOUBLE_SIGNED(pc)     pc->operand.i
-#define IINC_LVAR_IDX(pc)     pc->operand.ii.i1
-#define IINC_DELTA(pc)        pc->operand.ii.i2
-#define INV_QUICK_ARGS(pc)    pc->operand.uu.u1
-#define INV_QUICK_IDX(pc)     pc->operand.uu.u2
-#define INV_INTF_IDX(pc)      pc->operand.uu.u1
-#define INV_INTF_CACHE(pc)    pc->operand.uu.u2
-#define MULTI_ARRAY_DIM(pc)   pc->operand.uui.u2
-#define RESOLVED_CONSTANT(pc) pc->operand.u
-#define RESOLVED_FIELD(pc)    ((FieldBlock*)pc->operand.pntr)
-#define RESOLVED_METHOD(pc)   ((MethodBlock*)pc->operand.pntr)
-#define RESOLVED_CLASS(pc)    (Class *)CP_INFO(cp, pc->operand.uui.u1)
+#define ARRAY_TYPE(pc)           pc->operand.i
+#define SINGLE_INDEX(pc)         pc->operand.i
+#define DOUBLE_INDEX(pc)         pc->operand.i
+#define SINGLE_SIGNED(pc)        pc->operand.i
+#define DOUBLE_SIGNED(pc)        pc->operand.i
+#define IINC_LVAR_IDX(pc)        pc->operand.ii.i1
+#define IINC_DELTA(pc)           pc->operand.ii.i2
+#define INV_QUICK_ARGS(pc)       pc->operand.uu.u1
+#define INV_QUICK_IDX(pc)        pc->operand.uu.u2
+#define INV_INTF_IDX(pc)         pc->operand.uu.u1
+#define INV_INTF_CACHE(pc)       pc->operand.uu.u2
+#define MULTI_ARRAY_DIM(pc)      pc->operand.uui.u2
+#define GETFIELD_THIS_OFFSET(pc) pc->operand.i
+#define RESOLVED_CONSTANT(pc)    pc->operand.u
+#define RESOLVED_FIELD(pc)       ((FieldBlock*)pc->operand.pntr)
+#define RESOLVED_METHOD(pc)      ((MethodBlock*)pc->operand.pntr)
+#define RESOLVED_CLASS(pc)       (Class *)CP_INFO(cp, pc->operand.uui.u1)
 
 /* Macros for checking for common exceptions */
 
