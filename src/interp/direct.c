@@ -34,8 +34,7 @@
 
 #include "shared.h"
 
-//#ifdef TRACEDIRECT
-#if 0
+#ifdef TRACEDIRECT
 #define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
 #else
 #define TRACE(fmt, ...)
@@ -61,11 +60,13 @@ static VMWaitLock prepare_lock;
 
 #ifdef INLINING
 int inlining_enabled;
+static int join_blocks;
 #endif
 
 void initialiseDirect(InitArgs *args) {
 #ifdef INLINING
     inlining_enabled = initialiseInlining(args);
+    join_blocks      = args->join_blocks;
 #endif
     initVMWaitLock(prepare_lock);
 }
@@ -77,7 +78,7 @@ void prepare(MethodBlock *mb, const void ***handlers) {
 #endif
 #ifdef INLINING
     int inlining = inlining_enabled && mb->name != SYMBOL(class_init);
-    CodeBlock *last_block = NULL;
+    BasicBlock *last_block = NULL;
     OpcodeInfo opcodes[code_len];
     char info[code_len + 1];
 #endif
@@ -210,7 +211,9 @@ retry:
                     if((code[++pc] == OPC_GETFIELD) && !(mb->access_flags & ACC_STATIC)
                                     && (fb = resolveField(mb->class, READ_U2_OP(code + pc)))
                                     && !((*fb->type == 'J') || (*fb->type == 'D'))) {
-                        opcode = OPC_GETFIELD_THIS;
+                        opcode = fb->offset < 4 ?
+                                     OPC_GETFIELD_THIS_0 + fb->offset :
+                                     OPC_GETFIELD_THIS;
                         operand.i = fb->offset;
                         pc += 3;
                     } else
@@ -808,7 +811,10 @@ retry:
                 }
             }
 
-            opcode = shared_opcodes[opcode];
+#ifdef INLINING
+            if(opcode <= OPC_JSR_W)
+                opcode = shared_opcodes[opcode];
+#endif
 
 #ifdef USE_CACHE
             /* If the next instruction is reached via a branch (or catching an
@@ -855,9 +861,7 @@ retry:
                     if(block_start != -1) {
                         int ins_start = map[block_start];
                         int block_len = ins_count - ins_start + 1;
-                        CodeBlock *block = sysMalloc(sizeof(CodeBlock));
-
-//printf("************* last_block %p\n", last_block);
+                        BasicBlock *block = sysMalloc(sizeof(BasicBlock));
 
                         TRACE("Block start %d end %d length %d last opcode quickened %d\n",
                               ins_start, ins_count, block_len, quickened);
@@ -879,19 +883,17 @@ retry:
                             opcode = OPC_INLINE_REWRITER;
                             prepare_info->block = block;
                         }
-#if 1
-                        if((block->prev = last_block) != NULL)
-                            last_block->next = block;
-                        last_block = info[pc] & END ? NULL : block;
-#else
-                        block->prev = NULL;
-#endif
+
+                        if(join_blocks) {
+                            if((block->prev = last_block) != NULL)
+                                last_block->next = block;
+                            last_block = info[pc] & END ? NULL : block;
+                        } else
+                            block->prev = NULL;
 
                         block->next = NULL;
                         block->u.profile.profiled = NULL;
 
-//printf("block_quickened %d\n", block_quickened);
-//                        block_quickened = TRUE;
                         block->u.profile.quickened = block_quickened;
                         block_quickened = FALSE;
 
