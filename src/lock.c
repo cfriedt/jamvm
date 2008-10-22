@@ -183,18 +183,17 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
     struct timespec ts;
     int old_count;
 
+    /* Check we own the monitor */
     if(mon->owner != self)
         return FALSE;
-
-    /* We own the monitor */
 
     disableSuspend(self);
 
     /* Unlock the monitor.  As it could be recursively
        locked remember the recursion count */
     old_count = mon->count;
-    mon->count = 0;
     mon->owner = NULL;
+    mon->count = 0;
 
     /* Counter used in thin-lock deflation */
     mon->in_wait++;
@@ -202,24 +201,7 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
     self->wait_mon = mon;
 
     if(timed) {
-        struct timeval tv;
-        long long seconds;
-
-        gettimeofday(&tv, 0);
-
-        seconds = tv.tv_sec + ms/1000;
-        ts.tv_nsec = (tv.tv_usec + ((ms%1000)*1000))*1000 + ns;
-
-        if(ts.tv_nsec > 999999999L) {
-            seconds++;
-            ts.tv_nsec -= 1000000000L;
-        }
-
-        /* If the number of seconds is too large just set
-           it to the max value instead of truncating.
-           Depending on result, we may not wait at all */
-       ts.tv_sec = seconds > LONG_MAX ? LONG_MAX : seconds;
-
+       getTimeoutRelative(&ts, ms, ns);
        self->state = TIMED_WAITING;
     } else
        self->state = blocked ? BLOCKED : WAITING;
@@ -237,16 +219,18 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
         /* Add the thread onto the end of the wait set */
         waitSetAppend(mon, self);
 
-        while(self->wait_next != NULL && !self->interrupting)
+        while(self->wait_next != NULL && !self->interrupting && !timeout)
             if(timed) {
-                if((timeout = (pthread_cond_timedwait(&self->wait_cv, &mon->lock, &ts) == ETIMEDOUT)))
-                    break;
+                timeout = pthread_cond_timedwait(&self->wait_cv,
+                              &mon->lock, &ts) == ETIMEDOUT;
 
-                /* On Linux/i386 systems using LinuxThreads, pthread_cond_timedwait is
-                 * implemented using sigjmp/longjmp.  This resets the fpu control word
-                 * back to 64-bit precision.  The macro is empty for sane platforms. */ 
+                /* On Linux/i386 systems using LinuxThreads,
+                   pthread_cond_timedwait is implemented using
+                   sigjmp/longjmp.  This resets the fpu control
+                   word back to 64-bit precision.  The macro is
+                   empty for sane platforms. */ 
+
                 FPU_HACK;
-
             } else
                 pthread_cond_wait(&self->wait_cv, &mon->lock);
     }
@@ -265,7 +249,8 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
         else {
             /* Notify lost.  Signal another thread only if it
                was on the wait set at the time of the notify */
-            if(mon->wait_set != NULL && mon->wait_set->wait_id < self->notify_id) {
+            if(mon->wait_set != NULL && mon->wait_set->wait_id <
+                                                self->notify_id) {
                 Thread *thread = waitSetSignalNext(mon);
                 thread->notify_id = self->notify_id;
             }
@@ -276,9 +261,8 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
     self->wait_mon = NULL;
 
    /* Restore the monitor owner and recursion count */
-
-    mon->owner = self;
     mon->count = old_count;
+    mon->owner = self;
     mon->in_wait--;
 
     enableSuspend(self);
