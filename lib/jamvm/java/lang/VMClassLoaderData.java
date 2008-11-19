@@ -23,7 +23,7 @@ import java.util.ArrayList;
 
 public class VMClassLoaderData {
     ArrayList unloaders;
-    int hashtable;
+    long hashtable;
 
     synchronized void newLibraryUnloader(long dllEntry) {
         if(unloaders == null)

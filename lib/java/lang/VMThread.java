@@ -69,7 +69,7 @@ package java.lang;
  */
 final class VMThread
 {
-    private int vmData;
+    private long vmData;
 
     /**
      * The Thread object that this VM state belongs to.
