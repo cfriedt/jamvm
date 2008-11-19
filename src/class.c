@@ -107,11 +107,11 @@ static Class *addClassToHash(Class *class, Object *class_loader) {
     if(class_loader == NULL)
         table = &loaded_classes;
     else {
-        Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+        Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
 
         if(vmdata == NULL) {
             objectLock(class_loader);
-            vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+            vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
 
             if(vmdata == NULL) {
                 if((vmdata = allocObject(loader_data_class)) == NULL) {
@@ -122,14 +122,14 @@ static Class *addClassToHash(Class *class, Object *class_loader) {
                 table = sysMalloc(sizeof(HashTable));
                 initHashTable((*table), INITSZE, TRUE);
 
-                INST_DATA(vmdata)[ldr_data_tbl_offset] = (uintptr_t)table;
-                INST_DATA(class_loader)[ldr_vmdata_offset] = (uintptr_t)vmdata;
+                OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset) = table;
+                OBJ_DATA(class_loader, Object*, ldr_vmdata_offset) = vmdata;
 
                 objectUnlock(class_loader);
             }
         }
 
-        table = (HashTable*)INST_DATA(vmdata)[ldr_data_tbl_offset];
+        table = OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
     }
 
     /* Add if absent, no scavenge, locked */
@@ -663,6 +663,124 @@ createPrimClass(char *classname, int index) {
     return prim_classes[index];
 }
 
+void prepareFields(Class *class) {
+    ClassBlock *cb = CLASS_CB(class);
+    Class *super = (cb->access_flags & ACC_INTERFACE) ? NULL
+                                                      : cb->super;
+
+    RefsOffsetsEntry *spr_rfs_offsts_tbl = NULL;
+    int spr_rfs_offsts_sze = 0;
+
+    FieldBlock *ref_head = NULL;
+    FieldBlock *int_head = NULL;
+    FieldBlock *dbl_head = NULL;
+
+    int field_offset = sizeof(Object);
+    int refs_start_offset = 0;
+    int refs_end_offset;
+    int i;
+
+    if(super != NULL) {
+        field_offset = CLASS_CB(super)->object_size;
+        spr_rfs_offsts_sze = CLASS_CB(super)->refs_offsets_size;
+        spr_rfs_offsts_tbl = CLASS_CB(super)->refs_offsets_table;
+    }
+
+    for(i = 0; i < cb->fields_count; i++) {
+        FieldBlock *fb = &cb->fields[i];
+
+        if(fb->access_flags & ACC_STATIC)
+            *(long long *)&fb->static_value = 0;
+        else {
+            FieldBlock **list;
+
+            if(fb->type[0] == 'L' || fb->type[0] == '[')
+                list = &ref_head;
+            else
+                if(fb->type[0] == 'J' || fb->type[0] == 'D')
+                    list = &dbl_head;
+                else
+                    list = &int_head;
+
+            *(FieldBlock**)&fb->static_value = *list;
+            *list = fb;
+        }
+
+        fb->class = class;
+    }
+
+    if(dbl_head != NULL) {
+        if(field_offset & 0x7) {
+            if(int_head != NULL) {
+                FieldBlock *fb = int_head;
+                int_head = *(FieldBlock**)&int_head->static_value;
+                fb->offset = field_offset;
+            }
+            field_offset += 4;
+        }
+
+        do {
+            FieldBlock *fb = dbl_head;
+            dbl_head = *(FieldBlock**)&dbl_head->static_value;
+            fb->offset = field_offset;
+            field_offset += 8;
+        } while(dbl_head != NULL);
+    }
+
+    if(ref_head != NULL) {
+        if(sizeof(Object*) == 8 && field_offset & 0x7) {
+            if(int_head != NULL) {
+                FieldBlock *fb = int_head;
+                int_head = *(FieldBlock**)&int_head->static_value;
+                fb->offset = field_offset;
+            }
+            field_offset += 4;
+        }
+
+        refs_start_offset = field_offset;
+
+        do {
+            FieldBlock *fb = ref_head;
+            ref_head = *(FieldBlock**)&ref_head->static_value;
+            fb->offset = field_offset;
+            field_offset += sizeof(Object*);
+        } while(ref_head != NULL);
+
+        refs_end_offset = field_offset;
+    }
+
+    while(int_head != NULL) {
+        FieldBlock *fb = int_head;
+        int_head = *(FieldBlock**)&int_head->static_value;
+        fb->offset = field_offset;
+        field_offset += 4;
+    }
+
+   cb->object_size = field_offset;
+
+   /* Construct the reference offsets list.  This is used to speed up
+      scanning of an objects references during the mark phase of GC. */
+
+   if(refs_start_offset) {
+       if(spr_rfs_offsts_sze > 0 && spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].end == refs_start_offset) {
+           cb->refs_offsets_size = spr_rfs_offsts_sze;
+           refs_start_offset = spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].start;
+       } else
+           cb->refs_offsets_size = spr_rfs_offsts_sze + 1;
+
+      cb->refs_offsets_table = sysMalloc(cb->refs_offsets_size * sizeof(RefsOffsetsEntry));
+
+      memcpy(cb->refs_offsets_table, spr_rfs_offsts_tbl,
+                                     spr_rfs_offsts_sze * sizeof(RefsOffsetsEntry));
+
+      cb->refs_offsets_table[cb->refs_offsets_size-1].start = refs_start_offset;
+      cb->refs_offsets_table[cb->refs_offsets_size-1].end = refs_end_offset;
+   } else {
+       cb->refs_offsets_size = spr_rfs_offsts_sze;
+       cb->refs_offsets_table = spr_rfs_offsts_tbl;
+   }
+}
+
 #define MRNDA_CACHE_SZE 10
 
 #define resizeMTable(method_table, method_table_size, miranda, count)  \
@@ -692,7 +810,6 @@ void linkClass(Class *class) {
    ClassBlock *cb = CLASS_CB(class);
    Class *super = (cb->access_flags & ACC_INTERFACE) ? NULL : cb->super;
 
-   RefsOffsetsEntry *spr_rfs_offsts_tbl = NULL;
    ITableEntry *spr_imthd_tbl = NULL;
    MethodBlock **method_table = NULL;
    MethodBlock **spr_mthd_tbl = NULL;
@@ -700,18 +817,14 @@ void linkClass(Class *class) {
    MethodBlock *mb;
    FieldBlock *fb;
 
-   int spr_rfs_offsts_sze = 0;
    int new_methods_count = 0;
    int spr_imthd_tbl_sze = 0;
    int itbl_offset_count = 0;
    int spr_mthd_tbl_sze = 0;
    int method_table_size;
    int new_itable_count;
-   int spr_obj_sze = 0;
-   int refs_end_offset;
    int itbl_idx, i, j;
    int spr_flags = 0;
-   int field_offset;
 
    if(cb->state >= CLASS_LINKED)
        return;
@@ -730,48 +843,14 @@ void linkClass(Class *class) {
           linkClass(super);
 
       spr_flags = super_cb->flags;
-      spr_obj_sze = super_cb->object_size;
       spr_mthd_tbl = super_cb->method_table;
       spr_imthd_tbl = super_cb->imethod_table;
       spr_mthd_tbl_sze = super_cb->method_table_size;
       spr_imthd_tbl_sze = super_cb->imethod_table_size;
-      spr_rfs_offsts_sze = super_cb->refs_offsets_size;
-      spr_rfs_offsts_tbl = super_cb->refs_offsets_table;
    }
 
    /* prepare fields */
-
-   field_offset = spr_obj_sze;
-
-   for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++) {
-      if(fb->access_flags & ACC_STATIC) {
-         /* init to default value */
-         if((*fb->type == 'J') || (*fb->type == 'D'))
-            *(long long *)&fb->static_value = 0;
-         else
-            fb->static_value = 0;
-      } else {
-         /* calc field offset */
-         if((*fb->type == 'L') || (*fb->type == '['))
-            fb->offset = field_offset++;
-      }
-      fb->class = class;
-   }
-
-   refs_end_offset = field_offset;
-
-   for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++)
-      if(!(fb->access_flags & ACC_STATIC) &&
-                 (*fb->type != 'L') && (*fb->type != '[')) {
-         /* calc field offset */
-         fb->offset = field_offset;
-         if((*fb->type == 'J') || (*fb->type == 'D'))
-             field_offset += 2;
-         else
-             field_offset += 1;
-      }
-
-   cb->object_size = field_offset;
+   prepareFields(class);
 
    /* prepare methods */
 
@@ -1025,12 +1104,13 @@ void linkClass(Class *class) {
 
        for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++)
            if(fb->offset > ref_fb->offset)
-               fb->offset--;
+               fb->offset -= sizeof(Object*);
 
-       ref_referent_offset = ref_fb->offset = field_offset - 1;
+       ref_referent_offset = ref_fb->offset = cb->object_size - sizeof(Object*);
+       cb->refs_offsets_table[cb->refs_offsets_size-1].end -= sizeof(Object*);
+
        enqueue_mtbl_idx = enqueue_mb->method_table_index;
        ref_queue_offset = queue_fb->offset;
-       refs_end_offset--;
 
        cb->flags |= REFERENCE;
    }
@@ -1058,32 +1138,6 @@ void linkClass(Class *class) {
 
        ldr_vmdata_offset = ldr_fb->offset;
        cb->flags |= CLASS_LOADER;
-   }
-
-   /* Construct the reference offsets list.  This is used to speed up
-      scanning of an objects references during the mark phase of GC. */
-
-   if(refs_end_offset > spr_obj_sze) {
-       int new_start;
-
-       if(spr_rfs_offsts_sze > 0 && spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].end == spr_obj_sze) {
-           cb->refs_offsets_size = spr_rfs_offsts_sze;
-           new_start = spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].start;
-       } else {
-           cb->refs_offsets_size = spr_rfs_offsts_sze + 1;
-           new_start = spr_obj_sze;
-      }
-
-      cb->refs_offsets_table = sysMalloc(cb->refs_offsets_size * sizeof(RefsOffsetsEntry));
-
-      memcpy(cb->refs_offsets_table, spr_rfs_offsts_tbl,
-                                     spr_rfs_offsts_sze * sizeof(RefsOffsetsEntry));
-
-      cb->refs_offsets_table[cb->refs_offsets_size-1].start = new_start;
-      cb->refs_offsets_table[cb->refs_offsets_size-1].end = refs_end_offset;
-   } else {
-       cb->refs_offsets_size = spr_rfs_offsts_sze;
-       cb->refs_offsets_table = spr_rfs_offsts_tbl;
    }
 
    cb->state = CLASS_LINKED;
@@ -1153,7 +1207,10 @@ Class *initClass(Class *class) {
          if((*fb->type == 'J') || (*fb->type == 'D'))
             *(u8*)&fb->static_value = *(u8*)&(CP_INFO(cp, fb->constant));
          else
-            fb->static_value = resolveSingleConstant(class, fb->constant);
+            if(*fb->type == 'L' || *fb->type == '[')
+                fb->static_value = resolveSingleConstant(class, fb->constant);
+            else
+                *(u4*)&fb->static_value = resolveSingleConstant(class, fb->constant);
       }
 
    if((mb = findMethod(class, SYMBOL(class_init), SYMBOL(___V))) != NULL)
@@ -1269,12 +1326,12 @@ Class *findHashedClass(char *classname, Object *class_loader) {
     if(class_loader == NULL)
         table = &loaded_classes;
     else {
-        Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+        Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
 
         if(vmdata == NULL)
             return NULL;
 
-        table = (HashTable*)INST_DATA(vmdata)[ldr_data_tbl_offset];
+        table = OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
     }
 
 #undef HASH
@@ -1465,10 +1522,10 @@ void threadBootClasses() {
         markObject(ptr, mark, mark_soft_refs)
 
 void markLoaderClasses(Object *class_loader, int mark, int mark_soft_refs) {
-    Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+    Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
 
     if(vmdata != NULL) {
-        HashTable *table = (HashTable*)INST_DATA(vmdata)[ldr_data_tbl_offset];
+        HashTable *table = OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
         hashIterate((*table));
     }
 }
@@ -1477,10 +1534,10 @@ void markLoaderClasses(Object *class_loader, int mark, int mark_soft_refs) {
 #define ITERATE(ptr)  threadReference((Object**)ptr)
 
 void threadLoaderClasses(Object *class_loader) {
-    Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+    Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
 
     if(vmdata != NULL) {
-        HashTable *table = (HashTable*)INST_DATA(vmdata)[ldr_data_tbl_offset];
+        HashTable *table = OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
         hashIterateP((*table));
     }
 }
@@ -1577,10 +1634,10 @@ void freeClassData(Class *class) {
 }
 
 void freeClassLoaderData(Object *class_loader) {
-    Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+    Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
 
     if(vmdata != NULL) {
-        HashTable *table = (HashTable*)INST_DATA(vmdata)[ldr_data_tbl_offset];
+        HashTable *table = OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
         gcFreeHashTable((*table));
         gcPendingFree(table);
     }
@@ -1591,7 +1648,7 @@ void freeClassLoaderData(Object *class_loader) {
    function, which will be called from the unloader finalizer
    when the class loader is garbage collected */
 void newLibraryUnloader(Object *class_loader, void *entry) {
-    Object *vmdata = (Object*)INST_DATA(class_loader)[ldr_vmdata_offset];
+    Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
     
     if(vmdata != NULL)
         executeMethod(vmdata, ldr_new_unloader, (long long)(uintptr_t)entry);
@@ -1811,7 +1868,7 @@ void initialiseClass(InitArgs *args) {
     if(loader_data_class != NULL) {
         ldr_new_unloader = findMethod(loader_data_class, SYMBOL(newLibraryUnloader),
                                                          SYMBOL(_J__V));
-        hashtable = findField(loader_data_class, SYMBOL(hashtable), SYMBOL(I));
+        hashtable = findField(loader_data_class, SYMBOL(hashtable), SYMBOL(J));
     }
 
     if(hashtable == NULL || ldr_new_unloader == NULL) {
