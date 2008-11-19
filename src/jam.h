@@ -251,14 +251,11 @@
 #define OPC_INVOKEVIRTUAL_QUICK         214
 #define OPC_INVOKENONVIRTUAL_QUICK      215
 #define OPC_INVOKESUPER_QUICK           216
-#define OPC_GETFIELD_THIS_0             217
-#define OPC_GETFIELD_THIS_1             218
-#define OPC_GETFIELD_THIS_2             219
-#define OPC_GETFIELD_THIS_3             220
-#define OPC_GETFIELD_QUICK_0            221
-#define OPC_GETFIELD_QUICK_1            222
-#define OPC_GETFIELD_QUICK_2            223
-#define OPC_GETFIELD_QUICK_3            224
+#define OPC_GETFIELD_QUICK_REF          217
+#define OPC_PUTFIELD_QUICK_REF          218
+#define OPC_GETSTATIC_QUICK_REF         219
+#define OPC_PUTSTATIC_QUICK_REF         220
+#define OPC_GETFIELD_THIS_REF           221
 #define OPC_INVOKEVIRTUAL_QUICK_W       226
 #define OPC_GETFIELD_QUICK_W            227
 #define OPC_PUTFIELD_QUICK_W            228
@@ -647,7 +644,9 @@ typedef struct InitArgs {
 } InitArgs;
 
 #define CLASS_CB(classRef)              ((ClassBlock*)(classRef+1))
-#define INST_DATA(objectRef)            ((uintptr_t*)(objectRef+1))
+
+#define OBJ_DATA(obj, type, offset)     *(type*)&((char*)obj)[offset]
+#define INST_BASE(obj, type)            ((type*)(obj+1))
 
 #define ARRAY_DATA(arrayRef)            ((void*)(((u4*)(arrayRef+1))+1))
 #define ARRAY_LEN(arrayRef)             *(u4*)(arrayRef+1)
@@ -758,14 +757,14 @@ extern void *gcMemMalloc(int n);
 extern void gcMemFree(void *ptr);
 extern void *gcMemRealloc(void *ptr, int n);
 
-extern void registerStaticObjectRef(Object **ob);
-extern void registerStaticObjectRefLocked(Object **ob);
+extern void registerStaticObjectRef(Object **ref);
+extern void registerStaticObjectRefLocked(Object **ref, Object *obj);
 
 #define registerStaticClassRef(ref) \
     registerStaticObjectRef(ref);
 
-#define registerStaticClassRefLocked(ref) \
-    registerStaticObjectRefLocked(ref);
+#define registerStaticClassRefLocked(ref, class) \
+    registerStaticObjectRefLocked(ref, class);
 
 extern void gcPendingFree(void *addr);
 
@@ -963,6 +962,11 @@ extern void initialiseMonitor();
 
 /* reflect */
 
+#define REF_SRC_FIELD  0
+#define REF_DST_FIELD  0
+#define REF_SRC_OSTACK 1
+#define REF_DST_OSTACK 2
+
 extern Object *getClassConstructors(Class *class, int public);
 extern Object *getClassMethods(Class *class, int public);
 extern Object *getClassFields(Class *class, int public);
@@ -978,9 +982,9 @@ extern Object *getMethodAnnotations(MethodBlock *mb);
 extern Object *getMethodParameterAnnotations(MethodBlock *mb);
 extern Object *getMethodDefaultValue(MethodBlock *mb);
 
-extern Object *getReflectReturnObject(Class *type, uintptr_t *pntr);
-extern uintptr_t *widenPrimitiveValue(int src_idx, int dest_idx, uintptr_t *src, uintptr_t *dest);
-extern uintptr_t *unwrapAndWidenObject(Class *type, Object *arg, uintptr_t *pntr);
+extern Object *getReflectReturnObject(Class *type, void *pntr, int flags);
+extern int widenPrimitiveValue(int src_idx, int dest_idx, void *src, void *dest, int flags);
+extern int unwrapAndWidenObject(Class *type, Object *arg, void *pntr, int flags);
 extern Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_types,
                       int check_access);
 
