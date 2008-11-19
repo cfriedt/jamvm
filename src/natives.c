@@ -645,7 +645,7 @@ uintptr_t *defineClass0(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
                 if(cstr[i]=='.') cstr[i]='/';
 
             if((class = defineClass(cstr, data, offset, data_len, class_loader)) != NULL) {
-                INST_DATA(class)[pd_offset] = pd;
+                OBJ_DATA(class, uintptr_t, pd_offset) = pd;
                 linkClass(class);
             }
 
@@ -812,7 +812,7 @@ Object *getAndCheckObject(uintptr_t *ostack, Class *type) {
     return ob;
 }
 
-uintptr_t *getPntr2Field(uintptr_t *ostack) {
+void *getPntr2Field(uintptr_t *ostack) {
     Class *decl_class = (Class *)ostack[2];
     FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[4]]); 
     int no_access_check = ostack[5];
@@ -820,33 +820,42 @@ uintptr_t *getPntr2Field(uintptr_t *ostack) {
 
     if(!no_access_check) {
         Class *caller = getCallerCallerClass();
-        if(!checkClassAccess(decl_class, caller) || !checkFieldAccess(fb, caller)) {
-            signalException(java_lang_IllegalAccessException, "field is not accessible");
+
+        if(!checkClassAccess(decl_class, caller) ||
+           !checkFieldAccess(fb, caller)) {
+
+            signalException(java_lang_IllegalAccessException,
+                            "field is not accessible");
             return NULL;
         }
     }
 
     if(fb->access_flags & ACC_STATIC) {
+
         /* Setting/getting a static field of a class is an
-           active use; make sure it is initialised */
+           active use.  Make sure it is initialised */
         if(initClass(decl_class) == NULL)
             return NULL;
+
         return &fb->static_value;
     }
 
     if((ob = getAndCheckObject(ostack, decl_class)) == NULL)
         return NULL;
 
-    return &(INST_DATA(ob)[fb->offset]);
+    return &OBJ_DATA(ob, void, fb->offset);
 }
 
 uintptr_t *getField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *field_type = (Class *)ostack[3];
-    uintptr_t *field;
 
-    /* If field is static, getPntr2Field also initialises the field's declaring class */
-    if((field = getPntr2Field(ostack)) != NULL)
-        *ostack++ = (uintptr_t) getReflectReturnObject(field_type, field);
+    /* If field is static, getPntr2Field also initialises the
+       field's declaring class */
+    void *field = getPntr2Field(ostack);
+
+    if(field != NULL)
+        *ostack++ = (uintptr_t) getReflectReturnObject(field_type, field,
+                                                       REF_SRC_FIELD);
 
     return ostack;
 }
@@ -856,12 +865,26 @@ uintptr_t *getPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     int type_no = ostack[6]; 
 
     ClassBlock *type_cb = CLASS_CB(field_type);
-    uintptr_t *field;
 
-    /* If field is static, getPntr2Field also initialises the field's declaring class */
-    if(((field = getPntr2Field(ostack)) != NULL) && (!(IS_PRIMITIVE(type_cb)) ||
-                 ((ostack = widenPrimitiveValue(getPrimTypeIndex(type_cb), type_no, field, ostack)) == NULL)))
-        signalException(java_lang_IllegalArgumentException, "field type mismatch");
+    /* If field is static, getPntr2Field also initialises the
+       field's declaring class */
+    void *field = getPntr2Field(ostack);
+
+    if(field != NULL) {
+        if(IS_PRIMITIVE(type_cb)) {
+            int size = widenPrimitiveValue(getPrimTypeIndex(type_cb),
+                                           type_no, field, ostack,
+                                           REF_SRC_FIELD | REF_DST_OSTACK);
+
+            if(size > 0)
+                return ostack + size;
+        }
+
+        /* Field is not primitive, or the source type cannot
+           be widened to the destination type */
+        signalException(java_lang_IllegalArgumentException,
+                        "field type mismatch");
+    }
 
     return ostack;
 }
@@ -869,12 +892,19 @@ uintptr_t *getPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 uintptr_t *setField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Class *field_type = (Class *)ostack[3];
     Object *value = (Object*)ostack[6];
-    uintptr_t *field;
 
-    /* If field is static, getPntr2Field also initialises the field's declaring class */
-    if(((field = getPntr2Field(ostack)) != NULL) &&
-                     (unwrapAndWidenObject(field_type, value, field) == NULL))
-        signalException(java_lang_IllegalArgumentException, "field type mismatch");
+    /* If field is static, getPntr2Field also initialises the
+       field's declaring class */
+    void *field = getPntr2Field(ostack);
+
+    if(field != NULL) {
+        int size = unwrapAndWidenObject(field_type, value, field,
+                                        REF_DST_FIELD);
+
+        if(size == 0)
+            signalException(java_lang_IllegalArgumentException,
+                            "field type mismatch");
+    }
 
     return ostack;
 }
@@ -884,12 +914,27 @@ uintptr_t *setPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     int type_no = ostack[6]; 
 
     ClassBlock *type_cb = CLASS_CB(field_type);
-    uintptr_t *field;
 
-    /* If field is static, getPntr2Field also initialises the field's declaring class */
-    if(((field = getPntr2Field(ostack)) != NULL) && (!(IS_PRIMITIVE(type_cb)) ||
-                 (widenPrimitiveValue(type_no, getPrimTypeIndex(type_cb), &ostack[7], field) == NULL)))
-        signalException(java_lang_IllegalArgumentException, "field type mismatch");
+    /* If field is static, getPntr2Field also initialises the
+       field's declaring class */
+    void *field = getPntr2Field(ostack);
+
+    if(field != NULL) {
+        if(IS_PRIMITIVE(type_cb)) {
+
+            int size = widenPrimitiveValue(type_no, getPrimTypeIndex(type_cb),
+                                           &ostack[7], field,
+                                           REF_SRC_OSTACK | REF_DST_FIELD);
+
+            if(size > 0)
+                return ostack;
+        }
+
+        /* Field is not primitive, or the source type cannot
+           be widened to the destination type */
+        signalException(java_lang_IllegalArgumentException,
+                        "field type mismatch");
+    }
 
     return ostack;
 }
@@ -919,7 +964,7 @@ uintptr_t *invokeNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
             return ostack;
  
     if((ret = (uintptr_t*) invoke(ob, mb, array, param_types, !no_access_check)) != NULL)
-        *ostack++ = (uintptr_t) getReflectReturnObject(ret_type, ret);
+        *ostack++ = (uintptr_t) getReflectReturnObject(ret_type, ret, REF_SRC_OSTACK);
 
     return ostack;
 }
@@ -930,7 +975,7 @@ uintptr_t *invokeNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
 uintptr_t *intern(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *string = (Object*)ostack[0];
     ostack[0] = (uintptr_t)findInternedString(string);
-    return ostack+1;
+    return ostack + 1;
 }
 
 /* java.lang.VMThread */
@@ -1000,7 +1045,7 @@ uintptr_t *interrupted(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 /* instance method nativeSetPriority(I)V */
 uintptr_t *nativeSetPriority(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    return ostack+1;
+    return ostack + 1;
 }
 
 /* instance method holdsLock(Ljava/lang/Object;)Z */
@@ -1163,7 +1208,7 @@ void unlockSpinLock() {
 uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     FieldBlock *fb = fbFromReflectObject((Object*)ostack[1]);
 
-    *(long long*)ostack = (long long)(uintptr_t)&INST_DATA((Object*)NULL)[fb->offset];
+    *(long long*)ostack = (long long)(uintptr_t)&(OBJ_DATA((Object*)NULL, int, fb->offset));
     return ostack + 2;
 }
 
@@ -1174,9 +1219,8 @@ uintptr_t *compareAndSwapInt(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     unsigned int update = ostack[5];
     int result;
 
-//#ifdef COMPARE_AND_SWAP
-#if 0
-    result = COMPARE_AND_SWAP(addr, expect, update);
+#ifdef COMPARE_AND_SWAP_32
+    result = COMPARE_AND_SWAP_32(addr, expect, update);
 #else
     lockSpinLock();
     if((result = (*addr == expect)))
@@ -1300,6 +1344,56 @@ uintptr_t *getLong(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack + 2;
 }
 
+uintptr_t *compareAndSwapObject(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+    uintptr_t expect = ostack[4];
+    uintptr_t update = ostack[5];
+    int result;
+
+#ifdef COMPARE_AND_SWAP
+    result = COMPARE_AND_SWAP(addr, expect, update);
+#else
+    lockSpinLock();
+    if((result = (*addr == expect)))
+        *addr = update;
+    unlockSpinLock();
+#endif
+
+    *ostack++ = result;
+    return ostack;
+}
+
+uintptr_t *putOrderedObject(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    volatile uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+    uintptr_t value = ostack[4];
+
+    *addr = value;
+    return ostack;
+}
+
+uintptr_t *putObjectVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    volatile uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+    uintptr_t value = ostack[4];
+
+    MBARRIER();
+    *addr = value;
+
+    return ostack;
+}
+
+uintptr_t *getObjectVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    long long offset = *((long long *)&ostack[2]);
+    volatile uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
+
+    *ostack++ = *addr;
+    MBARRIER();
+
+    return ostack;
+}
+
 uintptr_t *putObject(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     long long offset = *((long long *)&ostack[2]);
     uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
@@ -1350,7 +1444,6 @@ uintptr_t *unpark(Class *class, MethodBlock *mb, uintptr_t *ostack) {
         if(thread != NULL)
             threadUnpark(thread);
     }
-
     return ostack;
 }
 
@@ -1533,19 +1626,19 @@ VMMethod sun_misc_unsafe[] = {
     {"objectFieldOffset",           objectFieldOffset},
     {"compareAndSwapInt",           compareAndSwapInt},
     {"compareAndSwapLong",          compareAndSwapLong},
-    {"compareAndSwapObject",        compareAndSwapInt},
+    {"compareAndSwapObject",        compareAndSwapObject},
     {"putOrderedInt",               putOrderedInt},
     {"putOrderedLong",              putOrderedLong},
-    {"putOrderedObject",            putOrderedInt},
+    {"putOrderedObject",            putOrderedObject},
     {"putIntVolatile",              putIntVolatile},
     {"getIntVolatile",              getIntVolatile},
     {"putLongVolatile",             putOrderedLong},
     {"putLong",                     putLong},
     {"getLongVolatile",             getLongVolatile},
     {"getLong",                     getLong},
-    {"putObjectVolatile",           putIntVolatile},
+    {"putObjectVolatile",           putObjectVolatile},
     {"putObject",                   putObject},
-    {"getObjectVolatile",           getIntVolatile},
+    {"getObjectVolatile",           getObjectVolatile},
     {"arrayBaseOffset",             arrayBaseOffset},
     {"arrayIndexScale",             arrayIndexScale},
     {"unpark",                      unpark},
