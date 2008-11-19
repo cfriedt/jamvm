@@ -265,7 +265,7 @@ out:
 
 out2:
     if((vmthrwble = allocObject(vmthrow_class)))
-        INST_DATA(vmthrwble)[backtrace_offset] = (uintptr_t)array;
+        OBJ_DATA(vmthrwble, Object*, backtrace_offset) = array;
 
     return vmthrwble;
 }
@@ -276,7 +276,7 @@ Object *convertStackTrace(Object *vmthrwble) {
     uintptr_t *src;
     Object **dest;
 
-    if((array = (Object *)INST_DATA(vmthrwble)[backtrace_offset]) == NULL)
+    if((array = OBJ_DATA(vmthrwble, Object*, backtrace_offset)) == NULL)
         return NULL;
 
     src = ARRAY_DATA(array);
@@ -323,7 +323,7 @@ Object *convertStackTrace(Object *vmthrwble) {
 void markVMThrowable(Object *vmthrwble, int mark, int mark_soft_refs) {
     Object *array;
 
-    if((array = (Object *)INST_DATA(vmthrwble)[backtrace_offset]) != NULL) {
+    if((array = OBJ_DATA(vmthrwble, Object*, backtrace_offset)) != NULL) {
         uintptr_t *src = ARRAY_DATA(array);
         int i, depth = ARRAY_LEN(array);
 
