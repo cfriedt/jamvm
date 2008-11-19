@@ -182,13 +182,6 @@ static Thread *finalizer_thread;
 /* Pre-allocated OutOfMemoryError */
 static Object *oom;
 
-/* Cached primitive type array classes -- used to speed up
-   primitive array allocation */
-static Class *bool_array_class = NULL, *byte_array_class = NULL;
-static Class *char_array_class = NULL, *short_array_class = NULL;
-static Class *int_array_class = NULL, *float_array_class = NULL;
-static Class *double_array_class = NULL, *long_array_class = NULL;
-
 /* Field offsets and method table indexes used for finalization and
    reference handling. Cached in class.c */
 extern int ref_referent_offset;
@@ -471,7 +464,6 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
             TRACE_GC("Array object @%p class is %s  - Not Scanning...\n", ob, cb->name);
         }
     } else {
-        uintptr_t *body = INST_DATA(ob);
         int i;
 
         if(IS_CLASS_CLASS(cb)) {
@@ -487,7 +479,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
                     markVMThrowable(ob, mark, mark_soft_refs);
                 } else
                     if(IS_REFERENCE(cb)) {
-                        Object *referent = (Object *)body[ref_referent_offset];
+                        Object *referent = OBJ_DATA(ob, Object*, ref_referent_offset);
 
                         TRACE_GC("Mark found Reference object @%p class %s flags %d referent %p\n",
                                  ob, cb->name, cb->flags, referent);
@@ -522,12 +514,12 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
             int offset = cb->refs_offsets_table[i].start;
             int end = cb->refs_offsets_table[i].end;
 
-            for(; offset < end; offset++) {
-                Object *ob = (Object *)body[offset];
-                TRACE_GC("Offset %d reference @%p\n", offset, ob);
+            for(; offset < end; offset += sizeof(Object*)) {
+                Object *ref = OBJ_DATA(ob, Object*, offset);
+                TRACE_GC("Offset %d reference @%p\n", offset, ref);
 
-                if(ob != NULL && mark > IS_MARKED(ob))
-                    markChildren(ob, mark, mark_soft_refs);
+                if(ref != NULL && mark > IS_MARKED(ref))
+                    markChildren(ref, mark, mark_soft_refs);
             }
         }
     }
@@ -652,7 +644,7 @@ int handleMarkedSpecial(Object *ob) {
     int cleared = FALSE;
 
     if(IS_REFERENCE(cb)) {
-        Object *referent = (Object *)INST_DATA(ob)[ref_referent_offset];
+        Object *referent = OBJ_DATA(ob, Object*, ref_referent_offset);
 
         if(referent != NULL) {
             int ref_mark = IS_MARKED(referent);
@@ -668,14 +660,14 @@ int handleMarkedSpecial(Object *ob) {
                     goto out;
 
                 TRACE_GC("FREE: Clearing the referent field.\n");
-                INST_DATA(ob)[ref_referent_offset] = 0;
+                OBJ_DATA(ob, Object*, ref_referent_offset) = NULL;
                 cleared = TRUE;
             }
 
             /* If the reference has a queue, add it to the list for enqueuing
                by the Reference Handler thread. */
 
-            if((Object *)INST_DATA(ob)[ref_queue_offset] != NULL) {
+            if(OBJ_DATA(ob, Object*, ref_queue_offset) != NULL) {
                 TRACE_GC("FREE: Adding to list for enqueuing.\n");
 
                 ADD_TO_OBJECT_LIST(reference, ob);
@@ -925,13 +917,16 @@ void addConservativeRoots2Hash() {
     }
 }
 
-void registerStaticObjectRefLocked(Object **ref) {
+void registerStaticObjectRefLocked(Object **ref, Object *obj) {
     Thread *self = threadSelf();
 
     disableSuspend(self);
     lockVMLock(registered_refs_lock, self);
 
-    registerStaticObjectRef(ref);
+    if(*ref == NULL) {
+        *ref = obj;
+        registerStaticObjectRef(ref);
+    }
 
     unlockVMLock(registered_refs_lock, self);
     enableSuspend(self);
@@ -1093,19 +1088,18 @@ int threadChildren(Object *ob, Object *new_addr) {
             TRACE_COMPACT("Array object @%p class is %s - not Scanning...\n", ob, cb->name);
         }
     } else {
-        Object **body = (Object**)INST_DATA(ob);
         int i;
 
         if(IS_CLASS_CLASS(cb)) {
             TRACE_COMPACT("Found class object @%p name is %s\n", ob, CLASS_CB(ob)->name);
-            threadClassData((Class*)ob, (Class*)new_addr);
+            threadClassData(ob, new_addr);
         } else
             if(IS_CLASS_LOADER(cb)) {
                 TRACE_COMPACT("Found class loader object @%p class %s\n", ob, cb->name);
                 threadLoaderClasses(ob);
             } else
                 if(IS_REFERENCE(cb)) {
-                    Object **referent = &body[ref_referent_offset];
+                    Object **referent = &OBJ_DATA(ob, Object*, ref_referent_offset);
 
                     if(*referent != NULL) {
                         int ref_mark = IS_MARKED(*referent);
@@ -1121,14 +1115,14 @@ int threadChildren(Object *ob, Object *new_addr) {
                                 goto out;
 
                             TRACE_GC("Clearing the referent field.\n");
-                            *referent = 0;
+                            *referent = NULL;
                             cleared = TRUE;
                         }
 
                         /* If the reference has a queue, add it to the list for enqueuing
                            by the Reference Handler thread. */
 
-                        if(body[ref_queue_offset] != NULL) {
+                        if(OBJ_DATA(ob, Object*, ref_queue_offset) != NULL) {
                             TRACE_GC("Adding to list for enqueuing.\n");
 
                             ADD_TO_OBJECT_LIST(reference, new_addr);
@@ -1150,12 +1144,12 @@ out:
             int offset = cb->refs_offsets_table[i].start;
             int end = cb->refs_offsets_table[i].end;
 
-            for(; offset < end; offset++) {
-                Object **ob = (Object **)&body[offset];
-                TRACE_COMPACT("Offset %d reference @%p\n", offset, *ob);
+            for(; offset < end; offset += sizeof(Object*)) {
+                Object **ref = &OBJ_DATA(ob, Object*, offset);
+                TRACE_COMPACT("Offset %d reference @%p\n", offset, *ref);
 
-                if(*ob != NULL)
-                    threadReference(ob);
+                if(*ref != NULL)
+                    threadReference(ref);
             }
         }
     }
@@ -1447,7 +1441,7 @@ unsigned long gc0(int mark_soft_refs, int compact) {
         scan_time = endTime(&start)/1000000.0;
 
         jam_printf("<GC: Mark took %f seconds, %s took %f seconds>\n",
-                                  mark_time, compact ? "compact" : "scan", scan_time);
+                           mark_time, compact ? "compact" : "scan", scan_time);
     } else {
         doMark(self, mark_soft_refs);
         largest = compact ? doCompact() : doSweep(self);
@@ -1858,8 +1852,7 @@ got_it:
 
 Object *allocObject(Class *class) {
     ClassBlock *cb = CLASS_CB(class);
-    int size = cb->object_size * sizeof(uintptr_t);
-    Object *ob = (Object *)gcMalloc(size + sizeof(Object));
+    Object *ob = gcMalloc(cb->object_size);
 
     if(ob != NULL) {
         ob->class = class;
@@ -1891,108 +1884,41 @@ Object *allocArray(Class *class, int size, int el_size) {
         return NULL;
     }
 
-    ob = (Object *)gcMalloc(size * el_size + sizeof(u4) + sizeof(Object));
+    ob = gcMalloc(size * el_size + sizeof(u4) + sizeof(Object));
 
     if(ob != NULL) {
         ob->class = class;
         ARRAY_LEN(ob) = size;
-        TRACE_ALLOC("<ALLOC: allocated %s array object @%p>\n", CLASS_CB(class)->name, ob);
+        TRACE_ALLOC("<ALLOC: allocated %s array object @%p>\n",
+                    CLASS_CB(class)->name, ob);
     }
 
     return ob;
 }
 
 Object *allocTypeArray(int type, int size) {
-    Class *class;
-    int el_size;
+    static char *array_names[] = {"[Z", "[C", "[F", "[D", "[B",
+                                  "[S", "[I", "[J"};
+    static int element_sizes[] = {1, 2, 4, 8, 1, 2, 4, 8};
+    static Class *array_classes[8];
 
+    int idx = type - T_BOOLEAN;
+     
     if(size < 0) {
         signalException(java_lang_NegativeArraySizeException, NULL);
         return NULL;
     }
 
-    switch(type) {
-        case T_BOOLEAN:
-            if(bool_array_class == NULL) {
-                bool_array_class = findArrayClass("[Z");
-                registerStaticClassRefLocked(&bool_array_class);
-            }
-            class = bool_array_class;
-            el_size = 1;
-            break;
+    if(array_classes[idx] == NULL) {
+        Class *class = findArrayClass(array_names[idx]);
 
-        case T_BYTE:
-            if(byte_array_class == NULL) {
-                byte_array_class = findArrayClass("[B");
-                registerStaticClassRefLocked(&byte_array_class);
-            }
-            class = byte_array_class;
-            el_size = 1;
-            break;
+        if(class == NULL)
+            return NULL;
 
-        case T_CHAR:
-            if(char_array_class == NULL) {
-                char_array_class = findArrayClass("[C");
-                registerStaticClassRefLocked(&char_array_class);
-            }
-            class = char_array_class;
-            el_size = 2;
-            break;
-
-        case T_SHORT:
-            if(short_array_class == NULL) {
-                short_array_class = findArrayClass("[S");
-                registerStaticClassRefLocked(&short_array_class);
-            }
-            class = short_array_class;
-            el_size = 2;
-            break;
-
-        case T_INT:
-            if(int_array_class == NULL) {
-                int_array_class = findArrayClass("[I");
-                registerStaticClassRefLocked(&int_array_class);
-            }
-            class = int_array_class;
-            el_size = 4;
-            break;
-
-        case T_FLOAT:
-            if(float_array_class == NULL) {
-                float_array_class = findArrayClass("[F");
-                registerStaticClassRefLocked(&float_array_class);
-            }
-            class = float_array_class;
-            el_size = 4;
-            break;
-
-        case T_DOUBLE:
-            if(double_array_class == NULL) {
-                double_array_class = findArrayClass("[D");
-                registerStaticClassRefLocked(&double_array_class);
-            }
-            class = double_array_class;
-            el_size = 8;
-            break;
-
-        case T_LONG:
-            if(long_array_class == NULL) {
-                long_array_class = findArrayClass("[J");
-                registerStaticClassRefLocked(&long_array_class);
-            }
-            class = long_array_class;
-            el_size = 8;
-            break;
-
-        default:
-            jam_printf("Invalid array type %d - aborting VM...\n", type);
-            exit(0);
+        registerStaticClassRefLocked(&array_classes[idx], class);
     }
 
-    if(class == NULL)
-        return NULL;
-
-    return allocArray(class, size, el_size);
+    return allocArray(array_classes[idx], size, element_sizes[idx]);
 }
 
 Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
@@ -2048,7 +1974,7 @@ Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
 }
 
 Class *allocClass() {
-    Class *class = (Class*)gcMalloc(sizeof(ClassBlock)+sizeof(Class));
+    Class *class = gcMalloc(sizeof(ClassBlock)+sizeof(Class));
 
     if(class != NULL) {
         SET_SPECIAL_OB(class);
@@ -2059,16 +1985,16 @@ Class *allocClass() {
 }
 
 Object *cloneObject(Object *ob) {
+    Object *clone;
     uintptr_t hdr = *HDR_ADDRESS(ob);
     int size = HDR_SIZE(hdr)-HEADER_SIZE;
-    Object *clone;
 
     /* If the object stores its original address the actual object
        data size will be smaller than the header size */
     if(HDR_HAS_HASHCODE(hdr))
         size -= OBJECT_GRAIN;
 
-    clone = (Object*)gcMalloc(size);
+    clone = gcMalloc(size);
 
     if(clone != NULL) {
         memcpy(clone, ob, size);
@@ -2085,7 +2011,7 @@ Object *cloneObject(Object *ob) {
             /* Safety.  If it's a classloader, clear native
                pointer to class table */
             if(IS_CLASS_LOADER(CLASS_CB(clone->class)))
-                INST_DATA(clone)[ldr_vmdata_offset] = 0;
+                OBJ_DATA(clone, Object*, ldr_vmdata_offset) = NULL;
         }
 
         TRACE_ALLOC("<ALLOC: cloned object @%p clone @%p>\n", ob, clone);
