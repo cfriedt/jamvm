@@ -42,9 +42,9 @@ static int offset_offset;
 static HashTable hash_table;
 
 int stringHash(Object *ptr) {
-    Object *array = (Object*)INST_DATA(ptr)[value_offset]; 
-    int len = INST_DATA(ptr)[count_offset];
-    int offset = INST_DATA(ptr)[offset_offset];
+    int len = OBJ_DATA(ptr, int, count_offset);
+    int offset = OBJ_DATA(ptr, int, offset_offset);
+    Object *array = OBJ_DATA(ptr, Object*, value_offset); 
     unsigned short *dpntr = ((unsigned short *)ARRAY_DATA(array))+offset;
     int hash = 0;
 
@@ -55,14 +55,14 @@ int stringHash(Object *ptr) {
 }
 
 int stringComp(Object *ptr, Object *ptr2) {
-    int len = INST_DATA(ptr)[count_offset];
-    int len2 = INST_DATA(ptr2)[count_offset];
+    int len = OBJ_DATA(ptr, int, count_offset);
+    int len2 = OBJ_DATA(ptr2, int, count_offset);
 
     if(len == len2) {
-        Object *array = (Object*)INST_DATA(ptr)[value_offset];
-        Object *array2 = (Object*)INST_DATA(ptr2)[value_offset];
-        int offset = INST_DATA(ptr)[offset_offset];
-        int offset2 = INST_DATA(ptr2)[offset_offset];
+        Object *array = OBJ_DATA(ptr, Object*, value_offset);
+        Object *array2 = OBJ_DATA(ptr2, Object*, value_offset);
+        int offset = OBJ_DATA(ptr, int, offset_offset);
+        int offset2 = OBJ_DATA(ptr2, int, offset_offset);
         unsigned short *src = ((unsigned short *)ARRAY_DATA(array))+offset;
         unsigned short *dst = ((unsigned short *)ARRAY_DATA(array2))+offset2;
 
@@ -88,8 +88,8 @@ Object *createString(char *utf8) {
     data = ARRAY_DATA(array);
     convertUtf8(utf8, data);
 
-    INST_DATA(ob)[count_offset] = len; 
-    INST_DATA(ob)[value_offset] = (uintptr_t)array; 
+    OBJ_DATA(ob, int, count_offset) = len; 
+    OBJ_DATA(ob, Object*, value_offset) = array; 
 
     return ob;
 }
@@ -138,8 +138,8 @@ void threadInternedStrings() {
 }
 
 char *String2Buff0(Object *string, char *buff, int len) {
-    int offset = INST_DATA(string)[offset_offset];
-    Object *array =(Object *)(INST_DATA(string)[value_offset]);
+    int offset = OBJ_DATA(string, int, offset_offset);
+    Object *array = OBJ_DATA(string, Object*, value_offset);
     unsigned short *str = ((unsigned short *)ARRAY_DATA(array))+offset;
     char *pntr;
 
@@ -151,14 +151,14 @@ char *String2Buff0(Object *string, char *buff, int len) {
 }
 
 char *String2Buff(Object *string, char *buff, int buff_len) {
-    int str_len = INST_DATA(string)[count_offset];
+    int str_len = OBJ_DATA(string, int, count_offset);
     int len = buff_len-1 < str_len ? buff_len-1 : str_len;
 
     return String2Buff0(string, buff, len);
 }
 
 char *String2Cstr(Object *string) {
-    int len = INST_DATA(string)[count_offset];
+    int len = OBJ_DATA(string, int, count_offset);
     char *buff = (char *)sysMalloc(len + 1);
 
     return String2Buff0(string, buff, len);
@@ -201,25 +201,25 @@ Object *createStringFromUnicode(unsigned short *unicode, int len) {
         unsigned short *data = ARRAY_DATA(array);
         memcpy(data, unicode, len*sizeof(unsigned short));
 
-        INST_DATA(ob)[count_offset] = len; 
-        INST_DATA(ob)[value_offset] = (uintptr_t)array; 
+        OBJ_DATA(ob, int, count_offset) = len; 
+        OBJ_DATA(ob, Object*, value_offset) = array; 
         return ob;
     }
     return NULL;
 }
 
 Object *getStringCharsArray(Object *string) {
-    return (Object*)INST_DATA(string)[value_offset];
+    return OBJ_DATA(string, Object*, value_offset);
 }
 
 unsigned short *getStringChars(Object *string) {
-    Object *array = (Object*)INST_DATA(string)[value_offset];
-    int offset = INST_DATA(string)[offset_offset];
+    Object *array = OBJ_DATA(string, Object*, value_offset);
+    int offset = OBJ_DATA(string, int, offset_offset);
     return ((unsigned short*)ARRAY_DATA(array))+offset;
 }
 
 int getStringLen(Object *string) {
-    return INST_DATA(string)[count_offset];
+    return OBJ_DATA(string, int, count_offset);
 }
 
 int getStringUtf8Len(Object *string) {
