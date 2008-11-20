@@ -34,6 +34,7 @@
 
 #define WITH_OPCODE_CHANGE_CP_DINDEX(opcode, index)        \
     index = DOUBLE_INDEX(pc);                              \
+    MBARRIER();                                            \
     if(pc[0] != opcode)                                    \
         DISPATCH(0, 0);
 

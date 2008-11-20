@@ -80,6 +80,7 @@ d##X: {                \
 {                                                          \
     index = pc->operand.uui.u1;                            \
     cache = pc->operand.uui.i;                             \
+    MBARRIER();                                            \
     if(pc->handler != L(opcode, 0, ENTRY) &&               \
        pc->handler != L(opcode, 1, ENTRY) &&               \
        pc->handler != L(opcode, 2, ENTRY))                 \
@@ -92,6 +93,7 @@ d##X: {                \
 {                                                          \
     index = pc->operand.uui.u1;                            \
     cache = pc->operand.uui.i;                             \
+    MBARRIER();                                            \
     if(pc->handler != L(opcode, 0, ENTRY))                 \
         goto *pc->handler;                                 \
 }
