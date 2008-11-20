@@ -211,9 +211,11 @@ retry:
                     if((code[++pc] == OPC_GETFIELD) && !(mb->access_flags & ACC_STATIC)
                                     && (fb = resolveField(mb->class, READ_U2_OP(code + pc)))
                                     && !((*fb->type == 'J') || (*fb->type == 'D'))) {
-                        opcode = fb->offset < 4 ?
-                                     OPC_GETFIELD_THIS_0 + fb->offset :
-                                     OPC_GETFIELD_THIS;
+                        if(*fb->type == 'L' || *fb->type == '[')
+                            opcode = OPC_GETFIELD_THIS_REF;
+                        else
+                            opcode = OPC_GETFIELD_THIS;
+
                         operand.i = fb->offset;
                         pc += 3;
                     } else
