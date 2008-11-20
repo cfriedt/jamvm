@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <sys/sysinfo.h>
+
+#define __USE_GNU
 #include <pthread.h>
 
 #include "../../jam.h"
