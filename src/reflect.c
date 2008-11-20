@@ -28,52 +28,63 @@
 #include "class.h"
 #include "symbol.h"
 #include "excep.h"
+#include "interp.h"
 
 static char inited = FALSE;
 
-static Class *class_array_class, *cons_array_class, *cons_reflect_class, *method_array_class;
-static Class *method_reflect_class, *field_array_class, *field_reflect_class;
+static Class *class_array_class, *cons_array_class, *cons_reflect_class;
+static Class *method_array_class, *method_reflect_class, *field_array_class;
+static Class *field_reflect_class;
 static MethodBlock *cons_init_mb, *method_init_mb, *field_init_mb;
 static int cons_slot_offset, method_slot_offset, field_slot_offset;
 static int cons_class_offset, method_class_offset, field_class_offset;
 
 static int initReflection() {
+    Class *cls_ary_cls, *cons_ary_cls, *cons_ref_cls, *mthd_ary_cls;
+    Class *mthd_ref_cls, *fld_ary_cls, *fld_ref_cls;
     FieldBlock *cons_slot_fb, *mthd_slot_fb, *fld_slot_fb;
     FieldBlock *cons_class_fb, *mthd_class_fb, *fld_class_fb;
 
-    class_array_class = findArrayClass(SYMBOL(array_java_lang_Class));
-    cons_array_class = findArrayClass(SYMBOL(array_java_lang_reflect_Constructor));
-    cons_reflect_class = findSystemClass(SYMBOL(java_lang_reflect_Constructor));
-    method_array_class = findArrayClass(SYMBOL(array_java_lang_reflect_Method));
-    method_reflect_class = findSystemClass(SYMBOL(java_lang_reflect_Method));
-    field_array_class = findArrayClass(SYMBOL(array_java_lang_reflect_Field));
-    field_reflect_class = findSystemClass(SYMBOL(java_lang_reflect_Field));
+    cls_ary_cls = findArrayClass(SYMBOL(array_java_lang_Class));
+    cons_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Constructor));
+    cons_ref_cls = findSystemClass(SYMBOL(java_lang_reflect_Constructor));
+    mthd_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Method));
+    mthd_ref_cls = findSystemClass(SYMBOL(java_lang_reflect_Method));
+    fld_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Field));
+    fld_ref_cls = findSystemClass(SYMBOL(java_lang_reflect_Field));
 
-    if(!cons_array_class || !cons_reflect_class || !method_array_class ||
-          !method_reflect_class || !field_array_class || !field_reflect_class)
+    if(!cls_ary_cls || !cons_ary_cls || !cons_ref_cls || !mthd_ary_cls
+                    || !mthd_ref_cls || !fld_ary_cls || !fld_ref_cls)
         return FALSE;
 
-    cons_init_mb = findMethod(cons_reflect_class, SYMBOL(object_init),
-                              SYMBOL(_java_lang_Class_array_java_lang_Class_array_java_lang_Class_I__V));
+    cons_init_mb = findMethod(cons_ref_cls, SYMBOL(object_init), SYMBOL(
+           _java_lang_Class_array_java_lang_Class_array_java_lang_Class_I__V));
 
-    method_init_mb = findMethod(method_reflect_class, SYMBOL(object_init), SYMBOL(
-         _java_lang_Class_array_java_lang_Class_array_java_lang_Class_java_lang_Class_java_lang_String_I__V));
+    method_init_mb = findMethod(mthd_ref_cls, SYMBOL(object_init), SYMBOL(
+        _java_lang_Class_array_java_lang_Class_array_java_lang_Class_java_lang_Class_java_lang_String_I__V));
 
-    field_init_mb = findMethod(field_reflect_class, SYMBOL(object_init),
-                               SYMBOL(_java_lang_Class_java_lang_Class_java_lang_String_I__V));
+    field_init_mb = findMethod(fld_ref_cls, SYMBOL(object_init),
+              SYMBOL(_java_lang_Class_java_lang_Class_java_lang_String_I__V));
 
-    cons_slot_fb = findField(cons_reflect_class, SYMBOL(slot), SYMBOL(I));
-    mthd_slot_fb = findField(method_reflect_class, SYMBOL(slot), SYMBOL(I));
-    fld_slot_fb = findField(field_reflect_class, SYMBOL(slot), SYMBOL(I));
-    cons_class_fb = findField(cons_reflect_class, SYMBOL(declaringClass), SYMBOL(sig_java_lang_Class));
-    mthd_class_fb = findField(method_reflect_class, SYMBOL(declaringClass), SYMBOL(sig_java_lang_Class));
-    fld_class_fb = findField(field_reflect_class, SYMBOL(declaringClass), SYMBOL(sig_java_lang_Class));
+    cons_slot_fb = findField(cons_ref_cls, SYMBOL(slot), SYMBOL(I));
+    mthd_slot_fb = findField(mthd_ref_cls, SYMBOL(slot), SYMBOL(I));
+    fld_slot_fb = findField(fld_ref_cls,   SYMBOL(slot), SYMBOL(I));
+    cons_class_fb = findField(cons_ref_cls, SYMBOL(declaringClass),
+                                            SYMBOL(sig_java_lang_Class));
+
+    mthd_class_fb = findField(mthd_ref_cls, SYMBOL(declaringClass),
+                                            SYMBOL(sig_java_lang_Class));
+
+    fld_class_fb = findField(fld_ref_cls, SYMBOL(declaringClass),
+                                          SYMBOL(sig_java_lang_Class));
 
     if(!cons_init_mb || ! method_init_mb || !field_init_mb ||
            !cons_slot_fb || !mthd_slot_fb || !fld_slot_fb ||
            !cons_class_fb || !mthd_class_fb || !fld_class_fb) {
+
         /* Find Field/Method doesn't throw an exception... */
-        signalException(java_lang_InternalError, "Expected field/method doesn't exist");
+        signalException(java_lang_InternalError,
+                        "Expected field/method doesn't exist");
         return FALSE;
     }
 
@@ -84,13 +95,13 @@ static int initReflection() {
     method_class_offset = mthd_class_fb->offset; 
     field_class_offset = fld_class_fb->offset; 
 
-    registerStaticClassRefLocked(&class_array_class);
-    registerStaticClassRefLocked(&cons_array_class);
-    registerStaticClassRefLocked(&method_array_class);
-    registerStaticClassRefLocked(&field_array_class);
-    registerStaticClassRefLocked(&cons_reflect_class);
-    registerStaticClassRefLocked(&method_reflect_class);
-    registerStaticClassRefLocked(&field_reflect_class);
+    registerStaticClassRefLocked(&class_array_class, cls_ary_cls);
+    registerStaticClassRefLocked(&cons_array_class, cons_ary_cls);
+    registerStaticClassRefLocked(&method_array_class, mthd_ary_cls);
+    registerStaticClassRefLocked(&field_array_class, fld_ary_cls);
+    registerStaticClassRefLocked(&cons_reflect_class, cons_ref_cls);
+    registerStaticClassRefLocked(&method_reflect_class, mthd_ref_cls);
+    registerStaticClassRefLocked(&field_reflect_class, fld_ref_cls);
 
     return inited = TRUE;
 }
@@ -441,40 +452,49 @@ static Class *anno_array_class, *dbl_anno_array_class;
 static MethodBlock *map_init_mb, *map_put_mb, *anno_create_mb, *enum_valueof_mb;
 
 static int initAnnotation() {
-    enum_class = findSystemClass("java/lang/Enum");
-    map_class = findSystemClass("java/util/HashMap");
-    anno_inv_class = findSystemClass("sun/reflect/annotation/AnnotationInvocationHandler");
+    Class *enum_cls, *map_cls, *anno_inv_cls, *obj_ary_cls;
+    Class *anno_ary_cls, *dbl_anno_ary_cls;
 
-    obj_array_class = findArrayClass("[Ljava/lang/Object;");
-    anno_array_class = findArrayClass("[Ljava/lang/annotation/Annotation;");
-    dbl_anno_array_class = findArrayClass("[[Ljava/lang/annotation/Annotation;");
+    enum_cls = findSystemClass("java/lang/Enum");
+    map_cls = findSystemClass("java/util/HashMap");
+    anno_inv_cls = findSystemClass("sun/reflect/annotation/Annotation"
+                                   "InvocationHandler");
 
-    if(!enum_class || !map_class || !anno_inv_class || !obj_array_class
-                   || !anno_array_class || !dbl_anno_array_class)
+    obj_ary_cls = findArrayClass("[Ljava/lang/Object;");
+    anno_ary_cls = findArrayClass("[Ljava/lang/annotation/Annotation;");
+    dbl_anno_ary_cls = findArrayClass("[[Ljava/lang/annotation/Annotation;");
+
+    if(!enum_cls || !map_cls || !anno_inv_cls || !obj_ary_cls 
+                 || !anno_ary_cls || !dbl_anno_ary_cls)
         return FALSE;
 
-    map_init_mb = findMethod(map_class, SYMBOL(object_init), SYMBOL(___V));
-    map_put_mb = findMethod(map_class, SYMBOL(put),
-                            newUtf8("(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"));
+    map_init_mb = findMethod(map_cls, SYMBOL(object_init), SYMBOL(___V));
+    map_put_mb = findMethod(map_cls, SYMBOL(put),
+                            newUtf8("(Ljava/lang/Object;Ljava/lang/Object;)"
+                                    "Ljava/lang/Object;"));
 
-    anno_create_mb = findMethod(anno_inv_class, newUtf8("create"),
-                                newUtf8("(Ljava/lang/Class;Ljava/util/Map;)Ljava/lang/annotation/Annotation;"));
+    anno_create_mb = findMethod(anno_inv_cls, newUtf8("create"),
+                                newUtf8("(Ljava/lang/Class;Ljava/util/Map;)"
+                                        "Ljava/lang/annotation/Annotation;"));
 
-    enum_valueof_mb = findMethod(enum_class, newUtf8("valueOf"),
-                                 newUtf8("(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Enum;"));
+    enum_valueof_mb = findMethod(enum_cls, newUtf8("valueOf"),
+                                 newUtf8("(Ljava/lang/Class;Ljava/lang/String;)"
+                                         "Ljava/lang/Enum;"));
 
     if(!map_init_mb || !map_put_mb || !anno_create_mb || !enum_valueof_mb) {
+
         /* FindMethod doesn't throw an exception... */
-        signalException(java_lang_InternalError, "Expected field/method doesn't exist");
+        signalException(java_lang_InternalError,
+                        "Expected field/method doesn't exist");
         return FALSE;
     }
 
-    registerStaticClassRefLocked(&enum_class);
-    registerStaticClassRefLocked(&map_class);
-    registerStaticClassRefLocked(&anno_inv_class);
-    registerStaticClassRefLocked(&obj_array_class);
-    registerStaticClassRefLocked(&anno_array_class);
-    registerStaticClassRefLocked(&dbl_anno_array_class);
+    registerStaticClassRefLocked(&enum_class, enum_cls);
+    registerStaticClassRefLocked(&map_class, map_cls);
+    registerStaticClassRefLocked(&anno_inv_class, anno_inv_cls);
+    registerStaticClassRefLocked(&obj_array_class, obj_ary_cls);
+    registerStaticClassRefLocked(&anno_array_class, anno_ary_cls);
+    registerStaticClassRefLocked(&dbl_anno_array_class, dbl_anno_ary_cls);
 
     return anno_inited = TRUE;
 }
@@ -493,7 +513,7 @@ Class *findClassFromSignature(char *type_name, Class *class) {
 }
 
 /* Forward declarations */
-Object *createWrapperObject(int prim_type_no, uintptr_t *pntr);
+Object *createWrapperObject(int prim_type_no, void *pntr, int flags);
 Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len);
 
 Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
@@ -539,7 +559,7 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
                     break;
             }
             READ_TYPE_INDEX(const_val_idx, cp, cp_tag, *data_ptr, *data_len);
-            return createWrapperObject(prim_type_no, &CP_INFO(cp, const_val_idx));
+            return createWrapperObject(prim_type_no, &CP_INFO(cp, const_val_idx), REF_SRC_OSTACK);
         }
 
         case 's': {
@@ -561,7 +581,8 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
             if(type_class == NULL || const_name == NULL)
                 return NULL;
 
-            enum_obj = *(Object**)executeStaticMethod(enum_class, enum_valueof_mb, type_class, const_name);
+            enum_obj = *(Object**)executeStaticMethod(enum_class, enum_valueof_mb,
+                                                      type_class, const_name);
             if(exceptionOccurred())
                 return NULL;
 
@@ -677,7 +698,8 @@ Object *getFieldAnnotations(FieldBlock *fb) {
 }
 
 Object *getMethodAnnotations(MethodBlock *mb) {
-    return parseAnnotations(mb->class, mb->annotations == NULL ? NULL : mb->annotations->annotations);
+    return parseAnnotations(mb->class, mb->annotations == NULL ?
+                                               NULL : mb->annotations->annotations);
 }
 
 Object *getMethodParameterAnnotations(MethodBlock *mb) {
@@ -760,38 +782,50 @@ int getWrapperPrimTypeIndex(Object *arg) {
     return 0;
 }
 
-Object *createWrapperObject(int prim_type_no, uintptr_t *pntr) {
-    static char *wrapper_suffix[] = {"Boolean", "Byte", "Character", "Short",
-                                    "Integer", "Float", "Long", "Double"};
-    char wrapper_name[20] = "java/lang/";
+Object *createWrapperObject(int prim_type_no, void *pntr, int flags) {
+    static char *wrapper_names[] = {"java/lang/Boolean",
+                                    "java/lang/Byte",
+                                    "java/lang/Character",
+                                    "java/lang/Short",
+                                    "java/lang/Integer",
+                                    "java/lang/Float",
+                                    "java/lang/Long",
+                                    "java/lang/Double"};
     Object *wrapper = NULL;
 
     if(prim_type_no > 0 /* void */) {
-        Class *wrapper_type;
+        Class *wrapper_class;
 
-        strncpy(&wrapper_name[10], wrapper_suffix[prim_type_no - 1], 10);
-        if((wrapper_type = findSystemClass(wrapper_name)) &&
-                 (wrapper = allocObject(wrapper_type))) {
-            INST_DATA(wrapper)[0] = pntr[0];
+        if((wrapper_class = findSystemClass(wrapper_names[prim_type_no - 1]))
+                  && (wrapper = allocObject(wrapper_class)) != NULL) {
             if(prim_type_no > 6)      /* i.e. long or double */
-                INST_DATA(wrapper)[1] = pntr[1];
+                INST_BASE(wrapper, u8)[0] = *(u8*)pntr;
+            else
+                if(flags == REF_SRC_FIELD)
+                    INST_BASE(wrapper, u4)[0] = *(u4*)pntr;
+                else
+                    INST_BASE(wrapper, u4)[0] = *(uintptr_t*)pntr;
         }
     }
+
     return wrapper;
 }
 
-Object *getReflectReturnObject(Class *type, uintptr_t *pntr) {
+Object *getReflectReturnObject(Class *type, void *pntr, int flags) {
     ClassBlock *type_cb = CLASS_CB(type);
 
-    return IS_PRIMITIVE(type_cb) ? createWrapperObject(type_cb->state - CLASS_PRIM, pntr)
-                                 : (Object*)*pntr;
+    if(IS_PRIMITIVE(type_cb))
+        return createWrapperObject(type_cb->state - CLASS_PRIM, pntr, flags);
+
+    return *(Object**)pntr;
 }
 
-uintptr_t *widenPrimitiveValue(int src_idx, int dest_idx, uintptr_t *src, uintptr_t *dest) {
+int widenPrimitiveValue(int src_idx, int dest_idx, void *src, void *dest,
+                        int flags) {
 
 #define err 0
-#define U4 1
-#define U8 2
+#define U4  1
+#define U8  2
 #define I2F 3
 #define I2D 4
 #define I2J 5
@@ -809,68 +843,101 @@ uintptr_t *widenPrimitiveValue(int src_idx, int dest_idx, uintptr_t *src, uintpt
            {err, err, err, err, U4,  I2F, I2J, I2D},  /* int   */
            {err, err, err, err, err, U4,  err, F2D},  /* float */
            {err, err, err, err, err, J2F, U8,  J2D},  /* long  */
-           {err, err, err, err, err, err, err, U8 }}; /* dbl   */
+           {err, err, err, err, err, err, err, U8 }   /* dbl   */
+    };
 
-    static void *handlers[] = {&&illegal_arg, &&u4, &&u8, &&i2f, &&i2d, &&i2j, &&j2f, &&j2d, &&f2d};
+    static void *handlers[3][9] = {
+         /* field -> field */
+         {&&illegal_arg, &&u4_f2f, &&u8, &&i2f_sf, &&i2d_sf,
+                         &&i2j_sf, &&j2f_df, &&j2d, &&f2d_sf},
+         /* ostack -> field */
+         {&&illegal_arg, &&u4_o2f, &&u8, &&i2f_so, &&i2d_so,
+                         &&i2j_so, &&j2f_df, &&j2d, &&f2d_so},
+         /* field -> ostack */
+         {&&illegal_arg, &&u4_f2o, &&u8, &&i2f_sf, &&i2d_sf,
+                         &&i2j_sf, &&j2f_do, &&j2d, &&f2d_sf}
+    };
 
     int handler = conv_table[src_idx][dest_idx - 1];
-    goto *handlers[handler];
+    goto *handlers[flags][handler];
 
-u4:
-    *dest = *src;
-    return dest + 1;
+u4_o2f: /* ostack -> field */
+    *(u4*)dest = *(uintptr_t*)src;
+    return 1;
+u4_f2o: /* field -> ostack */
+    *(uintptr_t*)dest = *(u4*)src;
+    return 1;
+u4_f2f: /* field -> field */
+    *(u4*)dest = *(u4*)src;
+    return 1;
 u8:
     *(u8*)dest = *(u8*)src;
-    return dest + 2;
-i2f:
+    return 2;
+i2f_so: /*src ostack */
+    *(float*)dest = (float)(int)*(uintptr_t*)src;
+    return 1;
+i2f_sf: /*src field */
     *(float*)dest = (float)*(int*)src;
-    return dest + 1;
-i2d:
+    return 1;
+i2d_so: /* src ostack */
+    *(double*)dest = (double)(int)*(uintptr_t*)src;
+    return 2;
+i2d_sf: /* src field */
     *(double*)dest = (double)*(int*)src;
-    return dest + 2;
-i2j:
-    *(long long*)dest = (long long)*((int*)src);
-    return dest + 2;
-j2f:
+    return 2;
+i2j_so: /* src ostack */
+    *(long long*)dest = (long long)(int)*(uintptr_t*)src;
+    return 2;
+i2j_sf: /* src field */
+    *(long long*)dest = (long long)*(int*)src;
+    return 2;
+j2f_do: /* dest ostack */
+    ((float*)dest)[OSTACK_FLOAT_ADJUST] = (float)*(long long*)src;
+    return 1;
+j2f_df: /* dest field */
     *(float*)dest = (float)*(long long*)src;
-    return dest + 1;
+    return 1;
 j2d:
     *(double*)dest = (double)*(long long*)src;
-    return dest + 2;
-f2d:
+    return 2;
+f2d_so: /* src ostack */
+    *(double*)dest = (double)((float*)src)[OSTACK_FLOAT_ADJUST];
+    return 2;
+f2d_sf: /* src field */
     *(double*)dest = (double)*(float*)src;
-    return dest + 2;
+    return 2;
 
 illegal_arg:
-    return NULL;
+    return 0;
 }
 
-uintptr_t *unwrapAndWidenObject(Class *type, Object *arg, uintptr_t *pntr) {
+int unwrapAndWidenObject(Class *type, Object *arg, void *pntr, int flags) {
     ClassBlock *type_cb = CLASS_CB(type);
 
     if(IS_PRIMITIVE(type_cb)) {
         int formal_idx = getPrimTypeIndex(type_cb);
         int actual_idx = getWrapperPrimTypeIndex(arg);
-        uintptr_t *data = INST_DATA(arg);
+        void *data = INST_BASE(arg, void);
 
-        return widenPrimitiveValue(actual_idx, formal_idx, data, pntr);
+        return widenPrimitiveValue(actual_idx, formal_idx, data, pntr,
+                                   flags | REF_SRC_FIELD);
     }
 
     if((arg == NULL) || isInstanceOf(type, arg->class)) {
-        *pntr++ = (uintptr_t) arg;
-        return pntr;
+        *(uintptr_t*)pntr = (uintptr_t)arg;
+        return 1;
     }
 
-    return NULL;
+    return 0;
 }
 
-Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_types,
-               int check_access) {
+Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
+                Object *param_types, int check_access) {
 
     Object **args = ARRAY_DATA(arg_array);
     Class **types = ARRAY_DATA(param_types);
-    int args_len = arg_array ? ARRAY_LEN(arg_array) : 0;
     int types_len = ARRAY_LEN(param_types);
+    int args_len = arg_array ? ARRAY_LEN(arg_array) : 0;
 
     ExecEnv *ee = getExecEnv();
     uintptr_t *sp;
@@ -881,14 +948,18 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
 
     if(check_access) {
         Class *caller = getCallerCallerClass();
-        if(!checkClassAccess(mb->class, caller) || !checkMethodAccess(mb, caller)) {
-            signalException(java_lang_IllegalAccessException, "method is not accessible");
+        if(!checkClassAccess(mb->class, caller) ||
+                                !checkMethodAccess(mb, caller)) {
+
+            signalException(java_lang_IllegalAccessException,
+                            "method is not accessible");
             return NULL;
         }
     }
 
     if(args_len != types_len) {
-        signalException(java_lang_IllegalArgumentException, "wrong number of args");
+        signalException(java_lang_IllegalArgumentException,
+                        "wrong number of args");
         return NULL;
     }
 
@@ -896,18 +967,25 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
 
     if(ob) *sp++ = (uintptr_t)ob;
 
-    for(i = 0; i < args_len; i++)
-        if((sp = unwrapAndWidenObject(*types++, *args++, sp)) == NULL) {
+    for(i = 0; i < args_len; i++) {
+        int size = unwrapAndWidenObject(*types++, *args++, sp, REF_DST_OSTACK);
+
+        if(size == 0) {
             POP_TOP_FRAME(ee);
-            signalException(java_lang_IllegalArgumentException, "arg type mismatch");
+            signalException(java_lang_IllegalArgumentException,
+                            "arg type mismatch");
             return NULL;
         }
+
+        sp += size;
+    }
 
     if(mb->access_flags & ACC_SYNCHRONIZED)
         objectLock(ob ? ob : (Object*)mb->class);
 
     if(mb->access_flags & ACC_NATIVE)
-        (*(u4 *(*)(Class*, MethodBlock*, u4*))mb->native_invoker)(mb->class, mb, ret);
+        (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))mb->native_invoker)
+                                (mb->class, mb, ret);
     else
         executeJava();
 
@@ -925,7 +1003,8 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_typ
         ite_class = findSystemClass("java/lang/reflect/InvocationTargetException");
 
         if(!exceptionOccurred() && (ite_excep = allocObject(ite_class)) &&
-                        (init = lookupMethod(ite_class, SYMBOL(object_init), SYMBOL(_java_lang_Throwable__V)))) {
+                      (init = lookupMethod(ite_class, SYMBOL(object_init),
+                                           SYMBOL(_java_lang_Throwable__V)))) {
             executeMethod(ite_excep, init, excep);
             setException(ite_excep);
         }
@@ -959,16 +1038,22 @@ Object *createReflectFieldObject(FieldBlock *fb) {
 }
 
 MethodBlock *mbFromReflectObject(Object *reflect_ob) {
-    int slot = reflect_ob->class == cons_reflect_class ? cons_slot_offset : method_slot_offset;
-    int class = reflect_ob->class == cons_reflect_class ? cons_class_offset : method_class_offset;
-    Class *decl_class = (Class*)INST_DATA(reflect_ob)[class];
+    int slot = reflect_ob->class == cons_reflect_class ? cons_slot_offset
+                                                       : method_slot_offset;
 
-    return &(CLASS_CB(decl_class)->methods[INST_DATA(reflect_ob)[slot]]);
+    int class = reflect_ob->class == cons_reflect_class ? cons_class_offset
+                                                        : method_class_offset;
+
+    Class *decl_class = OBJ_DATA(reflect_ob, Class*, class);
+
+    return &(CLASS_CB(decl_class)->methods[OBJ_DATA(reflect_ob, int, slot)]);
 }
 
 FieldBlock *fbFromReflectObject(Object *reflect_ob) {
-    Class *decl_class = (Class*)INST_DATA(reflect_ob)[field_class_offset];
-    return &(CLASS_CB(decl_class)->fields[INST_DATA(reflect_ob)[field_slot_offset]]);
+    Class *decl_class = OBJ_DATA(reflect_ob, Class*, field_class_offset);
+    int slot = OBJ_DATA(reflect_ob, int, field_slot_offset);
+
+    return &(CLASS_CB(decl_class)->fields[slot]);
 }
 
 /* Needed for stack walking */
