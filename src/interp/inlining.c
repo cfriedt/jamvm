@@ -161,9 +161,9 @@ int checkRelocatability() {
     goto_len = calculateRelocatability(handler_sizes);
 #endif
 
-    /* Check relocatability of the indirect goto.  This is copied onto the end
-       of each super-instruction.  If this is un-relocatable,  inlining is
-       disabled. */
+    /* Check relocatability of the indirect goto.  This is copied onto the
+       end of each super-instruction.  If this is un-relocatable, inlining
+       is disabled. */
 
     if(goto_len < 0)
         return FALSE;
@@ -194,10 +194,9 @@ int checkRelocatability() {
     for(i = 0; i < HANDLERS; i++) {
         int j;
 
-        for(j = 0; j < BRANCH_NUM; j++) {
+        for(j = 0; j < BRANCH_NUM; j++)
             branch_patch_offsets[i][j] = handlers[BRANCH_LABELS+i][j] -
                                   handler_entry_points[i][j + OPC_IFEQ];
-        }
     }
 
     return TRUE;
@@ -747,7 +746,7 @@ void inlineBlocks(MethodBlock *mb, BasicBlock *start, BasicBlock *end) {
         for(i = 0; i < block->length; i++) {
             int cache_depth = block->opcodes[i].cache_depth;
             int opcode = block->opcodes[i].opcode;
-            int op1, op2;
+            int op1, op2, op3;
 
             /* The block opcodes contain the "un-quickened" opcode.
                This could have been quickened to one of several quick
@@ -755,47 +754,61 @@ void inlineBlocks(MethodBlock *mb, BasicBlock *start, BasicBlock *end) {
             switch(opcode) {
                 case OPC_LDC:
                     op1 = OPC_LDC_QUICK;
-                    op2 = OPC_LDC_W_QUICK;
+                    op2 = op3 = OPC_LDC_W_QUICK;
                     break;
 
                 case OPC_GETSTATIC:
                     op1 = OPC_GETSTATIC_QUICK;
                     op2 = OPC_GETSTATIC2_QUICK;
+                    op3 = OPC_GETSTATIC_QUICK_REF;
                     break;
 
                  case OPC_PUTSTATIC:
                     op1 = OPC_PUTSTATIC_QUICK;
                     op2 = OPC_PUTSTATIC2_QUICK;
+                    op3 = OPC_PUTSTATIC_QUICK_REF;
                     break;
 
                 case OPC_GETFIELD: {
-                    int offset = block->start[i].operand.i;
-                    op1 = offset < 4 ? OPC_GETFIELD_QUICK_0 + offset
-                                     : OPC_GETFIELD_QUICK;
+                    op1 = OPC_GETFIELD_QUICK;
                     op2 = OPC_GETFIELD2_QUICK;
+                    op3 = OPC_GETFIELD_QUICK_REF;
                     break;
                 }
                 case OPC_PUTFIELD:
                     op1 = OPC_PUTFIELD_QUICK;
                     op2 = OPC_PUTFIELD2_QUICK;
+                    op3 = OPC_PUTFIELD_QUICK_REF;
                     break;
 
                 case OPC_NEW: case OPC_ANEWARRAY: case OPC_CHECKCAST:
                 case OPC_INVOKESTATIC: case OPC_INVOKEINTERFACE:
                 case OPC_INVOKEVIRTUAL: case OPC_INVOKESPECIAL:
                 case OPC_MULTIANEWARRAY: case OPC_INSTANCEOF:
-                    op1 = op2 = GOTO_END;
+                    op1 = op2 = op3 = GOTO_END;
                     break;
 
                 default:
-                    op1 = op2 = -1;
+                    op1 = op2 = op3 = -1;
                     break;
             }
 
             if(op1 > 0) {
                 /* Match which quickened opcode */
-                opcode = handler_entry_points[cache_depth][op1]
-                                == (char*) block->start[i].handler ? op1 : op2;
+                char *match = handler_entry_points[cache_depth][op1];
+                char *handler = (char*) block->start[i].handler;
+
+                if(match == handler)
+                    opcode = op1;
+                else {
+                    char *match = handler_entry_points[cache_depth][op2];
+
+                    if(match == handler)
+                        opcode = op2;
+                    else
+                        opcode = op3;
+                }
+
                 block->opcodes[i].opcode = opcode;
             }
 
@@ -934,17 +947,14 @@ void inlineBlock(MethodBlock *mb, BasicBlock *block, Thread *self) {
    subsequent blocks which require quickening cannot be inlined until
    they have been executed).
 */
-void addToProfile(MethodBlock *mb, BasicBlock *block) {
+void addToProfile(MethodBlock *mb, BasicBlock *block, Thread *self) {
     ProfileInfo *info = sysMalloc(sizeof(ProfileInfo));
-    Thread *self = threadSelf();
 
     TRACE("Adding block (start %p) to profile\n", block->start);
     info->profile_count = 0;
     info->block = block;
 
     block->u.profile.profiled = info;
-
-    rewriteLock(self);
 
     info->prev = NULL;
     if((info->next = mb->profile_info))
@@ -957,10 +967,12 @@ void addToProfile(MethodBlock *mb, BasicBlock *block) {
     block->start->handler = handler_entry_points[0][OPC_PROFILE_REWRITER];
 }
 
-void prepareBlock(MethodBlock *mb, BasicBlock *block) {
+void prepareBlock(MethodBlock *mb, BasicBlock *block, Thread *self) {
     if(profiling)
-        addToProfile(mb, block);
+        addToProfile(mb, block, self);
     else {
+        rewriteUnlock(self);
+
         inlineBlocks(mb, block, block);
         sysFree(block->opcodes);
         sysFree(block);
@@ -984,18 +996,14 @@ void inlineBlockWrappedOpcode(MethodBlock *mb, Instruction *pc) {
         return;
     }
 
-    pc->handler = handler_entry_points[0][GOTO_START];
-    rewriteUnlock(self);
-
     /* Unwrap the original handler's operand */
     pc->operand = prepare_info->operand;
-    MBARRIER();
 
     /* Unwrap the original handler */
     info = &prepare_info->block->opcodes[prepare_info->block->length-1];
     pc->handler = handler_entry_points[info->cache_depth][info->opcode];
 
-    prepareBlock(mb, prepare_info->block);
+    prepareBlock(mb, prepare_info->block, self);
     sysFree(prepare_info);
 }
 
@@ -1018,22 +1026,19 @@ void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
         for(info = mb->quick_prepare_info; info && info->quickened != pc;
             last = info, info = info->next);
 
-        /* If prepare info found, remove it from the list */
-        if(info != NULL) {
-            if(last != NULL)
-                last->next = info->next;
-            else
-                mb->quick_prepare_info = info->next;
+        if(info == NULL) {
+            rewriteUnlock(self);
+            return;
         }
 
-        rewriteUnlock(self);
+        /* Remove it from the list */
+        if(last != NULL)
+            last->next = info->next;
+        else
+            mb->quick_prepare_info = info->next;
 
-        /* If prepare info found, inline block (no need to
-           hold lock) */
-        if(info != NULL) {
-            prepareBlock(mb, info->block);
-            sysFree(info);
-        }
+        prepareBlock(mb, info->block, self);
+        sysFree(info);
     }
 }
 
@@ -1047,6 +1052,7 @@ void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
 void *inlineProfiledBlock(Instruction *pc, MethodBlock *mb, int force_inlining) {
     ProfileInfo *info, *last = NULL;
     Thread *self = threadSelf();
+    void *ret;
 
     rewriteLock(self);
 
@@ -1061,9 +1067,10 @@ void *inlineProfiledBlock(Instruction *pc, MethodBlock *mb, int force_inlining) 
         return NULL;
     }
 
+    ret = info == NULL ? NULL : (void*)info->handler;
     rewriteUnlock(self);
 
-    return info == NULL ? NULL : (void*)info->handler;
+    return ret;
 }
 #endif
 
