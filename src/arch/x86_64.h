@@ -31,20 +31,41 @@
 extern void setDoublePrecision();
 #define FPU_HACK setDoublePrecision()
 
-#define COMPARE_AND_SWAP(addr, old_val, new_val)   \
-({                                                 \
-    char result;                                   \
-    int read_val;                                  \
-    __asm__ __volatile__ ("                        \
-        lock;                                      \
-        cmpxchgq %5, %1;                           \
-        sete %0"                                   \
-    : "=q" (result), "=m" (*addr), "=a" (read_val) \
-    : "m" (*addr), "a" ((uintptr_t)old_val),       \
-      "r" ((uintptr_t)new_val)                     \
-    : "memory");                                   \
-    result;                                        \
+#define COMPARE_AND_SWAP_64(addr, old_val, new_val) \
+({                                                  \
+    char result;                                    \
+    int read_val;                                   \
+    __asm__ __volatile__ ("                         \
+        lock;                                       \
+        cmpxchgq %5, %1;                            \
+        sete %0"                                    \
+    : "=q" (result), "=m" (*addr), "=a" (read_val)  \
+    : "m" (*addr), "a" ((uintptr_t)old_val),        \
+      "r" ((uintptr_t)new_val)                      \
+    : "memory");                                    \
+    result;                                         \
 })
+
+#define COMPARE_AND_SWAP_32(addr, old_val, new_val) \
+({                                                  \
+    char result;                                    \
+    __asm__ __volatile__ ("                         \
+        lock;                                       \
+        cmpxchgl %4, %1;                            \
+        sete %0"                                    \
+    : "=q" (result), "=m" (*addr)                   \
+    : "m" (*addr), "a" (old_val), "r" (new_val)     \
+    : "memory");                                    \
+    result;                                         \
+})
+
+#define COMPARE_AND_SWAP(addr, old_val, new_val)             \
+        COMPARE_AND_SWAP_64(addr, old_val, new_val)
+
+#define LOCKWORD_READ(addr) *addr
+#define LOCKWORD_WRITE(addr, value) *addr = value
+#define LOCKWORD_COMPARE_AND_SWAP(addr, old_val, new_val)    \
+        COMPARE_AND_SWAP_64(addr, old_val, new_val)
 
 #define __GEN_REL_JMP(target_addr, patch_addr, opcode,       \
                       type, patch_size)                      \
@@ -89,11 +110,6 @@ extern void setDoublePrecision();
 })
 
 #define FLUSH_CACHE(addr, length)
-
-#define LOCKWORD_READ(addr) *addr
-#define LOCKWORD_WRITE(addr, value) *addr = value
-#define LOCKWORD_COMPARE_AND_SWAP(addr, old_val, new_val) \
-        COMPARE_AND_SWAP(addr, old_val, new_val)
 
 #define UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define JMM_LOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")

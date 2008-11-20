@@ -31,8 +31,26 @@
 /* Needed for i386 -- empty here */
 #define FPU_HACK
 
+#define COMPARE_AND_SWAP_32(addr, old_val, new_val) \
+({                                                  \
+    int result, read_val;                           \
+    __asm__ __volatile__ ("                         \
+                li %0,0\n                           \
+        1:      lwarx %1,0,%2\n                     \
+                cmpw %3,%1\n                        \
+                bne- 2f\n                           \
+                stwcx. %4,0,%2\n                    \
+                bne- 1b\n                           \
+                li %0,1\n                           \
+        2:"                                         \
+    : "=&r" (result), "=&r" (read_val)              \
+    : "r" (addr), "r" (old_val), "r" (new_val)      \
+    : "cc", "memory");                              \
+    result;                                         \
+})
+
 #ifdef __ppc64__
-#define COMPARE_AND_SWAP(addr, old_val, new_val)    \
+#define COMPARE_AND_SWAP_64(addr, old_val, new_val) \
 ({                                                  \
     int result, read_val;                           \
     __asm__ __volatile__ ("                         \
@@ -50,27 +68,11 @@
     result;                                         \
 })
 
-#define COMPARE_AND_SWAP_64(addr, old_val, new_val) \
-        COMPARE_AND_SWAP(addr, old_val, new_val)
-
+#define COMPARE_AND_SWAP(addr, old_val, new_val)    \
+        COMPARE_AND_SWAP_64(addr, old_val, new_val)
 #else
 #define COMPARE_AND_SWAP(addr, old_val, new_val)    \
-({                                                  \
-    int result, read_val;                           \
-    __asm__ __volatile__ ("                         \
-                li %0,0\n                           \
-        1:      lwarx %1,0,%2\n                     \
-                cmpw %3,%1\n                        \
-                bne- 2f\n                           \
-                stwcx. %4,0,%2\n                    \
-                bne- 1b\n                           \
-                li %0,1\n                           \
-        2:"                                         \
-    : "=&r" (result), "=&r" (read_val)              \
-    : "r" (addr), "r" (old_val), "r" (new_val)      \
-    : "cc", "memory");                              \
-    result;                                         \
-})
+        COMPARE_AND_SWAP_32(addr, old_val, new_val)
 #endif
 
 #define LOCKWORD_READ(addr) *addr
