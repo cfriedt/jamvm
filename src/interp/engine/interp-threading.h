@@ -252,14 +252,14 @@
         L(OPC_INVOKEVIRTUAL_QUICK,    level, label), \
         L(OPC_INVOKENONVIRTUAL_QUICK, level, label), \
         L(OPC_INVOKESUPER_QUICK,      level, label), \
-        L(OPC_GETFIELD_THIS_0,        level, label), \
-        L(OPC_GETFIELD_THIS_1,        level, label), \
-        L(OPC_GETFIELD_THIS_2,        level, label), \
-        L(OPC_GETFIELD_THIS_3,        level, label), \
-        L(OPC_GETFIELD_QUICK_0,       level, label), \
-        L(OPC_GETFIELD_QUICK_1,       level, label), \
-        L(OPC_GETFIELD_QUICK_2,       level, label), \
-        L(OPC_GETFIELD_QUICK_3,       level, label), \
+        L(OPC_GETFIELD_QUICK_REF,     level, label), \
+        L(OPC_PUTFIELD_QUICK_REF,     level, label), \
+        L(OPC_GETSTATIC_QUICK_REF,    level, label), \
+        L(OPC_PUTSTATIC_QUICK_REF,    level, label), \
+        L(OPC_GETFIELD_THIS_REF,      level, label), \
+        &&unused,                                    \
+        &&unused,                                    \
+        &&unused,                                    \
         &&unused,                                    \
         D(OPC_INVOKEVIRTUAL_QUICK_W,  level, label), \
         D(OPC_GETFIELD_QUICK_W,       level, label), \

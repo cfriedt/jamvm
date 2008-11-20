@@ -388,54 +388,32 @@ unused:
         goto methodReturn;                                 \
     )                                                      \
                                                            \
-    DEF_OPC(OPC_GETSTATIC_QUICK, level,                    \
-        PUSH_##level(RESOLVED_FIELD(pc)->static_value, 3); \
+    MULTI_LEVEL_FIELD_ACCESS(level)
+
+#define FIELD_ACCESS_OPCODES(level, type, suffix)          \
+                                                           \
+    DEF_OPC(OPC_GETSTATIC_QUICK##suffix, level,            \
+        PUSH_##level(*(type*)                              \
+                 &(RESOLVED_FIELD(pc)->static_value), 3);  \
     )                                                      \
                                                            \
-    DEF_OPC(OPC_PUTSTATIC_QUICK, level,                    \
-        POP_##level(RESOLVED_FIELD(pc)->static_value, 3);  \
+    DEF_OPC(OPC_PUTSTATIC_QUICK##suffix, level,            \
+        POP_##level(*(type*)                               \
+                 &(RESOLVED_FIELD(pc)->static_value), 3);  \
     )                                                      \
                                                            \
-    DEF_OPC(OPC_GETFIELD_THIS, level,                      \
-        PUSH_##level(INST_DATA(this)                       \
-                     [GETFIELD_THIS_OFFSET(pc)], 4);       \
+    DEF_OPC(OPC_GETFIELD_THIS##suffix, level,              \
+        PUSH_##level(OBJ_DATA(this, type,                  \
+                           GETFIELD_THIS_OFFSET(pc)), 4);  \
     )                                                      \
                                                            \
-    DEF_OPC(OPC_GETFIELD_THIS_0, level,                    \
-        PUSH_##level(INST_DATA(this)[0], 4);               \
-    )                                                      \
-                                                           \
-    DEF_OPC(OPC_GETFIELD_THIS_1, level,                    \
-        PUSH_##level(INST_DATA(this)[1], 4);               \
-    )                                                      \
-                                                           \
-    DEF_OPC(OPC_GETFIELD_THIS_2, level,                    \
-        PUSH_##level(INST_DATA(this)[2], 4);               \
-    )                                                      \
-                                                           \
-    DEF_OPC(OPC_GETFIELD_THIS_3, level,                    \
-        PUSH_##level(INST_DATA(this)[3], 4);               \
-    )                                                      \
-                                                           \
-    DEF_OPC(OPC_GETFIELD_QUICK, level,                     \
-        GETFIELD_QUICK_##level(SINGLE_INDEX(pc));          \
-    )                                                      \
-                                                           \
-    DEF_OPC(OPC_GETFIELD_QUICK_0, level,                   \
-        GETFIELD_QUICK_##level(0);                         \
-    )                                                      \
-                                                           \
-    DEF_OPC(OPC_GETFIELD_QUICK_1, level,                   \
-        GETFIELD_QUICK_##level(1);                         \
-    )                                                      \
-                                                           \
-    DEF_OPC(OPC_GETFIELD_QUICK_2, level,                   \
-        GETFIELD_QUICK_##level(2);                         \
-    )                                                      \
-                                                           \
-    DEF_OPC(OPC_GETFIELD_QUICK_3, level,                   \
-        GETFIELD_QUICK_##level(3);                         \
+    DEF_OPC(OPC_GETFIELD_QUICK##suffix, level,             \
+        GETFIELD_QUICK_##level(SINGLE_INDEX(pc), type);    \
     )
+
+#define MULTI_LEVEL_FIELD_ACCESS(level)                    \
+    FIELD_ACCESS_OPCODES(level, u4, /* none */)            \
+    FIELD_ACCESS_OPCODES(level, uintptr_t, _REF)
 
 #define ZERO_DIVISOR_CHECK_0                               \
     ZERO_DIVISOR_CHECK((int)ostack[-1]);
@@ -510,25 +488,25 @@ unused:
     *lvars++ = cache.i.v2;                                 \
     goto methodReturn;
 
-#define GETFIELD_QUICK_0(offset)                           \
+#define GETFIELD_QUICK_0(offset, type)                     \
 {                                                          \
     Object *obj = (Object *)*--ostack;                     \
     NULL_POINTER_CHECK(obj);                               \
-    PUSH_0(INST_DATA(obj)[offset], 3);                     \
+    PUSH_0(OBJ_DATA(obj, type, offset), 3);                \
 }
 
-#define GETFIELD_QUICK_1(offset)                           \
+#define GETFIELD_QUICK_1(offset, type)                     \
 {                                                          \
     Object *obj = (Object *)cache.i.v1;                    \
     NULL_POINTER_CHECK(obj);                               \
-    PUSH_0(INST_DATA(obj)[offset], 3);                     \
+    PUSH_0(OBJ_DATA(obj, type, offset), 3);                \
 }
 
-#define GETFIELD_QUICK_2(offset)                           \
+#define GETFIELD_QUICK_2(offset, type)                     \
 {                                                          \
     Object *obj = (Object *)cache.i.v2;                    \
     NULL_POINTER_CHECK(obj);                               \
-    PUSH_1(INST_DATA(obj)[offset], 3);                     \
+    PUSH_1(OBJ_DATA(obj, type, offset), 3);                \
 }
 
 #define UNARY_MINUS_0                                      \
@@ -595,9 +573,8 @@ unused:
         if(pc[1] == OPC_GETFIELD_QUICK)                    \
             opcode = OPC_GETFIELD_THIS;                    \
         else                                               \
-            if(pc[1] >= OPC_GETFIELD_QUICK_0 &&            \
-               pc[1] <= OPC_GETFIELD_QUICK_3)              \
-                opcode = OPC_GETFIELD_THIS_0 + pc[2];      \
+            if(pc[1] == OPC_GETFIELD_QUICK_REF)            \
+                opcode = OPC_GETFIELD_THIS_REF;            \
             else                                           \
                 opcode = OPC_ILOAD_0;                      \
                                                            \
@@ -1401,7 +1378,8 @@ unused:
         int key = *--ostack;
         int i;
 
-        for(i = 0; (i < table->num_entries) && (key != table->entries[i].key); i++);
+        for(i = 0; (i < table->num_entries) &&
+                   (key != table->entries[i].key); i++);
 
         pc = (i == table->num_entries ? table->deflt
                                       : table->entries[i].handler);
@@ -1409,7 +1387,7 @@ unused:
     })
 
     DEF_OPC_RW(OPC_GETSTATIC, ({
-        int idx, cache;
+        int idx, cache, opcode;
         FieldBlock *fb;
         Operand operand;
                
@@ -1421,15 +1399,22 @@ unused:
         if(exceptionOccured0(ee))
             goto throwException;
 
+        if((*fb->type == 'J') || (*fb->type == 'D'))
+            opcode = OPC_GETSTATIC2_QUICK;
+        else
+            if(*fb->type == 'L' || *fb->type == '[')
+                opcode = OPC_GETSTATIC_QUICK_REF;
+            else
+                opcode = OPC_GETSTATIC_QUICK;
+
         operand.pntr = fb;
-        OPCODE_REWRITE(((*fb->type == 'J') || (*fb->type == 'D') ?
-                 OPC_GETSTATIC2_QUICK : OPC_GETSTATIC_QUICK), cache, operand);
+        OPCODE_REWRITE(opcode, cache, operand);
 
         REDISPATCH
     });)
 
     DEF_OPC_RW(OPC_PUTSTATIC, ({
-        int idx, cache;
+        int idx, cache, opcode;
         FieldBlock *fb;
         Operand operand;
 
@@ -1441,9 +1426,16 @@ unused:
         if(exceptionOccured0(ee))
             goto throwException;
 
+        if((*fb->type == 'J') || (*fb->type == 'D'))
+            opcode = OPC_PUTSTATIC2_QUICK;
+        else
+            if(*fb->type == 'L' || *fb->type == '[')
+                opcode = OPC_PUTSTATIC_QUICK_REF;
+            else
+                opcode = OPC_PUTSTATIC_QUICK;
+
         operand.pntr = fb;
-        OPCODE_REWRITE(((*fb->type == 'J') || (*fb->type == 'D') ?
-                 OPC_PUTSTATIC2_QUICK : OPC_PUTSTATIC_QUICK), cache, operand);
+        OPCODE_REWRITE(opcode, cache, operand);
 
         REDISPATCH
     });)
@@ -1464,8 +1456,8 @@ unused:
         if((*fb->type == 'J') || (*fb->type == 'D'))
             opcode = OPC_GETFIELD2_QUICK;
         else
-            if(fb->offset < 4)
-                opcode = OPC_GETFIELD_QUICK_0 + fb->offset;
+            if(*fb->type == 'L' || *fb->type == '[')
+                opcode = OPC_GETFIELD_QUICK_REF;
             else
                 opcode = OPC_GETFIELD_QUICK;
 
@@ -1476,7 +1468,7 @@ unused:
     });)
 
     DEF_OPC_RW(OPC_PUTFIELD, ({
-        int idx, cache;
+        int idx, cache, opcode;
         FieldBlock *fb;
         Operand operand;
 
@@ -1488,9 +1480,16 @@ unused:
         if(exceptionOccured0(ee))
             goto throwException;
 
+        if((*fb->type == 'J') || (*fb->type == 'D'))
+            opcode = OPC_PUTFIELD2_QUICK;
+        else
+            if(*fb->type == 'L' || *fb->type == '[')
+                opcode = OPC_PUTFIELD_QUICK_REF;
+            else
+                opcode = OPC_PUTFIELD_QUICK;
+
         operand.i = fb->offset;
-        OPCODE_REWRITE(((*fb->type == 'J') || (*fb->type == 'D') ? 
-                 OPC_PUTFIELD2_QUICK : OPC_PUTFIELD_QUICK), cache, operand);
+        OPCODE_REWRITE(opcode, cache, operand);
 
         REDISPATCH
     });)
@@ -1532,8 +1531,9 @@ unused:
             goto throwException;
 
         /* Check if invoking a super method... */
-        if((CLASS_CB(mb->class)->access_flags & ACC_SUPER) &&
-              ((new_mb->access_flags & ACC_PRIVATE) == 0) && (new_mb->name[0] != '<')) {
+        if((CLASS_CB(mb->class)->access_flags & ACC_SUPER)
+              && ((new_mb->access_flags & ACC_PRIVATE) == 0)
+                                 && (new_mb->name[0] != '<')) {
 
             operand.i = new_mb->method_table_index;
             OPCODE_REWRITE(OPC_INVOKESUPER_QUICK, cache, operand);
@@ -1682,6 +1682,7 @@ unused:
 
     DEF_OPC_210(OPC_GETSTATIC, {
         FieldBlock *fb;
+        int opcode;
                
         frame->last_pc = pc;
         fb = resolveField(mb->class, DOUBLE_INDEX(pc));
@@ -1690,14 +1691,21 @@ unused:
             goto throwException;
 
         if((*fb->type == 'J') || (*fb->type == 'D'))
-            OPCODE_REWRITE(OPC_GETSTATIC2_QUICK);
+            opcode = OPC_GETSTATIC2_QUICK;
         else
-            OPCODE_REWRITE(OPC_GETSTATIC_QUICK);
+            if(*fb->type == 'L' || *fb->type == '[')
+                opcode = OPC_GETSTATIC_QUICK_REF;
+            else
+                opcode = OPC_GETSTATIC_QUICK;
+
+        OPCODE_REWRITE(opcode);
+
         DISPATCH(0, 0);
     })
 
     DEF_OPC_210(OPC_PUTSTATIC, {
         FieldBlock *fb;
+        int opcode;
                
         frame->last_pc = pc;
         fb = resolveField(mb->class, DOUBLE_INDEX(pc));
@@ -1706,14 +1714,20 @@ unused:
             goto throwException;
 
         if((*fb->type == 'J') || (*fb->type == 'D'))
-            OPCODE_REWRITE(OPC_PUTSTATIC2_QUICK);
+            opcode = OPC_PUTSTATIC2_QUICK;
         else
-            OPCODE_REWRITE(OPC_PUTSTATIC_QUICK);
+            if(*fb->type == 'L' || *fb->type == '[')
+                opcode = OPC_PUTSTATIC_QUICK_REF;
+            else
+                opcode = OPC_PUTSTATIC_QUICK;
+
+        OPCODE_REWRITE(opcode);
+
         DISPATCH(0, 0);
     })
 
     DEF_OPC_210(OPC_GETFIELD, ({
-        int idx, opcode;
+        int idx;
         FieldBlock *fb;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_GETFIELD, idx);
@@ -1727,11 +1741,13 @@ unused:
         if(fb->offset > 255)
             OPCODE_REWRITE(OPC_GETFIELD_QUICK_W);
         else {
+            int opcode;
+
             if((*fb->type == 'J') || (*fb->type == 'D'))
                 opcode = OPC_GETFIELD2_QUICK;
             else
-                if(fb->offset < 4)
-                    opcode = OPC_GETFIELD_QUICK_0 + fb->offset;
+                if(*fb->type == 'L' || *fb->type == '[')
+                    opcode = OPC_GETFIELD_QUICK_REF;
                 else
                     opcode = OPC_GETFIELD_QUICK;
 
@@ -1755,9 +1771,19 @@ unused:
 
         if(fb->offset > 255)
             OPCODE_REWRITE(OPC_PUTFIELD_QUICK_W);
-        else
-            OPCODE_REWRITE_OPERAND1(((*fb->type == 'J') || (*fb->type == 'D') ? 
-                 OPC_PUTFIELD2_QUICK : OPC_PUTFIELD_QUICK), fb->offset);
+        else {
+            int opcode;
+
+            if((*fb->type == 'J') || (*fb->type == 'D'))
+                opcode = OPC_PUTFIELD2_QUICK;
+            else
+                if(*fb->type == 'L' || *fb->type == '[')
+                    opcode = OPC_PUTFIELD_QUICK_REF;
+                else
+                    opcode = OPC_PUTFIELD_QUICK;
+
+            OPCODE_REWRITE_OPERAND1(opcode, fb->offset);
+        }
 
         DISPATCH(0, 0);
     })
@@ -1765,15 +1791,17 @@ unused:
     DEF_OPC_210(OPC_GETFIELD_QUICK_W, {
         FieldBlock *fb = RESOLVED_FIELD(pc);
         Object *obj = (Object *)*--ostack;
-        uintptr_t *addr;
 
         NULL_POINTER_CHECK(obj);
-        addr = &(INST_DATA(obj)[fb->offset]);
 
         if((*fb->type == 'J') || (*fb->type == 'D')) {
-            PUSH_LONG(*(u8*)addr, 3);
+            PUSH_LONG(OBJ_DATA(obj, u8, fb->offset), 3);
         } else {
-            PUSH_0(*addr, 3);
+            if(*fb->type == 'L' || *fb->type == '[') {
+                PUSH_0(OBJ_DATA(obj, uintptr_t, fb->offset), 3);
+            } else {
+                PUSH_0(OBJ_DATA(obj, u4, fb->offset), 3);
+            }
         }
     })
 
@@ -1785,12 +1813,16 @@ unused:
             Object *obj = (Object *)*--ostack;
 
             NULL_POINTER_CHECK(obj);
-            *(u8*)(&(INST_DATA(obj)[fb->offset])) = cache.l;
+            OBJ_DATA(obj, u8, fb->offset) = cache.l;
         } else {
             Object *obj = (Object *)cache.i.v1;
 
             NULL_POINTER_CHECK(obj);
-            INST_DATA(obj)[fb->offset] = cache.i.v2;
+
+            if(*fb->type == 'L' || *fb->type == '[')
+                OBJ_DATA(obj, uintptr_t, fb->offset) = cache.i.v2;
+            else
+                OBJ_DATA(obj, u4, fb->offset) = cache.i.v2;
         }
         DISPATCH(0, 3);
     })
@@ -1803,13 +1835,17 @@ unused:
 
             ostack -= 3;
             NULL_POINTER_CHECK(obj);
-            *(u8*)(&(INST_DATA(obj)[fb->offset])) = *(u8*)&ostack[1];
+            OBJ_DATA(obj, u8, fb->offset) = *(u8*)&ostack[1];
         } else {
             Object *obj = (Object *)ostack[-2];
 
             ostack -= 2;
             NULL_POINTER_CHECK(obj);
-            INST_DATA(obj)[fb->offset] = ostack[1];
+
+            if(*fb->type == 'L' || *fb->type == '[')
+                OBJ_DATA(obj, uintptr_t, fb->offset) = ostack[1];
+            else
+                OBJ_DATA(obj, u4, fb->offset) = ostack[1];
         }
         DISPATCH(0, 3);
     })
@@ -1827,7 +1863,8 @@ unused:
 
         if((new_mb->args_count < 256) && (new_mb->method_table_index < 256)) {
             OPCODE_REWRITE_OPERAND2(OPC_INVOKEVIRTUAL_QUICK,
-                                    new_mb->method_table_index, new_mb->args_count);
+                                    new_mb->method_table_index,
+                                    new_mb->args_count);
         } else
             OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK_W);
         DISPATCH(0, 0);
@@ -2004,7 +2041,7 @@ unused:
         Object *obj = (Object *)*--ostack;
         NULL_POINTER_CHECK(obj);
                 
-        PUSH_LONG(*(u8*)(&(INST_DATA(obj)[SINGLE_INDEX(pc)])), 3);
+        PUSH_LONG(OBJ_DATA(obj, u8, SINGLE_INDEX(pc)), 3);
     })
 
 #ifdef USE_CACHE
@@ -2012,16 +2049,17 @@ unused:
         Object *obj = (Object *)*--ostack;
         NULL_POINTER_CHECK(obj);
 
-        *(u8*)(&(INST_DATA(obj)[SINGLE_INDEX(pc)])) = cache.l;
+        OBJ_DATA(obj, u8, SINGLE_INDEX(pc)) = cache.l;
         DISPATCH(0, 3);
     })
 
-    DEF_OPC_012(OPC_PUTFIELD_QUICK, {
-        Object *obj = (Object *)cache.i.v1;
-        NULL_POINTER_CHECK(obj);
-                
-        INST_DATA(obj)[SINGLE_INDEX(pc)] = cache.i.v2;
-        DISPATCH(0, 3);
+#define PUTFIELD_QUICK(type, suffix)                        \
+    DEF_OPC_012(OPC_PUTFIELD_QUICK##suffix, {               \
+        Object *obj = (Object *)cache.i.v1;                 \
+        NULL_POINTER_CHECK(obj);                            \
+                                                            \
+        OBJ_DATA(obj, type, SINGLE_INDEX(pc)) = cache.i.v2; \
+        DISPATCH(0, 3);                                     \
     })
 #else
     DEF_OPC_012(OPC_PUTFIELD2_QUICK, {
@@ -2029,19 +2067,23 @@ unused:
 
         ostack -= 3;
         NULL_POINTER_CHECK(obj);
-        *(u8*)(&(INST_DATA(obj)[SINGLE_INDEX(pc)])) = *(u8*)&ostack[1];
+        OBJ_DATA(obj, u8, SINGLE_INDEX(pc)) = *(u8*)&ostack[1];
         DISPATCH(0, 3);
     })
 
-    DEF_OPC_012(OPC_PUTFIELD_QUICK, {
-        Object *obj = (Object *)ostack[-2];
-
-        ostack -= 2;
-        NULL_POINTER_CHECK(obj);
-        INST_DATA(obj)[SINGLE_INDEX(pc)] = ostack[1];
-        DISPATCH(0, 3);
+#define PUTFIELD_QUICK(type, suffix)                       \
+    DEF_OPC_012(OPC_PUTFIELD_QUICK##suffix, {              \
+        Object *obj = (Object *)ostack[-2];                \
+                                                           \
+        ostack -= 2;                                       \
+        NULL_POINTER_CHECK(obj);                           \
+        OBJ_DATA(obj, type, SINGLE_INDEX(pc)) = ostack[1]; \
+        DISPATCH(0, 3);                                    \
     })
 #endif
+
+    PUTFIELD_QUICK(u4, /* none */)
+    PUTFIELD_QUICK(uintptr_t, _REF)
 
     DEF_OPC_210(OPC_INVOKESUPER_QUICK, {
         new_mb = CLASS_CB(CLASS_CB(mb->class)->super)->method_table[DOUBLE_INDEX(pc)];
