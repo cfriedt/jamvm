@@ -717,7 +717,7 @@ jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass,
     else
         strcat(strcat(strcpy(ac_name, "[L"), element_name), ";");
 
-    array_class = findArrayClassFromClass(ac_name, elementClass);
+    array_class = findArrayClassFromClass(ac_name, (Class*)elementClass);
     if(array_class != NULL) {
         Object *array = allocArray(array_class, length, sizeof(Object*));
         if(array != NULL) {
