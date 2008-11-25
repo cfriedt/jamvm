@@ -153,7 +153,7 @@ Object *convertSig2ClassArray(char **sig_pntr, Class *declaring_class) {
     if((array = allocArray(class_array_class, no_params, sizeof(Class*))) == NULL)
         return NULL;
 
-    params = ARRAY_DATA(array);
+    params = ARRAY_DATA(array, Class*);
 
     *sig_pntr += 1;
     while(**sig_pntr != ')')
@@ -171,7 +171,7 @@ Object *getExceptionTypes(MethodBlock *mb) {
     if((array = allocArray(class_array_class, mb->throw_table_size, sizeof(Class*))) == NULL)
         return NULL;
 
-    excps = ARRAY_DATA(array);
+    excps = ARRAY_DATA(array, Class*);
 
     for(i = 0; i < mb->throw_table_size; i++)
         if((excps[i] = resolveClass(mb->class, mb->throw_table[i], FALSE)) == NULL)
@@ -220,7 +220,8 @@ Object *getClassConstructors(Class *class, int public) {
 
     if((array = allocArray(cons_array_class, count, sizeof(Object*))) == NULL)
         return NULL;
-    cons = ARRAY_DATA(array);
+
+    cons = ARRAY_DATA(array, Object*);
 
     for(i = 0, j = 0; j < count; i++) {
         MethodBlock *mb = &cb->methods[i];
@@ -279,7 +280,8 @@ Object *getClassMethods(Class *class, int public) {
 
     if((array = allocArray(method_array_class, count, sizeof(Object*))) == NULL)
         return NULL;
-    methods = ARRAY_DATA(array);
+
+    methods = ARRAY_DATA(array, Object*);
 
     for(i = 0, j = 0; j < count; i++) {
         MethodBlock *mb = &cb->methods[i];
@@ -336,7 +338,8 @@ Object *getClassFields(Class *class, int public) {
 
     if((array = allocArray(field_array_class, count, sizeof(Object*))) == NULL)
         return NULL;
-    fields = ARRAY_DATA(array);
+
+    fields = ARRAY_DATA(array, Object*);
 
     for(i = 0, j = 0; j < count; i++) {
         FieldBlock *fb = &cb->fields[i];
@@ -356,10 +359,13 @@ Object *getClassInterfaces(Class *class) {
     if(!inited && !initReflection())
         return NULL;
 
-    if((array = allocArray(class_array_class, cb->interfaces_count, sizeof(Class*))) == NULL)
+    if((array = allocArray(class_array_class, cb->interfaces_count,
+                           sizeof(Class*))) == NULL)
         return NULL;
 
-    memcpy(ARRAY_DATA(array), cb->interfaces, cb->interfaces_count * sizeof(Class*));
+    memcpy(ARRAY_DATA(array, Class*), cb->interfaces,
+           cb->interfaces_count * sizeof(Class*));
+
     return array;
 }
 
@@ -374,8 +380,10 @@ Object *getClassClasses(Class *class, int public) {
 
     for(i = 0; i < cb->inner_class_count; i++) {
         Class *iclass;
+
         if((iclass = resolveClass(class, cb->inner_classes[i], FALSE)) == NULL)
             return NULL;
+
         if(!public || (CLASS_CB(iclass)->inner_access_flags & ACC_PUBLIC))
             count++;
     }
@@ -383,9 +391,11 @@ Object *getClassClasses(Class *class, int public) {
     if((array = allocArray(class_array_class, count, sizeof(Class*))) == NULL)
         return NULL;
 
-    classes = ARRAY_DATA(array);
+    classes = ARRAY_DATA(array, Class*);
+
     for(i = 0, j = 0; j < count; i++) {
         Class *iclass = resolveClass(class, cb->inner_classes[i], FALSE);
+
         if(!public || (CLASS_CB(iclass)->inner_access_flags & ACC_PUBLIC))
             classes[j++] = iclass;
     }
@@ -395,12 +405,16 @@ Object *getClassClasses(Class *class, int public) {
 
 Class *getDeclaringClass(Class *class) {
     ClassBlock *cb = CLASS_CB(class);
-    return cb->declaring_class ? resolveClass(class, cb->declaring_class, FALSE) : NULL;
+
+    return cb->declaring_class ? resolveClass(class, cb->declaring_class, FALSE)
+                               : NULL;
 }
 
 Class *getEnclosingClass(Class *class) {
     ClassBlock *cb = CLASS_CB(class);
-    return cb->enclosing_class ? resolveClass(class, cb->enclosing_class, FALSE) : NULL;
+
+    return cb->enclosing_class ? resolveClass(class, cb->enclosing_class, FALSE)
+                               : NULL;
 }
 
 MethodBlock *getEnclosingMethod(Class *class) {
@@ -411,16 +425,21 @@ MethodBlock *getEnclosingMethod(Class *class) {
 
         if(cb->enclosing_method) {
             ConstantPool *cp = &cb->constant_pool;
-            char *methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, cb->enclosing_method));
-            char *methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, cb->enclosing_method));
-            MethodBlock *mb = findMethod(enclosing_class, methodname, methodtype);
+            char *methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp,
+                                               cb->enclosing_method));
+            char *methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp,
+                                               cb->enclosing_method));
+            MethodBlock *mb = findMethod(enclosing_class, methodname,
+                                         methodtype);
 
             if(mb != NULL)
                 return mb;
 
-            /* The "reference implementation" throws an InternalError if a method
-               with the name and type cannot be found in the enclosing class */
-            signalException(java_lang_InternalError, "Enclosing method doesn't exist");
+            /* The "reference implementation" throws an InternalError if a
+               method with the name and type cannot be found in the enclosing
+               class */
+            signalException(java_lang_InternalError,
+                            "Enclosing method doesn't exist");
         }
     }
 
@@ -558,13 +577,19 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
                     prim_type_no = 8;
                     break;
             }
+
             READ_TYPE_INDEX(const_val_idx, cp, cp_tag, *data_ptr, *data_len);
-            return createWrapperObject(prim_type_no, &CP_INFO(cp, const_val_idx), REF_SRC_OSTACK);
+
+            return createWrapperObject(prim_type_no,
+                                &CP_INFO(cp, const_val_idx), REF_SRC_OSTACK);
         }
 
         case 's': {
             int const_str_idx;
-            READ_TYPE_INDEX(const_str_idx, cp, CONSTANT_Utf8, *data_ptr, *data_len);
+
+            READ_TYPE_INDEX(const_str_idx, cp, CONSTANT_Utf8, *data_ptr,
+                            *data_len);
+
             return createString(CP_UTF8(cp, const_str_idx));
         }
 
@@ -607,7 +632,8 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
             if((array = allocArray(obj_array_class, num_values, sizeof(Object*))) == NULL)
                 return NULL;
 
-            array_data = ARRAY_DATA(array);
+            array_data = ARRAY_DATA(array, Object*);
+
             for(i = 0; i < num_values; i++)
                 if((array_data[i] = parseElementValue(class, data_ptr, data_len)) == NULL)
                     return NULL;
@@ -680,7 +706,8 @@ Object *parseAnnotations(Class *class, AnnotationData *annotations) {
         if((array = allocArray(anno_array_class, no_annos, sizeof(Object*))) == NULL)
             return NULL;
 
-        array_data = ARRAY_DATA(array);
+        array_data = ARRAY_DATA(array, Object*);
+
         for(i = 0; i < no_annos; i++)
             if((array_data[i] = parseAnnotation(class, &data_ptr, &data_len)) == NULL)
                 return NULL;
@@ -699,7 +726,7 @@ Object *getFieldAnnotations(FieldBlock *fb) {
 
 Object *getMethodAnnotations(MethodBlock *mb) {
     return parseAnnotations(mb->class, mb->annotations == NULL ?
-                                               NULL : mb->annotations->annotations);
+                                NULL : mb->annotations->annotations);
 }
 
 Object *getMethodParameterAnnotations(MethodBlock *mb) {
@@ -719,7 +746,8 @@ Object *getMethodParameterAnnotations(MethodBlock *mb) {
         if((outer_array = allocArray(dbl_anno_array_class, no_params, sizeof(Object*))) == NULL)
             return NULL;
 
-        outer_array_data = ARRAY_DATA(outer_array);
+        outer_array_data = ARRAY_DATA(outer_array, Object*);
+
         for(i = 0; i < no_params; i++) {
             Object **inner_array_data;
             Object *inner_array;
@@ -729,7 +757,8 @@ Object *getMethodParameterAnnotations(MethodBlock *mb) {
             if((inner_array = allocArray(anno_array_class, no_annos, sizeof(Object*))) == NULL)
                 return NULL;
 
-            inner_array_data = ARRAY_DATA(inner_array);
+            inner_array_data = ARRAY_DATA(inner_array, Object*);
+
             for(j = 0; j < no_annos; j++)
                 if((inner_array_data[j] = parseAnnotation(mb->class, &data_ptr, &data_len)) == NULL)
                     return NULL;
@@ -934,8 +963,9 @@ int unwrapAndWidenObject(Class *type, Object *arg, void *pntr, int flags) {
 Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
                 Object *param_types, int check_access) {
 
-    Object **args = ARRAY_DATA(arg_array);
-    Class **types = ARRAY_DATA(param_types);
+    Object **args = ARRAY_DATA(arg_array, Object*);
+    Class **types = ARRAY_DATA(param_types, Class*);
+
     int types_len = ARRAY_LEN(param_types);
     int args_len = arg_array ? ARRAY_LEN(arg_array) : 0;
 

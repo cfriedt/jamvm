@@ -448,7 +448,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
 
     if(cb->name[0] == '[') {
         if((cb->name[1] == 'L') || (cb->name[1] == '[')) {
-            Object **body = ARRAY_DATA(ob);
+            Object **body = ARRAY_DATA(ob, Object*);
             int len = ARRAY_LEN(ob);
             int i;
             TRACE_GC("Scanning Array object @%p class is %s len is %d\n", ob, cb->name, len);
@@ -1073,7 +1073,7 @@ int threadChildren(Object *ob, Object *new_addr) {
 
     if(cb->name[0] == '[') {
         if((cb->name[1] == 'L') || (cb->name[1] == '[')) {
-            Object **body = ARRAY_DATA(ob);
+            Object **body = ARRAY_DATA(ob, Object*);
             int len = ARRAY_LEN(ob);
             int i;
             TRACE_COMPACT("Scanning Array object @%p class is %s len is %d\n", ob, cb->name, len);
@@ -1879,12 +1879,12 @@ Object *allocArray(Class *class, int size, int el_size) {
     Object *ob;
 
     /* Special check to protect against integer overflow */
-    if(size > (INT_MAX - sizeof(u4) - sizeof(Object)) / el_size) {
+    if(size > (INT_MAX - sizeof(uintptr_t) - sizeof(Object)) / el_size) {
         signalException(java_lang_OutOfMemoryError, NULL);
         return NULL;
     }
 
-    ob = gcMalloc(size * el_size + sizeof(u4) + sizeof(Object));
+    ob = gcMalloc(size * el_size + sizeof(uintptr_t) + sizeof(Object));
 
     if(ob != NULL) {
         ob->class = class;
@@ -1936,7 +1936,8 @@ Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
         if(array == NULL)
             return NULL;
 
-        body = ARRAY_DATA(array);
+        body = ARRAY_DATA(array, Object*);
+
         for(i = 0; i < *count; i++)
             if((*body++ = allocMultiArray(aclass, dim - 1, count + 1)) == NULL)
                 return NULL;

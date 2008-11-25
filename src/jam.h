@@ -648,10 +648,11 @@ typedef struct InitArgs {
 #define OBJ_DATA(obj, type, offset)     *(type*)&((char*)obj)[offset]
 #define INST_BASE(obj, type)            ((type*)(obj+1))
 
-#define ARRAY_DATA(arrayRef)            ((void*)(((u4*)(arrayRef+1))+1))
-#define ARRAY_LEN(arrayRef)             *(u4*)(arrayRef+1)
+#define ARRAY_DATA(arrayRef, type)      ((type*)(((uintptr_t*)(arrayRef+1))+1)) 
+#define ARRAY_LEN(arrayRef)             *(uintptr_t*)(arrayRef+1)
 
-#define IS_CLASS(object)                (object->class && IS_CLASS_CLASS(CLASS_CB(object->class)))
+#define IS_CLASS(object)                (object->class && IS_CLASS_CLASS( \
+                                                      CLASS_CB(object->class)))
 
 #define IS_INTERFACE(cb)                (cb->access_flags & ACC_INTERFACE)
 #define IS_SYNTHETIC(cb)                (cb->access_flags & ACC_SYNTHETIC)

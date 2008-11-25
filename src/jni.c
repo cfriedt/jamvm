@@ -335,22 +335,27 @@ jlong Jam_GetDirectBufferCapacity(JNIEnv *env, jobject buffer) {
 /* Extensions added to JNI in JDK 1.2 */
 
 jmethodID Jam_FromReflectedMethod(JNIEnv *env, jobject method) {
-    return mbFromReflectObject((Object*)method);
+    return mbFromReflectObject(method);
 }
 
 jfieldID Jam_FromReflectedField(JNIEnv *env, jobject field) {
-    return fbFromReflectObject((Object*)field);
+    return fbFromReflectObject(field);
 }
 
-jobject Jam_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID methodID, jboolean isStatic) {
+jobject Jam_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID methodID,
+                              jboolean isStatic) {
+
     MethodBlock *mb = (MethodBlock *)methodID;
+
     if(mb->name == SYMBOL(object_init))
         return (jobject) createReflectConstructorObject(mb);
     else
         return (jobject) createReflectMethodObject(mb);
 }
 
-jobject Jam_ToReflectedField(JNIEnv *env, jclass cls, jfieldID fieldID, jboolean isStatic) {
+jobject Jam_ToReflectedField(JNIEnv *env, jclass cls, jfieldID fieldID,
+                             jboolean isStatic) {
+
     return (jobject) createReflectFieldObject((FieldBlock *)fieldID);
 }
 
@@ -371,32 +376,43 @@ jint Jam_EnsureLocalCapacity(JNIEnv *env, jint capacity) {
     return ensureJNILrefCapacity(capacity) == NULL ? JNI_ERR : JNI_OK;
 }
 
-void Jam_GetStringRegion(JNIEnv *env, jstring string, jsize start, jsize len, jchar *buf) {
-    if((start + len) > getStringLen((Object*)string))
+void Jam_GetStringRegion(JNIEnv *env, jstring string, jsize start,
+                         jsize len, jchar *buf) {
+
+    if((start + len) > getStringLen(string))
         signalException(java_lang_StringIndexOutOfBoundsException, NULL);
     else
-        memcpy(buf, getStringChars((Object*)string) + start, len * sizeof(short));
+        memcpy(buf, getStringChars(string) + start, len * sizeof(short));
 }
 
-void Jam_GetStringUTFRegion(JNIEnv *env, jstring string, jsize start, jsize len, char *buf) {
-    if((start + len) > getStringLen((Object*)string))
+void Jam_GetStringUTFRegion(JNIEnv *env, jstring string, jsize start,
+                            jsize len, char *buf) {
+
+    if((start + len) > getStringLen(string))
         signalException(java_lang_StringIndexOutOfBoundsException, NULL);
     else
-        StringRegion2Utf8((Object*)string, start, len, buf);
+        StringRegion2Utf8(string, start, len, buf);
 }
 
-void *Jam_GetPrimitiveArrayCritical(JNIEnv *env, jarray array, jboolean *isCopy) {
+void *Jam_GetPrimitiveArrayCritical(JNIEnv *env, jarray array,
+                                    jboolean *isCopy) {
     if(isCopy != NULL)
         *isCopy = JNI_FALSE;
-    addJNIGref((Object*)array);
-    return ARRAY_DATA((Object*)array);
+
+    /* Pin the array */
+    addJNIGref(array);
+
+    return ARRAY_DATA((Object*)array, void);
 }
 
-void Jam_ReleasePrimitiveArrayCritical(JNIEnv *env, jarray array, void *carray, jint mode) {
-    delJNIGref((Object*)array);
+void Jam_ReleasePrimitiveArrayCritical(JNIEnv *env, jarray array, void *carray,
+                                       jint mode) {
+    delJNIGref(array);
 }
 
-const jchar *Jam_GetStringCritical(JNIEnv *env, jstring string, jboolean *isCopy) {
+const jchar *Jam_GetStringCritical(JNIEnv *env, jstring string,
+                                   jboolean *isCopy) {
+
     return Jam_GetStringChars(env, string, isCopy);
 }
 
@@ -422,8 +438,11 @@ jint Jam_GetVersion(JNIEnv *env) {
     return JNI_VERSION;
 }
 
-jclass Jam_DefineClass(JNIEnv *env, const char *name, jobject loader, const jbyte *buf, jsize bufLen) {
-    return (jclass)defineClass((char*)name, (char *)buf, 0, (int)bufLen, (Object *)loader);
+jclass Jam_DefineClass(JNIEnv *env, const char *name, jobject loader,
+                       const jbyte *buf, jsize bufLen) {
+
+    return (jclass)defineClass((char*)name, (char *)buf, 0, (int)bufLen,
+                               (Object *)loader);
 }
 
 jclass Jam_FindClass(JNIEnv *env, const char *name) {
@@ -691,7 +710,7 @@ jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass, jobjec
         Object *array = allocArray(array_class, length, sizeof(Object*));
         if(array != NULL) {
             if(initialElement != NULL) {
-                Object **data = ARRAY_DATA(array);
+                Object **data = ARRAY_DATA(array, Object*);
 
                 while(length--)
                    *data++ = (Object*) initialElement;
@@ -703,11 +722,11 @@ jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass, jobjec
 }
 
 jarray Jam_GetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index) {
-    return (jarray) addJNILref(((Object**)ARRAY_DATA((Object*)array))[index]);
+    return (jarray) addJNILref(ARRAY_DATA((Object*)array, Object*)[index]);
 }
 
 void Jam_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index, jobject value) {
-    ((Object**)ARRAY_DATA((Object*)array))[index] = (Object*)value;
+    ARRAY_DATA((Object*)array, Object*)[index] = (Object*)value;
 }
 
 jint Jam_RegisterNatives(JNIEnv *env, jclass clazz, const JNINativeMethod *methods, jint nMethods) {
@@ -1153,7 +1172,7 @@ native_type *Jam_Get##type##ArrayElements(JNIEnv *env, native_type##Array array,
     if(isCopy != NULL)                                                                          \
         *isCopy = JNI_FALSE;                                                                    \
     addJNIGref((Object*)array);                                                                 \
-    return (native_type*)ARRAY_DATA((Object*)array);                                            \
+    return ARRAY_DATA((Object*)array, native_type);                                            \
 }
 
 #define RELEASE_PRIM_ARRAY_ELEMENTS(type, native_type)                                          \
@@ -1165,13 +1184,13 @@ void Jam_Release##type##ArrayElements(JNIEnv *env, native_type##Array array,    
 #define GET_PRIM_ARRAY_REGION(type, native_type)                                                \
 void Jam_Get##type##ArrayRegion(JNIEnv *env, native_type##Array array, jsize start,             \
                                 jsize len, native_type *buf) {                                  \
-    memcpy(buf, (native_type*)ARRAY_DATA((Object*)array) + start, len * sizeof(native_type));   \
+    memcpy(buf, ARRAY_DATA((Object*)array, native_type) + start, len * sizeof(native_type));   \
 }
 
 #define SET_PRIM_ARRAY_REGION(type, native_type)                                                \
 void Jam_Set##type##ArrayRegion(JNIEnv *env, native_type##Array array, jsize start, jsize len,  \
                                 native_type *buf) {                                             \
-    memcpy((native_type*)ARRAY_DATA((Object*)array) + start, buf, len * sizeof(native_type));   \
+    memcpy(ARRAY_DATA((Object*)array, native_type) + start, buf, len * sizeof(native_type));   \
 }
 
 #define PRIM_ARRAY_OP(type, native_type, array_type) \

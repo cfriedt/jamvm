@@ -357,7 +357,7 @@ int main(int argc, char *argv[]) {
     i = class_arg + 1;
     if((array_class = findArrayClass(SYMBOL(array_java_lang_String))) &&
            (array = allocArray(array_class, argc - i, sizeof(Object*))))  {
-        Object **args = (Object**)ARRAY_DATA(array) - i;
+        Object **args = ARRAY_DATA(array, Object*) - i;
 
         for(; i < argc; i++)
             if(!(args[i] = Cstr2String(argv[i])))

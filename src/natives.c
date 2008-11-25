@@ -103,8 +103,8 @@ uintptr_t *arraycopy(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     else {
         ClassBlock *scb = CLASS_CB(src->class);
         ClassBlock *dcb = CLASS_CB(dest->class);
-        char *sdata = ARRAY_DATA(src);            
-        char *ddata = ARRAY_DATA(dest);            
+        char *sdata = ARRAY_DATA(src, char);            
+        char *ddata = ARRAY_DATA(dest, char);            
 
         if((scb->name[0] != '[') || (dcb->name[0] != '['))
             goto storeExcep; 
@@ -577,7 +577,7 @@ uintptr_t *getClassContext(Class *class, MethodBlock *mb, uintptr_t *ostack) {
         array = allocArray(class_class, depth, sizeof(Class*));
 
         if(array != NULL) {
-            Class **data = ARRAY_DATA(array);
+            Class **data = ARRAY_DATA(array, Class*);
 
             do {
                 for(; bottom->mb != NULL; bottom = bottom->prev)
@@ -636,7 +636,7 @@ uintptr_t *defineClass0(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
                            ((offset + data_len) > ARRAY_LEN(array)))
             signalException(java_lang_ArrayIndexOutOfBoundsException, NULL);
         else {
-            char *data = ARRAY_DATA(array);
+            char *data = ARRAY_DATA(array, char);
             char *cstr = string ? String2Utf8(string) : NULL;
             int len = string ? strlen(cstr) : 0;
             int i;
@@ -1094,9 +1094,9 @@ uintptr_t *getStack(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     names = allocArray(string_class, depth, sizeof(Object*));
 
     if(stack != NULL && names != NULL && classes != NULL) {
-        Class **dcl = ARRAY_DATA(classes);
-        Object **dnm = ARRAY_DATA(names);
-        Object **stk = ARRAY_DATA(stack);
+        Class **dcl = ARRAY_DATA(classes, Class*);
+        Object **dnm = ARRAY_DATA(names, Object*);
+        Object **stk = ARRAY_DATA(stack, Object*);
 
         frame = getExecEnv()->last_frame;
 
@@ -1404,7 +1404,7 @@ uintptr_t *putObject(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *arrayBaseOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    *ostack++ = (uintptr_t) ARRAY_DATA((Object*)NULL);
+    *ostack++ = (uintptr_t)ARRAY_DATA((Object*)NULL, void);
     return ostack;
 }
 

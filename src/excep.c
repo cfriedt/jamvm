@@ -251,7 +251,7 @@ out:
     if((array = allocTypeArray(sizeof(uintptr_t) == 4 ? T_INT : T_LONG, depth*2)) == NULL)
         return NULL;
 
-    data = ARRAY_DATA(array);
+    data = ARRAY_DATA(array, uintptr_t);
     depth = 0;
     do {
         for(; bottom->mb != NULL; bottom = bottom->prev) {
@@ -279,13 +279,13 @@ Object *convertStackTrace(Object *vmthrwble) {
     if((array = OBJ_DATA(vmthrwble, Object*, backtrace_offset)) == NULL)
         return NULL;
 
-    src = ARRAY_DATA(array);
+    src = ARRAY_DATA(array, uintptr_t);
     depth = ARRAY_LEN(array);
 
     if((ste_array = allocArray(ste_array_class, depth/2, sizeof(Object*))) == NULL)
         return NULL;
 
-    dest = ARRAY_DATA(ste_array);
+    dest = ARRAY_DATA(ste_array, Object*);
 
     for(i = 0, j = 0; i < depth; j++) {
         MethodBlock *mb = (MethodBlock*)src[i++];
@@ -324,7 +324,7 @@ void markVMThrowable(Object *vmthrwble, int mark, int mark_soft_refs) {
     Object *array;
 
     if((array = OBJ_DATA(vmthrwble, Object*, backtrace_offset)) != NULL) {
-        uintptr_t *src = ARRAY_DATA(array);
+        uintptr_t *src = ARRAY_DATA(array, uintptr_t);
         int i, depth = ARRAY_LEN(array);
 
         for(i = 0; i < depth; i += 2) {

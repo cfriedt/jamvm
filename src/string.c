@@ -45,7 +45,7 @@ int stringHash(Object *ptr) {
     int len = OBJ_DATA(ptr, int, count_offset);
     int offset = OBJ_DATA(ptr, int, offset_offset);
     Object *array = OBJ_DATA(ptr, Object*, value_offset); 
-    unsigned short *dpntr = ((unsigned short *)ARRAY_DATA(array))+offset;
+    unsigned short *dpntr = ARRAY_DATA(array, unsigned short) + offset;
     int hash = 0;
 
     for(; len > 0; len--)
@@ -63,8 +63,8 @@ int stringComp(Object *ptr, Object *ptr2) {
         Object *array2 = OBJ_DATA(ptr2, Object*, value_offset);
         int offset = OBJ_DATA(ptr, int, offset_offset);
         int offset2 = OBJ_DATA(ptr2, int, offset_offset);
-        unsigned short *src = ((unsigned short *)ARRAY_DATA(array))+offset;
-        unsigned short *dst = ((unsigned short *)ARRAY_DATA(array2))+offset2;
+        unsigned short *src = ARRAY_DATA(array, unsigned short) + offset;
+        unsigned short *dst = ARRAY_DATA(array2, unsigned short) + offset2;
 
         for(; (len > 0) && (*src++ == *dst++); len--);
 
@@ -85,7 +85,7 @@ Object *createString(char *utf8) {
        (ob = allocObject(string_class)) == NULL)
         return NULL;
 
-    data = ARRAY_DATA(array);
+    data = ARRAY_DATA(array, unsigned short);
     convertUtf8(utf8, data);
 
     OBJ_DATA(ob, int, count_offset) = len; 
@@ -140,7 +140,7 @@ void threadInternedStrings() {
 char *String2Buff0(Object *string, char *buff, int len) {
     int offset = OBJ_DATA(string, int, offset_offset);
     Object *array = OBJ_DATA(string, Object*, value_offset);
-    unsigned short *str = ((unsigned short *)ARRAY_DATA(array))+offset;
+    unsigned short *str = ARRAY_DATA(array, unsigned short) + offset;
     char *pntr;
 
     for(pntr = buff; len > 0; len--)
@@ -198,8 +198,8 @@ Object *createStringFromUnicode(unsigned short *unicode, int len) {
     Object *ob = allocObject(string_class);
 
     if(array != NULL && ob != NULL) {
-        unsigned short *data = ARRAY_DATA(array);
-        memcpy(data, unicode, len*sizeof(unsigned short));
+        unsigned short *data = ARRAY_DATA(array, unsigned short);
+        memcpy(data, unicode, len * sizeof(unsigned short));
 
         OBJ_DATA(ob, int, count_offset) = len; 
         OBJ_DATA(ob, Object*, value_offset) = array; 
@@ -215,7 +215,7 @@ Object *getStringCharsArray(Object *string) {
 unsigned short *getStringChars(Object *string) {
     Object *array = OBJ_DATA(string, Object*, value_offset);
     int offset = OBJ_DATA(string, int, offset_offset);
-    return ((unsigned short*)ARRAY_DATA(array))+offset;
+    return ARRAY_DATA(array, unsigned short) + offset;
 }
 
 int getStringLen(Object *string) {

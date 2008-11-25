@@ -702,14 +702,14 @@ unused:
 #define ARRAY_LOAD_ARY *--ostack
 #endif
 
-#define ARRAY_LOAD(TYPE)                              \
-{                                                     \
-    int idx = ARRAY_LOAD_IDX;                         \
-    Object *array = (Object *)ARRAY_LOAD_ARY;         \
-                                                      \
-    NULL_POINTER_CHECK(array);                        \
-    ARRAY_BOUNDS_CHECK(array, idx);                   \
-    PUSH_0(((TYPE *)ARRAY_DATA(array))[idx], 1);      \
+#define ARRAY_LOAD(TYPE)                       \
+{                                              \
+    int idx = ARRAY_LOAD_IDX;                  \
+    Object *array = (Object *)ARRAY_LOAD_ARY;  \
+                                               \
+    NULL_POINTER_CHECK(array);                 \
+    ARRAY_BOUNDS_CHECK(array, idx);            \
+    PUSH_0(ARRAY_DATA(array, TYPE)[idx], 1);   \
 }
 
     DEF_OPC_012_2(
@@ -740,7 +740,7 @@ unused:
 
         NULL_POINTER_CHECK(array);
         ARRAY_BOUNDS_CHECK(array, idx);
-        PUSH_LONG(((u8 *)ARRAY_DATA(array))[idx], 1);
+        PUSH_LONG(ARRAY_DATA(array, u8)[idx], 1);
     })
 
     DEF_OPC_012(OPC_DALOAD, {
@@ -749,7 +749,7 @@ unused:
 
         NULL_POINTER_CHECK(array);
         ARRAY_BOUNDS_CHECK(array, idx);
-        PUSH_LONG(((u8 *)ARRAY_DATA(array))[idx], 1);
+        PUSH_LONG(ARRAY_DATA(array, u8)[idx], 1);
     })
 
 #ifdef USE_CACHE
@@ -760,16 +760,16 @@ unused:
 #define ARRAY_STORE_IDX *--ostack
 #endif
 
-#define ARRAY_STORE(TYPE)                         \
-{                                                 \
-    int val = ARRAY_STORE_VAL;                    \
-    int idx = ARRAY_STORE_IDX;                    \
-    Object *array = (Object *)*--ostack;          \
-                                                  \
-    NULL_POINTER_CHECK(array);                    \
-    ARRAY_BOUNDS_CHECK(array, idx);               \
-    ((TYPE *)ARRAY_DATA(array))[idx] = val;       \
-    DISPATCH(0, 1);                               \
+#define ARRAY_STORE(TYPE)                     \
+{                                             \
+    int val = ARRAY_STORE_VAL;                \
+    int idx = ARRAY_STORE_IDX;                \
+    Object *array = (Object *)*--ostack;      \
+                                              \
+    NULL_POINTER_CHECK(array);                \
+    ARRAY_BOUNDS_CHECK(array, idx);           \
+    ARRAY_DATA(array, TYPE)[idx] = val;       \
+    DISPATCH(0, 1);                           \
 }
 
     DEF_OPC_012_2(
@@ -799,7 +799,7 @@ unused:
         if((obj != NULL) && !arrayStoreCheck(array->class, obj->class))
             THROW_EXCEPTION(java_lang_ArrayStoreException, NULL);
 
-        ((Object**)ARRAY_DATA(array))[idx] = obj;
+        ARRAY_DATA(array, Object*)[idx] = obj;
         DISPATCH(0, 1);
     })
 
@@ -814,7 +814,7 @@ unused:
         NULL_POINTER_CHECK(array);
         ARRAY_BOUNDS_CHECK(array, idx);
 
-        ((u8 *)ARRAY_DATA(array))[idx] = cache.l;
+        ARRAY_DATA(array, u8)[idx] = cache.l;
         DISPATCH(0, 1);
     })
 #else
@@ -828,7 +828,7 @@ unused:
         NULL_POINTER_CHECK(array);
         ARRAY_BOUNDS_CHECK(array, idx);
 
-        ((u8 *)ARRAY_DATA(array))[idx] = *(u8*)&ostack[2];
+        ARRAY_DATA(array, u8)[idx] = *(u8*)&ostack[2];
         DISPATCH(0, 1);
     })
 #endif
