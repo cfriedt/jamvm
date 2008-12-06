@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007
+## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
 ## Robert Lougher <rob@lougher.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -20,5 +20,5 @@
 ##
 
 SUBDIRS = @os@
-DIST_SUBDIRS = linux darwin bsd
+DIST_SUBDIRS = linux darwin bsd solaris
 

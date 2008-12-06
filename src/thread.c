@@ -22,6 +22,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* Required on OpenSolaris to get standard conforming sigwait. */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+#define _POSIX_PTHREAD_SEMANTICS
+#endif
+
 #include <signal.h>
 #include <sched.h>
 

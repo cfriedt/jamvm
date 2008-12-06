@@ -29,6 +29,11 @@
 #include <zlib.h>
 #include <sys/mman.h>
 
+/* Required on OpenSolaris. */
+#ifndef MAP_FILE
+#define MAP_FILE 0
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
