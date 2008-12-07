@@ -34,7 +34,11 @@
 /* The extra used in expanding the local refs table.
  * This must be >= size of JNIFrame to be thread safe
  * wrt GC thread suspension */
-#define LIST_INCR 8
+#define LREF_LIST_INCR 8
+
+/* The extra used in expanding the global refs table.
+ * Also the initial list size */
+#define GREF_LIST_INCR 32
 
 /* The amount of local reference space "ensured" before
    entering a JNI method.  The method is garaunteed to
@@ -142,7 +146,7 @@ Object *addJNILref(Object *ref) {
         return NULL;
 
     if(frame->next_ref == (Object**)frame)
-        if((frame = expandJNILrefs(ee, frame, LIST_INCR)) == NULL) {
+        if((frame = expandJNILrefs(ee, frame, LREF_LIST_INCR)) == NULL) {
             jam_fprintf(stderr, "JNI - FatalError: cannot expand local references.\n");
             exitVM(1);
         }
@@ -195,45 +199,55 @@ static VMLock global_ref_lock;
 static Object **global_ref_table;
 static int global_ref_size = 0;
 static int global_ref_next = 0;
-static int global_ref_deleted = 0;
+static int global_ref_deleted = FALSE;
 
 static void initJNIGrefs() {
     initVMLock(global_ref_lock);
 }
 
+void lockJNIGrefs(Thread *self) {
+    /* Only disable/enable suspension (slow) if
+       we have to block */
+    if(!tryLockVMLock(global_ref_lock, self)) {
+        disableSuspend(self);
+        lockVMLock(global_ref_lock, self);
+        enableSuspend(self);
+    }
+    fastDisableSuspend(self);
+}
+
+void unlockJNIGrefs(Thread *self) {
+    fastEnableSuspend(self);
+    unlockVMLock(global_ref_lock, self);
+}
+
 static Object *addJNIGref(Object *ref) {
     Thread *self = threadSelf();
-    disableSuspend(self);
-    lockVMLock(global_ref_lock, self);
+    lockJNIGrefs(self);
 
     if(global_ref_next == global_ref_size) {
-        int new_size;
-        Object **new_table;
-        int i, j;
-               
-        if(global_ref_deleted >= LIST_INCR) {
-            new_size = global_ref_size;
-            new_table = global_ref_table;
-        } else {
-            new_size = global_ref_size + LIST_INCR - global_ref_deleted;
-            new_table = (Object**)sysMalloc(new_size * sizeof(Object*));
+
+        if(global_ref_deleted) {
+            int i, j;
+
+            for(i = 0, j = 0; i < global_ref_size; i++)
+                if(global_ref_table[i])
+                    global_ref_table[j++] = global_ref_table[i];
+
+            global_ref_deleted = FALSE;
+            global_ref_next = j;
         }
 
-        for(i = 0, j = 0; i < global_ref_size; i++)
-            if(global_ref_table[i])
-                new_table[j++] = global_ref_table[i];
-
-        global_ref_next = j;
-        global_ref_size = new_size;
-        global_ref_table = new_table;
-        global_ref_deleted = 0;
+        if(global_ref_next + GREF_LIST_INCR > global_ref_size) {
+            global_ref_size = global_ref_next + GREF_LIST_INCR;
+            global_ref_table = sysRealloc(global_ref_table,
+                                          global_ref_size * sizeof(Object*));
+        }
     }
 
     global_ref_table[global_ref_next++] = ref;
 
-    unlockVMLock(global_ref_lock, self);
-    enableSuspend(self);
-
+    unlockJNIGrefs(self);
     return ref;
 }
 
@@ -241,35 +255,32 @@ static void delJNIGref(Object *ref) {
     Thread *self = threadSelf();
     int i;
 
-    disableSuspend(self);
-    lockVMLock(global_ref_lock, self);
+    lockJNIGrefs(self);
 
-    for(i = 0; i < global_ref_next; i++)
+    for(i = global_ref_next - 1; i >= 0; i--)
         if(global_ref_table[i] == ref) {
-            global_ref_table[i] = NULL;
-            global_ref_deleted++;
+            if(i == global_ref_next - 1)
+                global_ref_next = i;
+            else {
+                global_ref_table[i] = NULL;
+                global_ref_deleted = TRUE;
+            }
             break;
         }
 
-    unlockVMLock(global_ref_lock, self);
-    enableSuspend(self);
+    unlockJNIGrefs(self);
 }
 
-/* Called during mark phase of GC.  Safe from
-   suspension but must grab lock to ensure list
-   isn't being modified by another thread. */
+/* Called during mark phase of GC.  No need to
+   grab lock as no thread can be suspended
+   while it is held */
 
 void markJNIGlobalRefs() {
-    Thread *self = threadSelf();
     int i;
-
-    lockVMLock(global_ref_lock, self);
 
     for(i = 0; i < global_ref_next; i++)
         if(global_ref_table[i])
             markConservativeRoot(global_ref_table[i]);
-
-    unlockVMLock(global_ref_lock, self);
 }
 
 /* Extensions added to JNI in JDK 1.4 */
@@ -283,7 +294,7 @@ jobject Jam_NewDirectByteBuffer(JNIEnv *env, void *addr, jlong capacity) {
     if((buff = allocObject(buffImpl_class)) != NULL &&
             (rawdata = allocObject(rawdata_class)) != NULL) {
 
-        INST_DATA(rawdata)[rawdata_offset] = (uintptr_t)addr;
+        OBJ_DATA(rawdata, void*, rawdata_offset) = addr;
         executeMethod(buff, buffImpl_init_mb, NULL, rawdata, (int)capacity,
                       (int)capacity, 0);
     }
@@ -298,9 +309,9 @@ static void *Jam_GetDirectBufferAddress(JNIEnv *env, jobject buffer) {
         return NULL;
 
     if(buff != NULL) {
-        Object *rawdata = (Object *)INST_DATA(buff)[buffAddr_offset];
+        Object *rawdata = OBJ_DATA(buff, Object*, buffAddr_offset);
         if(rawdata != NULL)
-            return (void*)INST_DATA(rawdata)[rawdata_offset];
+            return OBJ_DATA(rawdata, void*, rawdata_offset);
     }
 
     return NULL;
@@ -313,9 +324,9 @@ jlong Jam_GetDirectBufferCapacity(JNIEnv *env, jobject buffer) {
         return -1;
 
     if(buff != NULL) {
-        Object *rawdata = (Object *)INST_DATA(buff)[buffAddr_offset];
+        Object *rawdata = OBJ_DATA(buff, Object*, buffAddr_offset);
         if(rawdata != NULL)
-            return (jlong)INST_DATA(buff)[buffCap_offset];
+            return OBJ_DATA(buff, jlong, buffCap_offset);
     }
 
     return -1;
@@ -324,22 +335,27 @@ jlong Jam_GetDirectBufferCapacity(JNIEnv *env, jobject buffer) {
 /* Extensions added to JNI in JDK 1.2 */
 
 jmethodID Jam_FromReflectedMethod(JNIEnv *env, jobject method) {
-    return mbFromReflectObject((Object*)method);
+    return mbFromReflectObject(method);
 }
 
 jfieldID Jam_FromReflectedField(JNIEnv *env, jobject field) {
-    return fbFromReflectObject((Object*)field);
+    return fbFromReflectObject(field);
 }
 
-jobject Jam_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID methodID, jboolean isStatic) {
+jobject Jam_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID methodID,
+                              jboolean isStatic) {
+
     MethodBlock *mb = (MethodBlock *)methodID;
+
     if(mb->name == SYMBOL(object_init))
         return (jobject) createReflectConstructorObject(mb);
     else
         return (jobject) createReflectMethodObject(mb);
 }
 
-jobject Jam_ToReflectedField(JNIEnv *env, jclass cls, jfieldID fieldID, jboolean isStatic) {
+jobject Jam_ToReflectedField(JNIEnv *env, jclass cls, jfieldID fieldID,
+                             jboolean isStatic) {
+
     return (jobject) createReflectFieldObject((FieldBlock *)fieldID);
 }
 
@@ -360,32 +376,43 @@ jint Jam_EnsureLocalCapacity(JNIEnv *env, jint capacity) {
     return ensureJNILrefCapacity(capacity) == NULL ? JNI_ERR : JNI_OK;
 }
 
-void Jam_GetStringRegion(JNIEnv *env, jstring string, jsize start, jsize len, jchar *buf) {
-    if((start + len) > getStringLen((Object*)string))
+void Jam_GetStringRegion(JNIEnv *env, jstring string, jsize start,
+                         jsize len, jchar *buf) {
+
+    if((start + len) > getStringLen(string))
         signalException(java_lang_StringIndexOutOfBoundsException, NULL);
     else
-        memcpy(buf, getStringChars((Object*)string) + start, len * sizeof(short));
+        memcpy(buf, getStringChars(string) + start, len * sizeof(short));
 }
 
-void Jam_GetStringUTFRegion(JNIEnv *env, jstring string, jsize start, jsize len, char *buf) {
-    if((start + len) > getStringLen((Object*)string))
+void Jam_GetStringUTFRegion(JNIEnv *env, jstring string, jsize start,
+                            jsize len, char *buf) {
+
+    if((start + len) > getStringLen(string))
         signalException(java_lang_StringIndexOutOfBoundsException, NULL);
     else
-        StringRegion2Utf8((Object*)string, start, len, buf);
+        StringRegion2Utf8(string, start, len, buf);
 }
 
-void *Jam_GetPrimitiveArrayCritical(JNIEnv *env, jarray array, jboolean *isCopy) {
+void *Jam_GetPrimitiveArrayCritical(JNIEnv *env, jarray array,
+                                    jboolean *isCopy) {
     if(isCopy != NULL)
         *isCopy = JNI_FALSE;
-    addJNIGref((Object*)array);
-    return ARRAY_DATA((Object*)array);
+
+    /* Pin the array */
+    addJNIGref(array);
+
+    return ARRAY_DATA((Object*)array, void);
 }
 
-void Jam_ReleasePrimitiveArrayCritical(JNIEnv *env, jarray array, void *carray, jint mode) {
-    delJNIGref((Object*)array);
+void Jam_ReleasePrimitiveArrayCritical(JNIEnv *env, jarray array, void *carray,
+                                       jint mode) {
+    delJNIGref(array);
 }
 
-const jchar *Jam_GetStringCritical(JNIEnv *env, jstring string, jboolean *isCopy) {
+const jchar *Jam_GetStringCritical(JNIEnv *env, jstring string,
+                                   jboolean *isCopy) {
+
     return Jam_GetStringChars(env, string, isCopy);
 }
 
@@ -411,8 +438,11 @@ jint Jam_GetVersion(JNIEnv *env) {
     return JNI_VERSION;
 }
 
-jclass Jam_DefineClass(JNIEnv *env, const char *name, jobject loader, const jbyte *buf, jsize bufLen) {
-    return (jclass)defineClass((char*)name, (char *)buf, 0, (int)bufLen, (Object *)loader);
+jclass Jam_DefineClass(JNIEnv *env, const char *name, jobject loader,
+                       const jbyte *buf, jsize bufLen) {
+
+    return (jclass)defineClass((char*)name, (char *)buf, 0,
+                               (int)bufLen, loader);
 }
 
 jclass Jam_FindClass(JNIEnv *env, const char *name) {
@@ -441,17 +471,16 @@ jclass Jam_GetSuperClass(JNIEnv *env, jclass clazz) {
 }
 
 jboolean Jam_IsAssignableFrom(JNIEnv *env, jclass clazz1, jclass clazz2) {
-    return isInstanceOf((Class*)clazz2, (Class*)clazz1);
+    return isInstanceOf(clazz2, clazz1);
 }
 
 jint Jam_Throw(JNIEnv *env, jthrowable obj) {
-    Object *ob = (Object*)obj;
-    setException(ob);
+    setException(obj);
     return JNI_TRUE;
 }
 
 jint Jam_ThrowNew(JNIEnv *env, jclass clazz, const char *message) {
-    signalExceptionClass((Class*)clazz, (char*)message);
+    signalExceptionClass(clazz, (char*)message);
     return JNI_TRUE;
 }
 
@@ -473,15 +502,15 @@ void Jam_FatalError(JNIEnv *env, const char *message) {
 }
 
 jobject Jam_NewGlobalRef(JNIEnv *env, jobject obj) {
-    return addJNIGref((Object*)obj);
+    return addJNIGref(obj);
 }
 
 void Jam_DeleteGlobalRef(JNIEnv *env, jobject obj) {
-    delJNIGref((Object*)obj);
+    delJNIGref(obj);
 }
 
 void Jam_DeleteLocalRef(JNIEnv *env, jobject obj) {
-    delJNILref((Object*)obj);
+    delJNILref(obj);
 }
 
 jboolean Jam_IsSameObject(JNIEnv *env, jobject obj1, jobject obj2) {
@@ -495,7 +524,7 @@ Object *allocObjectClassCheck(Class *class) {
 
     /* Check the class can be instantiated */
     if(cb->access_flags & (ACC_INTERFACE | ACC_ABSTRACT)) {
-        signalException(java_lang_InstantiationError, cb->name);
+        signalException(java_lang_InstantiationException, cb->name);
         return NULL;
     }
 
@@ -508,7 +537,7 @@ Object *allocObjectClassCheck(Class *class) {
 }
 
 jobject Jam_AllocObject(JNIEnv *env, jclass clazz) {
-    return (jobject) addJNILref(allocObjectClassCheck((Class*)clazz));
+    return (jobject) addJNILref(allocObjectClassCheck(clazz));
 }
 
 jclass Jam_GetObjectClass(JNIEnv *env, jobject obj) {
@@ -516,16 +545,19 @@ jclass Jam_GetObjectClass(JNIEnv *env, jobject obj) {
 }
 
 jboolean Jam_IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
-    return (obj == NULL) || isInstanceOf((Class*)clazz, ((Object*)obj)->class);
+    return (obj == NULL) || isInstanceOf(clazz, ((Object*)obj)->class);
 }
 
-jmethodID getMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig, char is_static) {
-    Class *class = initClass((Class *)clazz);
+jmethodID getMethodID(JNIEnv *env, jclass clazz, const char *name,
+                      const char *sig, char is_static) {
+
+    Class *class = initClass(clazz);
     MethodBlock *mb = NULL;
 
     if(class != NULL) {
         if(!IS_PRIMITIVE(CLASS_CB(class))) {
-            char *method_name = findUtf8((char*)name), *method_sig = findUtf8((char*)sig);
+            char *method_name = findUtf8((char*)name);
+            char *method_sig = findUtf8((char*)sig);
 
             if(method_name != NULL && method_sig != NULL) {
                 if(method_name == SYMBOL(object_init) ||
@@ -563,13 +595,17 @@ jfieldID Jam_GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char 
     return (jfieldID) fb;
 }
 
-jmethodID Jam_GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
+jmethodID Jam_GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name,
+                                const char *sig) {
+
     return getMethodID(env, clazz, name, sig, TRUE);
 }
 
-jfieldID Jam_GetStaticFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
+jfieldID Jam_GetStaticFieldID(JNIEnv *env, jclass clazz, const char *name,
+                              const char *sig) {
+
     char *field_name = findUtf8((char*)name), *field_sig = findUtf8((char*)sig);
-    Class *class = initClass((Class *)clazz);
+    Class *class = initClass(clazz);
     FieldBlock *fb = NULL;
 
     if(class != NULL) {
@@ -588,7 +624,7 @@ jstring Jam_NewString(JNIEnv *env, const jchar *unicodeChars, jsize len) {
 }
 
 jsize Jam_GetStringLength(JNIEnv *env, jstring string) {
-    return getStringLen((Object*)string);
+    return getStringLen(string);
 }
 
 const jchar *Jam_GetStringChars(JNIEnv *env, jstring string, jboolean *isCopy) {
@@ -596,14 +632,14 @@ const jchar *Jam_GetStringChars(JNIEnv *env, jstring string, jboolean *isCopy) {
         *isCopy = JNI_FALSE;
 
     /* Pin the reference */
-    addJNIGref(getStringCharsArray((Object*)string));
+    addJNIGref(getStringCharsArray(string));
 
-    return (const jchar *)getStringChars((Object*)string);
+    return (const jchar *)getStringChars(string);
 }
 
 void Jam_ReleaseStringChars(JNIEnv *env, jstring string, const jchar *chars) {
     /* Unpin the reference */
-    delJNIGref(getStringCharsArray((Object*)string));
+    delJNIGref(getStringCharsArray(string));
 }
 
 jstring Jam_NewStringUTF(JNIEnv *env, const char *bytes) {
@@ -613,7 +649,7 @@ jstring Jam_NewStringUTF(JNIEnv *env, const char *bytes) {
 jsize Jam_GetStringUTFLength(JNIEnv *env, jstring string) {
     if(string == NULL)
         return 0;
-    return getStringUtf8Len((Object*)string);
+    return getStringUtf8Len(string);
 }
 
 const char *Jam_GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy) {
@@ -622,7 +658,7 @@ const char *Jam_GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy)
 
     if(string == NULL)
         return NULL;
-    return (const char*)String2Utf8((Object*)string);
+    return (const char*)String2Utf8(string);
 }
 
 void Jam_ReleaseStringUTFChars(JNIEnv *env, jstring string, const char *chars) {
@@ -634,7 +670,7 @@ jsize Jam_GetArrayLength(JNIEnv *env, jarray array) {
 }
 
 jobject Jam_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, ...) {
-    Object *ob =  allocObjectClassCheck((Class*)clazz);
+    Object *ob = allocObjectClassCheck(clazz);
 
     if(ob) {
         va_list jargs;
@@ -646,21 +682,27 @@ jobject Jam_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, ...) {
     return (jobject) addJNILref(ob);
 }
 
-jobject Jam_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID, jvalue *args) {
-    Object *ob =  allocObjectClassCheck((Class*)clazz);
+jobject Jam_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
+                       jvalue *args) {
+
+    Object *ob = allocObjectClassCheck(clazz);
 
     if(ob) executeMethodList(ob, ob->class, (MethodBlock*)methodID, (u8*)args);
     return (jobject) addJNILref(ob);
 }
 
-jobject Jam_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID, va_list args) {
-    Object *ob =  allocObjectClassCheck((Class*)clazz);
+jobject Jam_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
+                       va_list args) {
+
+    Object *ob = allocObjectClassCheck(clazz);
 
     if(ob) executeMethodVaList(ob, ob->class, (MethodBlock*)methodID, args);
     return (jobject) addJNILref(ob);
 }
 
-jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass, jobject initialElement) {
+jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass,
+                          jobject initialElement) {
+
     char *element_name = CLASS_CB((Class*)elementClass)->name;
     char ac_name[strlen(element_name) + 4];
     Class *array_class;
@@ -680,10 +722,10 @@ jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass, jobjec
         Object *array = allocArray(array_class, length, sizeof(Object*));
         if(array != NULL) {
             if(initialElement != NULL) {
-                Object **data = ARRAY_DATA(array);
+                Object **data = ARRAY_DATA(array, Object*);
 
                 while(length--)
-                   *data++ = (Object*) initialElement;
+                   *data++ = initialElement;
             }
             return (jarray) addJNILref(array);
         }
@@ -692,11 +734,11 @@ jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass, jobjec
 }
 
 jarray Jam_GetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index) {
-    return (jarray) addJNILref(((Object**)ARRAY_DATA((Object*)array))[index]);
+    return (jarray) addJNILref(ARRAY_DATA((Object*)array, Object*)[index]);
 }
 
 void Jam_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index, jobject value) {
-    ((Object**)ARRAY_DATA((Object*)array))[index] = (Object*)value;
+    ARRAY_DATA((Object*)array, Object*)[index] = value;
 }
 
 jint Jam_RegisterNatives(JNIEnv *env, jclass clazz, const JNINativeMethod *methods, jint nMethods) {
@@ -708,12 +750,12 @@ jint Jam_UnregisterNatives(JNIEnv *env, jclass clazz) {
 }
 
 jint Jam_MonitorEnter(JNIEnv *env, jobject obj) {
-    objectLock((Object*)obj);
+    objectLock(obj);
     return JNI_OK;
 }
 
 jint Jam_MonitorExit(JNIEnv *env, jobject obj) {
-    objectUnlock((Object*)obj);
+    objectUnlock(obj);
     return JNI_OK;
 }
 
@@ -729,28 +771,28 @@ jint Jam_GetJavaVM(JNIEnv *env, JavaVM **vm) {
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID) {             \
     FieldBlock *fb = (FieldBlock *) fieldID;                                               \
     Object *ob = (Object*) obj;                                                            \
-    return *(native_type *)&(INST_DATA(ob)[fb->offset]);                                   \
+    return OBJ_DATA(ob, native_type, fb->offset);                                          \
 }
 
 #define INT_GET_FIELD(type, native_type)                                                   \
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID) {             \
     FieldBlock *fb = (FieldBlock *) fieldID;                                               \
     Object *ob = (Object*) obj;                                                            \
-    return (native_type)(INST_DATA(ob)[fb->offset]);                                       \
+    return (native_type)(OBJ_DATA(ob, int, fb->offset));                                   \
 }
 
 #define SET_FIELD(type, native_type)                                                       \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID, native_type value) { \
     Object *ob = (Object*) obj;                                                            \
     FieldBlock *fb = (FieldBlock *) fieldID;                                               \
-    *(native_type *)&(INST_DATA(ob)[fb->offset]) = value;                                  \
+    OBJ_DATA(ob, native_type, fb->offset) = value;                                         \
 }
 
 #define INT_SET_FIELD(type, native_type)                                                   \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID, native_type value) { \
     Object *ob = (Object*) obj;                                                            \
     FieldBlock *fb = (FieldBlock *) fieldID;                                               \
-    INST_DATA(ob)[fb->offset] = (intptr_t)value;                                           \
+    OBJ_DATA(ob, int, fb->offset) = (int)value;                                            \
 }
 
 #define GET_STATIC_FIELD(type, native_type)                                                \
@@ -803,13 +845,13 @@ FIELD_ACCESS(Double, jdouble);
 jobject Jam_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID) {
     FieldBlock *fb = (FieldBlock *) fieldID;
     Object *ob = (Object*) obj;
-    return (jobject) addJNILref((Object*)(INST_DATA(ob)[fb->offset]));
+    return (jobject) addJNILref(OBJ_DATA(ob, Object*, fb->offset));
 }
 
 void Jam_SetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID, jobject value) {
     Object *ob = (Object*) obj;
     FieldBlock *fb = (FieldBlock *) fieldID;
-    INST_DATA(ob)[fb->offset] = (uintptr_t)value;
+    OBJ_DATA(ob, jobject, fb->offset) = value;
 }
 
 jobject Jam_GetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID) {
@@ -1018,7 +1060,7 @@ jobject Jam_CallObjectMethodV(JNIEnv *env, jobject obj, jmethodID methodID, va_l
     MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)methodID);
 
     return mb == NULL ? NULL : (jobject)addJNILref(*(Object**)
-                                        executeMethodVaList(ob, ob->class, mb, jargs));
+                                executeMethodVaList(ob, ob->class, mb, jargs));
 }
 
 jobject Jam_CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *jargs) {
@@ -1026,7 +1068,7 @@ jobject Jam_CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jval
     MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)methodID);
 
     return mb == NULL ? NULL : (jobject)addJNILref(*(Object**)
-                                        executeMethodList(ob, ob->class, mb, (u8*)jargs));
+                             executeMethodList(ob, ob->class, mb, (u8*)jargs));
 }
 
 jobject Jam_CallNonvirtualObjectMethod(JNIEnv *env, jobject obj, jclass clazz,
@@ -1142,7 +1184,7 @@ native_type *Jam_Get##type##ArrayElements(JNIEnv *env, native_type##Array array,
     if(isCopy != NULL)                                                                          \
         *isCopy = JNI_FALSE;                                                                    \
     addJNIGref((Object*)array);                                                                 \
-    return (native_type*)ARRAY_DATA((Object*)array);                                            \
+    return ARRAY_DATA((Object*)array, native_type);                                            \
 }
 
 #define RELEASE_PRIM_ARRAY_ELEMENTS(type, native_type)                                          \
@@ -1154,13 +1196,13 @@ void Jam_Release##type##ArrayElements(JNIEnv *env, native_type##Array array,    
 #define GET_PRIM_ARRAY_REGION(type, native_type)                                                \
 void Jam_Get##type##ArrayRegion(JNIEnv *env, native_type##Array array, jsize start,             \
                                 jsize len, native_type *buf) {                                  \
-    memcpy(buf, (native_type*)ARRAY_DATA((Object*)array) + start, len * sizeof(native_type));   \
+    memcpy(buf, ARRAY_DATA((Object*)array, native_type) + start, len * sizeof(native_type));   \
 }
 
 #define SET_PRIM_ARRAY_REGION(type, native_type)                                                \
 void Jam_Set##type##ArrayRegion(JNIEnv *env, native_type##Array array, jsize start, jsize len,  \
                                 native_type *buf) {                                             \
-    memcpy((native_type*)ARRAY_DATA((Object*)array) + start, buf, len * sizeof(native_type));   \
+    memcpy(ARRAY_DATA((Object*)array, native_type) + start, buf, len * sizeof(native_type));   \
 }
 
 #define PRIM_ARRAY_OP(type, native_type, array_type) \
@@ -1322,7 +1364,8 @@ static jint attachCurrentThread(void **penv, void *args, int is_daemon) {
 
         if(args != NULL) {
             JavaVMAttachArgs *attach_args = (JavaVMAttachArgs*)args;
-            if((attach_args->version != JNI_VERSION_1_4) && (attach_args->version != JNI_VERSION_1_2))
+            if(attach_args->version != JNI_VERSION_1_4 &&
+               attach_args->version != JNI_VERSION_1_2)
                 return JNI_EVERSION;
 
             name = attach_args->name;
@@ -1387,7 +1430,8 @@ struct _JNIInvokeInterface Jam_JNIInvokeInterface = {
 jint JNI_GetDefaultJavaVMInitArgs(void *args) {
     JavaVMInitArgs *vm_args = (JavaVMInitArgs*) args;
 
-    if((vm_args->version != JNI_VERSION_1_4) && (vm_args->version != JNI_VERSION_1_2))
+    if(vm_args->version != JNI_VERSION_1_4 &&
+       vm_args->version != JNI_VERSION_1_2)
         return JNI_EVERSION;
 
     return JNI_OK;
@@ -1487,12 +1531,12 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
             char *pntr = string + 14;
 
             if(strcmp(pntr, "none") == 0)
-                args->replication = INT_MAX;
+                args->replication_threshold = INT_MAX;
             else
                 if(strcmp(pntr, "always") == 0)
-                    args->replication = 0;
+                    args->replication_threshold = 0;
                 else
-                    args->replication = strtol(pntr, NULL, 0);
+                    args->replication_threshold = strtol(pntr, NULL, 0);
 
         } else if(strncmp(string, "-Xcodemem:", 10) == 0) {
             char *pntr = string + 10;
@@ -1522,7 +1566,8 @@ jint JNI_CreateJavaVM(JavaVM **pvm, void **penv, void *args) {
     JavaVMInitArgs *vm_args = (JavaVMInitArgs*) args;
     InitArgs init_args;
 
-    if((vm_args->version != JNI_VERSION_1_4) && (vm_args->version != JNI_VERSION_1_2))
+    if(vm_args->version != JNI_VERSION_1_4 &&
+       vm_args->version != JNI_VERSION_1_2)
         return JNI_EVERSION;
 
     setDefaultInitArgs(&init_args);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -123,6 +123,20 @@ do {                                                      \
      : "r0", "r1", "r2");                                 \
 }
 #endif
+
+#define GEN_REL_JMP(target_addr, patch_addr, patch_size)  \
+{                                                         \
+    if(patch_size >= 4) {                                 \
+        /* Guard against the pointer difference being     \
+           larger than the signed range */                \
+        long long offset = (uintptr_t)(target_addr) -     \
+                           (uintptr_t)(patch_addr) - 8;   \
+                                                          \
+        if(offset >= -1<<25 && offset < 1<<25)            \
+            *(int*)(patch_addr) = offset>>2 & 0x00ffffff  \
+                                            | 0xea000000; \
+    }                                                     \
+}
 
 #define MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")

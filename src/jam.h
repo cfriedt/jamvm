@@ -251,6 +251,11 @@
 #define OPC_INVOKEVIRTUAL_QUICK         214
 #define OPC_INVOKENONVIRTUAL_QUICK      215
 #define OPC_INVOKESUPER_QUICK           216
+#define OPC_GETFIELD_QUICK_REF          217
+#define OPC_PUTFIELD_QUICK_REF          218
+#define OPC_GETSTATIC_QUICK_REF         219
+#define OPC_PUTSTATIC_QUICK_REF         220
+#define OPC_GETFIELD_THIS_REF           221
 #define OPC_INVOKEVIRTUAL_QUICK_W       226
 #define OPC_GETFIELD_QUICK_W            227
 #define OPC_PUTFIELD_QUICK_W            228
@@ -266,6 +271,7 @@
 #define OPC_INVOKEINTERFACE_QUICK       244
 #define OPC_ABSTRACT_METHOD_ERROR       245
 #define OPC_INLINE_REWRITER             246
+#define OPC_PROFILE_REWRITER            247
 
 #define CONSTANT_Utf8                   1
 #define CONSTANT_Integer                3
@@ -420,22 +426,44 @@ typedef struct opcode_info {
     unsigned char cache_depth;
 } OpcodeInfo;
 
-typedef struct code_block {
+typedef struct profile_info ProfileInfo;
+
+typedef struct basic_block {
+    union {
+        struct {
+            int quickened;
+            ProfileInfo *profiled;
+        } profile;
+        struct {
+            char *addr;
+            struct basic_block *next;
+        } patch;
+    } u;
     int length;
     Instruction *start;
     OpcodeInfo *opcodes;
-} CodeBlock;
+    struct basic_block *prev;
+    struct basic_block *next;
+} BasicBlock;
 
 typedef struct quick_prepare_info {
-    CodeBlock block;
+    BasicBlock *block;
     Instruction *quickened;
     struct quick_prepare_info *next;
 } QuickPrepareInfo;
 
 typedef struct prepare_info {
-    CodeBlock block;
+    BasicBlock *block;
     Operand operand;
 } PrepareInfo;
+
+struct profile_info {
+    BasicBlock *block;
+    int profile_count;
+    const void *handler;
+    struct profile_info *next;
+    struct profile_info *prev;
+};
 #endif
 
 typedef Instruction *CodePntr;
@@ -477,6 +505,7 @@ typedef struct methodblock {
    MethodAnnotationData *annotations;
 #ifdef INLINING
    QuickPrepareInfo *quick_prepare_info;
+   ProfileInfo *profile_info;
 #endif
 } MethodBlock;
 
@@ -604,17 +633,26 @@ typedef struct InitArgs {
 
 #ifdef INLINING
     unsigned int codemem;
-    int replication;
+    int replication_threshold;
+    int profile_threshold;
+    int branch_patching_dup;
+    int branch_patching;
+    int print_codestats;
+    int join_blocks;
+    int profiling;
 #endif
 } InitArgs;
 
 #define CLASS_CB(classRef)              ((ClassBlock*)(classRef+1))
-#define INST_DATA(objectRef)            ((uintptr_t*)(objectRef+1))
 
-#define ARRAY_DATA(arrayRef)            ((void*)(((u4*)(arrayRef+1))+1))
-#define ARRAY_LEN(arrayRef)             *(u4*)(arrayRef+1)
+#define OBJ_DATA(obj, type, offset)     *(type*)&((char*)obj)[offset]
+#define INST_BASE(obj, type)            ((type*)(obj+1))
 
-#define IS_CLASS(object)                (object->class && IS_CLASS_CLASS(CLASS_CB(object->class)))
+#define ARRAY_DATA(arrayRef, type)      ((type*)(((uintptr_t*)(arrayRef+1))+1)) 
+#define ARRAY_LEN(arrayRef)             *(uintptr_t*)(arrayRef+1)
+
+#define IS_CLASS(object)                (object->class && IS_CLASS_CLASS( \
+                                                      CLASS_CB(object->class)))
 
 #define IS_INTERFACE(cb)                (cb->access_flags & ACC_INTERFACE)
 #define IS_SYNTHETIC(cb)                (cb->access_flags & ACC_SYNTHETIC)
@@ -720,14 +758,14 @@ extern void *gcMemMalloc(int n);
 extern void gcMemFree(void *ptr);
 extern void *gcMemRealloc(void *ptr, int n);
 
-extern void registerStaticObjectRef(Object **ob);
-extern void registerStaticObjectRefLocked(Object **ob);
+extern void registerStaticObjectRef(Object **ref);
+extern void registerStaticObjectRefLocked(Object **ref, Object *obj);
 
 #define registerStaticClassRef(ref) \
     registerStaticObjectRef(ref);
 
-#define registerStaticClassRefLocked(ref) \
-    registerStaticObjectRefLocked(ref);
+#define registerStaticClassRefLocked(ref, class) \
+    registerStaticObjectRefLocked(ref, class);
 
 extern void gcPendingFree(void *addr);
 
@@ -842,6 +880,7 @@ extern void initialiseException();
 /* interp */
 
 extern uintptr_t *executeJava();
+extern void shutdownInterpreter();
 extern void initialiseInterpreter(InitArgs *args);
 
 /* String */
@@ -924,6 +963,11 @@ extern void initialiseMonitor();
 
 /* reflect */
 
+#define REF_SRC_FIELD  0
+#define REF_DST_FIELD  0
+#define REF_SRC_OSTACK 1
+#define REF_DST_OSTACK 2
+
 extern Object *getClassConstructors(Class *class, int public);
 extern Object *getClassMethods(Class *class, int public);
 extern Object *getClassFields(Class *class, int public);
@@ -939,9 +983,9 @@ extern Object *getMethodAnnotations(MethodBlock *mb);
 extern Object *getMethodParameterAnnotations(MethodBlock *mb);
 extern Object *getMethodDefaultValue(MethodBlock *mb);
 
-extern Object *getReflectReturnObject(Class *type, uintptr_t *pntr);
-extern uintptr_t *widenPrimitiveValue(int src_idx, int dest_idx, uintptr_t *src, uintptr_t *dest);
-extern uintptr_t *unwrapAndWidenObject(Class *type, Object *arg, uintptr_t *pntr);
+extern Object *getReflectReturnObject(Class *type, void *pntr, int flags);
+extern int widenPrimitiveValue(int src_idx, int dest_idx, void *src, void *dest, int flags);
+extern int unwrapAndWidenObject(Class *type, Object *arg, void *pntr, int flags);
 extern Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_types,
                       int check_access);
 
@@ -991,6 +1035,10 @@ extern unsigned long parseMemValue(char *str);
 extern void initVM(InitArgs *args);
 extern int VMInitialising();
 
+/* shutdown */
+
+extern void shutdownVM(int status);
+
 /* hooks */
 
 extern void initialiseHooks(InitArgs *args);
@@ -1004,6 +1052,7 @@ extern void jamvm_exit(int status);
 extern void freeMethodInlinedInfo(MethodBlock *mb);
 extern int  initialiseInlining(InitArgs *args);
 extern void showRelocatability();
+extern void shutdownInlining();
 
 /* symbol */
 extern void initialiseSymbol();

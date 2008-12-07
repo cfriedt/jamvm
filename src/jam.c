@@ -258,16 +258,34 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
                code memory to zero */
             args->codemem = 0;
 
+        } else if(strcmp(argv[i], "-Xnoprofiling") == 0) {
+            args->profiling = FALSE;
+
+        } else if(strcmp(argv[i], "-Xnopatching") == 0) {
+            args->branch_patching = FALSE;
+
+        } else if(strcmp(argv[i], "-Xnopatchingdup") == 0) {
+            args->branch_patching_dup = FALSE;
+
+        } else if(strcmp(argv[i], "-Xnojoinblocks") == 0) {
+            args->join_blocks = FALSE;
+
+        } else if(strcmp(argv[i], "-Xcodestats") == 0) {
+            args->print_codestats = TRUE;
+
+        } else if(strncmp(argv[i], "-Xprofiling:", 12) == 0) {
+            args->profile_threshold = strtol(argv[i] + 12, NULL, 0);
+
         } else if(strncmp(argv[i], "-Xreplication:", 14) == 0) {
             char *pntr = argv[i] + 14;
 
             if(strcmp(pntr, "none") == 0)
-                args->replication = INT_MAX;
+                args->replication_threshold = INT_MAX;
             else
                 if(strcmp(pntr, "always") == 0)
-                    args->replication = 0;
+                    args->replication_threshold = 0;
                 else
-                    args->replication = strtol(pntr, NULL, 0);
+                    args->replication_threshold = strtol(pntr, NULL, 0);
 
         } else if(strncmp(argv[i], "-Xcodemem:", 10) == 0) {
             char *pntr = argv[i] + 10;
@@ -339,7 +357,7 @@ int main(int argc, char *argv[]) {
     i = class_arg + 1;
     if((array_class = findArrayClass(SYMBOL(array_java_lang_String))) &&
            (array = allocArray(array_class, argc - i, sizeof(Object*))))  {
-        Object **args = (Object**)ARRAY_DATA(array) - i;
+        Object **args = ARRAY_DATA(array, Object*) - i;
 
         for(; i < argc; i++)
             if(!(args[i] = Cstr2String(argv[i])))

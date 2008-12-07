@@ -18,31 +18,10 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-package jamvm.java.lang;
-import java.util.ArrayList;
+#include "jam.h"
 
-public class VMClassLoaderData {
-    ArrayList unloaders;
-    long hashtable;
-
-    synchronized void newLibraryUnloader(long dllEntry) {
-        if(unloaders == null)
-            unloaders = new ArrayList(4);
-
-        unloaders.add(new Unloader(dllEntry));
-    }
-
-    private static class Unloader {
-        long dllEntry;
-
-        Unloader(long entry) {
-            dllEntry = entry;
-        }
-
-        public void finalize() {
-            nativeUnloadDll(dllEntry);
-        }
-
-        native void nativeUnloadDll(long dllEntry);
-    }
+void shutdownVM(int status) {
+    shutdownInterpreter();
+    jamvm_exit(status);
 }
+

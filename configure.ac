@@ -22,7 +22,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.5.1-cvs)
+AM_INIT_AUTOMAKE(jamvm, 1.5.2-devel)
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
 
@@ -35,6 +35,7 @@ i[[3456]]86-*-darwin*) host_cpu=i386 host_os=darwin ;;
 arm*-*-darwin*) host_cpu=arm host_os=darwin libdl_needed=no ;;
 i386-*-openbsd*) host_os=bsd libdl_needed=no ;;
 i386-*-freebsd*) host_os=bsd libdl_needed=no ;;
+i386-*-solaris*) host_cpu=x86 host_os=solaris ;;
 x86_64-*-linux*) host_os=linux ;;
 hppa*-*-linux*) host_cpu=parisc host_os=linux ;;
 mipsel-*-linux*) host_cpu=mips host_os=linux ;;
@@ -145,7 +146,7 @@ AC_ARG_ENABLE(int-prefetch,
 
 AC_ARG_ENABLE(runtime-reloc-checks,
     [AS_HELP_STRING(--enable-runtime-reloc-checks,compute relocatability at runtime (inlining interpreter))],,
-        enable_runtime_reloc_checks=no)
+    [enable_runtime_reloc_checks=no])
 
 AC_ARG_ENABLE(int-inlining,
     [AS_HELP_STRING(--enable-int-inlining,enable inline threaded version of the interpreter
@@ -278,6 +279,12 @@ AC_FUNC_MMAP
 AC_CHECK_FUNCS(gettimeofday strtol setlocale)
 AM_LC_MESSAGES
 
+AC_MSG_CHECKING([for __thread])
+AC_LINK_IFELSE([AC_LANG_PROGRAM(,[static __thread int foo = 0])],
+    [AC_DEFINE([HAVE_TLS],1,[__thread supported by compiler])
+     AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])])
+
 AM_MAINTAINER_MODE
 
 AC_CONFIG_LINKS(src/arch.h:src/arch/$arch.h)
@@ -292,6 +299,8 @@ AC_CONFIG_FILES(
     src/os/linux/Makefile \
     src/os/darwin/Makefile \
     src/os/bsd/Makefile \
+    src/os/solaris/Makefile \
+    src/os/solaris/x86/Makefile \
     src/os/linux/powerpc/Makefile \
     src/os/linux/arm/Makefile \
     src/os/linux/i386/Makefile \

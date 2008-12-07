@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -45,6 +45,8 @@
 
 #define FLOAT_1_BITS FLOAT_CONST(0x3f800000)
 #define FLOAT_2_BITS FLOAT_CONST(0x40000000)
+
+#define OSTACK_FLOAT_ADJUST 0
 
 #define READ_U1_OP(p)    ((p)[1])
 #define READ_U2_OP(p)    (((p)[1]<<8)|(p)[2])

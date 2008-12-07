@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -31,8 +31,26 @@
 /* Needed for i386 -- empty here */
 #define FPU_HACK
 
+#define COMPARE_AND_SWAP_32(addr, old_val, new_val) \
+({                                                  \
+    int result, read_val;                           \
+    __asm__ __volatile__ ("                         \
+                li %0,0\n                           \
+        1:      lwarx %1,0,%2\n                     \
+                cmpw %3,%1\n                        \
+                bne- 2f\n                           \
+                stwcx. %4,0,%2\n                    \
+                bne- 1b\n                           \
+                li %0,1\n                           \
+        2:"                                         \
+    : "=&r" (result), "=&r" (read_val)              \
+    : "r" (addr), "r" (old_val), "r" (new_val)      \
+    : "cc", "memory");                              \
+    result;                                         \
+})
+
 #ifdef __ppc64__
-#define COMPARE_AND_SWAP(addr, old_val, new_val)    \
+#define COMPARE_AND_SWAP_64(addr, old_val, new_val) \
 ({                                                  \
     int result, read_val;                           \
     __asm__ __volatile__ ("                         \
@@ -50,27 +68,11 @@
     result;                                         \
 })
 
-#define COMPARE_AND_SWAP_64(addr, old_val, new_val) \
-        COMPARE_AND_SWAP(addr, old_val, new_val)
-
+#define COMPARE_AND_SWAP(addr, old_val, new_val)    \
+        COMPARE_AND_SWAP_64(addr, old_val, new_val)
 #else
 #define COMPARE_AND_SWAP(addr, old_val, new_val)    \
-({                                                  \
-    int result, read_val;                           \
-    __asm__ __volatile__ ("                         \
-                li %0,0\n                           \
-        1:      lwarx %1,0,%2\n                     \
-                cmpw %3,%1\n                        \
-                bne- 2f\n                           \
-                stwcx. %4,0,%2\n                    \
-                bne- 1b\n                           \
-                li %0,1\n                           \
-        2:"                                         \
-    : "=&r" (result), "=&r" (read_val)              \
-    : "r" (addr), "r" (old_val), "r" (new_val)      \
-    : "cc", "memory");                              \
-    result;                                         \
-})
+        COMPARE_AND_SWAP_32(addr, old_val, new_val)
 #endif
 
 #define LOCKWORD_READ(addr) *addr
@@ -82,8 +84,8 @@
 
 #define FLUSH_CACHE(addr, length)                   \
 {                                                   \
-    uintptr_t end = ((uintptr_t) addr) + length;    \
-    uintptr_t start = ((uintptr_t) addr)            \
+    uintptr_t end = ((uintptr_t) (addr)) + length;  \
+    uintptr_t start = ((uintptr_t) (addr))          \
                       & ~(CACHE_LINE_LEN - 1);      \
     uintptr_t i;                                    \
                                                     \
@@ -97,6 +99,36 @@
                                                     \
     __asm__ ("sync; isync");                        \
 }
+
+#define GEN_REL_JMP(target_addr, patch_addr, patch_size)     \
+({                                                           \
+    int patched = FALSE;                                     \
+                                                             \
+    if(patch_size >= 4) {                                    \
+        /* The check is done in two parts to ensure the      \
+           result is always positive, to guard against       \
+           the pointer difference being larger than the      \
+           signed range */                                   \
+        if(target_addr > patch_addr) {                       \
+            uintptr_t offset = (target_addr) - (patch_addr); \
+                                                             \
+            if(offset < 1<<25) {                             \
+                *(int*)(patch_addr) = offset & 0x3ffffff     \
+                                             | 0x48000000;   \
+                patched = TRUE;                              \
+            }                                                \
+        } else {                                             \
+            uintptr_t offset = (patch_addr) - (target_addr); \
+                                                             \
+            if(offset <= 1<<25) {                            \
+                *(int*)(patch_addr) = -offset & 0x3ffffff    \
+                                              | 0x48000000;  \
+                patched = TRUE;                              \
+            }                                                \
+        }                                                    \
+    }                                                        \
+    patched;                                                 \
+})
 
 #define MBARRIER() __asm__ __volatile__ ("sync" ::: "memory")
 #define UNLOCK_MBARRIER() __asm__ __volatile__ ("sync" ::: "memory")

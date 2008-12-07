@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -19,10 +19,22 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#ifdef THREADED
+#include "interp-threading.h"
+
+#define I(opcode, level, label) &&unused
+#define D(opcode, level, label) L(opcode, level, label)
+#define X(opcode, level, label) L(opcode, level, label)
+
+#define DEF_HANDLER_TABLES(level)    \
+    DEF_HANDLER_TABLE(level, ENTRY);
+#endif
+
 /* Macros for handler/bytecode rewriting */
 
 #define WITH_OPCODE_CHANGE_CP_DINDEX(opcode, index)        \
     index = DOUBLE_INDEX(pc);                              \
+    MBARRIER();                                            \
     if(pc[0] != opcode)                                    \
         DISPATCH(0, 0);
 
@@ -97,6 +109,12 @@ opc##x##_##y##_##z:
     label(op2, level, ENTRY)                    \
     label(op3, level, ENTRY)                    \
         BODY
+
+#define DEF_OPC_JMP(TYPE, BODY)                 \
+    DEF_OPC_210(OPC_##TYPE, ({                  \
+        BODY                                    \
+        BRANCH(TYPE, 0, TRUE);                  \
+    });)
 
 #ifdef USE_CACHE
 #define DEF_OPC_012(opcode, BODY)               \
@@ -222,29 +240,30 @@ opc##x##_##y##_##z:
 #define DISPATCH_METHOD_RET(ins_len)            \
     DISPATCH_RET(ins_len)
 
-#define BRANCH(TEST)                            \
+#define BRANCH(type, level, TEST)               \
     DISPATCH(0, (TEST) ? READ_S2_OP(pc) : 3)
 
 /* No method preparation is needed on the
    indirect interpreter */
 #define PREPARE_MB(mb)
 
-#define ARRAY_TYPE(pc)        READ_U1_OP(pc)
-#define SINGLE_INDEX(pc)      READ_U1_OP(pc)
-#define DOUBLE_INDEX(pc)      READ_U2_OP(pc)
-#define SINGLE_SIGNED(pc)     READ_S1_OP(pc)
-#define DOUBLE_SIGNED(pc)     READ_S2_OP(pc)
-#define IINC_LVAR_IDX(pc)     SINGLE_INDEX(pc)
-#define IINC_DELTA(pc)        SINGLE_SIGNED(pc + 1)
-#define INV_QUICK_ARGS(pc)    READ_U1_OP(pc + 1)
-#define INV_QUICK_IDX(pc)     READ_U1_OP(pc)
-#define INV_INTF_IDX(pc)      DOUBLE_INDEX(pc)
-#define INV_INTF_CACHE(pc)    READ_U1_OP(pc + 3)
-#define MULTI_ARRAY_DIM(pc)   READ_U1_OP(pc + 2)
-#define RESOLVED_CONSTANT(pc) CP_INFO(cp, SINGLE_INDEX(pc))
-#define RESOLVED_FIELD(pc)    ((FieldBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
-#define RESOLVED_METHOD(pc)   ((MethodBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
-#define RESOLVED_CLASS(pc)    ((Class *)CP_INFO(cp, DOUBLE_INDEX(pc)))
+#define ARRAY_TYPE(pc)           READ_U1_OP(pc)
+#define SINGLE_INDEX(pc)         READ_U1_OP(pc)
+#define DOUBLE_INDEX(pc)         READ_U2_OP(pc)
+#define SINGLE_SIGNED(pc)        READ_S1_OP(pc)
+#define DOUBLE_SIGNED(pc)        READ_S2_OP(pc)
+#define IINC_LVAR_IDX(pc)        SINGLE_INDEX(pc)
+#define IINC_DELTA(pc)           SINGLE_SIGNED(pc + 1)
+#define INV_QUICK_ARGS(pc)       READ_U1_OP(pc + 1)
+#define INV_QUICK_IDX(pc)        READ_U1_OP(pc)
+#define INV_INTF_IDX(pc)         DOUBLE_INDEX(pc)
+#define INV_INTF_CACHE(pc)       READ_U1_OP(pc + 3)
+#define MULTI_ARRAY_DIM(pc)      READ_U1_OP(pc + 2)
+#define GETFIELD_THIS_OFFSET(pc) READ_U1_OP(pc + 1)
+#define RESOLVED_CONSTANT(pc)    CP_INFO(cp, SINGLE_INDEX(pc))
+#define RESOLVED_FIELD(pc)       ((FieldBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
+#define RESOLVED_METHOD(pc)      ((MethodBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
+#define RESOLVED_CLASS(pc)       ((Class *)CP_INFO(cp, DOUBLE_INDEX(pc)))
 
 /* Macros for checking for common exceptions */
 

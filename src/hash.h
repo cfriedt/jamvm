@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -75,7 +75,7 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
     }                                                                              \
                                                                                    \
     if(ptr2) {                                                                     \
-        ptr2 = FOUND(ptr2);                                                        \
+        ptr2 = FOUND(ptr, ptr2);                                                   \
     } else                                                                         \
         if(add_if_absent) {                                                        \
             table.hash_table[i].hash = hash;                                       \

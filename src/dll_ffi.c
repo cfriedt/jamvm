@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -69,8 +69,8 @@ int nativeExtraArg(MethodBlock *mb) {
     *types_pntr++ = sig2ffi(*sig);\
     *values_pntr++ = opntr++
 
-uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int num_args, uintptr_t *ostack,
-                         unsigned char *func) {
+uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int num_args,
+                         uintptr_t *ostack, unsigned char *func) {
     ffi_cif cif;
     void *values[num_args];
     ffi_type *types[num_args];

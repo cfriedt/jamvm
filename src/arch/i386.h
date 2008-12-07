@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -31,7 +31,7 @@
 extern void setDoublePrecision();
 #define FPU_HACK setDoublePrecision()
 
-#define COMPARE_AND_SWAP(addr, old_val, new_val)    \
+#define COMPARE_AND_SWAP_32(addr, old_val, new_val) \
 ({                                                  \
     char result;                                    \
     __asm__ __volatile__ ("                         \
@@ -63,6 +63,40 @@ extern void setDoublePrecision();
     result;                                         \
 })
 #endif
+
+#define COMPARE_AND_SWAP(addr, old_val, new_val)    \
+        COMPARE_AND_SWAP_32(addr, old_val, new_val)
+
+#define __GEN_REL_JMP(target_addr, patch_addr, opcode,       \
+                      type, patch_size)                      \
+({                                                           \
+    int patched = FALSE;                                     \
+                                                             \
+    if(patch_size >= 1 + sizeof(type)) {                     \
+        char *nxt_ins_ptr = (patch_addr) + 1 + sizeof(type); \
+                                                             \
+        /* Guard against the pointer difference being        \
+           larger than the signed range */                   \
+        long long disp = (uintptr_t)(target_addr) -          \
+                         (uintptr_t)(nxt_ins_ptr);           \
+        long long limit = 1LL << ((sizeof(type) * 8) - 1);   \
+                                                             \
+        if(disp >= -limit && disp < limit) {                 \
+            *(patch_addr) = opcode;                          \
+            *(type*)&(patch_addr)[1] = disp;                 \
+            patched = TRUE;                                  \
+        }                                                    \
+    }                                                        \
+    patched;                                                 \
+})
+
+#define GEN_REL_JMP(target_addr, patch_addr, patch_size) \
+({                                                       \
+    __GEN_REL_JMP(target_addr, patch_addr, 0xeb,         \
+                  signed char, patch_size) ||            \
+    __GEN_REL_JMP(target_addr, patch_addr, 0xe9,         \
+                  signed int, patch_size);               \
+})
 
 #define FLUSH_CACHE(addr, length)
 

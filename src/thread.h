@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -45,6 +45,12 @@
 #define SUSP_BLOCKING 1
 #define SUSP_CRITICAL 2
 
+/* Park states */
+
+#define PARK_BLOCKED 0
+#define PARK_RUNNING 1
+#define PARK_PERMIT  2
+
 typedef struct thread Thread;
 
 typedef struct monitor {
@@ -65,6 +71,7 @@ struct thread {
     char state;
     char suspend;
     char blocking;
+    char park_state;
     char interrupted;
     char interrupting;
     ExecEnv *ee;
@@ -75,6 +82,8 @@ struct thread {
     Thread *wait_prev;
     Thread *wait_next;
     pthread_cond_t wait_cv;
+    pthread_cond_t park_cv;
+    pthread_mutex_t park_lock;
     long long blocked_count;
     long long waited_count;
     Thread *prev, *next;
@@ -83,7 +92,8 @@ struct thread {
 };
 
 extern Thread *threadSelf();
-extern Thread *threadSelf0(Object *jThread);
+extern Thread *jThread2Thread(Object *jThread);
+extern Thread *vmThread2Thread(Object *vmThread);
 
 extern void *getStackTop(Thread *thread);
 extern void *getStackBase(Thread *thread);
@@ -101,6 +111,9 @@ extern int threadIsAlive(Thread *thread);
 extern int threadInterrupted(Thread *thread);
 extern int threadIsInterrupted(Thread *thread);
 extern int systemIdle(Thread *self);
+
+extern void threadPark(Thread *thread, int absolute, long long time);
+extern void threadUnpark(Thread *thread);
 
 extern void suspendAllThreads(Thread *thread);
 extern void resumeAllThreads(Thread *thread);

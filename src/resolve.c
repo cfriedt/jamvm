@@ -37,9 +37,9 @@ MethodBlock *findMethod(Class *class, char *methodname, char *type) {
    return NULL;
 }
 
-/* As a Java program can't have two fields with the same name but different types,
-   we used to give up if we found a field with the right name but wrong type.
-   However, obfuscators rename fields, breaking this optimisation.
+/* As a Java program can't have two fields with the same name but different
+   types, we used to give up if we found a field with the right name but wrong
+   type.  However, obfuscators rename fields, breaking this optimisation.
 */
 FieldBlock *findField(Class *class, char *fieldname, char *type) {
     ClassBlock *cb = CLASS_CB(class);
@@ -117,8 +117,14 @@ retry:
             if(resolved_class == NULL)
                 return NULL;
 
+if(CLASS_CB(resolved_class)->state < CLASS_LINKED) {
+    printf("%s NOT LINKED!!!\n", CLASS_CB(resolved_class)->name);
+    linkClass(resolved_class);
+}
+
             if(!checkClassAccess(resolved_class, class)) {
-                signalException(java_lang_IllegalAccessError, "class is not accessible");
+                signalException(java_lang_IllegalAccessError,
+                                "class is not accessible");
                 return NULL;
             }
 
@@ -185,7 +191,8 @@ retry:
                 }
 
                 if(!checkMethodAccess(mb, class)) {
-                    signalException(java_lang_IllegalAccessError, "method is not accessible");
+                    signalException(java_lang_IllegalAccessError,
+                                    "method is not accessible");
                     return NULL;
                 }
 
@@ -301,7 +308,8 @@ retry:
 
             if(fb) {
                 if(!checkFieldAccess(fb, class)) {
-                    signalException(java_lang_IllegalAccessError, "field is not accessible");
+                    signalException(java_lang_IllegalAccessError,
+                                    "field is not accessible");
                     return NULL;
                 }
 

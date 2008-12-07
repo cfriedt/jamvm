@@ -173,3 +173,9 @@ void inlineBlockWrappedOpcode(Instruction *pc) {
 void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
 }
 
+void inlineProfiledBlock(Instruction *pc, MethodBlock *mb) {
+}
+
+void shutdownInlining() {
+}
+
