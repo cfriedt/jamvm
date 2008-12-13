@@ -172,9 +172,13 @@ char *getJavaHome() {
 void addDefaultProperties(Object *properties) {
     setProperty(properties, "java.vm.name", "JamVM");
     setProperty(properties, "java.vm.version", VERSION);
-    setProperty(properties, "java.runtime.version", VERSION);
     setProperty(properties, "java.vm.vendor", "Robert Lougher");
-    setProperty(properties, "java.vm.vendor.url", "http://jamvm.sourceforge.net");
+    setProperty(properties, "java.vm.vendor.url", "http://jamvm.org");
+    setProperty(properties, "java.vm.specification.version", "1.0");
+    setProperty(properties, "java.vm.specification.vendor", "Sun Microsystems, Inc.");
+    setProperty(properties, "java.vm.specification.name", "Java Virtual Machine Specification");
+
+    setProperty(properties, "java.runtime.version", VERSION);
     setProperty(properties, "java.version", JAVA_COMPAT_VERSION);
     setProperty(properties, "java.vendor", "GNU Classpath");
     setProperty(properties, "java.vendor.url", "http://www.classpath.org");
@@ -182,9 +186,6 @@ void addDefaultProperties(Object *properties) {
     setProperty(properties, "java.specification.version", "1.5");
     setProperty(properties, "java.specification.vendor", "Sun Microsystems, Inc.");
     setProperty(properties, "java.specification.name", "Java Platform API Specification");
-    setProperty(properties, "java.vm.specification.version", "1.0");
-    setProperty(properties, "java.vm.specification.vendor", "Sun Microsystems, Inc.");
-    setProperty(properties, "java.vm.specification.name", "Java Virtual Machine Specification");
     setProperty(properties, "java.class.version", "48.0");
     setProperty(properties, "java.class.path", getClassPath());
     setProperty(properties, "sun.boot.class.path", getBootClassPath());
