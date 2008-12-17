@@ -643,39 +643,39 @@ typedef struct InitArgs {
 #endif
 } InitArgs;
 
-#define CLASS_CB(classRef)              ((ClassBlock*)(classRef+1))
+#define CLASS_CB(classRef)          ((ClassBlock*)(classRef+1))
 
-#define OBJ_DATA(obj, type, offset)     *(type*)&((char*)obj)[offset]
-#define INST_BASE(obj, type)            ((type*)(obj+1))
+#define OBJ_DATA(obj, type, offset) *(type*)&((char*)obj)[offset]
+#define INST_BASE(obj, type)        ((type*)(obj+1))
 
-#define ARRAY_DATA(arrayRef, type)      ((type*)(((uintptr_t*)(arrayRef+1))+1)) 
-#define ARRAY_LEN(arrayRef)             *(uintptr_t*)(arrayRef+1)
+#define ARRAY_DATA(arrayRef, type)  ((type*)(((uintptr_t*)(arrayRef+1))+1)) 
+#define ARRAY_LEN(arrayRef)         *(uintptr_t*)(arrayRef+1)
 
-#define IS_CLASS(object)                (object->class && IS_CLASS_CLASS( \
-                                                      CLASS_CB(object->class)))
+#define IS_CLASS(object)            (object->class && IS_CLASS_CLASS( \
+                                                  CLASS_CB(object->class)))
 
-#define IS_INTERFACE(cb)                (cb->access_flags & ACC_INTERFACE)
-#define IS_SYNTHETIC(cb)                (cb->access_flags & ACC_SYNTHETIC)
-#define IS_ANNOTATION(cb)               (cb->access_flags & ACC_ANNOTATION)
-#define IS_ENUM(cb)                     (cb->access_flags & ACC_ENUM)
-#define IS_ARRAY(cb)                    (cb->state == CLASS_ARRAY)
-#define IS_PRIMITIVE(cb)                (cb->state >= CLASS_PRIM)
+#define IS_INTERFACE(cb)            (cb->access_flags & ACC_INTERFACE)
+#define IS_SYNTHETIC(cb)            (cb->access_flags & ACC_SYNTHETIC)
+#define IS_ANNOTATION(cb)           (cb->access_flags & ACC_ANNOTATION)
+#define IS_ENUM(cb)                 (cb->access_flags & ACC_ENUM)
+#define IS_ARRAY(cb)                (cb->state == CLASS_ARRAY)
+#define IS_PRIMITIVE(cb)            (cb->state >= CLASS_PRIM)
 
-#define IS_FINALIZED(cb)                (cb->flags & FINALIZED)
-#define IS_REFERENCE(cb)		(cb->flags & REFERENCE)
-#define IS_SOFT_REFERENCE(cb)		(cb->flags & SOFT_REFERENCE)
-#define IS_WEAK_REFERENCE(cb)		(cb->flags & WEAK_REFERENCE)
-#define IS_PHANTOM_REFERENCE(cb)	(cb->flags & PHANTOM_REFERENCE)
-#define IS_CLASS_LOADER(cb)		(cb->flags & CLASS_LOADER)
-#define IS_CLASS_DUP(cb)		(cb->flags & CLASS_CLASH)
-#define IS_CLASS_CLASS(cb)		(cb->flags & CLASS_CLASS)
-#define IS_VMTHROWABLE(cb)		(cb->flags & VMTHROWABLE)
-#define IS_VMTHREAD(cb)			(cb->flags & VMTHREAD)
-#define IS_ANONYMOUS(cb)		(cb->flags & ANONYMOUS)
-#define IS_SPECIAL(cb)			(cb->flags & (REFERENCE | CLASS_LOADER | VMTHREAD))
-
-#define IS_MEMBER(cb)			cb->declaring_class
-#define IS_LOCAL(cb)			(cb->enclosing_method && !IS_ANONYMOUS(cb))
+#define IS_FINALIZED(cb)            (cb->flags & FINALIZED)
+#define IS_REFERENCE(cb)            (cb->flags & REFERENCE)
+#define IS_SOFT_REFERENCE(cb)       (cb->flags & SOFT_REFERENCE)
+#define IS_WEAK_REFERENCE(cb)       (cb->flags & WEAK_REFERENCE)
+#define IS_PHANTOM_REFERENCE(cb)    (cb->flags & PHANTOM_REFERENCE)
+#define IS_CLASS_LOADER(cb)         (cb->flags & CLASS_LOADER)
+#define IS_CLASS_DUP(cb)            (cb->flags & CLASS_CLASH)
+#define IS_CLASS_CLASS(cb)          (cb->flags & CLASS_CLASS)
+#define IS_VMTHROWABLE(cb)          (cb->flags & VMTHROWABLE)
+#define IS_VMTHREAD(cb)             (cb->flags & VMTHREAD)
+#define IS_ANONYMOUS(cb)            (cb->flags & ANONYMOUS)
+#define IS_SPECIAL(cb)              (cb->flags & (REFERENCE | CLASS_LOADER | \
+                                                  VMTHREAD))
+#define IS_MEMBER(cb)               cb->declaring_class
+#define IS_LOCAL(cb)                (cb->enclosing_method && !IS_ANONYMOUS(cb))
 
 /* Macros for accessing constant pool entries */
 
@@ -777,7 +777,8 @@ extern int isMarked(Object *ob);
 
 extern Class *java_lang_Class;
 
-extern Class *defineClass(char *classname, char *data, int offset, int len, Object *class_loader);
+extern Class *defineClass(char *classname, char *data, int offset, int len,
+                          Object *class_loader);
 extern void linkClass(Class *class);
 extern Class *initClass(Class *class);
 extern Class *findSystemClass(char *);
@@ -794,12 +795,12 @@ extern int bootClassPathSize();
 extern Object *bootClassPathResource(char *filename, int index);
 
 #define findArrayClassFromClass(name, class) \
-                    findArrayClassFromClassLoader(name, CLASS_CB(class)->class_loader)
+             findArrayClassFromClassLoader(name, CLASS_CB(class)->class_loader)
 #define findArrayClass(name) findArrayClassFromClassLoader(name, NULL)
 
 extern Class *findClassFromClassLoader(char *, Object *);
 #define findClassFromClass(name, class) \
-                    findClassFromClassLoader(name, CLASS_CB(class)->class_loader)
+             findClassFromClassLoader(name, CLASS_CB(class)->class_loader)
 
 extern void freeClassData(Class *class);
 extern void freeClassLoaderData(Object *class_loader);
@@ -837,8 +838,10 @@ extern char arrayStoreCheck(Class *class, Class *test);
 /* execute */
 
 extern void *executeMethodArgs(Object *ob, Class *class, MethodBlock *mb, ...);
-extern void *executeMethodVaList(Object *ob, Class *class, MethodBlock *mb, va_list args);
-extern void *executeMethodList(Object *ob, Class *class, MethodBlock *mb, u8 *args);
+extern void *executeMethodVaList(Object *ob, Class *class, MethodBlock *mb,
+                                  va_list args);
+extern void *executeMethodList(Object *ob, Class *class, MethodBlock *mb,
+                               u8 *args);
 
 #define executeMethod(ob, mb, args...) \
     executeMethodArgs(ob, ob->class, mb, ##args)
@@ -849,9 +852,12 @@ extern void *executeMethodList(Object *ob, Class *class, MethodBlock *mb, u8 *ar
 /* excep */
 
 extern Object *exceptionOccurred();
-extern void signalChainedExceptionEnum(int excep_enum, char *excep_mess, Object *cause);
-extern void signalChainedExceptionName(char *excep_name, char *excep_mess, Object *cause);
-extern void signalChainedExceptionClass(Class *excep_class, char *excep_mess, Object *cause);
+extern void signalChainedExceptionEnum(int excep_enum, char *excep_mess,
+                                       Object *cause);
+extern void signalChainedExceptionName(char *excep_name, char *excep_mess,
+                                       Object *cause);
+extern void signalChainedExceptionClass(Class *excep_class, char *excep_mess,
+                                        Object *cause);
 extern void setException(Object *excep);
 extern void clearException();
 extern void printException();
@@ -930,7 +936,8 @@ extern char *getDllPath();
 extern char *getBootDllPath();
 extern char *getDllName(char *name);
 extern void initialiseDll(InitArgs *args);
-extern uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb,
+                                       uintptr_t *ostack);
 extern void unloaderUnloadDll(uintptr_t entry);
 extern void unloadClassLoaderDlls(Object *loader);
 extern void threadLiveClassLoaderDlls();
@@ -984,10 +991,12 @@ extern Object *getMethodParameterAnnotations(MethodBlock *mb);
 extern Object *getMethodDefaultValue(MethodBlock *mb);
 
 extern Object *getReflectReturnObject(Class *type, void *pntr, int flags);
-extern int widenPrimitiveValue(int src_idx, int dest_idx, void *src, void *dest, int flags);
-extern int unwrapAndWidenObject(Class *type, Object *arg, void *pntr, int flags);
-extern Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array, Object *param_types,
-                      int check_access);
+extern int widenPrimitiveValue(int src_idx, int dest_idx, void *src,
+                               void *dest, int flags);
+extern int unwrapAndWidenObject(Class *type, Object *arg, void *pntr,
+                                int flags);
+extern Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
+                      Object *param_types, int check_access);
 
 extern MethodBlock *mbFromReflectObject(Object *reflect_ob);
 extern FieldBlock *fbFromReflectObject(Object *reflect_ob);
@@ -1055,5 +1064,13 @@ extern void showRelocatability();
 extern void shutdownInlining();
 
 /* symbol */
+
 extern void initialiseSymbol();
+
+/* time */
+
+extern void getTimeoutAbsolute(struct timespec *ts, long long millis,
+                        long long nanos);
+extern void getTimeoutRelative(struct timespec *ts, long long millis,
+                        long long nanos);
 
