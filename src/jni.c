@@ -345,7 +345,7 @@ jfieldID Jam_FromReflectedField(JNIEnv *env, jobject field) {
 jobject Jam_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID methodID,
                               jboolean isStatic) {
 
-    MethodBlock *mb = (MethodBlock *)methodID;
+    MethodBlock *mb = methodID;
 
     if(mb->name == SYMBOL(object_init))
         return createReflectConstructorObject(mb);
@@ -356,7 +356,7 @@ jobject Jam_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID methodID,
 jobject Jam_ToReflectedField(JNIEnv *env, jclass cls, jfieldID fieldID,
                              jboolean isStatic) {
 
-    return createReflectFieldObject((FieldBlock *)fieldID);
+    return createReflectFieldObject(fieldID);
 }
 
 jint Jam_PushLocalFrame(JNIEnv *env, jint capacity) {
@@ -472,7 +472,7 @@ jclass Jam_FindClass(JNIEnv *env, const char *name) {
 
 jclass Jam_GetSuperClass(JNIEnv *env, jclass clazz) {
     ClassBlock *cb = CLASS_CB((Class *)clazz);
-    return IS_INTERFACE(cb) ? NULL : (jclass)cb->super;
+    return IS_INTERFACE(cb) ? NULL : cb->super;
 }
 
 jboolean Jam_IsAssignableFrom(JNIEnv *env, jclass clazz1, jclass clazz2) {
@@ -577,7 +577,7 @@ jmethodID getMethodID(JNIEnv *env, jclass clazz, const char *name,
             signalException(java_lang_NoSuchMethodError, (char*)name);
     }
 
-    return (jmethodID) mb;
+    return mb;
 }
 
 jmethodID Jam_GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
@@ -586,7 +586,7 @@ jmethodID Jam_GetMethodID(JNIEnv *env, jclass clazz, const char *name, const cha
 
 jfieldID Jam_GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
     char *field_name = findUtf8((char*)name), *field_sig = findUtf8((char*)sig);
-    Class *class = initClass((Class *)clazz);
+    Class *class = initClass(clazz);
     FieldBlock *fb = NULL;
 
     if(class != NULL) {
@@ -597,7 +597,7 @@ jfieldID Jam_GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char 
             signalException(java_lang_NoSuchFieldError, field_name);
     }
 
-    return (jfieldID) fb;
+    return fb;
 }
 
 jmethodID Jam_GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name,
@@ -621,7 +621,7 @@ jfieldID Jam_GetStaticFieldID(JNIEnv *env, jclass clazz, const char *name,
             signalException(java_lang_NoSuchFieldError, field_name);
     }
 
-    return (jfieldID) fb;
+    return fb;
 }
 
 jstring Jam_NewString(JNIEnv *env, const jchar *unicodeChars, jsize len) {
@@ -680,7 +680,7 @@ jobject Jam_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, ...) {
     if(ob != NULL) {
         va_list jargs;
         va_start(jargs, methodID);
-        executeMethodVaList(ob, ob->class, (MethodBlock*)methodID, jargs);
+        executeMethodVaList(ob, ob->class, methodID, jargs);
         va_end(jargs);
     }
 
@@ -693,7 +693,7 @@ jobject Jam_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
     Object *ob = allocObjectClassCheck(clazz);
 
     if(ob != NULL)
-        executeMethodList(ob, ob->class, (MethodBlock*)methodID, (u8*)args);
+        executeMethodList(ob, ob->class, methodID, (u8*)args);
 
     return addJNILref(ob);
 }
@@ -704,7 +704,7 @@ jobject Jam_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
     Object *ob = allocObjectClassCheck(clazz);
 
     if(ob != NULL)
-        executeMethodVaList(ob, ob->class, (MethodBlock*)methodID, args);
+        executeMethodVaList(ob, ob->class, methodID, args);
 
     return addJNILref(ob);
 }
@@ -778,55 +778,55 @@ jint Jam_GetJavaVM(JNIEnv *env, JavaVM **vm) {
 
 #define GET_FIELD(type, native_type)                                                       \
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID) {             \
-    FieldBlock *fb = (FieldBlock *) fieldID;                                               \
-    Object *ob = (Object*) obj;                                                            \
+    Object *ob = obj;                                                                      \
+    FieldBlock *fb = fieldID;                                                              \
     return OBJ_DATA(ob, native_type, fb->offset);                                          \
 }
 
 #define INT_GET_FIELD(type, native_type)                                                   \
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID) {             \
-    FieldBlock *fb = (FieldBlock *) fieldID;                                               \
-    Object *ob = (Object*) obj;                                                            \
-    return (native_type)(OBJ_DATA(ob, int, fb->offset));                                   \
+    Object *ob = obj;                                                                      \
+    FieldBlock *fb = fieldID;                                                              \
+    return (native_type)OBJ_DATA(ob, int, fb->offset);                                     \
 }
 
 #define SET_FIELD(type, native_type)                                                       \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID, native_type value) { \
-    Object *ob = (Object*) obj;                                                            \
-    FieldBlock *fb = (FieldBlock *) fieldID;                                               \
+    Object *ob = obj;                                                                      \
+    FieldBlock *fb = fieldID;                                                              \
     OBJ_DATA(ob, native_type, fb->offset) = value;                                         \
 }
 
 #define INT_SET_FIELD(type, native_type)                                                   \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID, native_type value) { \
-    Object *ob = (Object*) obj;                                                            \
-    FieldBlock *fb = (FieldBlock *) fieldID;                                               \
+    Object *ob = obj;                                                                      \
+    FieldBlock *fb = fieldID;                                                              \
     OBJ_DATA(ob, int, fb->offset) = (int)value;                                            \
 }
 
 #define GET_STATIC_FIELD(type, native_type)                                                \
 native_type Jam_GetStatic##type##Field(JNIEnv *env, jclass clazz, jfieldID fieldID) {      \
-    FieldBlock *fb = (FieldBlock *) fieldID;                                               \
+    FieldBlock *fb = fieldID;                                                              \
     return *(native_type *)&fb->static_value;                                              \
 }
 
 #define INT_GET_STATIC_FIELD(type, native_type)                                            \
 native_type Jam_GetStatic##type##Field(JNIEnv *env, jclass clazz, jfieldID fieldID) {      \
-    FieldBlock *fb = (FieldBlock *) fieldID;                                               \
+    FieldBlock *fb = fieldID;                                                              \
     return (native_type)fb->static_value;                                                  \
 }
 
 #define SET_STATIC_FIELD(type, native_type)                                                \
 void Jam_SetStatic##type##Field(JNIEnv *env, jclass clazz, jfieldID fieldID,               \
                 native_type value) {                                                       \
-    FieldBlock *fb = (FieldBlock *) fieldID;                                               \
+    FieldBlock *fb = fieldID;                                                              \
     *(native_type *)&fb->static_value = value;                                             \
 }
 
 #define INT_SET_STATIC_FIELD(type, native_type)                                            \
 void Jam_SetStatic##type##Field(JNIEnv *env, jclass clazz, jfieldID fieldID,               \
                 native_type value) {                                                       \
-    FieldBlock *fb = (FieldBlock *) fieldID;                                               \
+    FieldBlock *fb = fieldID;                                                              \
     fb->static_value = (intptr_t)value;                                                    \
 }
 
@@ -852,36 +852,36 @@ FIELD_ACCESS(Float, jfloat);
 FIELD_ACCESS(Double, jdouble);
 
 jobject Jam_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID) {
-    FieldBlock *fb = (FieldBlock *) fieldID;
-    Object *ob = (Object*) obj;
+    Object *ob = obj;
+    FieldBlock *fb = fieldID;
 
     return addJNILref(OBJ_DATA(ob, Object*, fb->offset));
 }
 
 void Jam_SetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID, jobject value) {
-    Object *ob = (Object*) obj;
-    FieldBlock *fb = (FieldBlock *) fieldID;
+    Object *ob = obj;
+    FieldBlock *fb = fieldID;
 
     OBJ_DATA(ob, jobject, fb->offset) = value;
 }
 
 jobject Jam_GetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID) {
-    FieldBlock *fb = (FieldBlock *) fieldID;
+    FieldBlock *fb = fieldID;
     return addJNILref((Object*)fb->static_value);
 }
 
 void Jam_SetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID, jobject value) {
-    FieldBlock *fb = (FieldBlock *) fieldID;
+    FieldBlock *fb = fieldID;
     fb->static_value = (uintptr_t)value;
 }
 
 #define VIRTUAL_METHOD(type, native_type)                                                        \
 native_type Jam_Call##type##Method(JNIEnv *env, jobject obj, jmethodID mID, ...) {               \
-    Object *ob = (Object *)obj;                                                                  \
+    Object *ob = obj;                                                                            \
     native_type *ret;                                                                            \
     va_list jargs;                                                                               \
                                                                                                  \
-    MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)mID);                                \
+    MethodBlock *mb = lookupVirtualMethod(ob, mID);                                              \
     if(mb == NULL)                                                                               \
         return (native_type)0;                                                                   \
                                                                                                  \
@@ -893,26 +893,26 @@ native_type Jam_Call##type##Method(JNIEnv *env, jobject obj, jmethodID mID, ...)
 }                                                                                                \
                                                                                                  \
 native_type Jam_Call##type##MethodV(JNIEnv *env, jobject obj, jmethodID mID, va_list jargs) {    \
-    Object *ob = (Object *)obj;                                                                  \
-    MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)mID);                                \
+    Object *ob = obj;                                                                            \
+    MethodBlock *mb = lookupVirtualMethod(ob, mID);                                              \
     return mb == NULL ? (native_type)0 :                                                         \
                        *(native_type*)executeMethodVaList(ob, ob->class, mb, jargs);             \
 }                                                                                                \
                                                                                                  \
 native_type Jam_Call##type##MethodA(JNIEnv *env, jobject obj, jmethodID mID, jvalue *jargs) {    \
-    Object *ob = (Object *)obj;                                                                  \
-    MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)mID);                                \
+    Object *ob = obj;                                                                            \
+    MethodBlock *mb = lookupVirtualMethod(ob, mID);                                              \
     return mb == NULL ? (native_type)0 :                                                         \
                        *(native_type*)executeMethodList(ob, ob->class, mb, (u8*)jargs);          \
 }
 
 #define INT_VIRTUAL_METHOD(type, native_type)                                                    \
 native_type Jam_Call##type##Method(JNIEnv *env, jobject obj, jmethodID mID, ...) {               \
-    Object *ob = (Object *)obj;                                                                  \
+    Object *ob = obj;                                                                            \
     uintptr_t *ret;                                                                              \
     va_list jargs;                                                                               \
                                                                                                  \
-    MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)mID);                                \
+    MethodBlock *mb = lookupVirtualMethod(ob, mID);                                              \
     if(mb == NULL)                                                                               \
         return (native_type)0;                                                                   \
                                                                                                  \
@@ -924,15 +924,15 @@ native_type Jam_Call##type##Method(JNIEnv *env, jobject obj, jmethodID mID, ...)
 }                                                                                                \
                                                                                                  \
 native_type Jam_Call##type##MethodV(JNIEnv *env, jobject obj, jmethodID mID, va_list jargs) {    \
-    Object *ob = (Object *)obj;                                                                  \
-    MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)mID);                                \
-    return mb == NULL ? (native_type)0 :                                                         \
-                        (native_type)*(uintptr_t*)executeMethodVaList(ob, ob->class, mb, jargs); \
+    Object *ob = obj;                                                                            \
+    MethodBlock *mb = lookupVirtualMethod(ob, mID);                                              \
+    return mb == NULL ? (native_type)0                                                           \
+                      : (native_type)*(uintptr_t*)executeMethodVaList(ob, ob->class, mb, jargs); \
 }                                                                                                \
                                                                                                  \
 native_type Jam_Call##type##MethodA(JNIEnv *env, jobject obj, jmethodID mID, jvalue *jargs) {    \
-    Object *ob = (Object *)obj;                                                                  \
-    MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)mID);                                \
+    Object *ob = obj;                                                                            \
+    MethodBlock *mb = lookupVirtualMethod(ob, mID);                                              \
     return mb == NULL ? (native_type)0 : (native_type)*(uintptr_t*)                              \
                                              executeMethodList(ob, ob->class, mb, (u8*)jargs);   \
 }
@@ -944,8 +944,7 @@ native_type Jam_CallNonvirtual##type##Method(JNIEnv *env, jobject obj, jclass cl
     va_list jargs;                                                                               \
                                                                                                  \
     va_start(jargs, methodID);                                                                   \
-    ret = (native_type*)                                                                         \
-              executeMethodVaList((Object*)obj, (Class*)clazz, (MethodBlock*)methodID, jargs);   \
+    ret = (native_type*) executeMethodVaList(obj, clazz, methodID, jargs);                       \
     va_end(jargs);                                                                               \
                                                                                                  \
     return *ret;                                                                                 \
@@ -953,14 +952,12 @@ native_type Jam_CallNonvirtual##type##Method(JNIEnv *env, jobject obj, jclass cl
                                                                                                  \
 native_type Jam_CallNonvirtual##type##MethodV(JNIEnv *env, jobject obj, jclass clazz,            \
                 jmethodID methodID, va_list jargs) {                                             \
-    return *(native_type*)                                                                       \
-              executeMethodVaList((Object*)obj, (Class*)clazz, (MethodBlock*)methodID, jargs);   \
+    return *(native_type*) executeMethodVaList(obj, clazz, methodID, jargs);                     \
 }                                                                                                \
                                                                                                  \
 native_type Jam_CallNonvirtual##type##MethodA(JNIEnv *env, jobject obj, jclass clazz,            \
                 jmethodID methodID, jvalue *jargs) {                                             \
-    return *(native_type*)                                                                       \
-            executeMethodList((Object*)obj, (Class*)clazz, (MethodBlock*)methodID, (u8*)jargs);  \
+    return *(native_type*) executeMethodList(obj, clazz, methodID, (u8*)jargs);                  \
 }
 
 #define INT_NONVIRTUAL_METHOD(type, native_type)                                                 \
@@ -970,7 +967,7 @@ native_type Jam_CallNonvirtual##type##Method(JNIEnv *env, jobject obj, jclass cl
     va_list jargs;                                                                               \
                                                                                                  \
     va_start(jargs, methodID);                                                                   \
-    ret = executeMethodVaList((Object*)obj, (Class*)clazz, (MethodBlock*)methodID, jargs);       \
+    ret = executeMethodVaList(obj, clazz, methodID, jargs);                                      \
     va_end(jargs);                                                                               \
                                                                                                  \
     return (native_type)*ret;                                                                    \
@@ -978,14 +975,12 @@ native_type Jam_CallNonvirtual##type##Method(JNIEnv *env, jobject obj, jclass cl
                                                                                                  \
 native_type Jam_CallNonvirtual##type##MethodV(JNIEnv *env, jobject obj, jclass clazz,            \
                 jmethodID methodID, va_list jargs) {                                             \
-    return (native_type)*(uintptr_t*)                                                            \
-              executeMethodVaList((Object*)obj, (Class*)clazz, (MethodBlock*)methodID, jargs);   \
+    return (native_type)*(uintptr_t*) executeMethodVaList(obj, clazz, methodID, jargs);          \
 }                                                                                                \
                                                                                                  \
 native_type Jam_CallNonvirtual##type##MethodA(JNIEnv *env, jobject obj, jclass clazz,            \
                 jmethodID methodID, jvalue *jargs) {                                             \
-    return (native_type)*(uintptr_t*)                                                            \
-            executeMethodList((Object*)obj, (Class*)clazz, (MethodBlock*)methodID, (u8*)jargs);  \
+    return (native_type)*(uintptr_t*) executeMethodList(obj, clazz, methodID, (u8*)jargs);       \
 }
 
 #define STATIC_METHOD(type, native_type)                                                         \
@@ -995,7 +990,7 @@ native_type Jam_CallStatic##type##Method(JNIEnv *env, jclass clazz,             
     va_list jargs;                                                                               \
                                                                                                  \
     va_start(jargs, methodID);                                                                   \
-    ret = (native_type*) executeMethodVaList(NULL, (Class*)clazz, (MethodBlock*)methodID, jargs);\
+    ret = (native_type*) executeMethodVaList(NULL, clazz, methodID, jargs);                      \
     va_end(jargs);                                                                               \
                                                                                                  \
     return *ret;                                                                                 \
@@ -1003,14 +998,12 @@ native_type Jam_CallStatic##type##Method(JNIEnv *env, jclass clazz,             
                                                                                                  \
 native_type Jam_CallStatic##type##MethodV(JNIEnv *env, jclass clazz, jmethodID methodID,         \
                 va_list jargs) {                                                                 \
-    return *(native_type*)                                                                       \
-            executeMethodVaList(NULL, (Class*)clazz, (MethodBlock*)methodID, jargs);             \
+    return *(native_type*) executeMethodVaList(NULL, clazz, methodID, jargs);                    \
 }                                                                                                \
                                                                                                  \
 native_type Jam_CallStatic##type##MethodA(JNIEnv *env, jclass clazz, jmethodID methodID,         \
                 jvalue *jargs) {                                                                 \
-    return *(native_type*)                                                                       \
-            executeMethodList(NULL, (Class*)clazz, (MethodBlock*)methodID, (u8*)jargs);          \
+    return *(native_type*) executeMethodList(NULL, clazz, methodID, (u8*)jargs);                 \
 }
 
 #define INT_STATIC_METHOD(type, native_type)                                                     \
@@ -1020,7 +1013,7 @@ native_type Jam_CallStatic##type##Method(JNIEnv *env, jclass clazz,             
     va_list jargs;                                                                               \
                                                                                                  \
     va_start(jargs, methodID);                                                                   \
-    ret = executeMethodVaList(NULL, (Class*)clazz, (MethodBlock*)methodID, jargs);               \
+    ret = executeMethodVaList(NULL, clazz, methodID, jargs);                                     \
     va_end(jargs);                                                                               \
                                                                                                  \
     return (native_type)*ret;                                                                    \
@@ -1028,14 +1021,12 @@ native_type Jam_CallStatic##type##Method(JNIEnv *env, jclass clazz,             
                                                                                                  \
 native_type Jam_CallStatic##type##MethodV(JNIEnv *env, jclass clazz, jmethodID methodID,         \
                 va_list jargs) {                                                                 \
-    return (native_type) *(uintptr_t*)                                                           \
-            executeMethodVaList(NULL, (Class*)clazz, (MethodBlock*)methodID, jargs);             \
+    return (native_type) *(uintptr_t*) executeMethodVaList(NULL, clazz, methodID, jargs);        \
 }                                                                                                \
                                                                                                  \
 native_type Jam_CallStatic##type##MethodA(JNIEnv *env, jclass clazz, jmethodID methodID,         \
                 jvalue *jargs) {                                                                 \
-    return (native_type)*(uintptr_t*)                                                            \
-            executeMethodList(NULL, (Class*)clazz, (MethodBlock*)methodID, (u8*)jargs);          \
+    return (native_type)*(uintptr_t*) executeMethodList(NULL, clazz, methodID, (u8*)jargs);      \
 }
 
 #define CALL_METHOD(access)               \
@@ -1056,7 +1047,7 @@ jobject Jam_CallObjectMethod(JNIEnv *env, jobject obj, jmethodID methodID, ...) 
     Object *ob = (Object *)obj;
     Object *ret;
     va_list jargs;
-    MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)methodID);
+    MethodBlock *mb = lookupVirtualMethod(ob, methodID);
 
     if(mb == NULL)
         return NULL;
@@ -1069,16 +1060,16 @@ jobject Jam_CallObjectMethod(JNIEnv *env, jobject obj, jmethodID methodID, ...) 
 }
 
 jobject Jam_CallObjectMethodV(JNIEnv *env, jobject obj, jmethodID methodID, va_list jargs) {
-    Object *ob = (Object *)obj;
-    MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)methodID);
+    Object *ob = obj;
+    MethodBlock *mb = lookupVirtualMethod(ob, methodID);
 
     return mb == NULL ? NULL : addJNILref(*(Object**)
                              executeMethodVaList(ob, ob->class, mb, jargs));
 }
 
 jobject Jam_CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *jargs) {
-    Object *ob = (Object *)obj;
-    MethodBlock *mb = lookupVirtualMethod(ob, (MethodBlock*)methodID);
+    Object *ob = obj;
+    MethodBlock *mb = lookupVirtualMethod(ob, methodID);
 
     return mb == NULL ? NULL : addJNILref(*(Object**)
                              executeMethodList(ob, ob->class, mb, (u8*)jargs));
@@ -1090,8 +1081,7 @@ jobject Jam_CallNonvirtualObjectMethod(JNIEnv *env, jobject obj, jclass clazz,
     va_list jargs;
 
     va_start(jargs, methodID);
-    ret = addJNILref(*(Object**) executeMethodVaList((Object*)obj,
-                            (Class*)clazz, (MethodBlock*)methodID, jargs));
+    ret = addJNILref(*(Object**) executeMethodVaList(obj, clazz, methodID, jargs));
     va_end(jargs);
 
     return ret;
@@ -1100,24 +1090,21 @@ jobject Jam_CallNonvirtualObjectMethod(JNIEnv *env, jobject obj, jclass clazz,
 jobject Jam_CallNonvirtualObjectMethodV(JNIEnv *env, jobject obj, jclass clazz,
                 jmethodID methodID, va_list jargs) {
 
-    return addJNILref(*(Object**) executeMethodVaList((Object*)obj,
-                            (Class*)clazz, (MethodBlock*)methodID, jargs));
+    return addJNILref(*(Object**) executeMethodVaList(obj, clazz, methodID, jargs));
 }
 
 jobject Jam_CallNonvirtualObjectMethodA(JNIEnv *env, jobject obj, jclass clazz,
                 jmethodID methodID, jvalue *jargs) {
 
-    return addJNILref(*(Object**) executeMethodList((Object*)obj,
-                            (Class*)clazz, (MethodBlock*)methodID, (u8*)jargs));
+    return addJNILref(*(Object**) executeMethodList(obj, clazz, methodID, (u8*)jargs));
 }
 
 jobject Jam_CallStaticObjectMethod(JNIEnv *env, jclass clazz, jmethodID methodID, ...) {
     Object *ret;
     va_list jargs;
-    va_start(jargs, methodID);
 
-    ret = addJNILref(*(Object**) executeMethodVaList(NULL,
-                              (Class*)clazz, (MethodBlock*)methodID, jargs));
+    va_start(jargs, methodID);
+    ret = addJNILref(*(Object**) executeMethodVaList(NULL, clazz, methodID, jargs));
     va_end(jargs);
 
     return ret;
@@ -1126,41 +1113,39 @@ jobject Jam_CallStaticObjectMethod(JNIEnv *env, jclass clazz, jmethodID methodID
 jobject Jam_CallStaticObjectMethodV(JNIEnv *env, jclass clazz,
                 jmethodID methodID, va_list jargs) {
 
-    return addJNILref(*(Object**) executeMethodVaList(NULL,
-                              (Class*)clazz, (MethodBlock*)methodID, jargs));
+    return addJNILref(*(Object**) executeMethodVaList(NULL, clazz, methodID, jargs));
 }
 
 jobject Jam_CallStaticObjectMethodA(JNIEnv *env, jclass clazz,
                 jmethodID methodID, jvalue *jargs) {
 
-    return addJNILref(*(Object**) executeMethodList(NULL,
-                            (Class*)clazz, (MethodBlock*)methodID, (u8*)jargs));
+    return addJNILref(*(Object**) executeMethodList(NULL, clazz, methodID, (u8*)jargs));
 }
 
 void Jam_CallVoidMethod(JNIEnv *env, jobject obj, jmethodID methodID, ...) {
     va_list jargs;
     MethodBlock *mb;
-    Object *ob = (Object *)obj;
+    Object *ob = obj;
  
     va_start(jargs, methodID);
-    if((mb = lookupVirtualMethod(ob, (MethodBlock*)methodID)) != NULL)
+    if((mb = lookupVirtualMethod(ob, methodID)) != NULL)
         executeMethodVaList(ob, ob->class, mb, jargs);
     va_end(jargs);
 }
 
 void Jam_CallVoidMethodV(JNIEnv *env, jobject obj, jmethodID methodID, va_list jargs) {
     MethodBlock *mb;
-    Object *ob = (Object *)obj;
+    Object *ob = obj;
 
-    if((mb = lookupVirtualMethod(ob, (MethodBlock*)methodID)) != NULL)
+    if((mb = lookupVirtualMethod(ob, methodID)) != NULL)
         executeMethodVaList(ob, ob->class, mb, jargs);
 }
 
 void Jam_CallVoidMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *jargs) {
     MethodBlock *mb;
-    Object *ob = (Object *)obj;
+    Object *ob = obj;
 
-    if((mb = lookupVirtualMethod(ob, (MethodBlock*)methodID)) != NULL)
+    if((mb = lookupVirtualMethod(ob, methodID)) != NULL)
         executeMethodList(ob, ob->class, mb, (u8*)jargs);
 }
 
@@ -1168,36 +1153,36 @@ void Jam_CallNonvirtualVoidMethod(JNIEnv *env, jobject obj, jclass clazz, jmetho
     va_list jargs;
 
     va_start(jargs, methodID);
-    executeMethodVaList((Object*)obj, (Class*)clazz, (MethodBlock*)methodID, jargs);
+    executeMethodVaList(obj, clazz, methodID, jargs);
     va_end(jargs);
 }
 
 void Jam_CallNonvirtualVoidMethodV(JNIEnv *env, jobject obj, jclass clazz,
                 jmethodID methodID, va_list jargs) {
 
-      executeMethodVaList((Object*)obj, (Class*)clazz, (MethodBlock*)methodID, jargs);
+      executeMethodVaList(obj, clazz, methodID, jargs);
 }
 
 void Jam_CallNonvirtualVoidMethodA(JNIEnv *env, jobject obj, jclass clazz,
                 jmethodID methodID, jvalue *jargs) {
 
-    executeMethodList((Object*)obj, (Class*)clazz, (MethodBlock*)methodID, (u8*)jargs);
+    executeMethodList(obj, clazz, methodID, (u8*)jargs);
 }
 
 void Jam_CallStaticVoidMethod(JNIEnv *env, jclass clazz, jmethodID methodID, ...) {
     va_list jargs;
 
     va_start(jargs, methodID);
-    executeMethodVaList(NULL, (Class*)clazz, (MethodBlock*)methodID, jargs);
+    executeMethodVaList(NULL, clazz, methodID, jargs);
     va_end(jargs);
 }
 
 void Jam_CallStaticVoidMethodV(JNIEnv *env, jclass clazz, jmethodID methodID, va_list jargs) {
-    executeMethodVaList(NULL, (Class*)clazz, (MethodBlock*)methodID, jargs);
+    executeMethodVaList(NULL, clazz, methodID, jargs);
 }
 
 void Jam_CallStaticVoidMethodA(JNIEnv *env, jclass clazz, jmethodID methodID, jvalue *jargs) {
-    executeMethodList(NULL, (Class*)clazz, (MethodBlock*)methodID, (u8*)jargs);
+    executeMethodList(NULL, clazz, methodID, (u8*)jargs);
 }
 
 #define NEW_PRIM_ARRAY(type, native_type, array_type)                             \
@@ -1210,14 +1195,14 @@ native_type *Jam_Get##type##ArrayElements(JNIEnv *env, native_type##Array array,
                                           jboolean *isCopy) {                                   \
     if(isCopy != NULL)                                                                          \
         *isCopy = JNI_FALSE;                                                                    \
-    addJNIGref((Object*)array);                                                                 \
+    addJNIGref(array);                                                                          \
     return ARRAY_DATA((Object*)array, native_type);                                             \
 }
 
 #define RELEASE_PRIM_ARRAY_ELEMENTS(type, native_type)                                          \
 void Jam_Release##type##ArrayElements(JNIEnv *env, native_type##Array array,                    \
                                       native_type *elems, jint mode) {                          \
-    delJNIGref((Object*)array);                                                                 \
+    delJNIGref(array);                                                                          \
 }
 
 #define GET_PRIM_ARRAY_REGION(type, native_type)                                                \
