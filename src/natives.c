@@ -37,6 +37,8 @@
 #include "symbol.h"
 #include "excep.h"
 
+#include "reflect.h"
+
 static int pd_offset;
 
 void initialiseNatives() {
@@ -692,12 +694,16 @@ uintptr_t *resolveClass0(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *getBootClassPathSize(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *getBootClassPathSize(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack) {
+
     *ostack++ = bootClassPathSize();
     return ostack;
 }
 
-uintptr_t *getBootClassPathResource(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *getBootClassPathResource(Class *class, MethodBlock *mb,
+                                    uintptr_t *ostack) {
+
     Object *string = (Object *) ostack[0];
     char *filename = String2Cstr(string);
     int index = ostack[1];
@@ -708,13 +714,17 @@ uintptr_t *getBootClassPathResource(Class *class, MethodBlock *mb, uintptr_t *os
 
 /* java.lang.reflect.Constructor */
 
-uintptr_t *constructNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
-    Object *array = (Object*)ostack[1]; 
-    Class *decl_class = (Class*)ostack[2];
-    Object *param_types = (Object*)ostack[3];
-    ClassBlock *cb = CLASS_CB(decl_class); 
-    MethodBlock *mb = &(cb->methods[ostack[4]]); 
-    int no_access_check = ostack[5]; 
+uintptr_t *constructorConstruct(Class *class, MethodBlock *mb2,
+                                uintptr_t *ostack) {
+
+    Object *this       = (Object*)ostack[0];
+    Object *args_array = (Object*)ostack[1]; 
+
+    Object *param_types = getConsParamTypes(this);
+    int no_access_check = getConsAccessFlag(this);
+    MethodBlock *mb     = getConsMethodBlock(this);
+
+    ClassBlock *cb = CLASS_CB(mb->class); 
     Object *ob;
 
     if(cb->access_flags & ACC_ABSTRACT) {
@@ -724,73 +734,135 @@ uintptr_t *constructNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
 
     /* Creating an instance of the class is an
        active use; make sure it is initialised */
-    if(initClass(decl_class) == NULL)
+    if(initClass(mb->class) == NULL)
         return ostack;
 
-    if((ob = allocObject(decl_class)) != NULL) {
-        invoke(ob, mb, array, param_types, !no_access_check);
+    if((ob = allocObject(mb->class)) != NULL) {
+        invoke(ob, mb, args_array, param_types, !no_access_check);
         *ostack++ = (uintptr_t) ob;
     }
 
     return ostack;
 }
 
-uintptr_t *getMethodModifiers(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
-    Class *decl_class = (Class*)ostack[1];
-    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
+uintptr_t *constructorModifiers(Class *class, MethodBlock *mb2,
+                                uintptr_t *ostack) {
+
+    MethodBlock *mb = getConsMethodBlock((Object*)ostack[0]);
     *ostack++ = (uintptr_t) mb->access_flags;
     return ostack;
 }
 
-uintptr_t *getMethodSignature(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
-    Class *decl_class = (Class*)ostack[1];
-    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
+uintptr_t *constructorExceptionTypes(Class *class, MethodBlock *mb2,
+                                uintptr_t *ostack) {
+
+    MethodBlock *mb = getConsMethodBlock((Object*)ostack[0]);
+    *ostack++ = (uintptr_t) getExceptionTypes(mb);
+    return ostack;
+}
+
+uintptr_t *methodExceptionTypes(Class *class, MethodBlock *mb2,
+                                uintptr_t *ostack) {
+
+    MethodBlock *mb = getMethodMethodBlock((Object*)ostack[0]);
+    *ostack++ = (uintptr_t) getExceptionTypes(mb);
+    return ostack;
+}
+
+uintptr_t *methodModifiers(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
+    MethodBlock *mb = getMethodMethodBlock((Object*)ostack[0]);
+    *ostack++ = (uintptr_t) mb->access_flags;
+    return ostack;
+}
+
+uintptr_t *methodName(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
+    MethodBlock *mb = getMethodMethodBlock((Object*)ostack[0]);
+    *ostack++ = (uintptr_t) createString(mb->name);
+    return ostack;
+}
+
+uintptr_t *methodSignature(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
+    MethodBlock *mb = getMethodMethodBlock((Object*)ostack[0]);
     Object *string = mb->signature == NULL ? NULL : createString(mb->signature);
 
     *ostack++ = (uintptr_t)string;
     return ostack;
 }
 
-uintptr_t *getDefaultValue(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
-    Class *decl_class = (Class*)ostack[1];
-    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
+uintptr_t *constructorSignature(Class *class, MethodBlock *mb2,
+                                uintptr_t *ostack) {
+
+    MethodBlock *mb = getConsMethodBlock((Object*)ostack[0]);
+    Object *string = mb->signature == NULL ? NULL : createString(mb->signature);
+
+    *ostack++ = (uintptr_t)string;
+    return ostack;
+}
+
+uintptr_t *methodDefaultValue(Class *class, MethodBlock *mb2,
+                              uintptr_t *ostack) {
+
+    MethodBlock *mb = getMethodMethodBlock((Object*)ostack[0]);
     *ostack++ = (uintptr_t)getMethodDefaultValue(mb);
     return ostack;
 }
 
-uintptr_t *getMethodDeclaredAnnotations(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
-    Class *decl_class = (Class*)ostack[1];
-    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
+uintptr_t *methodDeclaredAnnotations(Class *class, MethodBlock *mb2,
+                                     uintptr_t *ostack) {
+
+    MethodBlock *mb = getMethodMethodBlock((Object*)ostack[0]);
     *ostack++ = (uintptr_t)getMethodAnnotations(mb);
     return ostack;
 }
 
-uintptr_t *getParameterAnnotations(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
-    Class *decl_class = (Class*)ostack[1];
-    MethodBlock *mb = &(CLASS_CB(decl_class)->methods[ostack[2]]); 
+uintptr_t *constructorDeclaredAnnotations(Class *class, MethodBlock *mb2,
+                                          uintptr_t *ostack) {
+
+    MethodBlock *mb = getConsMethodBlock((Object*)ostack[0]);
+    *ostack++ = (uintptr_t)getMethodAnnotations(mb);
+    return ostack;
+}
+
+uintptr_t *methodParameterAnnotations(Class *class, MethodBlock *mb2,
+                                      uintptr_t *ostack) {
+
+    MethodBlock *mb = getMethodMethodBlock((Object*)ostack[0]);
     *ostack++ = (uintptr_t)getMethodParameterAnnotations(mb);
     return ostack;
 }
 
-uintptr_t *getFieldModifiers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *decl_class = (Class*)ostack[1];
-    FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[2]]); 
+uintptr_t *constructorParameterAnnotations(Class *class, MethodBlock *mb2,
+                                           uintptr_t *ostack) {
+
+    MethodBlock *mb = getMethodMethodBlock((Object*)ostack[0]);
+    *ostack++ = (uintptr_t)getMethodParameterAnnotations(mb);
+    return ostack;
+}
+
+uintptr_t *fieldModifiers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    FieldBlock *fb = getFieldFieldBlock((Object*)ostack[0]);
     *ostack++ = (uintptr_t) fb->access_flags;
     return ostack;
 }
 
-uintptr_t *getFieldSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *decl_class = (Class*)ostack[1];
-    FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[2]]); 
+uintptr_t *fieldName(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
+    FieldBlock *fb = getFieldFieldBlock((Object*)ostack[0]);
+    *ostack++ = (uintptr_t) createString(fb->name);
+    return ostack;
+}
+
+uintptr_t *fieldSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    FieldBlock *fb = getFieldFieldBlock((Object*)ostack[0]);
     Object *string = fb->signature == NULL ? NULL : createString(fb->signature);
 
     *ostack++ = (uintptr_t)string;
     return ostack;
 }
 
-uintptr_t *getFieldDeclaredAnnotations(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *decl_class = (Class*)ostack[1];
-    FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[2]]); 
+uintptr_t *fieldDeclaredAnnotations(Class *class, MethodBlock *mb,
+                                    uintptr_t *ostack) {
+
+    FieldBlock *fb = getFieldFieldBlock((Object*)ostack[0]);
     *ostack++ = (uintptr_t)getFieldAnnotations(fb);
     return ostack;
 }
@@ -813,15 +885,15 @@ Object *getAndCheckObject(uintptr_t *ostack, Class *type) {
 }
 
 void *getPntr2Field(uintptr_t *ostack) {
-    Class *decl_class = (Class *)ostack[2];
-    FieldBlock *fb = &(CLASS_CB(decl_class)->fields[ostack[4]]); 
-    int no_access_check = ostack[5];
+    Object *this        = (Object*)ostack[0];
+    FieldBlock *fb      = getFieldFieldBlock(this);
+    int no_access_check = getFieldAccessFlag(this);
     Object *ob;
 
     if(!no_access_check) {
         Class *caller = getCallerCallerClass();
 
-        if(!checkClassAccess(decl_class, caller) ||
+        if(!checkClassAccess(fb->class, caller) ||
            !checkFieldAccess(fb, caller)) {
 
             signalException(java_lang_IllegalAccessException,
@@ -834,20 +906,20 @@ void *getPntr2Field(uintptr_t *ostack) {
 
         /* Setting/getting a static field of a class is an
            active use.  Make sure it is initialised */
-        if(initClass(decl_class) == NULL)
+        if(initClass(fb->class) == NULL)
             return NULL;
 
         return &fb->static_value;
     }
 
-    if((ob = getAndCheckObject(ostack, decl_class)) == NULL)
+    if((ob = getAndCheckObject(ostack, fb->class)) == NULL)
         return NULL;
 
     return &OBJ_DATA(ob, void, fb->offset);
 }
 
-uintptr_t *getField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *field_type = (Class *)ostack[3];
+uintptr_t *fieldGet(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Class *field_type = getFieldType((Object*)ostack[0]);
 
     /* If field is static, getPntr2Field also initialises the
        field's declaring class */
@@ -860,10 +932,9 @@ uintptr_t *getField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *getPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *field_type = (Class *)ostack[3];
-    int type_no = ostack[6]; 
+uintptr_t *fieldGetPrimitive(int type_no, uintptr_t *ostack) {
 
+    Class *field_type = getFieldType((Object*)ostack[0]);
     ClassBlock *type_cb = CLASS_CB(field_type);
 
     /* If field is static, getPntr2Field also initialises the
@@ -889,9 +960,23 @@ uintptr_t *getPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *setField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *field_type = (Class *)ostack[3];
-    Object *value = (Object*)ostack[6];
+#define FIELD_GET_PRIMITIVE(name, type)                                       \
+uintptr_t *fieldGet##name(Class *class, MethodBlock *mb, uintptr_t *ostack) { \
+    return fieldGetPrimitive(PRIM_IDX_##type, ostack);                        \
+}
+
+FIELD_GET_PRIMITIVE(Boolean, BOOLEAN)
+FIELD_GET_PRIMITIVE(Byte, BYTE)
+FIELD_GET_PRIMITIVE(Char, CHAR)
+FIELD_GET_PRIMITIVE(Short, SHORT)
+FIELD_GET_PRIMITIVE(Int, INT)
+FIELD_GET_PRIMITIVE(Float, FLOAT)
+FIELD_GET_PRIMITIVE(Long, LONG)
+FIELD_GET_PRIMITIVE(Double, DOUBLE)
+
+uintptr_t *fieldSet(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Class *field_type = getFieldType((Object*)ostack[0]);
+    Object *value = (Object*)ostack[2];
 
     /* If field is static, getPntr2Field also initialises the
        field's declaring class */
@@ -909,10 +994,9 @@ uintptr_t *setField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *setPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *field_type = (Class *)ostack[3];
-    int type_no = ostack[6]; 
+uintptr_t *fieldSetPrimitive(int type_no, uintptr_t *ostack) {
 
+    Class *field_type = getFieldType((Object*)ostack[0]);
     ClassBlock *type_cb = CLASS_CB(field_type);
 
     /* If field is static, getPntr2Field also initialises the
@@ -923,7 +1007,7 @@ uintptr_t *setPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
         if(IS_PRIMITIVE(type_cb)) {
 
             int size = widenPrimitiveValue(type_no, getPrimTypeIndex(type_cb),
-                                           &ostack[7], field,
+                                           &ostack[2], field,
                                            REF_SRC_OSTACK | REF_DST_FIELD);
 
             if(size > 0)
@@ -939,31 +1023,46 @@ uintptr_t *setPrimitiveField(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
+#define FIELD_SET_PRIMITIVE(name, type)                                       \
+uintptr_t *fieldSet##name(Class *class, MethodBlock *mb, uintptr_t *ostack) { \
+    return fieldSetPrimitive(PRIM_IDX_##type, ostack);                        \
+}
+
+FIELD_SET_PRIMITIVE(Boolean, BOOLEAN)
+FIELD_SET_PRIMITIVE(Byte, BYTE)
+FIELD_SET_PRIMITIVE(Char, CHAR)
+FIELD_SET_PRIMITIVE(Short, SHORT)
+FIELD_SET_PRIMITIVE(Int, INT)
+FIELD_SET_PRIMITIVE(Float, FLOAT)
+FIELD_SET_PRIMITIVE(Long, LONG)
+FIELD_SET_PRIMITIVE(Double, DOUBLE)
+
 /* java.lang.reflect.Method */
 
-uintptr_t *invokeNative(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
-    Object *array = (Object*)ostack[2]; 
-    Class *decl_class = (Class*)ostack[3];
-    Object *param_types = (Object*)ostack[4];
-    Class *ret_type = (Class*)ostack[5];
-    ClassBlock *cb = CLASS_CB(decl_class);
-    MethodBlock *mb = &(cb->methods[ostack[6]]); 
-    int no_access_check = ostack[7]; 
+uintptr_t *methodInvoke(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
+    Object *this       = (Object*)ostack[0];
+    Object *args_array = (Object*)ostack[2]; 
+
+    Class *ret_type     = getMethodReturnType(this);
+    Object *param_types = getMethodParamTypes(this);
+    int no_access_check = getMethodAccessFlag(this);
+    MethodBlock *mb     = getMethodMethodBlock(this);
+
     Object *ob = NULL;
     uintptr_t *ret;
 
     /* If it's a static method, class may not be initialised;
        interfaces are also not normally initialised. */
-    if((mb->access_flags & ACC_STATIC) || IS_INTERFACE(cb))
-        if(initClass(decl_class) == NULL)
+    if((mb->access_flags & ACC_STATIC) || IS_INTERFACE(CLASS_CB(mb->class)))
+        if(initClass(mb->class) == NULL)
             return ostack;
 
     if(!(mb->access_flags & ACC_STATIC))
-        if(((ob = getAndCheckObject(ostack, decl_class)) == NULL) ||
+        if(((ob = getAndCheckObject(ostack, mb->class)) == NULL) ||
                                    ((mb = lookupVirtualMethod(ob, mb)) == NULL))
             return ostack;
  
-    if((ret = (uintptr_t*) invoke(ob, mb, array, param_types, !no_access_check)) != NULL)
+    if((ret = (uintptr_t*) invoke(ob, mb, args_array, param_types, !no_access_check)) != NULL)
         *ostack++ = (uintptr_t) getReflectReturnObject(ret_type, ret, REF_SRC_OSTACK);
 
     return ostack;
@@ -1125,22 +1224,28 @@ uintptr_t *getPeakThreadCount(Class *class, MethodBlock *mb, uintptr_t *ostack) 
     return ostack;
 }
 
-uintptr_t *getTotalStartedThreadCount(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *getTotalStartedThreadCount(Class *class, MethodBlock *mb,
+                                      uintptr_t *ostack) {
+
     *(u8*)ostack = getTotalStartedThreadsCount();
     return ostack + 2;
 }
 
-uintptr_t *resetPeakThreadCount(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *resetPeakThreadCount(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack) {
     resetPeakThreadsCount();
     return ostack;
 }
 
-uintptr_t *findMonitorDeadlockedThreads(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *findMonitorDeadlockedThreads(Class *class, MethodBlock *mb,
+                                        uintptr_t *ostack) {
     *ostack++ = (uintptr_t)NULL;
     return ostack;
 }
 
-uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack) {
+
     long long id = *((long long *)&ostack[0]);
     int max_depth = ostack[2];
 
@@ -1152,8 +1257,10 @@ uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb, uintptr_t *ostack) 
 
         if(info_class != NULL) {
             MethodBlock *init = findMethod(info_class, SYMBOL(object_init),
-                                           newUtf8("(Ljava/lang/Thread;JJLjava/lang/Object;"
-                                                   "Ljava/lang/Thread;JJZZ[Ljava/lang/StackTraceElement;)V"));
+                                   newUtf8("(Ljava/lang/Thread;"
+                                           "JJLjava/lang/Object;"
+                                           "Ljava/lang/Thread;JJZZ"
+                                           "[Ljava/lang/StackTraceElement;)V"));
             if(init != NULL) {
                 Frame *last;
                 int in_native;
@@ -1166,7 +1273,8 @@ uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb, uintptr_t *ostack) 
                 vmthrowable = setStackTrace0(thread->ee, max_depth);
 
                 last = thread->ee->last_frame;
-                in_native = last->prev == NULL || last->mb->access_flags & ACC_NATIVE;
+                in_native = last->prev == NULL ||
+                                      last->mb->access_flags & ACC_NATIVE;
 
                 if(!self)
                     resumeThread(thread);
@@ -1174,15 +1282,18 @@ uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb, uintptr_t *ostack) 
                 if(vmthrowable != NULL) {
                     Object *trace;
                     if((info = allocObject(info_class)) != NULL &&
-                               (trace = convertStackTrace(vmthrowable)) != NULL) {
+                             (trace = convertStackTrace(vmthrowable)) != NULL) {
 
                         Monitor *mon = thread->blocked_mon;
                         Object *lock = mon != NULL ? mon->obj : NULL;
                         Thread *owner = mon != NULL ? mon->owner : NULL;
-                        Object *lock_owner = owner != NULL ? owner->ee->thread : NULL;
+                        Object *lock_owner = owner != NULL ?
+                                               owner->ee->thread : NULL;
 
-                        executeMethod(info, init, thread->ee->thread, thread->blocked_count, 0LL, lock,
-                                      lock_owner, thread->waited_count, 0LL, in_native, FALSE, trace);
+                        executeMethod(info, init, thread->ee->thread,
+                                      thread->blocked_count, 0LL, lock,
+                                      lock_owner, thread->waited_count,
+                                      0LL, in_native, FALSE, trace);
                     }
                 }
             }
@@ -1232,7 +1343,9 @@ uintptr_t *compareAndSwapInt(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *compareAndSwapLong(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *compareAndSwapLong(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack) {
+
     long long offset = *((long long *)&ostack[2]);
     long long *addr = (long long*)((char*)ostack[1] + offset);
     long long expect = *((long long *)&ostack[4]);
@@ -1344,7 +1457,9 @@ uintptr_t *getLong(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack + 2;
 }
 
-uintptr_t *compareAndSwapObject(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *compareAndSwapObject(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack) {
+
     long long offset = *((long long *)&ostack[2]);
     uintptr_t *addr = (uintptr_t*)((char *)ostack[1] + offset);
     uintptr_t expect = ostack[4];
@@ -1565,47 +1680,51 @@ VMMethod vm_classloader[] = {
 };
 
 VMMethod vm_reflect_constructor[] = {
-    {"constructNative",               constructNative},
-    {"getConstructorModifiers",       getMethodModifiers},
-    {"getSignature",                  getMethodSignature},
-    {"getDeclaredAnnotationsNative",  getMethodDeclaredAnnotations},
-    {"getParameterAnnotationsNative", getParameterAnnotations},
-    {NULL,                            NULL}
+    {"construct",                   constructorConstruct},
+    {"getSignature",                constructorSignature},
+    {"getModifiersInternal",        constructorModifiers},
+    {"getExceptionTypes",           constructorExceptionTypes},
+    {"getDeclaredAnnotations",      constructorDeclaredAnnotations},
+    {"getParameterAnnotations",     constructorParameterAnnotations},
+    {NULL,                          NULL}
 };
 
 VMMethod vm_reflect_method[] = {
-    {"invokeNative",                  invokeNative},
-    {"getMethodModifiers",            getMethodModifiers},
-    {"getSignature",                  getMethodSignature},
-    {"getDefaultValueNative",         getDefaultValue},
-    {"getDeclaredAnnotationsNative",  getMethodDeclaredAnnotations},
-    {"getParameterAnnotationsNative", getParameterAnnotations},
-    {NULL,                            NULL}
+    {"getName",                     methodName},
+    {"invoke",                      methodInvoke},
+    {"getSignature",                methodSignature},
+    {"getModifiersInternal",        methodModifiers},
+    {"getDefaultValue",             methodDefaultValue},
+    {"getExceptionTypes",           methodExceptionTypes},
+    {"getDeclaredAnnotations",      methodDeclaredAnnotations},
+    {"getParameterAnnotations",     methodParameterAnnotations},
+    {NULL,                          NULL}
 };
 
 VMMethod vm_reflect_field[] = {
-    {"getFieldModifiers",             getFieldModifiers},
-    {"getSignature",                  getFieldSignature},
-    {"getDeclaredAnnotationsNative",  getFieldDeclaredAnnotations},
-    {"getField",                      getField},
-    {"setField",                      setField},
-    {"setZField",                     setPrimitiveField},
-    {"setBField",                     setPrimitiveField},
-    {"setCField",                     setPrimitiveField},
-    {"setSField",                     setPrimitiveField},
-    {"setIField",                     setPrimitiveField},
-    {"setFField",                     setPrimitiveField},
-    {"setJField",                     setPrimitiveField},
-    {"setDField",                     setPrimitiveField},
-    {"getZField",                     getPrimitiveField},
-    {"getBField",                     getPrimitiveField},
-    {"getCField",                     getPrimitiveField},
-    {"getSField",                     getPrimitiveField},
-    {"getIField",                     getPrimitiveField},
-    {"getFField",                     getPrimitiveField},
-    {"getJField",                     getPrimitiveField},
-    {"getDField",                     getPrimitiveField},
-    {NULL,                            NULL}
+    {"getName",                     fieldName},
+    {"getModifiersInternal",        fieldModifiers},
+    {"getSignature",                fieldSignature},
+    {"getDeclaredAnnotations",      fieldDeclaredAnnotations},
+    {"set",                         fieldSet},
+    {"setBoolean",                  fieldSetBoolean},
+    {"setByte",                     fieldSetByte},
+    {"setChar",                     fieldSetChar},
+    {"setShort",                    fieldSetShort},
+    {"setInt",                      fieldSetInt},
+    {"setLong",                     fieldSetLong},
+    {"setFloat",                    fieldSetFloat},
+    {"setDouble",                   fieldSetDouble},
+    {"get",                         fieldGet},
+    {"getBoolean",                  fieldGetBoolean},
+    {"getByte",                     fieldGetByte},
+    {"getChar",                     fieldGetChar},
+    {"getShort",                    fieldGetShort},
+    {"getInt",                      fieldGetInt},
+    {"getLong",                     fieldGetLong},
+    {"getFloat",                    fieldGetFloat},
+    {"getDouble",                   fieldGetDouble},
+    {NULL,                          NULL}
 };
 
 VMMethod vm_system_properties[] = {
@@ -1680,9 +1799,9 @@ VMClass native_methods[] = {
     {"java/lang/VMRuntime",                         vm_runtime},
     {"java/lang/VMThrowable",                       vm_throwable},
     {"java/lang/VMClassLoader",                     vm_classloader},
-    {"java/lang/reflect/Field",                     vm_reflect_field},
-    {"java/lang/reflect/Method",                    vm_reflect_method},
-    {"java/lang/reflect/Constructor",               vm_reflect_constructor},
+    {"java/lang/reflect/VMField",                   vm_reflect_field},
+    {"java/lang/reflect/VMMethod",                  vm_reflect_method},
+    {"java/lang/reflect/VMConstructor",             vm_reflect_constructor},
     {"java/security/VMAccessController",            vm_access_controller},
     {"gnu/classpath/VMSystemProperties",            vm_system_properties},
     {"gnu/classpath/VMStackWalker",                 vm_stack_walker},
