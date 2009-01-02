@@ -151,7 +151,9 @@ static void prepareClass(Class *class) {
     }
 }
 
-Class *defineClass(char *classname, char *data, int offset, int len, Object *class_loader) {
+Class *defineClass(char *classname, char *data, int offset, int len,
+                   Object *class_loader) {
+
     unsigned char *ptr = (unsigned char *)data+offset;
     int cp_count, intf_count, i;
     u2 major_version, minor_version, this_idx, super_idx;
@@ -253,7 +255,8 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
            }
 
            default:
-               signalException(java_lang_ClassFormatError, "bad constant pool tag");
+               signalException(java_lang_ClassFormatError,
+                               "bad constant pool tag");
                return NULL;
         }
     }
@@ -268,7 +271,8 @@ Class *defineClass(char *classname, char *data, int offset, int len, Object *cla
     classblock->name = CP_UTF8(constant_pool, CP_CLASS(constant_pool, this_idx));
 
     if(classname && strcmp(classblock->name, classname) != 0) {
-        signalException(java_lang_NoClassDefFoundError, "class file has wrong name");
+        signalException(java_lang_NoClassDefFoundError,
+                        "class file has wrong name");
         return NULL;
     }
 
@@ -1384,31 +1388,40 @@ Class *findPrimitiveClass(char prim_type) {
 
    switch(prim_type) {
       case 'Z':
-          classname = SYMBOL(boolean); index = 1;
+          classname = SYMBOL(boolean);
+          index = PRIM_IDX_BOOLEAN;
           break;
       case 'B':
-          classname = SYMBOL(byte); index = 2;
+          classname = SYMBOL(byte);
+          index = PRIM_IDX_BYTE;
           break;
       case 'C':
-          classname = SYMBOL(char); index = 3;
+          classname = SYMBOL(char);
+          index = PRIM_IDX_CHAR;
           break;
       case 'S':
-          classname = SYMBOL(short); index = 4;
+          classname = SYMBOL(short);
+           index = PRIM_IDX_SHORT;
           break;
       case 'I':
-          classname = SYMBOL(int); index = 5;
+          classname = SYMBOL(int);
+           index = PRIM_IDX_INT;
           break;
       case 'F':
-          classname = SYMBOL(float); index = 6;
+          classname = SYMBOL(float);
+           index = PRIM_IDX_FLOAT;
           break;
       case 'J':
-          classname = SYMBOL(long); index = 7;
+          classname = SYMBOL(long);
+           index = PRIM_IDX_LONG;
           break;
       case 'D':
-          classname = SYMBOL(double); index = 8;
+          classname = SYMBOL(double);
+           index = PRIM_IDX_DOUBLE;
           break;
       case 'V':
-          classname = SYMBOL(void); index = 0;
+          classname = SYMBOL(void);
+           index = PRIM_IDX_VOID;
           break;
       default:
           signalException(java_lang_NoClassDefFoundError, NULL);
