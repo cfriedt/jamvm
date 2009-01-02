@@ -327,6 +327,18 @@
 #define CLASS_ARRAY             6
 #define CLASS_PRIM              7
 
+/* Internal primitive type numbers */
+
+#define PRIM_IDX_VOID           0
+#define PRIM_IDX_BOOLEAN        1
+#define PRIM_IDX_BYTE           2
+#define PRIM_IDX_CHAR           3
+#define PRIM_IDX_SHORT          4
+#define PRIM_IDX_INT            5
+#define PRIM_IDX_FLOAT          6
+#define PRIM_IDX_LONG           7
+#define PRIM_IDX_DOUBLE         8
+
 /* Class flags */
 
 #define CLASS_CLASS             1
@@ -967,46 +979,6 @@ extern void scanThreads();
 /* Monitors */
 
 extern void initialiseMonitor();
-
-/* reflect */
-
-#define REF_SRC_FIELD  0
-#define REF_DST_FIELD  0
-#define REF_SRC_OSTACK 1
-#define REF_DST_OSTACK 2
-
-extern Object *getClassConstructors(Class *class, int public);
-extern Object *getClassMethods(Class *class, int public);
-extern Object *getClassFields(Class *class, int public);
-extern Object *getClassInterfaces(Class *class);
-extern Object *getClassClasses(Class *class, int public);
-extern Class *getDeclaringClass(Class *class);
-extern Class *getEnclosingClass(Class *class);
-extern Object *getEnclosingMethodObject(Class *class);
-extern Object *getEnclosingConstructorObject(Class *class);
-extern Object *getClassAnnotations(Class *class);
-extern Object *getFieldAnnotations(FieldBlock *fb);
-extern Object *getMethodAnnotations(MethodBlock *mb);
-extern Object *getMethodParameterAnnotations(MethodBlock *mb);
-extern Object *getMethodDefaultValue(MethodBlock *mb);
-
-extern Object *getReflectReturnObject(Class *type, void *pntr, int flags);
-extern int widenPrimitiveValue(int src_idx, int dest_idx, void *src,
-                               void *dest, int flags);
-extern int unwrapAndWidenObject(Class *type, Object *arg, void *pntr,
-                                int flags);
-extern Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
-                      Object *param_types, int check_access);
-
-extern MethodBlock *mbFromReflectObject(Object *reflect_ob);
-extern FieldBlock *fbFromReflectObject(Object *reflect_ob);
-
-extern Object *createReflectConstructorObject(MethodBlock *mb);
-extern Object *createReflectMethodObject(MethodBlock *mb);
-extern Object *createReflectFieldObject(FieldBlock *fb);
-extern Class *getReflectMethodClass();
-
-#define getPrimTypeIndex(cb) (cb->state - CLASS_PRIM)
 
 /* jni */
 
