@@ -29,79 +29,126 @@
 #include "symbol.h"
 #include "excep.h"
 #include "interp.h"
+#include "reflect.h"
 
 static char inited = FALSE;
 
 static Class *class_array_class, *cons_array_class, *cons_reflect_class;
 static Class *method_array_class, *method_reflect_class, *field_array_class;
-static Class *field_reflect_class;
-static MethodBlock *cons_init_mb, *method_init_mb, *field_init_mb;
-static int cons_slot_offset, method_slot_offset, field_slot_offset;
-static int cons_class_offset, method_class_offset, field_class_offset;
+static Class *field_reflect_class, *vmcons_reflect_class;
+static Class *vmmethod_reflect_class, *vmfield_reflect_class;
+
+int vm_cons_slot_offset, vm_cons_class_offset, vm_cons_param_offset;
+int vm_cons_cons_offset, vm_mthd_slot_offset, vm_mthd_class_offset;
+int vm_mthd_ret_offset, vm_mthd_param_offset, vm_mthd_m_offset;
+int vm_fld_slot_offset, vm_fld_class_offset, vm_fld_type_offset;
+int vm_fld_f_offset, cons_cons_offset, mthd_m_offset;
+int fld_f_offset, acc_flag_offset;
 
 static int initReflection() {
     Class *cls_ary_cls, *cons_ary_cls, *cons_ref_cls, *mthd_ary_cls;
-    Class *mthd_ref_cls, *fld_ary_cls, *fld_ref_cls;
-    FieldBlock *cons_slot_fb, *mthd_slot_fb, *fld_slot_fb;
-    FieldBlock *cons_class_fb, *mthd_class_fb, *fld_class_fb;
+    Class *mthd_ref_cls, *fld_ary_cls, *fld_ref_cls, *vm_cons_cls;
+    Class *vm_mthd_cls, *vm_fld_cls;
+
+    FieldBlock *vm_cons_slot_fb, *vm_cons_class_fb, *vm_cons_param_fb;
+    FieldBlock *vm_cons_cons_fb, *vm_mthd_slot_fb, *vm_mthd_class_fb;
+    FieldBlock *vm_mthd_ret_fb, *vm_mthd_param_fb, *vm_mthd_m_fb;
+    FieldBlock *vm_fld_slot_fb, *vm_fld_class_fb, *vm_fld_type_fb;
+    FieldBlock *vm_fld_f_fb, *cons_cons_fb, *mthd_m_fb, *fld_f_fb;
+    FieldBlock *acc_flag_fb;
 
     cls_ary_cls = findArrayClass(SYMBOL(array_java_lang_Class));
     cons_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Constructor));
     cons_ref_cls = findSystemClass(SYMBOL(java_lang_reflect_Constructor));
+    vm_cons_cls = findSystemClass(SYMBOL(java_lang_reflect_VMConstructor));
     mthd_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Method));
     mthd_ref_cls = findSystemClass(SYMBOL(java_lang_reflect_Method));
+    vm_mthd_cls = findSystemClass(SYMBOL(java_lang_reflect_VMMethod));
     fld_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Field));
     fld_ref_cls = findSystemClass(SYMBOL(java_lang_reflect_Field));
+    vm_fld_cls = findSystemClass(SYMBOL(java_lang_reflect_VMField));
 
     if(!cls_ary_cls || !cons_ary_cls || !cons_ref_cls || !mthd_ary_cls
-                    || !mthd_ref_cls || !fld_ary_cls || !fld_ref_cls)
+                    || !mthd_ref_cls || !fld_ary_cls  || !fld_ref_cls
+                    || !vm_cons_cls  || !vm_mthd_cls  || !vm_fld_cls)
         return FALSE;
 
-    cons_init_mb = findMethod(cons_ref_cls, SYMBOL(object_init), SYMBOL(
-           _java_lang_Class_array_java_lang_Class_array_java_lang_Class_I__V));
+    vm_cons_slot_fb  = findField(vm_cons_cls, SYMBOL(slot), SYMBOL(I));
+    vm_cons_class_fb = findField(vm_cons_cls, SYMBOL(clazz),
+                                              SYMBOL(sig_java_lang_Class));
+    vm_cons_param_fb = findField(vm_cons_cls, SYMBOL(parameterTypes),
+                                              SYMBOL(array_java_lang_Class));
+    vm_cons_cons_fb  = findField(vm_cons_cls, SYMBOL(cons),
+                                              SYMBOL(sig_java_lang_reflect_Constructor));
 
-    method_init_mb = findMethod(mthd_ref_cls, SYMBOL(object_init), SYMBOL(
-        _java_lang_Class_array_java_lang_Class_array_java_lang_Class_java_lang_Class_java_lang_String_I__V));
+    vm_mthd_slot_fb  = findField(vm_mthd_cls, SYMBOL(slot), SYMBOL(I));
+    vm_mthd_class_fb = findField(vm_mthd_cls, SYMBOL(clazz),
+                                              SYMBOL(sig_java_lang_Class));
+    vm_mthd_ret_fb   = findField(vm_mthd_cls, SYMBOL(returnType),
+                                              SYMBOL(sig_java_lang_Class));
+    vm_mthd_param_fb = findField(vm_mthd_cls, SYMBOL(parameterTypes),
+                                              SYMBOL(array_java_lang_Class));
+    vm_mthd_m_fb     = findField(vm_mthd_cls, SYMBOL(m),
+                                              SYMBOL(sig_java_lang_reflect_Method));
 
-    field_init_mb = findMethod(fld_ref_cls, SYMBOL(object_init),
-              SYMBOL(_java_lang_Class_java_lang_Class_java_lang_String_I__V));
+    vm_fld_slot_fb   = findField(vm_fld_cls,  SYMBOL(slot), SYMBOL(I));
+    vm_fld_class_fb  = findField(vm_fld_cls,  SYMBOL(clazz),
+                                              SYMBOL(sig_java_lang_Class));
+    vm_fld_type_fb   = findField(vm_fld_cls,  SYMBOL(type),
+                                              SYMBOL(sig_java_lang_Class));
+    vm_fld_f_fb      = findField(vm_fld_cls,  SYMBOL(f),
+                                              SYMBOL(sig_java_lang_reflect_Field));
 
-    cons_slot_fb = findField(cons_ref_cls, SYMBOL(slot), SYMBOL(I));
-    mthd_slot_fb = findField(mthd_ref_cls, SYMBOL(slot), SYMBOL(I));
-    fld_slot_fb = findField(fld_ref_cls,   SYMBOL(slot), SYMBOL(I));
-    cons_class_fb = findField(cons_ref_cls, SYMBOL(declaringClass),
-                                            SYMBOL(sig_java_lang_Class));
+    cons_cons_fb  = findField(cons_ref_cls, SYMBOL(cons),
+                                            SYMBOL(sig_java_lang_reflect_VMConstructor));
+    mthd_m_fb     = findField(mthd_ref_cls, SYMBOL(m),
+                                            SYMBOL(sig_java_lang_reflect_VMMethod));
+    fld_f_fb      = findField(fld_ref_cls,  SYMBOL(f),
+                                            SYMBOL(sig_java_lang_reflect_VMField));
 
-    mthd_class_fb = findField(mthd_ref_cls, SYMBOL(declaringClass),
-                                            SYMBOL(sig_java_lang_Class));
+    acc_flag_fb = lookupField(cons_ref_cls, SYMBOL(flag), SYMBOL(Z));
 
-    fld_class_fb = findField(fld_ref_cls, SYMBOL(declaringClass),
-                                          SYMBOL(sig_java_lang_Class));
-
-    if(!cons_init_mb || ! method_init_mb || !field_init_mb ||
-           !cons_slot_fb || !mthd_slot_fb || !fld_slot_fb ||
-           !cons_class_fb || !mthd_class_fb || !fld_class_fb) {
+    if(!vm_cons_slot_fb   || !vm_cons_class_fb || !vm_cons_param_fb ||
+         !vm_cons_cons_fb || !vm_mthd_slot_fb  || !vm_mthd_class_fb ||
+         !vm_mthd_ret_fb  || !vm_mthd_m_fb     || !vm_mthd_param_fb ||
+         !vm_fld_slot_fb  || !vm_fld_class_fb  || !vm_fld_type_fb   ||
+         !vm_fld_f_fb     || !cons_cons_fb     || !mthd_m_fb        ||
+         !fld_f_fb        || !acc_flag_fb) {
 
         /* Find Field/Method doesn't throw an exception... */
         signalException(java_lang_InternalError,
-                        "Expected field/method doesn't exist");
+                        "Expected reflection field doesn't exist");
         return FALSE;
     }
 
-    cons_slot_offset = cons_slot_fb->offset; 
-    method_slot_offset = mthd_slot_fb->offset; 
-    field_slot_offset = fld_slot_fb->offset; 
-    cons_class_offset = cons_class_fb->offset; 
-    method_class_offset = mthd_class_fb->offset; 
-    field_class_offset = fld_class_fb->offset; 
+    vm_cons_slot_offset = vm_cons_slot_fb->offset; 
+    vm_cons_class_offset = vm_cons_class_fb->offset; 
+    vm_cons_param_offset = vm_cons_param_fb->offset; 
+    vm_cons_cons_offset = vm_cons_cons_fb->offset; 
+    vm_mthd_slot_offset = vm_mthd_slot_fb->offset; 
+    vm_mthd_class_offset = vm_mthd_class_fb->offset; 
+    vm_mthd_ret_offset = vm_mthd_ret_fb->offset; 
+    vm_mthd_param_offset = vm_mthd_param_fb->offset; 
+    vm_mthd_m_offset = vm_mthd_m_fb->offset; 
+    vm_fld_slot_offset = vm_fld_slot_fb->offset; 
+    vm_fld_class_offset = vm_fld_class_fb->offset; 
+    vm_fld_type_offset = vm_fld_type_fb->offset; 
+    vm_fld_f_offset = vm_fld_f_fb->offset; 
+    cons_cons_offset = cons_cons_fb->offset; 
+    mthd_m_offset = mthd_m_fb->offset; 
+    fld_f_offset = fld_f_fb->offset; 
+    acc_flag_offset = acc_flag_fb->offset;
 
     registerStaticClassRefLocked(&class_array_class, cls_ary_cls);
     registerStaticClassRefLocked(&cons_array_class, cons_ary_cls);
     registerStaticClassRefLocked(&method_array_class, mthd_ary_cls);
     registerStaticClassRefLocked(&field_array_class, fld_ary_cls);
     registerStaticClassRefLocked(&cons_reflect_class, cons_ref_cls);
+    registerStaticClassRefLocked(&vmcons_reflect_class, vm_cons_cls);
     registerStaticClassRefLocked(&method_reflect_class, mthd_ref_cls);
+    registerStaticClassRefLocked(&vmmethod_reflect_class, vm_mthd_cls);
     registerStaticClassRefLocked(&field_reflect_class, fld_ref_cls);
+    registerStaticClassRefLocked(&vmfield_reflect_class, vm_fld_cls);
 
     return inited = TRUE;
 }
@@ -133,6 +180,7 @@ Class *convertSigElement2Class(char **sig_pntr, Class *declaring_class) {
             class = findPrimitiveClass(*sig++);
             break;
     }
+
     *sig_pntr = sig;
     return class;
 }
@@ -181,24 +229,32 @@ Object *getExceptionTypes(MethodBlock *mb) {
 }
 
 Object *createConstructorObject(MethodBlock *mb) {
-    Object *reflect_ob;
+    Object *reflect_ob, *vm_reflect_ob, *classes;
+    char *signature, *sig;
 
-    if((reflect_ob = allocObject(cons_reflect_class))) {
-        char *signature = sysMalloc(strlen(mb->type) + 1);
-        char *sig = signature;
-        Object *classes, *exceps;
+    if((reflect_ob = allocObject(cons_reflect_class)) == NULL)
+        return NULL;
 
-        strcpy(sig, mb->type);
-        classes = convertSig2ClassArray(&sig, mb->class);
-        exceps = getExceptionTypes(mb);
-        sysFree(signature);
+    if((vm_reflect_ob = allocObject(vmcons_reflect_class)) == NULL)
+        return NULL;
 
-        if((classes == NULL) || (exceps == NULL))
-            return NULL;
+    signature = sig = sysMalloc(strlen(mb->type) + 1);
+    strcpy(sig, mb->type);
 
-        executeMethod(reflect_ob, cons_init_mb, mb->class, classes, exceps,
-                      mb - CLASS_CB(mb->class)->methods);
-    }
+    classes = convertSig2ClassArray(&sig, mb->class);
+    sysFree(signature);
+
+    if(classes == NULL)
+        return NULL;
+
+    OBJ_DATA(vm_reflect_ob, Class*, vm_cons_class_offset) = mb->class;
+    OBJ_DATA(vm_reflect_ob, Object*, vm_cons_param_offset) = classes;
+    OBJ_DATA(vm_reflect_ob, int, vm_cons_slot_offset) =
+                                     mb - CLASS_CB(mb->class)->methods;
+
+    /* Link the Java-level and VM-level objects together */
+    OBJ_DATA(vm_reflect_ob, Object*, vm_cons_cons_offset) = reflect_ob;
+    OBJ_DATA(reflect_ob, Object*, cons_cons_offset) = vm_reflect_ob;
 
     return reflect_ob;
 }
@@ -214,7 +270,8 @@ Object *getClassConstructors(Class *class, int public) {
 
     for(i = 0; i < cb->methods_count; i++) {
         MethodBlock *mb = &cb->methods[i];
-        if((mb->name == SYMBOL(object_init)) && (!public || (mb->access_flags & ACC_PUBLIC)))
+        if((mb->name == SYMBOL(object_init)) &&
+                      (!public || (mb->access_flags & ACC_PUBLIC)))
             count++;
     }
 
@@ -226,7 +283,9 @@ Object *getClassConstructors(Class *class, int public) {
     for(i = 0, j = 0; j < count; i++) {
         MethodBlock *mb = &cb->methods[i];
 
-        if((mb->name == SYMBOL(object_init)) && (!public || (mb->access_flags & ACC_PUBLIC)))
+        if((mb->name == SYMBOL(object_init)) &&
+                     (!public || (mb->access_flags & ACC_PUBLIC)))
+
             if((cons[j++] = createConstructorObject(mb)) == NULL)
                 return NULL;
     }
@@ -235,29 +294,37 @@ Object *getClassConstructors(Class *class, int public) {
 }
 
 Object *createMethodObject(MethodBlock *mb) {
-    Object *reflect_ob;
+    Object *reflect_ob, *vm_reflect_ob, *classes;
+    char *signature, *sig;
+    Class *ret;
 
-    if((reflect_ob = allocObject(method_reflect_class))) {
-        char *signature = sysMalloc(strlen(mb->type) + 1);
-        char *sig = signature;
-        Object *classes, *exceps, *name;
-        Class *ret;
+    if((reflect_ob = allocObject(method_reflect_class)) == NULL)
+        return NULL;
 
-        strcpy(sig, mb->type);
-        classes = convertSig2ClassArray(&sig, mb->class);
-        exceps = getExceptionTypes(mb);
-        name = createString(mb->name);
+    if((vm_reflect_ob = allocObject(vmmethod_reflect_class)) == NULL)
+        return NULL;
 
-        sig++;
-        ret = convertSigElement2Class(&sig, mb->class);
-        sysFree(signature);
+    signature = sig = sysMalloc(strlen(mb->type) + 1);
+    strcpy(sig, mb->type);
 
-        if((classes == NULL) || (exceps == NULL) || (name == NULL) || (ret == NULL))
-            return NULL;
+    classes = convertSig2ClassArray(&sig, mb->class);
 
-        executeMethod(reflect_ob, method_init_mb, mb->class, classes, exceps, ret, name,
-                      mb - CLASS_CB(mb->class)->methods);
-    }
+    sig++;
+    ret = convertSigElement2Class(&sig, mb->class);
+    sysFree(signature);
+
+    if(classes == NULL || ret == NULL)
+        return NULL;
+
+    OBJ_DATA(vm_reflect_ob, Class*, vm_mthd_class_offset) = mb->class;
+    OBJ_DATA(vm_reflect_ob, Object*, vm_mthd_param_offset) = classes;
+    OBJ_DATA(vm_reflect_ob, Class*, vm_mthd_ret_offset) = ret;
+    OBJ_DATA(vm_reflect_ob, int, vm_mthd_slot_offset) =
+                                     mb - CLASS_CB(mb->class)->methods;
+
+    /* Link the Java-level and VM-level objects together */
+    OBJ_DATA(vm_reflect_ob, Object*, vm_mthd_m_offset) = reflect_ob;
+    OBJ_DATA(reflect_ob, Object*, mthd_m_offset) = vm_reflect_ob;
 
     return reflect_ob;
 }
@@ -297,25 +364,33 @@ Object *getClassMethods(Class *class, int public) {
 }
 
 Object *createFieldObject(FieldBlock *fb) {
-    Object *reflect_ob;
+    Object *reflect_ob, *vm_reflect_ob;
+    char *signature, *sig;
+    Class *type;
 
-    if((reflect_ob = allocObject(field_reflect_class))) {
-        char *signature = sysMalloc(strlen(fb->type) + 1);
-        char *sig = signature;
-        Object *name;
-        Class *type;
+    if((reflect_ob = allocObject(field_reflect_class)) == NULL)
+        return NULL;
 
-        strcpy(signature, fb->type);
-        type = convertSigElement2Class(&sig, fb->class);
-        sysFree(signature);
-        name = createString(fb->name);
+    if((vm_reflect_ob = allocObject(vmfield_reflect_class)) == NULL)
+        return NULL;
 
-        if((type == NULL) || (name == NULL))
-            return NULL;
+    signature = sig = sysMalloc(strlen(fb->type) + 1);
+    strcpy(signature, fb->type);
 
-        executeMethod(reflect_ob, field_init_mb, fb->class, type, name,
-                      fb - CLASS_CB(fb->class)->fields);
-    }
+    type = convertSigElement2Class(&sig, fb->class);
+    sysFree(signature);
+
+    if(type == NULL)
+        return NULL;
+
+    OBJ_DATA(vm_reflect_ob, Class*, vm_fld_class_offset) = fb->class;
+    OBJ_DATA(vm_reflect_ob, Class*, vm_fld_type_offset) = type;
+    OBJ_DATA(vm_reflect_ob, int, vm_fld_slot_offset) =
+                                     fb - CLASS_CB(fb->class)->fields;
+
+    /* Link the Java-level and VM-level objects together */
+    OBJ_DATA(vm_reflect_ob, Object*, vm_fld_f_offset) = reflect_ob;
+    OBJ_DATA(reflect_ob, Object*, fld_f_offset) = vm_reflect_ob;
 
     return reflect_ob;
 }
@@ -788,27 +863,27 @@ int getWrapperPrimTypeIndex(Object *arg) {
         ClassBlock *cb = CLASS_CB(arg->class);
 
         if(cb->name == SYMBOL(java_lang_Boolean))
-            return 1;
+            return PRIM_IDX_BOOLEAN;
 
         if(cb->super_name == SYMBOL(java_lang_Number)) {
             if(cb->name == SYMBOL(java_lang_Byte))
-                return 2;
+                return PRIM_IDX_BYTE;
             if(cb->name == SYMBOL(java_lang_Character))
-                return 3;
+                return PRIM_IDX_CHAR;
             if(cb->name == SYMBOL(java_lang_Short))
-                return 4;
+                return PRIM_IDX_SHORT;
             if(cb->name == SYMBOL(java_lang_Integer))
-                return 5;
+                return PRIM_IDX_INT;
             if(cb->name == SYMBOL(java_lang_Float))
-                return 6;
+                return PRIM_IDX_FLOAT;
             if(cb->name == SYMBOL(java_lang_Long))
-                return 7;
+                return PRIM_IDX_LONG;
             if(cb->name == SYMBOL(java_lang_Double))
-                return 8;
+                return PRIM_IDX_DOUBLE;
         }
     }
 
-    return 0;
+    return PRIM_IDX_VOID;
 }
 
 Object *createWrapperObject(int prim_type_no, void *pntr, int flags) {
@@ -822,12 +897,12 @@ Object *createWrapperObject(int prim_type_no, void *pntr, int flags) {
                                     "java/lang/Double"};
     Object *wrapper = NULL;
 
-    if(prim_type_no > 0 /* void */) {
+    if(prim_type_no > PRIM_IDX_VOID) {
         Class *wrapper_class;
 
         if((wrapper_class = findSystemClass(wrapper_names[prim_type_no - 1]))
                   && (wrapper = allocObject(wrapper_class)) != NULL) {
-            if(prim_type_no > 6)      /* i.e. long or double */
+            if(prim_type_no > PRIM_IDX_FLOAT)
                 INST_BASE(wrapper, u8)[0] = *(u8*)pntr;
             else
                 if(flags == REF_SRC_FIELD)
@@ -1044,6 +1119,42 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
     return ret;
 }
 
+MethodBlock *getConsMethodBlock(Object *vm_cons_obj) {
+    Class *decl_class = OBJ_DATA(vm_cons_obj, Class*, vm_cons_class_offset);
+    int slot = OBJ_DATA(vm_cons_obj, int, vm_cons_slot_offset);
+
+    return &CLASS_CB(decl_class)->methods[slot];
+}
+
+int getConsAccessFlag(Object *vm_cons_obj) {
+    Object *cons_obj = OBJ_DATA(vm_cons_obj, Object*, vm_cons_cons_offset);
+    return OBJ_DATA(cons_obj, int, acc_flag_offset);
+}
+
+int getMethodAccessFlag(Object *vm_mthd_obj) {
+    Object *mthd_obj = OBJ_DATA(vm_mthd_obj, Object*, vm_mthd_m_offset);
+    return OBJ_DATA(mthd_obj, int, acc_flag_offset);
+}
+
+MethodBlock *getMethodMethodBlock(Object *vm_mthd_obj) {
+    Class *decl_class = OBJ_DATA(vm_mthd_obj, Class*, vm_mthd_class_offset);
+    int slot = OBJ_DATA(vm_mthd_obj, int, vm_mthd_slot_offset);
+
+    return &CLASS_CB(decl_class)->methods[slot];
+}
+
+FieldBlock *getFieldFieldBlock(Object *vm_fld_obj) {
+    Class *decl_class = OBJ_DATA(vm_fld_obj, Class*, vm_fld_class_offset);
+    int slot = OBJ_DATA(vm_fld_obj, int, vm_fld_slot_offset);
+
+    return &(CLASS_CB(decl_class)->fields[slot]);
+}
+
+int getFieldAccessFlag(Object *vm_fld_obj) {
+    Object *fld_obj = OBJ_DATA(vm_fld_obj, Object*, vm_fld_f_offset);
+    return OBJ_DATA(fld_obj, int, acc_flag_offset);
+}
+
 /* Reflection access from JNI */
 
 Object *createReflectConstructorObject(MethodBlock *mb) {
@@ -1068,22 +1179,22 @@ Object *createReflectFieldObject(FieldBlock *fb) {
 }
 
 MethodBlock *mbFromReflectObject(Object *reflect_ob) {
-    int slot = reflect_ob->class == cons_reflect_class ? cons_slot_offset
-                                                       : method_slot_offset;
+    MethodBlock *mb;
 
-    int class = reflect_ob->class == cons_reflect_class ? cons_class_offset
-                                                        : method_class_offset;
+    if(reflect_ob->class == cons_reflect_class) {
+        Object *vm_cons_obj = OBJ_DATA(reflect_ob, Object*, cons_cons_offset);
+        mb = getConsMethodBlock(vm_cons_obj);
+    } else {
+        Object *vm_mthd_obj = OBJ_DATA(reflect_ob, Object*, mthd_m_offset);
+        mb = getMethodMethodBlock(vm_mthd_obj);
+    }
 
-    Class *decl_class = OBJ_DATA(reflect_ob, Class*, class);
-
-    return &(CLASS_CB(decl_class)->methods[OBJ_DATA(reflect_ob, int, slot)]);
+    return mb;
 }
 
 FieldBlock *fbFromReflectObject(Object *reflect_ob) {
-    Class *decl_class = OBJ_DATA(reflect_ob, Class*, field_class_offset);
-    int slot = OBJ_DATA(reflect_ob, int, field_slot_offset);
-
-    return &(CLASS_CB(decl_class)->fields[slot]);
+    Object *vm_fld_obj = OBJ_DATA(reflect_ob, Object*, fld_f_offset);
+    return getFieldFieldBlock(vm_fld_obj);
 }
 
 /* Needed for stack walking */
