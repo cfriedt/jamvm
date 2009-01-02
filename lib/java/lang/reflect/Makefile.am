@@ -20,6 +20,6 @@
 ##
 
 EXTRA_DIST = \
-Constructor.java \
-Field.java \
-Method.java
+VMConstructor.java \
+VMMethod.java \
+VMField.java
