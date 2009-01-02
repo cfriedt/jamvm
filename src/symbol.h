@@ -24,6 +24,8 @@ extern char *symbol_values[];
 
 #define SYMBOLS_DO(action) \
     /* Method and field names, etc. */\
+    action(f, "f"), \
+    action(m, "m"), \
     action(I, "I"), \
     action(J, "J"), \
     action(Z, "Z"), \
@@ -31,12 +33,16 @@ extern char *symbol_values[];
     action(put, "put"), \
     action(cap, "cap"), \
     action(run, "run"), \
+    action(cons, "cons"), \
     action(main, "main"), \
     action(data, "data"), \
     action(name, "name"), \
     action(root, "root"), \
     action(exit, "exit"), \
     action(slot, "slot"), \
+    action(type, "type"), \
+    action(flag, "flag"), \
+    action(clazz, "clazz"), \
     action(queue, "queue"), \
     action(group, "group"), \
     action(count, "count"), \
@@ -60,8 +66,10 @@ extern char *symbol_values[];
     action(initCause, "initCause"), \
     action(loadClass, "loadClass"), \
     action(addThread, "addThread"), \
+    action(returnType, "returnType"), \
     action(removeThread, "removeThread"), \
     action(declaringClass, "declaringClass"), \
+    action(parameterTypes, "parameterTypes"), \
     action(printStackTrace, "printStackTrace"), \
     action(exceptionHandler, "exceptionHandler"), \
     action(uncaughtException, "uncaughtException"), \
@@ -125,6 +133,7 @@ extern char *symbol_values[];
     action(java_lang_ThreadGroup, "java/lang/ThreadGroup"), \
     action(java_lang_ClassLoader, "java/lang/ClassLoader"), \
     action(java_lang_reflect_Field, "java/lang/reflect/Field"), \
+    action(java_lang_reflect_VMField, "java/lang/reflect/VMField"), \
     action(gnu_classpath_Pointer32, "gnu/classpath/Pointer32"), \
     action(gnu_classpath_Pointer64, "gnu/classpath/Pointer64"), \
     action(java_lang_VMClassLoader, "java/lang/VMClassLoader"), \
@@ -132,10 +141,12 @@ extern char *symbol_values[];
     action(sun_reflect_annotation_AnnotationInvocationHandler, \
            "sun/reflect/annotation/AnnotationInvocationHandler"), \
     action(java_lang_reflect_Method, "java/lang/reflect/Method"), \
+    action(java_lang_reflect_VMMethod, "java/lang/reflect/VMMethod"), \
     action(java_lang_StackTraceElement, "java/lang/StackTraceElement"), \
     action(java_lang_ref_SoftReference, "java/lang/ref/SoftReference"), \
     action(java_lang_ref_WeakReference, "java/lang/ref/WeakReference"), \
     action(java_lang_reflect_Constructor, "java/lang/reflect/Constructor"), \
+    action(java_lang_reflect_VMConstructor, "java/lang/reflect/VMConstructor"), \
     action(java_lang_ref_PhantomReference, "java/lang/ref/PhantomReference"), \
     action(jamvm_java_lang_VMClassLoaderData, "jamvm/java/lang/VMClassLoaderData"), \
     action(java_nio_DirectByteBufferImpl_ReadWrite, "java/nio/DirectByteBufferImpl$ReadWrite"), \
@@ -189,6 +200,12 @@ extern char *symbol_values[];
     action(sig_gnu_classpath_Pointer, "Lgnu/classpath/Pointer;"), \
     action(sig_java_lang_ThreadGroup, "Ljava/lang/ThreadGroup;"), \
     action(sig_java_lang_ClassLoader, "Ljava/lang/ClassLoader;"), \
+    action(sig_java_lang_reflect_Field, "Ljava/lang/reflect/Field;"), \
+    action(sig_java_lang_reflect_VMField, "Ljava/lang/reflect/VMField;"), \
+    action(sig_java_lang_reflect_Method, "Ljava/lang/reflect/Method;"), \
+    action(sig_java_lang_reflect_VMMethod, "Ljava/lang/reflect/VMMethod;"), \
+    action(sig_java_lang_reflect_Constructor, "Ljava/lang/reflect/Constructor;"), \
+    action(sig_java_lang_reflect_VMConstructor, "Ljava/lang/reflect/VMConstructor;"), \
     action(sig_java_lang_ref_ReferenceQueue, "Ljava/lang/ref/ReferenceQueue;"), \
     action(sig_java_security_ProtectionDomain, "Ljava/security/ProtectionDomain;"), \
     action(sig_java_lang_Thread_UncaughtExceptionHandler, "Ljava/lang/Thread$UncaughtExceptionHandler;"), \
@@ -219,9 +236,7 @@ extern char *symbol_values[];
            "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Z)V"), \
     action(_java_lang_Class_array_java_lang_Class_array_java_lang_Class_I__V, \
            "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;I)V"), \
-    action(_java_lang_String__java_lang_Class, "(Ljava/lang/String;)Ljava/lang/Class;"), \
-    action(_java_lang_Class_array_java_lang_Class_array_java_lang_Class_java_lang_Class_java_lang_String_I__V, \
-           "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;I)V")
+    action(_java_lang_String__java_lang_Class, "(Ljava/lang/String;)Ljava/lang/Class;")
 
 #define SYMBOL_ENUM(name, value) SYMBOL_NAME_ENUM(name)
 enum {
