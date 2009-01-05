@@ -29,6 +29,6 @@ noinst_PROGRAMS = compute_relocatability
 compute_relocatability_LDADD = libengine.la
 endif
 
-AM_CFLAGS   = @interp_cflags@
+AM_CFLAGS   = @interp_cflags@ -fno-strict-aliasing
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/src/interp -I$(top_builddir)/src
 
