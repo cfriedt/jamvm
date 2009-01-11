@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -32,8 +32,8 @@
 #define DEF_HANDLER_TABLES(level)    \
     DEF_HANDLER_TABLE(level, START); \
     DEF_HANDLER_TABLE(level, ENTRY); \
-    DEF_HANDLER_TABLE(level, END); \
-    DEF_HANDLER_TABLE(level, BAR);
+    DEF_HANDLER_TABLE(level, END);   \
+    DEF_HANDLER_TABLE(level, GUARD);
 
 
 #define B(level, cond) &&branch_##level##_##cond
@@ -128,21 +128,17 @@ opc##x##_##y##_##z##:
 opc##x##_##y##_##z:
 #endif
 
-#define DEF_OPC_LBLS(opcode, level, FOO, BODY)       \
+#define DEF_OPC_LBLS(opcode, level, PRE, BODY)  \
     label(opcode, level, START)                 \
         PAD                                     \
     label(opcode, level, ENTRY)                 \
-        FOO                                    \
-    label(opcode, level, BAR)                 \
+        PRE                                     \
+    label(opcode, level, GUARD)                 \
         BODY                                    \
     label(opcode, level, END)
 
 #define DEF_OPC(opcode, level, BODY)            \
-    DEF_OPC_LBLS(opcode, level, /**/, BODY)           \
-    goto *pc->handler;
-
-#define DEF_OPC2(opcode, level, FOO, BODY)            \
-    DEF_OPC_LBLS(opcode, level, FOO, BODY)           \
+    DEF_OPC_LBLS(opcode, level, /**/, BODY)     \
     goto *pc->handler;
 
 #define DEF_OPC_2(op1, op2, level, BODY)        \
@@ -166,7 +162,7 @@ opc##x##_##y##_##z:
 #define RW_LABELS(opcode)                       \
     RW_LABEL(opcode, START)                     \
     RW_LABEL(opcode, ENTRY)                     \
-    RW_LABEL(opcode, BAR)                     \
+    RW_LABEL(opcode, GUARD)                     \
     RW_LABEL(opcode, END) 
 
 #define DEF_OPC_RW(opcode, BODY)                \
@@ -183,38 +179,43 @@ opc##x##_##y##_##z:
         goto *pc->handler;
 
 #ifdef USE_CACHE
+
+#define DEF_OPC_PRE(opcode, level, PRE, BODY)   \
+    DEF_OPC_LBLS(opcode, level, PRE, BODY)      \
+    goto *pc->handler;
+
 #define DEF_OPC_012(opcode, BODY)               \
-    DEF_OPC2(opcode, 0, ({                       \
+    DEF_OPC_PRE(opcode, 0, ({                   \
         cache.i.v2 = *--ostack;                 \
         cache.i.v1 = *--ostack;                 \
     });, ({                                     \
         BODY                                    \
     });)                                        \
                                                 \
-    DEF_OPC2(opcode, 1, ({                       \
+    DEF_OPC_PRE(opcode, 1, ({                   \
         cache.i.v2 = cache.i.v1;                \
         cache.i.v1 = *--ostack;                 \
     });, ({                                     \
         BODY                                    \
     });)                                        \
                                                 \
-    DEF_OPC2(opcode, 2, /**/, ({BODY});)
+    DEF_OPC(opcode, 2, ({BODY});)
         
 #define DEF_OPC_210(opcode, BODY)               \
-    DEF_OPC2(opcode, 2, ({                       \
+    DEF_OPC_PRE(opcode, 2, ({                   \
         *ostack++ = cache.i.v1;                 \
         *ostack++ = cache.i.v2;                 \
     });, ({                                     \
         BODY                                    \
     });)                                        \
                                                 \
-    DEF_OPC2(opcode, 1, ({                       \
+    DEF_OPC_PRE(opcode, 1, ({                   \
         *ostack++ = cache.i.v1;                 \
     });, ({                                     \
         BODY                                    \
     });)                                        \
                                                 \
-    DEF_OPC2(opcode, 0, /**/, ({BODY});)
+    DEF_OPC(opcode, 0, ({BODY});)
         
 #define DEF_OPC_JMP(TYPE, BODY)                 \
     DEF_OPC_LBLS(OPC_##TYPE, 2, ({              \
@@ -232,7 +233,7 @@ opc##x##_##y##_##z:
         BRANCH(TYPE, 1, TRUE);                  \
     });)                                        \
                                                 \
-    DEF_OPC_LBLS(OPC_##TYPE, 0, /**/, ({              \
+    DEF_OPC_LBLS(OPC_##TYPE, 0, /**/, ({        \
         BODY                                    \
         BRANCH(TYPE, 0, TRUE);                  \
     });)
@@ -251,7 +252,7 @@ opc##x##_##y##_##z:
     DEF_OPC(opcode, 0, BODY)
 
 #define DEF_OPC_JMP(TYPE, BODY)                 \
-    DEF_OPC_LBLS(OPC_##TYPE, 0, /**/, ({              \
+    DEF_OPC_LBLS(OPC_##TYPE, 0, /**/, ({        \
         BODY                                    \
         BRANCH(TYPE, 0, TRUE);                  \
     });)
