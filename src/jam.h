@@ -721,7 +721,7 @@ typedef struct InitArgs {
 
 /* default minimum size of object heap */
 #ifndef DEFAULT_MIN_HEAP
-#define DEFAULT_MIN_HEAP 2*MB
+#define DEFAULT_MIN_HEAP 16*MB
 #endif
 
 /* default maximum size of object heap */
