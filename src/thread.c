@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -580,7 +580,7 @@ void detachThread(Thread *thread) {
     if((excep = exceptionOccurred())) {
         FieldBlock *fb = findField(thread_class, SYMBOL(exceptionHandler),
                                                  SYMBOL(sig_java_lang_Thread_UncaughtExceptionHandler));
-        Object *thread_handler = fb == NULL ? NULL : OBJ_DATA(jThread, Object*, fb->offset);
+        Object *thread_handler = fb == NULL ? NULL : OBJ_DATA(jThread, Object*, fb->u.offset);
         Object *handler = thread_handler == NULL ? group : thread_handler;
 
         MethodBlock *uncaught_exp = lookupMethod(handler->class, SYMBOL(uncaughtException),
@@ -1126,7 +1126,7 @@ void mainThreadSetContextClassLoader(Object *loader) {
     FieldBlock *fb = findField(thread_class, SYMBOL(contextClassLoader),
                                              SYMBOL(sig_java_lang_ClassLoader));
     if(fb != NULL)
-        OBJ_DATA(main_ee.thread, Object*, fb->offset) = loader;
+        OBJ_DATA(main_ee.thread, Object*, fb->u.offset) = loader;
 }
 
 void initialiseThreadStage1(InitArgs *args) {
@@ -1221,14 +1221,14 @@ void initialiseThreadStage2(InitArgs *args) {
        (thread == NULL) || (threadId == NULL))
         goto error;
 
-    vmthread_offset = vmThread->offset;
-    thread_offset = thread->offset;
-    vmData_offset = vmData->offset;
-    daemon_offset = daemon->offset;
-    group_offset = group->offset;
-    priority_offset = priority->offset;
-    threadId_offset = threadId->offset;
-    name_offset = name->offset;
+    vmthread_offset = vmThread->u.offset;
+    thread_offset = thread->u.offset;
+    vmData_offset = vmData->u.offset;
+    daemon_offset = daemon->u.offset;
+    group_offset = group->u.offset;
+    priority_offset = priority->u.offset;
+    threadId_offset = threadId->u.offset;
+    name_offset = name->u.offset;
     run_mtbl_idx = run->method_table_index;
 
     /* Initialise the Java-level thread objects for the main thread */
@@ -1257,8 +1257,8 @@ void initialiseThreadStage2(InitArgs *args) {
     rmveThrd_mtbl_idx = remove_thread->method_table_index;
 
     /* Add the main thread to the root thread group */
-    OBJ_DATA(java_thread, uintptr_t, group_offset) = root->static_value;
-    executeMethod(((Object*)root->static_value), addThread_mb, java_thread);
+    OBJ_DATA(java_thread, Object*, group_offset) = root->u.static_value.p;
+    executeMethod(((Object*)root->u.static_value.p), addThread_mb, java_thread);
 
     if(exceptionOccurred())
         goto error;
