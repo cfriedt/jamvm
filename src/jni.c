@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -28,6 +28,7 @@
 #include "lock.h"
 #include "symbol.h"
 #include "excep.h"
+#include "reflect.h"
 
 #define JNI_VERSION JNI_VERSION_1_4
 
@@ -91,9 +92,9 @@ void initialiseJNI() {
     registerStaticClassRef(&buffImpl_class);
     registerStaticClassRef(&rawdata_class);
 
-    buffCap_offset = buffCap_fb->offset;
-    buffAddr_offset = buffAddr_fb->offset;
-    rawdata_offset = rawdata_fb->offset;
+    buffCap_offset = buffCap_fb->u.offset;
+    buffAddr_offset = buffAddr_fb->u.offset;
+    rawdata_offset = rawdata_fb->u.offset;
     nio_init_OK = TRUE;
 }
 
@@ -780,54 +781,54 @@ jint Jam_GetJavaVM(JNIEnv *env, JavaVM **vm) {
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID) {             \
     Object *ob = obj;                                                                      \
     FieldBlock *fb = fieldID;                                                              \
-    return OBJ_DATA(ob, native_type, fb->offset);                                          \
+    return OBJ_DATA(ob, native_type, fb->u.offset);                                        \
 }
 
 #define INT_GET_FIELD(type, native_type)                                                   \
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID) {             \
     Object *ob = obj;                                                                      \
     FieldBlock *fb = fieldID;                                                              \
-    return (native_type)OBJ_DATA(ob, int, fb->offset);                                     \
+    return (native_type)OBJ_DATA(ob, int, fb->u.offset);                                   \
 }
 
 #define SET_FIELD(type, native_type)                                                       \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID, native_type value) { \
     Object *ob = obj;                                                                      \
     FieldBlock *fb = fieldID;                                                              \
-    OBJ_DATA(ob, native_type, fb->offset) = value;                                         \
+    OBJ_DATA(ob, native_type, fb->u.offset) = value;                                       \
 }
 
 #define INT_SET_FIELD(type, native_type)                                                   \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID, native_type value) { \
     Object *ob = obj;                                                                      \
     FieldBlock *fb = fieldID;                                                              \
-    OBJ_DATA(ob, int, fb->offset) = (int)value;                                            \
+    OBJ_DATA(ob, int, fb->u.offset) = (int)value;                                          \
 }
 
 #define GET_STATIC_FIELD(type, native_type)                                                \
 native_type Jam_GetStatic##type##Field(JNIEnv *env, jclass clazz, jfieldID fieldID) {      \
     FieldBlock *fb = fieldID;                                                              \
-    return *(native_type *)&fb->static_value;                                              \
+    return *(native_type *)fb->u.static_value.data;                                        \
 }
 
 #define INT_GET_STATIC_FIELD(type, native_type)                                            \
 native_type Jam_GetStatic##type##Field(JNIEnv *env, jclass clazz, jfieldID fieldID) {      \
     FieldBlock *fb = fieldID;                                                              \
-    return (native_type)fb->static_value;                                                  \
+    return (native_type)fb->u.static_value.i;                                              \
 }
 
 #define SET_STATIC_FIELD(type, native_type)                                                \
 void Jam_SetStatic##type##Field(JNIEnv *env, jclass clazz, jfieldID fieldID,               \
                 native_type value) {                                                       \
     FieldBlock *fb = fieldID;                                                              \
-    *(native_type *)&fb->static_value = value;                                             \
+    *(native_type *)fb->u.static_value.data = value;                                       \
 }
 
 #define INT_SET_STATIC_FIELD(type, native_type)                                            \
 void Jam_SetStatic##type##Field(JNIEnv *env, jclass clazz, jfieldID fieldID,               \
                 native_type value) {                                                       \
     FieldBlock *fb = fieldID;                                                              \
-    fb->static_value = (intptr_t)value;                                                    \
+    fb->u.static_value.i = (int)value;                                                     \
 }
 
 #define FIELD_ACCESS(type, native_type)          \
@@ -855,24 +856,24 @@ jobject Jam_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID) {
     Object *ob = obj;
     FieldBlock *fb = fieldID;
 
-    return addJNILref(OBJ_DATA(ob, Object*, fb->offset));
+    return addJNILref(OBJ_DATA(ob, Object*, fb->u.offset));
 }
 
 void Jam_SetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID, jobject value) {
     Object *ob = obj;
     FieldBlock *fb = fieldID;
 
-    OBJ_DATA(ob, jobject, fb->offset) = value;
+    OBJ_DATA(ob, jobject, fb->u.offset) = value;
 }
 
 jobject Jam_GetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID) {
     FieldBlock *fb = fieldID;
-    return addJNILref((Object*)fb->static_value);
+    return addJNILref(fb->u.static_value.p);
 }
 
 void Jam_SetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID, jobject value) {
     FieldBlock *fb = fieldID;
-    fb->static_value = (uintptr_t)value;
+    fb->u.static_value.p = value;
 }
 
 #define VIRTUAL_METHOD(type, native_type)                                                        \
