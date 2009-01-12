@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -528,9 +528,17 @@ typedef struct fieldblock {
    char *signature;
    u2 access_flags;
    u2 constant;
-   uintptr_t static_value;
-   u4 offset;
    AnnotationData *annotations;
+   union {
+       union {
+           char data[8];
+           uintptr_t u;
+           long long l;
+           void *p;
+           int i;
+       } static_value; 
+       u4 offset;
+   } u;
 } FieldBlock;
 
 typedef struct itable_entry {
