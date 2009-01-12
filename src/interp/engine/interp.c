@@ -394,12 +394,12 @@ unused:
                                                            \
     DEF_OPC(OPC_GETSTATIC_QUICK##suffix, level,            \
         PUSH_##level(*(type*)                              \
-                 &(RESOLVED_FIELD(pc)->static_value), 3);  \
+           (RESOLVED_FIELD(pc)->u.static_value.data), 3);  \
     )                                                      \
                                                            \
     DEF_OPC(OPC_PUTSTATIC_QUICK##suffix, level,            \
         POP_##level(*(type*)                               \
-                 &(RESOLVED_FIELD(pc)->static_value), 3);  \
+           (RESOLVED_FIELD(pc)->u.static_value.data), 3);  \
     )                                                      \
                                                            \
     DEF_OPC(OPC_GETFIELD_THIS##suffix, level,              \
@@ -734,16 +734,9 @@ unused:
         ARRAY_LOAD(short)
     )
 
-    DEF_OPC_012(OPC_LALOAD, {
-        int idx = ARRAY_LOAD_IDX;
-        Object *array = (Object *)ARRAY_LOAD_ARY;
-
-        NULL_POINTER_CHECK(array);
-        ARRAY_BOUNDS_CHECK(array, idx);
-        PUSH_LONG(ARRAY_DATA(array, u8)[idx], 1);
-    })
-
-    DEF_OPC_012(OPC_DALOAD, {
+    DEF_OPC_012_2(
+            OPC_LALOAD,
+            OPC_DALOAD, {
         int idx = ARRAY_LOAD_IDX;
         Object *array = (Object *)ARRAY_LOAD_ARY;
 
@@ -1461,7 +1454,7 @@ unused:
             else
                 opcode = OPC_GETFIELD_QUICK;
 
-        operand.i = fb->offset;
+        operand.i = fb->u.offset;
         OPCODE_REWRITE(opcode, cache, operand);
 
         REDISPATCH
@@ -1488,7 +1481,7 @@ unused:
             else
                 opcode = OPC_PUTFIELD_QUICK;
 
-        operand.i = fb->offset;
+        operand.i = fb->u.offset;
         OPCODE_REWRITE(opcode, cache, operand);
 
         REDISPATCH
@@ -2019,7 +2012,7 @@ unused:
     })
 
     DEF_OPC_210(OPC_JSR_W, {
-        PUSH_0((uintptr_t)pc+2, READ_S4_OP(pc));
+        PUSH_0((uintptr_t)pc + 2, READ_S4_OP(pc));
     })
 
     DEF_OPC_210(OPC_LOCK, {
@@ -2029,12 +2022,12 @@ unused:
 
     DEF_OPC_210(OPC_GETSTATIC2_QUICK, {
         FieldBlock *fb = RESOLVED_FIELD(pc);
-        PUSH_LONG(*(u8*)&fb->static_value, 3);
+        PUSH_LONG(fb->u.static_value.l, 3);
     })
 
     DEF_OPC_012(OPC_PUTSTATIC2_QUICK, {
         FieldBlock *fb = RESOLVED_FIELD(pc);
-        POP_LONG(*(u8*)&fb->static_value, 3);
+        POP_LONG(fb->u.static_value.l, 3);
     })
 
     DEF_OPC_210(OPC_GETFIELD2_QUICK, {
