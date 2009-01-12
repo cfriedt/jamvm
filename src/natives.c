@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -49,7 +49,7 @@ void initialiseNatives() {
         jam_fprintf(stderr, "Error initialising VM (initialiseNatives)\n");
         exitVM(1);
     }
-    pd_offset = pd->offset;
+    pd_offset = pd->u.offset;
 }
 
 /* java.lang.VMObject */
@@ -909,13 +909,13 @@ void *getPntr2Field(uintptr_t *ostack) {
         if(initClass(fb->class) == NULL)
             return NULL;
 
-        return &fb->static_value;
+        return fb->u.static_value.data;
     }
 
     if((ob = getAndCheckObject(ostack, fb->class)) == NULL)
         return NULL;
 
-    return &OBJ_DATA(ob, void, fb->offset);
+    return &OBJ_DATA(ob, int, fb->u.offset);
 }
 
 uintptr_t *fieldGet(Class *class, MethodBlock *mb, uintptr_t *ostack) {
@@ -1219,7 +1219,9 @@ uintptr_t *getThreadCount(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *getPeakThreadCount(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *getPeakThreadCount(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack) {
+
     *ostack++ = getPeakThreadsCount();
     return ostack;
 }
@@ -1319,7 +1321,7 @@ void unlockSpinLock() {
 uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     FieldBlock *fb = fbFromReflectObject((Object*)ostack[1]);
 
-    *(long long*)ostack = (long long)(uintptr_t)&(OBJ_DATA((Object*)NULL, int, fb->offset));
+    *(long long*)ostack = (long long)(uintptr_t)&(OBJ_DATA((Object*)NULL, int, fb->u.offset));
     return ostack + 2;
 }
 
