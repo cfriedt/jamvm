@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Robert Lougher <rob@lougher.org.uk>.
+ * Copyright (C) 2008, 2009 Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -81,7 +81,9 @@ int nativeExtraArg(MethodBlock *mb) {
     return RET_DFLT;
 }
 
-u4 *callJNIMethod(void *env, Class *class, char *sig, int ret_type, u4 *ostack, unsigned char *f, int args) {
+u4 *callJNIMethod(void *env, Class *class, char *sig, int ret_type, u4 *ostack,
+                  unsigned char *f, int args) {
+
     u4 *opntr = ostack + args;
     int i;
 
