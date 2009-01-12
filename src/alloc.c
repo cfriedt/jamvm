@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -416,7 +416,7 @@ void markClassData(Class *class, int mark, int mark_soft_refs) {
         for(i = 0; i < cb->fields_count; i++, fb++)
             if((fb->access_flags & ACC_STATIC) &&
                         ((*fb->type == 'L') || (*fb->type == '['))) {
-                Object *ob = (Object *)fb->static_value;
+                Object *ob = fb->u.static_value.p;
                 TRACE_GC("Field %s %s object @%p\n", fb->name, fb->type, ob);
                 if(ob != NULL && mark > IS_MARKED(ob))
                     markChildren(ob, mark, mark_soft_refs);
@@ -1038,7 +1038,7 @@ void threadClassData(Class *class, Class *new_addr) {
         for(i = 0; i < cb->fields_count; i++, fb++)
             if((fb->access_flags & ACC_STATIC) &&
                         ((*fb->type == 'L') || (*fb->type == '['))) {
-                Object **ob = (Object **)&fb->static_value;
+                Object **ob = &fb->u.static_value.p;
                 TRACE_COMPACT("Field %s %s object @%p\n", fb->name, fb->type, *ob);
                 if(*ob != NULL)
                     threadReference(ob);
