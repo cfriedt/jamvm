@@ -21,7 +21,7 @@
 
 /* Ensure operand stack is double-word aligned.  This leads to
    better double floating-point performance */
-#define ALIGN_OSTACK(pntr) (uintptr_t*)((uintptr_t)(pntr) + 7 & ~7)
+#define ALIGN_OSTACK(pntr) (uintptr_t*)(((uintptr_t)(pntr) + 7) & ~7)
 
 #define CREATE_TOP_FRAME(ee, class, mb, sp, ret)                \
 {                                                               \
