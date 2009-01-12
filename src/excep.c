@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -55,7 +55,7 @@ void initialiseException() {
     }
 
     CLASS_CB(vmthrow_class)->flags |= VMTHROWABLE;
-    backtrace_offset = bcktrce->offset;
+    backtrace_offset = bcktrce->u.offset;
 
     registerStaticClassRef(&ste_class);
     registerStaticClassRef(&ste_array_class);
