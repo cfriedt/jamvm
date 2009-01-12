@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -694,7 +694,7 @@ void prepareFields(Class *class) {
         FieldBlock *fb = &cb->fields[i];
 
         if(fb->access_flags & ACC_STATIC)
-            *(long long *)&fb->static_value = 0;
+            fb->u.static_value.l = 0;
         else {
             FieldBlock **list;
 
@@ -706,7 +706,7 @@ void prepareFields(Class *class) {
                 else
                     list = &int_head;
 
-            *(FieldBlock**)&fb->static_value = *list;
+            fb->u.static_value.p = *list;
             *list = fb;
         }
 
@@ -717,16 +717,16 @@ void prepareFields(Class *class) {
         if(field_offset & 0x7) {
             if(int_head != NULL) {
                 FieldBlock *fb = int_head;
-                int_head = *(FieldBlock**)&int_head->static_value;
-                fb->offset = field_offset;
+                int_head = int_head->u.static_value.p;
+                fb->u.offset = field_offset;
             }
             field_offset += 4;
         }
 
         do {
             FieldBlock *fb = dbl_head;
-            dbl_head = *(FieldBlock**)&dbl_head->static_value;
-            fb->offset = field_offset;
+            dbl_head = dbl_head->u.static_value.p;
+            fb->u.offset = field_offset;
             field_offset += 8;
         } while(dbl_head != NULL);
     }
@@ -735,8 +735,8 @@ void prepareFields(Class *class) {
         if(sizeof(Object*) == 8 && field_offset & 0x7) {
             if(int_head != NULL) {
                 FieldBlock *fb = int_head;
-                int_head = *(FieldBlock**)&int_head->static_value;
-                fb->offset = field_offset;
+                int_head = int_head->u.static_value.p;
+                fb->u.offset = field_offset;
             }
             field_offset += 4;
         }
@@ -745,8 +745,8 @@ void prepareFields(Class *class) {
 
         do {
             FieldBlock *fb = ref_head;
-            ref_head = *(FieldBlock**)&ref_head->static_value;
-            fb->offset = field_offset;
+            ref_head = ref_head->u.static_value.p;
+            fb->u.offset = field_offset;
             field_offset += sizeof(Object*);
         } while(ref_head != NULL);
 
@@ -755,8 +755,8 @@ void prepareFields(Class *class) {
 
     while(int_head != NULL) {
         FieldBlock *fb = int_head;
-        int_head = *(FieldBlock**)&int_head->static_value;
-        fb->offset = field_offset;
+        int_head = int_head->u.static_value.p;
+        fb->u.offset = field_offset;
         field_offset += 4;
     }
 
@@ -1107,14 +1107,14 @@ void linkClass(Class *class) {
        }
 
        for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++)
-           if(fb->offset > ref_fb->offset)
-               fb->offset -= sizeof(Object*);
+           if(fb->u.offset > ref_fb->u.offset)
+               fb->u.offset -= sizeof(Object*);
 
-       ref_referent_offset = ref_fb->offset = cb->object_size - sizeof(Object*);
+       ref_referent_offset = ref_fb->u.offset = cb->object_size - sizeof(Object*);
        cb->refs_offsets_table[cb->refs_offsets_size-1].end -= sizeof(Object*);
 
        enqueue_mtbl_idx = enqueue_mb->method_table_index;
-       ref_queue_offset = queue_fb->offset;
+       ref_queue_offset = queue_fb->u.offset;
 
        cb->flags |= REFERENCE;
    }
@@ -1140,7 +1140,7 @@ void linkClass(Class *class) {
            exitVM(1);
        }
 
-       ldr_vmdata_offset = ldr_fb->offset;
+       ldr_vmdata_offset = ldr_fb->u.offset;
        cb->flags |= CLASS_LOADER;
    }
 
@@ -1209,12 +1209,9 @@ Class *initClass(Class *class) {
    for(i = 0; i < cb->fields_count; i++,fb++)
       if((fb->access_flags & ACC_STATIC) && fb->constant) {
          if((*fb->type == 'J') || (*fb->type == 'D'))
-            *(u8*)&fb->static_value = *(u8*)&(CP_INFO(cp, fb->constant));
+            fb->u.static_value.l = *(u8*)&(CP_INFO(cp, fb->constant));
          else
-            if(*fb->type == 'L' || *fb->type == '[')
-                fb->static_value = resolveSingleConstant(class, fb->constant);
-            else
-                *(u4*)&fb->static_value = resolveSingleConstant(class, fb->constant);
+            fb->u.static_value.u = resolveSingleConstant(class, fb->constant);
       }
 
    if((mb = findMethod(class, SYMBOL(class_init), SYMBOL(___V))) != NULL)
@@ -1888,7 +1885,7 @@ void initialiseClass(InitArgs *args) {
         jam_fprintf(stderr, "Fatal error: Bad VMClassLoaderData (missing or corrupt)\n");
         exitVM(1);
     }
-    ldr_data_tbl_offset = hashtable->offset;
+    ldr_data_tbl_offset = hashtable->u.offset;
 
     /* Register the address of where the java.lang.Class ref _will_ be */
     registerStaticClassRef(&java_lang_Class);
