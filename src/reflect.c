@@ -121,23 +121,23 @@ static int initReflection() {
         return FALSE;
     }
 
-    vm_cons_slot_offset = vm_cons_slot_fb->offset; 
-    vm_cons_class_offset = vm_cons_class_fb->offset; 
-    vm_cons_param_offset = vm_cons_param_fb->offset; 
-    vm_cons_cons_offset = vm_cons_cons_fb->offset; 
-    vm_mthd_slot_offset = vm_mthd_slot_fb->offset; 
-    vm_mthd_class_offset = vm_mthd_class_fb->offset; 
-    vm_mthd_ret_offset = vm_mthd_ret_fb->offset; 
-    vm_mthd_param_offset = vm_mthd_param_fb->offset; 
-    vm_mthd_m_offset = vm_mthd_m_fb->offset; 
-    vm_fld_slot_offset = vm_fld_slot_fb->offset; 
-    vm_fld_class_offset = vm_fld_class_fb->offset; 
-    vm_fld_type_offset = vm_fld_type_fb->offset; 
-    vm_fld_f_offset = vm_fld_f_fb->offset; 
-    cons_cons_offset = cons_cons_fb->offset; 
-    mthd_m_offset = mthd_m_fb->offset; 
-    fld_f_offset = fld_f_fb->offset; 
-    acc_flag_offset = acc_flag_fb->offset;
+    vm_cons_slot_offset = vm_cons_slot_fb->u.offset; 
+    vm_cons_class_offset = vm_cons_class_fb->u.offset; 
+    vm_cons_param_offset = vm_cons_param_fb->u.offset; 
+    vm_cons_cons_offset = vm_cons_cons_fb->u.offset; 
+    vm_mthd_slot_offset = vm_mthd_slot_fb->u.offset; 
+    vm_mthd_class_offset = vm_mthd_class_fb->u.offset; 
+    vm_mthd_ret_offset = vm_mthd_ret_fb->u.offset; 
+    vm_mthd_param_offset = vm_mthd_param_fb->u.offset; 
+    vm_mthd_m_offset = vm_mthd_m_fb->u.offset; 
+    vm_fld_slot_offset = vm_fld_slot_fb->u.offset; 
+    vm_fld_class_offset = vm_fld_class_fb->u.offset; 
+    vm_fld_type_offset = vm_fld_type_fb->u.offset; 
+    vm_fld_f_offset = vm_fld_f_fb->u.offset; 
+    cons_cons_offset = cons_cons_fb->u.offset; 
+    mthd_m_offset = mthd_m_fb->u.offset; 
+    fld_f_offset = fld_f_fb->u.offset; 
+    acc_flag_offset = acc_flag_fb->u.offset;
 
     registerStaticClassRefLocked(&class_array_class, cls_ary_cls);
     registerStaticClassRefLocked(&cons_array_class, cons_ary_cls);
