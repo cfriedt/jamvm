@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -182,9 +182,9 @@ void initialiseString() {
         exitVM(1);
     }
 
-    count_offset = count->offset;
-    value_offset = value->offset;
-    offset_offset = offset->offset;
+    count_offset = count->u.offset;
+    value_offset = value->u.offset;
+    offset_offset = offset->u.offset;
 
     /* Init hash table and create lock */
     initHashTable(hash_table, HASHTABSZE, TRUE);
