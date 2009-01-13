@@ -20,7 +20,9 @@
  */
 
 #include <stddef.h>
+
 #include "jam.h"
+#include "reflect.h"
 
 /* The function getCallerFrame() is used in the code that does
    security related stack-walking.  It guards against invocation
