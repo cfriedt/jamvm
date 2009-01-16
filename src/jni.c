@@ -62,7 +62,7 @@ static char nio_init_OK = FALSE;
 
 void initialiseJNI() {
     FieldBlock *buffCap_fb, *buffAddr_fb, *rawdata_fb;
-    Class *buffer_class = NULL;
+    Class *buffer_class;
 
     /* Initialise the global references table */
     initJNIGrefs();
@@ -71,23 +71,25 @@ void initialiseJNI() {
 
     buffer_class = findSystemClass0(SYMBOL(java_nio_Buffer));
     buffImpl_class = findSystemClass0(SYMBOL(java_nio_DirectByteBufferImpl_ReadWrite));
-    rawdata_class = findSystemClass0(sizeof(uintptr_t) == 4 ? SYMBOL(gnu_classpath_Pointer32)
-                                                            : SYMBOL(gnu_classpath_Pointer64));
+    rawdata_class = findSystemClass0(sizeof(uintptr_t) == 4
+                                            ? SYMBOL(gnu_classpath_Pointer32)
+                                            : SYMBOL(gnu_classpath_Pointer64));
 
-    if(buffer_class != NULL && buffImpl_class != NULL && rawdata_class != NULL) {
-        buffImpl_init_mb = findMethod(buffImpl_class, SYMBOL(object_init),
+    if(buffer_class == NULL || buffImpl_class == NULL || rawdata_class == NULL)
+        return;
+
+    buffImpl_init_mb = findMethod(buffImpl_class, SYMBOL(object_init),
                       SYMBOL(_java_lang_Object_gnu_classpath_Pointer_III__V));
 
-        buffCap_fb = findField(buffer_class, SYMBOL(cap), SYMBOL(I));
-        rawdata_fb = findField(rawdata_class, SYMBOL(data), sizeof(uintptr_t) == 4 ? SYMBOL(I)
-                                                                                   : SYMBOL(J));
-        buffAddr_fb = findField(buffer_class, SYMBOL(address), SYMBOL(sig_gnu_classpath_Pointer));
-    }
+    buffCap_fb = findField(buffer_class, SYMBOL(cap), SYMBOL(I));
+    rawdata_fb = findField(rawdata_class, SYMBOL(data),
+                           sizeof(uintptr_t) == 4 ? SYMBOL(I) : SYMBOL(J));
+    buffAddr_fb = findField(buffer_class, SYMBOL(address),
+                            SYMBOL(sig_gnu_classpath_Pointer));
 
-    if(buffImpl_init_mb == NULL || buffCap_fb == NULL ||
-             rawdata_fb == NULL || buffAddr_fb == NULL) {
+    if(buffImpl_init_mb == NULL || buffCap_fb == NULL || rawdata_fb == NULL
+                                || buffAddr_fb == NULL)
         return;
-    }
 
     registerStaticClassRef(&buffImpl_class);
     registerStaticClassRef(&rawdata_class);
