@@ -1018,17 +1018,17 @@ void threadClassData(Class *class, Class *new_addr) {
         threadReference(&cb->class_loader);
 
     if(cb->super != NULL)
-        threadReference((Object**)&cb->super);
+        threadReference(&cb->super);
 
     for(i = 0; i < cb->interfaces_count; i++)
         if(cb->interfaces[i] != NULL)
-            threadReference((Object**)&cb->interfaces[i]);
+            threadReference(&cb->interfaces[i]);
 
     if(IS_ARRAY(cb))
-        threadReference((Object**)&cb->element_class);
+        threadReference(&cb->element_class);
 
     for(i = 0; i < cb->imethod_table_size; i++)
-        threadReference((Object**)&cb->imethod_table[i].interface);
+        threadReference(&cb->imethod_table[i].interface);
 
     TRACE_COMPACT("Threading static fields for class %s\n", cb->name);
 
@@ -1038,7 +1038,7 @@ void threadClassData(Class *class, Class *new_addr) {
         for(i = 0; i < cb->fields_count; i++, fb++)
             if((fb->access_flags & ACC_STATIC) &&
                         ((*fb->type == 'L') || (*fb->type == '['))) {
-                Object **ob = &fb->u.static_value.p;
+                Object **ob = (Object**)fb->u.static_value.data;
                 TRACE_COMPACT("Field %s %s object @%p\n", fb->name, fb->type, *ob);
                 if(*ob != NULL)
                     threadReference(ob);
@@ -1155,7 +1155,7 @@ out:
     }
 
     /* Finally thread the object's class reference */
-    threadReference((Object**)&ob->class);
+    threadReference(&ob->class);
 
     return cleared;
 }
