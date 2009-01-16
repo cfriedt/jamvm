@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -1086,7 +1086,7 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
     }
 
     if(mb->access_flags & ACC_SYNCHRONIZED)
-        objectLock(ob ? ob : (Object*)mb->class);
+        objectLock(ob ? ob : mb->class);
 
     if(mb->access_flags & ACC_NATIVE)
         (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))mb->native_invoker)
@@ -1095,7 +1095,7 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
         executeJava();
 
     if(mb->access_flags & ACC_SYNCHRONIZED)
-        objectUnlock(ob ? ob : (Object*)mb->class);
+        objectUnlock(ob ? ob : mb->class);
 
     POP_TOP_FRAME(ee);
 
