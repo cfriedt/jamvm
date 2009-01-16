@@ -681,7 +681,7 @@ void prepareFields(Class *class) {
 
     int field_offset = sizeof(Object);
     int refs_start_offset = 0;
-    int refs_end_offset;
+    int refs_end_offset = 0;
     int i;
 
     if(super != NULL) {
@@ -853,7 +853,7 @@ void linkClass(Class *class) {
       spr_imthd_tbl_sze = super_cb->imethod_table_size;
    }
 
-   /* prepare fields */
+   /* Calculate object layout */
    prepareFields(class);
 
    /* prepare methods */
