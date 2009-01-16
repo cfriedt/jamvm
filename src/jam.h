@@ -19,10 +19,11 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <stdarg.h>
 #include <inttypes.h>
+#include <stdarg.h>
 #include <limits.h>
 #include <stdio.h>
+#include <time.h>
 
 /* Configure options */
 #include "config.h"
