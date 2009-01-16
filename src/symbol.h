@@ -228,14 +228,10 @@ extern char *symbol_values[];
     action(_java_lang_Throwable__V, "(Ljava/lang/Throwable;)V"), \
     action(___java_lang_ClassLoader, "()Ljava/lang/ClassLoader;"), \
     action(_java_lang_Thread_args__void, "(Ljava/lang/Thread;)V"), \
-    action(_java_lang_Class_java_lang_Class_java_lang_String_I__V, \
-           "(Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;I)V"), \
     action(_java_lang_Object_java_lang_Object__java_lang_Object, \
            "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"), \
     action(_java_lang_String_I_java_lang_String_java_lang_String_Z__V, \
            "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Z)V"), \
-    action(_java_lang_Class_array_java_lang_Class_array_java_lang_Class_I__V, \
-           "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;I)V"), \
     action(_java_lang_String__java_lang_Class, "(Ljava/lang/String;)Ljava/lang/Class;")
 
 #define SYMBOL_ENUM(name, value) SYMBOL_NAME_ENUM(name)
