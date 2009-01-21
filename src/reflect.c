@@ -625,31 +625,31 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
 
             switch(tag) {
                 case 'Z':
-                    prim_type_no = 1;
+                    prim_type_no = PRIM_IDX_BOOLEAN;
                     break;
                 case 'B':
-                    prim_type_no = 2;
+                    prim_type_no = PRIM_IDX_BYTE;
                     break;
                 case 'C':
-                    prim_type_no = 3;
+                    prim_type_no = PRIM_IDX_CHAR;
                     break;
                 case 'S':
-                    prim_type_no = 4;
+                    prim_type_no = PRIM_IDX_SHORT;
                     break;
                 case 'I':
-                    prim_type_no = 5;
+                    prim_type_no = PRIM_IDX_INT;
                     break;
                 case 'F':
                     cp_tag = CONSTANT_Float;
-                    prim_type_no = 6;
+                    prim_type_no = PRIM_IDX_FLOAT;
                     break;
                 case 'J':
                     cp_tag = CONSTANT_Long;
-                    prim_type_no = 7;
+                    prim_type_no = PRIM_IDX_LONG;
                     break;
                 case 'D':
                     cp_tag = CONSTANT_Double;
-                    prim_type_no = 8;
+                    prim_type_no = PRIM_IDX_DOUBLE;
                     break;
             }
 
@@ -868,16 +868,22 @@ int getWrapperPrimTypeIndex(Object *arg) {
         if(cb->super_name == SYMBOL(java_lang_Number)) {
             if(cb->name == SYMBOL(java_lang_Byte))
                 return PRIM_IDX_BYTE;
+
             if(cb->name == SYMBOL(java_lang_Character))
                 return PRIM_IDX_CHAR;
+
             if(cb->name == SYMBOL(java_lang_Short))
                 return PRIM_IDX_SHORT;
+
             if(cb->name == SYMBOL(java_lang_Integer))
                 return PRIM_IDX_INT;
+
             if(cb->name == SYMBOL(java_lang_Float))
                 return PRIM_IDX_FLOAT;
+
             if(cb->name == SYMBOL(java_lang_Long))
                 return PRIM_IDX_LONG;
+
             if(cb->name == SYMBOL(java_lang_Double))
                 return PRIM_IDX_DOUBLE;
         }
@@ -953,13 +959,13 @@ int widenPrimitiveValue(int src_idx, int dest_idx, void *src, void *dest,
     static void *handlers[3][9] = {
          /* field -> field */
          {&&illegal_arg, &&u4_f2f, &&u8, &&i2f_sf, &&i2d_sf,
-                         &&i2j_sf, &&j2f_df, &&j2d, &&f2d_sf},
+                         &&i2j_sf, &&j2f, &&j2d, &&f2d},
          /* ostack -> field */
          {&&illegal_arg, &&u4_o2f, &&u8, &&i2f_so, &&i2d_so,
-                         &&i2j_so, &&j2f_df, &&j2d, &&f2d_so},
+                         &&i2j_so, &&j2f, &&j2d, &&f2d},
          /* field -> ostack */
          {&&illegal_arg, &&u4_f2o, &&u8, &&i2f_sf, &&i2d_sf,
-                         &&i2j_sf, &&j2f_do, &&j2d, &&f2d_sf}
+                         &&i2j_sf, &&j2f, &&j2d, &&f2d}
     };
 
     int handler = conv_table[src_idx][dest_idx - 1];
@@ -995,19 +1001,13 @@ i2j_so: /* src ostack */
 i2j_sf: /* src field */
     *(long long*)dest = (long long)*(int*)src;
     return 2;
-j2f_do: /* dest ostack */
-    ((float*)dest)[OSTACK_FLOAT_ADJUST] = (float)*(long long*)src;
-    return 1;
-j2f_df: /* dest field */
+j2f:
     *(float*)dest = (float)*(long long*)src;
     return 1;
 j2d:
     *(double*)dest = (double)*(long long*)src;
     return 2;
-f2d_so: /* src ostack */
-    *(double*)dest = (double)((float*)src)[OSTACK_FLOAT_ADJUST];
-    return 2;
-f2d_sf: /* src field */
+f2d:
     *(double*)dest = (double)*(float*)src;
     return 2;
 
@@ -1118,6 +1118,8 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
 
     return ret;
 }
+
+/* Functions to get values from the VM-level reflection objects */
 
 MethodBlock *getConsMethodBlock(Object *vm_cons_obj) {
     Class *decl_class = OBJ_DATA(vm_cons_obj, Class*, vm_cons_class_offset);
