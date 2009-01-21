@@ -219,7 +219,9 @@ static int sys_page_size;
 
 #define LIST_INCREMENT          100
 
-#define LOG_BYTESPERMARK        LOG_OBJECT_GRAIN /* 1 mark entry for every OBJECT_GRAIN bytes of heap */
+/* 1 mark entry for every OBJECT_GRAIN bytes of heap */
+#define LOG_BYTESPERMARK        LOG_OBJECT_GRAIN
+
 #define BITSPERMARK             2
 #define LOG_BITSPERMARK         1
 #define LOG_MARKSIZEBITS        5
@@ -227,15 +229,22 @@ static int sys_page_size;
 
 /* Macros for manipulating the mark bit array */
 
-#define MARKENTRY(ptr)     ((((char*)ptr)-heapbase)>>(LOG_BYTESPERMARK+LOG_MARKSIZEBITS-LOG_BITSPERMARK))
+#define MARKENTRY(ptr)     ((((char*)ptr)-heapbase)>> \
+                           (LOG_BYTESPERMARK+LOG_MARKSIZEBITS-LOG_BITSPERMARK))
+
 #define MARKOFFSET(ptr)    ((((((char*)ptr)-heapbase)>>LOG_BYTESPERMARK)& \
-                                                ((MARKSIZEBITS>>LOG_BITSPERMARK)-1))<<LOG_BITSPERMARK)
+                           ((MARKSIZEBITS>>LOG_BITSPERMARK)-1)) \
+                            <<LOG_BITSPERMARK)
+
 #define MARK(ptr,mark)     markBits[MARKENTRY(ptr)]|=mark<<MARKOFFSET(ptr);
 
-#define SET_MARK(ptr,mark) markBits[MARKENTRY(ptr)]=(markBits[MARKENTRY(ptr)]& \
-                                                ~(((1<<BITSPERMARK)-1)<<MARKOFFSET(ptr)))|mark<<MARKOFFSET(ptr)
+#define SET_MARK(ptr,mark) markBits[MARKENTRY(ptr)]= \
+                           (markBits[MARKENTRY(ptr)]& \
+                           ~(((1<<BITSPERMARK)-1)<<MARKOFFSET(ptr)))| \
+                           mark<<MARKOFFSET(ptr)
 
-#define IS_MARKED(ptr)     ((markBits[MARKENTRY(ptr)]>>MARKOFFSET(ptr))&((1<<BITSPERMARK)-1))
+#define IS_MARKED(ptr)     ((markBits[MARKENTRY(ptr)]>> \
+                           MARKOFFSET(ptr))&((1<<BITSPERMARK)-1))
 
 #define IS_HARD_MARKED(ptr)      (IS_MARKED(ptr) == HARD_MARK)
 #define IS_PHANTOM_MARKED(ptr)   (IS_MARKED(ptr) == PHANTOM_MARK)
@@ -244,7 +253,8 @@ static int sys_page_size;
                         (((char*)ptr) < heaplimit) && \
                         !(((uintptr_t)ptr)&(OBJECT_GRAIN-1))
 
-#define MIN_OBJECT_SIZE ((sizeof(Object)+HEADER_SIZE+OBJECT_GRAIN-1)&~(OBJECT_GRAIN-1))
+#define MIN_OBJECT_SIZE ((sizeof(Object)+HEADER_SIZE+OBJECT_GRAIN-1)& \
+                        ~(OBJECT_GRAIN-1))
 
 void allocMarkBits() {
     int no_of_bits = (heaplimit-heapbase)>>(LOG_BYTESPERMARK-LOG_BITSPERMARK);
