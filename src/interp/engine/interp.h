@@ -46,8 +46,6 @@
 #define FLOAT_1_BITS FLOAT_CONST(0x3f800000)
 #define FLOAT_2_BITS FLOAT_CONST(0x40000000)
 
-#define OSTACK_FLOAT_ADJUST 0
-
 #define READ_U1_OP(p)    ((p)[1])
 #define READ_U2_OP(p)    (((p)[1]<<8)|(p)[2])
 #define READ_U4_OP(p)    (((p)[1]<<24)|((p)[2]<<16)|((p)[3]<<8)|(p)[4])
