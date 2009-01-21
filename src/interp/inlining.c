@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007, 2008 Robert Lougher <rob@lougher.org.uk>.
+ * Copyright (C) 2007, 2008, 2009 Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -961,10 +961,10 @@ void addToProfile(MethodBlock *mb, BasicBlock *block, Thread *self) {
        info->next->prev = info;
     mb->profile_info = info;
 
-    rewriteUnlock(self);
-
     info->handler = block->start->handler;
     block->start->handler = handler_entry_points[0][OPC_PROFILE_REWRITER];
+
+    rewriteUnlock(self);
 }
 
 void prepareBlock(MethodBlock *mb, BasicBlock *block, Thread *self) {
