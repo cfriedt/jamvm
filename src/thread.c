@@ -566,32 +566,47 @@ Thread *attachThread(char *name, char is_daemon, void *stack_base,
     return thread;
 }
 
-void detachThread(Thread *thread) {
-    Object *group, *excep;
+/* Call uncaughtException on the thread's exception handler, or the
+   thread's group if this is unset */
+
+void uncaughtException() {
+    Thread *thread = threadSelf();
     ExecEnv *ee = thread->ee;
     Object *jThread = ee->thread;
+    Object *excep = exceptionOccurred();
+    Object *group = OBJ_DATA(jThread, Object*, group_offset);
+    FieldBlock *fb = findField(thread_class, SYMBOL(exceptionHandler),
+                                             SYMBOL(sig_java_lang_Thread_UncaughtExceptionHandler));
+    Object *thread_handler = fb == NULL ? NULL : OBJ_DATA(jThread, Object*, fb->u.offset);
+    Object *handler = thread_handler == NULL ? group : thread_handler;
+    MethodBlock *uncaught_mb = lookupMethod(handler->class, SYMBOL(uncaughtException),
+                                            SYMBOL(_java_lang_Thread_java_lang_Throwable__V));
+
+    if(uncaught_mb != NULL) {
+        clearException();
+        executeMethod(handler, uncaught_mb, jThread, excep);
+
+        /* If an exception occurred while trying to handle
+           the exception reinstate the original exception. */
+        if(exceptionOccurred())
+            setException(excep);
+    }
+
+    /* If no method is found, or an error occurred, try to print
+       the exception (if it was handled, no exception will be
+       pending and the call will do nothing) */
+    printException();
+}
+
+void detachThread(Thread *thread) {
+    ExecEnv *ee = thread->ee;
+    Object *jThread = ee->thread;
+    Object *group = OBJ_DATA(jThread, Object*, group_offset);
     Object *vmthread = OBJ_DATA(jThread, Object*, vmthread_offset);
 
-    /* Get the thread's group */
-    group = OBJ_DATA(jThread, Object*, group_offset);
-
-    /* If there's an uncaught exception, call uncaughtException on the thread's
-       exception handler, or the thread's group if this is unset */
-    if((excep = exceptionOccurred())) {
-        FieldBlock *fb = findField(thread_class, SYMBOL(exceptionHandler),
-                                                 SYMBOL(sig_java_lang_Thread_UncaughtExceptionHandler));
-        Object *thread_handler = fb == NULL ? NULL : OBJ_DATA(jThread, Object*, fb->u.offset);
-        Object *handler = thread_handler == NULL ? group : thread_handler;
-
-        MethodBlock *uncaught_exp = lookupMethod(handler->class, SYMBOL(uncaughtException),
-                                                 SYMBOL(_java_lang_Thread_java_lang_Throwable__V));
-
-        if(uncaught_exp) {
-            clearException();
-            executeMethod(handler, uncaught_exp, jThread, excep);
-        } else
-            printException();
-    }
+    /* If there's an exception pending, it is uncaught */
+    if(exceptionOccurred0(ee))
+        uncaughtException();
 
     /* remove thread from thread group */
     executeMethod(group, (CLASS_CB(group->class))->method_table[rmveThrd_mtbl_idx], jThread);
