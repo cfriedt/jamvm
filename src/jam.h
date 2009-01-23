@@ -889,7 +889,7 @@ extern int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr);
 extern void markVMThrowable(Object *vmthrwble, int mark, int mark_soft_refs);
 extern void initialiseException();
 
-#define exceptionOccured0(ee) \
+#define exceptionOccurred0(ee) \
     ee->exception
 
 #define signalException(excep_name, excep_mess) \
@@ -982,6 +982,7 @@ extern ExecEnv *getExecEnv();
 extern void createJavaThread(Object *jThread, long long stack_size);
 extern void mainThreadSetContextClassLoader(Object *loader);
 extern void mainThreadWaitToExitVM();
+extern void uncaughtException();
 extern void exitVM(int status);
 extern void scanThreads();
 
