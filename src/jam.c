@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -27,6 +27,7 @@
 #include "jam.h"
 #include "class.h"
 #include "symbol.h"
+#include "excep.h"
 
 #ifdef USE_ZIP
 #define BCP_MESSAGE "<jar/zip files and directories separated by :>"
@@ -86,7 +87,7 @@ void showUsage(char *name) {
 void showVersionAndCopyright() {
     printf("java version \"%s\"\n", JAVA_COMPAT_VERSION);
     printf("JamVM version %s\n", VERSION);
-    printf("Copyright (C) 2003-2008 Robert Lougher <rob@lougher.org.uk>\n\n");
+    printf("Copyright (C) 2003-2009 Robert Lougher <rob@lougher.org.uk>\n\n");
     printf("This program is free software; you can redistribute it and/or\n");
     printf("modify it under the terms of the GNU General Public License\n");
     printf("as published by the Free Software Foundation; either version 2,\n");
@@ -326,11 +327,8 @@ int main(int argc, char *argv[]) {
     args.main_stack_base = &array_class;
     initVM(&args);
 
-   if((system_loader = getSystemClassLoader()) == NULL) {
-        printf("Cannot create system class loader\n");
-        printException();
-        exitVM(1);
-    }
+   if((system_loader = getSystemClassLoader()) == NULL)
+        goto error;
 
     mainThreadSetContextClassLoader(system_loader);
 
@@ -341,15 +339,13 @@ int main(int argc, char *argv[]) {
     if((main_class = findClassFromClassLoader(argv[class_arg], system_loader)) != NULL)
         initClass(main_class);
 
-    if(exceptionOccurred()) {
-        printException();
-        exitVM(1);
-    }
+    if(exceptionOccurred())
+        goto error;
 
     mb = lookupMethod(main_class, SYMBOL(main), SYMBOL(_array_java_lang_String__V));
-    if(!mb || !(mb->access_flags & ACC_STATIC)) {
-        printf("Static method \"main\" not found in %s\n", argv[class_arg]);
-        exitVM(1);
+    if(mb == NULL || !(mb->access_flags & ACC_STATIC)) {
+        signalException(java_lang_NoSuchMethodError, "main");
+        goto error;
     }
 
     /* Create the String array holding the command line args */
@@ -368,12 +364,16 @@ int main(int argc, char *argv[]) {
             executeStaticMethod(main_class, mb, array);
     }
 
+error:
     /* ExceptionOccurred returns the exception or NULL, which is OK
        for normal conditionals, but not here... */
     if((status = exceptionOccurred() ? 1 : 0))
-        printException();
+        uncaughtException();
 
     /* Wait for all but daemon threads to die */
     mainThreadWaitToExitVM();
     exitVM(status);
+
+   /* Keep the compiler happy */
+    return 0;
 }
