@@ -1341,7 +1341,7 @@ unused:
 
         operand.u = resolveSingleConstant(mb->class, idx);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if(CP_TYPE(cp, idx) == CONSTANT_ResolvedClass ||
@@ -1389,7 +1389,7 @@ unused:
         frame->last_pc = pc;
         fb = resolveField(mb->class, idx);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if((*fb->type == 'J') || (*fb->type == 'D'))
@@ -1416,7 +1416,7 @@ unused:
         frame->last_pc = pc;
         fb = resolveField(mb->class, idx);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if((*fb->type == 'J') || (*fb->type == 'D'))
@@ -1443,7 +1443,7 @@ unused:
         frame->last_pc = pc;
         fb = resolveField(mb->class, idx);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if((*fb->type == 'J') || (*fb->type == 'D'))
@@ -1470,7 +1470,7 @@ unused:
         frame->last_pc = pc;
         fb = resolveField(mb->class, idx);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if((*fb->type == 'J') || (*fb->type == 'D'))
@@ -1496,7 +1496,7 @@ unused:
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, idx);
  
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if(new_mb->access_flags & ACC_PRIVATE) {
@@ -1520,7 +1520,7 @@ unused:
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, idx);
  
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         /* Check if invoking a super method... */
@@ -1547,7 +1547,7 @@ unused:
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, idx);
  
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         operand.pntr = new_mb;
@@ -1564,7 +1564,7 @@ unused:
         frame->last_pc = pc;
         new_mb = resolveInterfaceMethod(mb->class, idx);
  
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if(CLASS_CB(new_mb->class)->access_flags & ACC_INTERFACE) {
@@ -1587,7 +1587,7 @@ unused:
         frame->last_pc = pc;
         resolveClass(mb->class, idx, FALSE);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
         
         OPCODE_REWRITE(OPC_MULTIANEWARRAY_QUICK, cache, pc->operand);
@@ -1603,7 +1603,7 @@ unused:
         frame->last_pc = pc;
         class = resolveClass(mb->class, idx, opcode == OPC_NEW);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
         
         if(opcode == OPC_NEW) {
@@ -1623,7 +1623,7 @@ unused:
 
         resolveSingleConstant(mb->class, SINGLE_INDEX(pc));
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         OPCODE_REWRITE(OPC_LDC_QUICK);
@@ -1635,7 +1635,7 @@ unused:
 
         resolveSingleConstant(mb->class, DOUBLE_INDEX(pc));
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         OPCODE_REWRITE(OPC_LDC_W_QUICK);
@@ -1680,7 +1680,7 @@ unused:
         frame->last_pc = pc;
         fb = resolveField(mb->class, DOUBLE_INDEX(pc));
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if((*fb->type == 'J') || (*fb->type == 'D'))
@@ -1703,7 +1703,7 @@ unused:
         frame->last_pc = pc;
         fb = resolveField(mb->class, DOUBLE_INDEX(pc));
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if((*fb->type == 'J') || (*fb->type == 'D'))
@@ -1728,7 +1728,7 @@ unused:
         frame->last_pc = pc;
         fb = resolveField(mb->class, idx);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if(fb->offset > 255)
@@ -1759,7 +1759,7 @@ unused:
         frame->last_pc = pc;
         fb = resolveField(mb->class, idx);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if(fb->offset > 255)
@@ -1851,7 +1851,7 @@ unused:
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, idx);
  
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if((new_mb->args_count < 256) && (new_mb->method_table_index < 256)) {
@@ -1883,7 +1883,7 @@ unused:
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, idx);
  
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         /* Check if invoking a super method... */
@@ -1903,7 +1903,7 @@ unused:
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, DOUBLE_INDEX(pc));
  
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         OPCODE_REWRITE(OPC_INVOKESTATIC_QUICK);
@@ -1914,7 +1914,7 @@ unused:
         frame->last_pc = pc;
         new_mb = resolveInterfaceMethod(mb->class, DOUBLE_INDEX(pc));
  
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if(CLASS_CB(new_mb->class)->access_flags & ACC_INTERFACE)
@@ -1932,7 +1932,7 @@ unused:
         frame->last_pc = pc;                                              \
         resolveClass(mb->class, DOUBLE_INDEX(pc), FALSE);                 \
                                                                           \
-        if(exceptionOccured0(ee))                                         \
+        if(exceptionOccurred0(ee))                                        \
             goto throwException;                                          \
                                                                           \
         OPCODE_REWRITE((opcode + OPC_ANEWARRAY_QUICK-OPC_ANEWARRAY));     \
@@ -1951,7 +1951,7 @@ unused:
         frame->last_pc = pc;
         class = resolveClass(mb->class, DOUBLE_INDEX(pc), TRUE);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
         
         cb = CLASS_CB(class);
@@ -2164,7 +2164,7 @@ unused:
         array_class = findArrayClassFromClass(ac_name, mb->class);
         free(ac_name);
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
 
         if((obj = allocArray(array_class, count, sizeof(Object*))) == NULL)
@@ -2297,7 +2297,7 @@ invokeMethod:
 
         ee->last_frame = frame;
 
-        if(exceptionOccured0(ee))
+        if(exceptionOccurred0(ee))
             goto throwException;
         DISPATCH(0, *pc == OPC_INVOKEINTERFACE_QUICK ? 5 : 3);
     } else {
