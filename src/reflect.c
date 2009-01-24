@@ -865,12 +865,13 @@ int getWrapperPrimTypeIndex(Object *arg) {
         if(cb->name == SYMBOL(java_lang_Boolean))
             return PRIM_IDX_BOOLEAN;
 
+        if(cb->name == SYMBOL(java_lang_Character))
+            return PRIM_IDX_CHAR;
+
         if(cb->super_name == SYMBOL(java_lang_Number)) {
+
             if(cb->name == SYMBOL(java_lang_Byte))
                 return PRIM_IDX_BYTE;
-
-            if(cb->name == SYMBOL(java_lang_Character))
-                return PRIM_IDX_CHAR;
 
             if(cb->name == SYMBOL(java_lang_Short))
                 return PRIM_IDX_SHORT;
