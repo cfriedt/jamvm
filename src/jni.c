@@ -297,7 +297,7 @@ jobject Jam_NewDirectByteBuffer(JNIEnv *env, void *addr, jlong capacity) {
     if((buff = allocObject(buffImpl_class)) != NULL &&
             (rawdata = allocObject(rawdata_class)) != NULL) {
 
-        OBJ_DATA(rawdata, void*, rawdata_offset) = addr;
+        INST_DATA(rawdata, void*, rawdata_offset) = addr;
         executeMethod(buff, buffImpl_init_mb, NULL, rawdata, (int)capacity,
                       (int)capacity, 0);
     }
@@ -312,9 +312,9 @@ static void *Jam_GetDirectBufferAddress(JNIEnv *env, jobject buffer) {
         return NULL;
 
     if(buff != NULL) {
-        Object *rawdata = OBJ_DATA(buff, Object*, buffAddr_offset);
+        Object *rawdata = INST_DATA(buff, Object*, buffAddr_offset);
         if(rawdata != NULL)
-            return OBJ_DATA(rawdata, void*, rawdata_offset);
+            return INST_DATA(rawdata, void*, rawdata_offset);
     }
 
     return NULL;
@@ -327,9 +327,9 @@ jlong Jam_GetDirectBufferCapacity(JNIEnv *env, jobject buffer) {
         return -1;
 
     if(buff != NULL) {
-        Object *rawdata = OBJ_DATA(buff, Object*, buffAddr_offset);
+        Object *rawdata = INST_DATA(buff, Object*, buffAddr_offset);
         if(rawdata != NULL)
-            return OBJ_DATA(buff, jlong, buffCap_offset);
+            return INST_DATA(buff, jlong, buffCap_offset);
     }
 
     return -1;
@@ -783,28 +783,28 @@ jint Jam_GetJavaVM(JNIEnv *env, JavaVM **vm) {
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID) {             \
     Object *ob = obj;                                                                      \
     FieldBlock *fb = fieldID;                                                              \
-    return OBJ_DATA(ob, native_type, fb->u.offset);                                        \
+    return INST_DATA(ob, native_type, fb->u.offset);                                       \
 }
 
 #define INT_GET_FIELD(type, native_type)                                                   \
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID) {             \
     Object *ob = obj;                                                                      \
     FieldBlock *fb = fieldID;                                                              \
-    return (native_type)OBJ_DATA(ob, int, fb->u.offset);                                   \
+    return (native_type)INST_DATA(ob, int, fb->u.offset);                                  \
 }
 
 #define SET_FIELD(type, native_type)                                                       \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID, native_type value) { \
     Object *ob = obj;                                                                      \
     FieldBlock *fb = fieldID;                                                              \
-    OBJ_DATA(ob, native_type, fb->u.offset) = value;                                       \
+    INST_DATA(ob, native_type, fb->u.offset) = value;                                      \
 }
 
 #define INT_SET_FIELD(type, native_type)                                                   \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID, native_type value) { \
     Object *ob = obj;                                                                      \
     FieldBlock *fb = fieldID;                                                              \
-    OBJ_DATA(ob, int, fb->u.offset) = (int)value;                                          \
+    INST_DATA(ob, int, fb->u.offset) = (int)value;                                         \
 }
 
 #define GET_STATIC_FIELD(type, native_type)                                                \
@@ -858,14 +858,14 @@ jobject Jam_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID) {
     Object *ob = obj;
     FieldBlock *fb = fieldID;
 
-    return addJNILref(OBJ_DATA(ob, Object*, fb->u.offset));
+    return addJNILref(INST_DATA(ob, Object*, fb->u.offset));
 }
 
 void Jam_SetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID, jobject value) {
     Object *ob = obj;
     FieldBlock *fb = fieldID;
 
-    OBJ_DATA(ob, jobject, fb->u.offset) = value;
+    INST_DATA(ob, jobject, fb->u.offset) = value;
 }
 
 jobject Jam_GetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID) {

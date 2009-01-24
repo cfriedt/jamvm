@@ -247,14 +247,14 @@ Object *createConstructorObject(MethodBlock *mb) {
     if(classes == NULL)
         return NULL;
 
-    OBJ_DATA(vm_reflect_ob, Class*, vm_cons_class_offset) = mb->class;
-    OBJ_DATA(vm_reflect_ob, Object*, vm_cons_param_offset) = classes;
-    OBJ_DATA(vm_reflect_ob, int, vm_cons_slot_offset) =
+    INST_DATA(vm_reflect_ob, Class*, vm_cons_class_offset) = mb->class;
+    INST_DATA(vm_reflect_ob, Object*, vm_cons_param_offset) = classes;
+    INST_DATA(vm_reflect_ob, int, vm_cons_slot_offset) =
                                      mb - CLASS_CB(mb->class)->methods;
 
     /* Link the Java-level and VM-level objects together */
-    OBJ_DATA(vm_reflect_ob, Object*, vm_cons_cons_offset) = reflect_ob;
-    OBJ_DATA(reflect_ob, Object*, cons_cons_offset) = vm_reflect_ob;
+    INST_DATA(vm_reflect_ob, Object*, vm_cons_cons_offset) = reflect_ob;
+    INST_DATA(reflect_ob, Object*, cons_cons_offset) = vm_reflect_ob;
 
     return reflect_ob;
 }
@@ -316,15 +316,15 @@ Object *createMethodObject(MethodBlock *mb) {
     if(classes == NULL || ret == NULL)
         return NULL;
 
-    OBJ_DATA(vm_reflect_ob, Class*, vm_mthd_class_offset) = mb->class;
-    OBJ_DATA(vm_reflect_ob, Object*, vm_mthd_param_offset) = classes;
-    OBJ_DATA(vm_reflect_ob, Class*, vm_mthd_ret_offset) = ret;
-    OBJ_DATA(vm_reflect_ob, int, vm_mthd_slot_offset) =
+    INST_DATA(vm_reflect_ob, Class*, vm_mthd_class_offset) = mb->class;
+    INST_DATA(vm_reflect_ob, Object*, vm_mthd_param_offset) = classes;
+    INST_DATA(vm_reflect_ob, Class*, vm_mthd_ret_offset) = ret;
+    INST_DATA(vm_reflect_ob, int, vm_mthd_slot_offset) =
                                      mb - CLASS_CB(mb->class)->methods;
 
     /* Link the Java-level and VM-level objects together */
-    OBJ_DATA(vm_reflect_ob, Object*, vm_mthd_m_offset) = reflect_ob;
-    OBJ_DATA(reflect_ob, Object*, mthd_m_offset) = vm_reflect_ob;
+    INST_DATA(vm_reflect_ob, Object*, vm_mthd_m_offset) = reflect_ob;
+    INST_DATA(reflect_ob, Object*, mthd_m_offset) = vm_reflect_ob;
 
     return reflect_ob;
 }
@@ -383,14 +383,14 @@ Object *createFieldObject(FieldBlock *fb) {
     if(type == NULL)
         return NULL;
 
-    OBJ_DATA(vm_reflect_ob, Class*, vm_fld_class_offset) = fb->class;
-    OBJ_DATA(vm_reflect_ob, Class*, vm_fld_type_offset) = type;
-    OBJ_DATA(vm_reflect_ob, int, vm_fld_slot_offset) =
+    INST_DATA(vm_reflect_ob, Class*, vm_fld_class_offset) = fb->class;
+    INST_DATA(vm_reflect_ob, Class*, vm_fld_type_offset) = type;
+    INST_DATA(vm_reflect_ob, int, vm_fld_slot_offset) =
                                      fb - CLASS_CB(fb->class)->fields;
 
     /* Link the Java-level and VM-level objects together */
-    OBJ_DATA(vm_reflect_ob, Object*, vm_fld_f_offset) = reflect_ob;
-    OBJ_DATA(reflect_ob, Object*, fld_f_offset) = vm_reflect_ob;
+    INST_DATA(vm_reflect_ob, Object*, vm_fld_f_offset) = reflect_ob;
+    INST_DATA(reflect_ob, Object*, fld_f_offset) = vm_reflect_ob;
 
     return reflect_ob;
 }
@@ -1122,39 +1122,39 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
 /* Functions to get values from the VM-level reflection objects */
 
 MethodBlock *getConsMethodBlock(Object *vm_cons_obj) {
-    Class *decl_class = OBJ_DATA(vm_cons_obj, Class*, vm_cons_class_offset);
-    int slot = OBJ_DATA(vm_cons_obj, int, vm_cons_slot_offset);
+    Class *decl_class = INST_DATA(vm_cons_obj, Class*, vm_cons_class_offset);
+    int slot = INST_DATA(vm_cons_obj, int, vm_cons_slot_offset);
 
     return &CLASS_CB(decl_class)->methods[slot];
 }
 
 int getConsAccessFlag(Object *vm_cons_obj) {
-    Object *cons_obj = OBJ_DATA(vm_cons_obj, Object*, vm_cons_cons_offset);
-    return OBJ_DATA(cons_obj, int, acc_flag_offset);
+    Object *cons_obj = INST_DATA(vm_cons_obj, Object*, vm_cons_cons_offset);
+    return INST_DATA(cons_obj, int, acc_flag_offset);
 }
 
 int getMethodAccessFlag(Object *vm_mthd_obj) {
-    Object *mthd_obj = OBJ_DATA(vm_mthd_obj, Object*, vm_mthd_m_offset);
-    return OBJ_DATA(mthd_obj, int, acc_flag_offset);
+    Object *mthd_obj = INST_DATA(vm_mthd_obj, Object*, vm_mthd_m_offset);
+    return INST_DATA(mthd_obj, int, acc_flag_offset);
 }
 
 MethodBlock *getMethodMethodBlock(Object *vm_mthd_obj) {
-    Class *decl_class = OBJ_DATA(vm_mthd_obj, Class*, vm_mthd_class_offset);
-    int slot = OBJ_DATA(vm_mthd_obj, int, vm_mthd_slot_offset);
+    Class *decl_class = INST_DATA(vm_mthd_obj, Class*, vm_mthd_class_offset);
+    int slot = INST_DATA(vm_mthd_obj, int, vm_mthd_slot_offset);
 
     return &CLASS_CB(decl_class)->methods[slot];
 }
 
 FieldBlock *getFieldFieldBlock(Object *vm_fld_obj) {
-    Class *decl_class = OBJ_DATA(vm_fld_obj, Class*, vm_fld_class_offset);
-    int slot = OBJ_DATA(vm_fld_obj, int, vm_fld_slot_offset);
+    Class *decl_class = INST_DATA(vm_fld_obj, Class*, vm_fld_class_offset);
+    int slot = INST_DATA(vm_fld_obj, int, vm_fld_slot_offset);
 
     return &(CLASS_CB(decl_class)->fields[slot]);
 }
 
 int getFieldAccessFlag(Object *vm_fld_obj) {
-    Object *fld_obj = OBJ_DATA(vm_fld_obj, Object*, vm_fld_f_offset);
-    return OBJ_DATA(fld_obj, int, acc_flag_offset);
+    Object *fld_obj = INST_DATA(vm_fld_obj, Object*, vm_fld_f_offset);
+    return INST_DATA(fld_obj, int, acc_flag_offset);
 }
 
 /* Reflection access from JNI */
@@ -1184,10 +1184,10 @@ MethodBlock *mbFromReflectObject(Object *reflect_ob) {
     MethodBlock *mb;
 
     if(reflect_ob->class == cons_reflect_class) {
-        Object *vm_cons_obj = OBJ_DATA(reflect_ob, Object*, cons_cons_offset);
+        Object *vm_cons_obj = INST_DATA(reflect_ob, Object*, cons_cons_offset);
         mb = getConsMethodBlock(vm_cons_obj);
     } else {
-        Object *vm_mthd_obj = OBJ_DATA(reflect_ob, Object*, mthd_m_offset);
+        Object *vm_mthd_obj = INST_DATA(reflect_ob, Object*, mthd_m_offset);
         mb = getMethodMethodBlock(vm_mthd_obj);
     }
 
@@ -1195,7 +1195,7 @@ MethodBlock *mbFromReflectObject(Object *reflect_ob) {
 }
 
 FieldBlock *fbFromReflectObject(Object *reflect_ob) {
-    Object *vm_fld_obj = OBJ_DATA(reflect_ob, Object*, fld_f_offset);
+    Object *vm_fld_obj = INST_DATA(reflect_ob, Object*, fld_f_offset);
     return getFieldFieldBlock(vm_fld_obj);
 }
 

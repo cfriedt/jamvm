@@ -403,7 +403,7 @@ unused:
     )                                                      \
                                                            \
     DEF_OPC(OPC_GETFIELD_THIS##suffix, level,              \
-        PUSH_##level(OBJ_DATA(this, type,                  \
+        PUSH_##level(INST_DATA(this, type,                 \
                            GETFIELD_THIS_OFFSET(pc)), 4);  \
     )                                                      \
                                                            \
@@ -492,21 +492,21 @@ unused:
 {                                                          \
     Object *obj = (Object *)*--ostack;                     \
     NULL_POINTER_CHECK(obj);                               \
-    PUSH_0(OBJ_DATA(obj, type, offset), 3);                \
+    PUSH_0(INST_DATA(obj, type, offset), 3);               \
 }
 
 #define GETFIELD_QUICK_1(offset, type)                     \
 {                                                          \
     Object *obj = (Object *)cache.i.v1;                    \
     NULL_POINTER_CHECK(obj);                               \
-    PUSH_0(OBJ_DATA(obj, type, offset), 3);                \
+    PUSH_0(INST_DATA(obj, type, offset), 3);               \
 }
 
 #define GETFIELD_QUICK_2(offset, type)                     \
 {                                                          \
     Object *obj = (Object *)cache.i.v2;                    \
     NULL_POINTER_CHECK(obj);                               \
-    PUSH_1(OBJ_DATA(obj, type, offset), 3);                \
+    PUSH_1(INST_DATA(obj, type, offset), 3);               \
 }
 
 #define UNARY_MINUS_0                                      \
@@ -1788,12 +1788,12 @@ unused:
         NULL_POINTER_CHECK(obj);
 
         if((*fb->type == 'J') || (*fb->type == 'D')) {
-            PUSH_LONG(OBJ_DATA(obj, u8, fb->offset), 3);
+            PUSH_LONG(INST_DATA(obj, u8, fb->offset), 3);
         } else {
             if(*fb->type == 'L' || *fb->type == '[') {
-                PUSH_0(OBJ_DATA(obj, uintptr_t, fb->offset), 3);
+                PUSH_0(INST_DATA(obj, uintptr_t, fb->offset), 3);
             } else {
-                PUSH_0(OBJ_DATA(obj, u4, fb->offset), 3);
+                PUSH_0(INST_DATA(obj, u4, fb->offset), 3);
             }
         }
     })
@@ -1806,16 +1806,16 @@ unused:
             Object *obj = (Object *)*--ostack;
 
             NULL_POINTER_CHECK(obj);
-            OBJ_DATA(obj, u8, fb->offset) = cache.l;
+            INST_DATA(obj, u8, fb->offset) = cache.l;
         } else {
             Object *obj = (Object *)cache.i.v1;
 
             NULL_POINTER_CHECK(obj);
 
             if(*fb->type == 'L' || *fb->type == '[')
-                OBJ_DATA(obj, uintptr_t, fb->offset) = cache.i.v2;
+                INST_DATA(obj, uintptr_t, fb->offset) = cache.i.v2;
             else
-                OBJ_DATA(obj, u4, fb->offset) = cache.i.v2;
+                INST_DATA(obj, u4, fb->offset) = cache.i.v2;
         }
         DISPATCH(0, 3);
     })
@@ -1828,7 +1828,7 @@ unused:
 
             ostack -= 3;
             NULL_POINTER_CHECK(obj);
-            OBJ_DATA(obj, u8, fb->offset) = *(u8*)&ostack[1];
+            INST_DATA(obj, u8, fb->offset) = *(u8*)&ostack[1];
         } else {
             Object *obj = (Object *)ostack[-2];
 
@@ -1836,9 +1836,9 @@ unused:
             NULL_POINTER_CHECK(obj);
 
             if(*fb->type == 'L' || *fb->type == '[')
-                OBJ_DATA(obj, uintptr_t, fb->offset) = ostack[1];
+                INST_DATA(obj, uintptr_t, fb->offset) = ostack[1];
             else
-                OBJ_DATA(obj, u4, fb->offset) = ostack[1];
+                INST_DATA(obj, u4, fb->offset) = ostack[1];
         }
         DISPATCH(0, 3);
     })
@@ -2034,7 +2034,7 @@ unused:
         Object *obj = (Object *)*--ostack;
         NULL_POINTER_CHECK(obj);
                 
-        PUSH_LONG(OBJ_DATA(obj, u8, SINGLE_INDEX(pc)), 3);
+        PUSH_LONG(INST_DATA(obj, u8, SINGLE_INDEX(pc)), 3);
     })
 
 #ifdef USE_CACHE
@@ -2042,17 +2042,17 @@ unused:
         Object *obj = (Object *)*--ostack;
         NULL_POINTER_CHECK(obj);
 
-        OBJ_DATA(obj, u8, SINGLE_INDEX(pc)) = cache.l;
+        INST_DATA(obj, u8, SINGLE_INDEX(pc)) = cache.l;
         DISPATCH(0, 3);
     })
 
-#define PUTFIELD_QUICK(type, suffix)                        \
-    DEF_OPC_012(OPC_PUTFIELD_QUICK##suffix, {               \
-        Object *obj = (Object *)cache.i.v1;                 \
-        NULL_POINTER_CHECK(obj);                            \
-                                                            \
-        OBJ_DATA(obj, type, SINGLE_INDEX(pc)) = cache.i.v2; \
-        DISPATCH(0, 3);                                     \
+#define PUTFIELD_QUICK(type, suffix)                         \
+    DEF_OPC_012(OPC_PUTFIELD_QUICK##suffix, {                \
+        Object *obj = (Object *)cache.i.v1;                  \
+        NULL_POINTER_CHECK(obj);                             \
+                                                             \
+        INST_DATA(obj, type, SINGLE_INDEX(pc)) = cache.i.v2; \
+        DISPATCH(0, 3);                                      \
     })
 #else
     DEF_OPC_012(OPC_PUTFIELD2_QUICK, {
@@ -2060,18 +2060,18 @@ unused:
 
         ostack -= 3;
         NULL_POINTER_CHECK(obj);
-        OBJ_DATA(obj, u8, SINGLE_INDEX(pc)) = *(u8*)&ostack[1];
+        INST_DATA(obj, u8, SINGLE_INDEX(pc)) = *(u8*)&ostack[1];
         DISPATCH(0, 3);
     })
 
-#define PUTFIELD_QUICK(type, suffix)                       \
-    DEF_OPC_012(OPC_PUTFIELD_QUICK##suffix, {              \
-        Object *obj = (Object *)ostack[-2];                \
-                                                           \
-        ostack -= 2;                                       \
-        NULL_POINTER_CHECK(obj);                           \
-        OBJ_DATA(obj, type, SINGLE_INDEX(pc)) = ostack[1]; \
-        DISPATCH(0, 3);                                    \
+#define PUTFIELD_QUICK(type, suffix)                        \
+    DEF_OPC_012(OPC_PUTFIELD_QUICK##suffix, {               \
+        Object *obj = (Object *)ostack[-2];                 \
+                                                            \
+        ostack -= 2;                                        \
+        NULL_POINTER_CHECK(obj);                            \
+        INST_DATA(obj, type, SINGLE_INDEX(pc)) = ostack[1]; \
+        DISPATCH(0, 3);                                     \
     })
 #endif
 

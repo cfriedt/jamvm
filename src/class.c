@@ -107,11 +107,11 @@ static Class *addClassToHash(Class *class, Object *class_loader) {
     if(class_loader == NULL)
         table = &loaded_classes;
     else {
-        Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
+        Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
 
         if(vmdata == NULL) {
             objectLock(class_loader);
-            vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
+            vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
 
             if(vmdata == NULL) {
                 if((vmdata = allocObject(loader_data_class)) == NULL) {
@@ -122,14 +122,14 @@ static Class *addClassToHash(Class *class, Object *class_loader) {
                 table = sysMalloc(sizeof(HashTable));
                 initHashTable((*table), INITSZE, TRUE);
 
-                OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset) = table;
-                OBJ_DATA(class_loader, Object*, ldr_vmdata_offset) = vmdata;
+                INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset) = table;
+                INST_DATA(class_loader, Object*, ldr_vmdata_offset) = vmdata;
 
                 objectUnlock(class_loader);
             }
         }
 
-        table = OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
+        table = INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
     }
 
     /* Add if absent, no scavenge, locked */
@@ -1330,12 +1330,12 @@ Class *findHashedClass(char *classname, Object *class_loader) {
     if(class_loader == NULL)
         table = &loaded_classes;
     else {
-        Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
+        Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
 
         if(vmdata == NULL)
             return NULL;
 
-        table = OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
+        table = INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
     }
 
 #undef HASH
@@ -1535,10 +1535,10 @@ void threadBootClasses() {
         markObject(ptr, mark, mark_soft_refs)
 
 void markLoaderClasses(Object *class_loader, int mark, int mark_soft_refs) {
-    Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
+    Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
 
     if(vmdata != NULL) {
-        HashTable *table = OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
+        HashTable *table = INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
         hashIterate((*table));
     }
 }
@@ -1547,10 +1547,10 @@ void markLoaderClasses(Object *class_loader, int mark, int mark_soft_refs) {
 #define ITERATE(ptr)  threadReference((Object**)ptr)
 
 void threadLoaderClasses(Object *class_loader) {
-    Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
+    Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
 
     if(vmdata != NULL) {
-        HashTable *table = OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
+        HashTable *table = INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
         hashIterateP((*table));
     }
 }
@@ -1647,10 +1647,10 @@ void freeClassData(Class *class) {
 }
 
 void freeClassLoaderData(Object *class_loader) {
-    Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
+    Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
 
     if(vmdata != NULL) {
-        HashTable *table = OBJ_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
+        HashTable *table = INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
         gcFreeHashTable((*table));
         gcPendingFree(table);
     }
@@ -1661,7 +1661,7 @@ void freeClassLoaderData(Object *class_loader) {
    function, which will be called from the unloader finalizer
    when the class loader is garbage collected */
 void newLibraryUnloader(Object *class_loader, void *entry) {
-    Object *vmdata = OBJ_DATA(class_loader, Object*, ldr_vmdata_offset);
+    Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
     
     if(vmdata != NULL)
         executeMethod(vmdata, ldr_new_unloader, (long long)(uintptr_t)entry);

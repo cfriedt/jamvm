@@ -320,11 +320,11 @@ void *getStackBase(Thread *thread) {
 }
 
 Thread *vmThread2Thread(Object *vmThread) {
-    return OBJ_DATA(vmThread, Thread*, vmData_offset);
+    return INST_DATA(vmThread, Thread*, vmData_offset);
 }
 
 Thread *jThread2Thread(Object *jThread) {
-    Object *vmthread = OBJ_DATA(jThread, Object*, vmthread_offset);
+    Object *vmthread = INST_DATA(jThread, Object*, vmthread_offset);
     return vmthread == NULL ? NULL : vmThread2Thread(vmthread);
 }
 
@@ -410,7 +410,7 @@ void initialiseJavaStack(ExecEnv *ee) {
 }
 
 long long javaThreadId(Thread *thread) {
-    return OBJ_DATA(thread->ee->thread, long long, threadId_offset);
+    return INST_DATA(thread->ee->thread, long long, threadId_offset);
 }
 
 Thread *findHashedThread(Thread *thread, long long id) {
@@ -458,8 +458,8 @@ Object *initJavaThread(Thread *thread, char is_daemon, char *name) {
         return NULL;
 
     thread->ee->thread = jlthread;
-    OBJ_DATA(vmthread, Thread*, vmData_offset) = thread;
-    OBJ_DATA(vmthread, Object*, thread_offset) = jlthread;
+    INST_DATA(vmthread, Thread*, vmData_offset) = thread;
+    INST_DATA(vmthread, Object*, thread_offset) = jlthread;
 
     /* Create the string for the thread name.  If null is specified
        the initialiser method will generate a name of the form Thread-X */
@@ -558,7 +558,7 @@ Thread *attachThread(char *name, char is_daemon, void *stack_base,
         return NULL;
 
     /* Initialiser doesn't handle the thread group */
-    OBJ_DATA(java_thread, Object*, group_offset) = group;
+    INST_DATA(java_thread, Object*, group_offset) = group;
     executeMethod(group, addThread_mb, java_thread);
 
     /* We're now attached to the VM...*/
@@ -574,10 +574,10 @@ void uncaughtException() {
     ExecEnv *ee = thread->ee;
     Object *jThread = ee->thread;
     Object *excep = exceptionOccurred();
-    Object *group = OBJ_DATA(jThread, Object*, group_offset);
+    Object *group = INST_DATA(jThread, Object*, group_offset);
     FieldBlock *fb = findField(thread_class, SYMBOL(exceptionHandler),
                                              SYMBOL(sig_java_lang_Thread_UncaughtExceptionHandler));
-    Object *thread_handler = fb == NULL ? NULL : OBJ_DATA(jThread, Object*, fb->u.offset);
+    Object *thread_handler = fb == NULL ? NULL : INST_DATA(jThread, Object*, fb->u.offset);
     Object *handler = thread_handler == NULL ? group : thread_handler;
     MethodBlock *uncaught_mb = lookupMethod(handler->class, SYMBOL(uncaughtException),
                                             SYMBOL(_java_lang_Thread_java_lang_Throwable__V));
@@ -601,8 +601,8 @@ void uncaughtException() {
 void detachThread(Thread *thread) {
     ExecEnv *ee = thread->ee;
     Object *jThread = ee->thread;
-    Object *group = OBJ_DATA(jThread, Object*, group_offset);
-    Object *vmthread = OBJ_DATA(jThread, Object*, vmthread_offset);
+    Object *group = INST_DATA(jThread, Object*, group_offset);
+    Object *vmthread = INST_DATA(jThread, Object*, vmthread_offset);
 
     /* If there's an exception pending, it is uncaught */
     if(exceptionOccurred0(ee))
@@ -613,7 +613,7 @@ void detachThread(Thread *thread) {
 
     /* set VMThread ref in Thread object to null - operations after this
        point will result in an IllegalThreadStateException */
-    OBJ_DATA(jThread, Object*, vmthread_offset) = NULL;
+    INST_DATA(jThread, Object*, vmthread_offset) = NULL;
 
     /* Remove thread from the ID map hash table */
     deleteThreadFromHash(thread);
@@ -636,7 +636,7 @@ void detachThread(Thread *thread) {
     freeThreadID(thread->id);
 
     /* Handle daemon thread status */
-    if(!OBJ_DATA(jThread, int, daemon_offset))
+    if(!INST_DATA(jThread, int, daemon_offset))
         non_daemon_thrds--;
 
     pthread_mutex_unlock(&lock);
@@ -681,7 +681,7 @@ void *threadStart(void *arg) {
 
     /* Complete initialisation of the thread structure, create the thread
        stack and add the thread to the thread list */
-    initThread(thread, OBJ_DATA(jThread, int, daemon_offset), &thread);
+    initThread(thread, INST_DATA(jThread, int, daemon_offset), &thread);
 
     /* Add thread to thread ID map hash table. */
     addThreadToHash(thread);
@@ -708,7 +708,7 @@ void createJavaThread(Object *jThread, long long stack_size) {
     disableSuspend(self);
 
     pthread_mutex_lock(&lock);
-    if(OBJ_DATA(jThread, Object*, vmthread_offset) != NULL) {
+    if(INST_DATA(jThread, Object*, vmthread_offset) != NULL) {
         pthread_mutex_unlock(&lock);
         enableSuspend(self);
         signalException(java_lang_IllegalThreadStateException, "thread already started");
@@ -724,14 +724,14 @@ void createJavaThread(Object *jThread, long long stack_size) {
     ee->thread = jThread;
     ee->stack_size = stack_size;
 
-    OBJ_DATA(vmthread, Thread*, vmData_offset) = thread;
-    OBJ_DATA(vmthread, Object*, thread_offset) = jThread;
-    OBJ_DATA(jThread, Object*, vmthread_offset) = vmthread;
+    INST_DATA(vmthread, Thread*, vmData_offset) = thread;
+    INST_DATA(vmthread, Object*, thread_offset) = jThread;
+    INST_DATA(jThread, Object*, vmthread_offset) = vmthread;
 
     pthread_mutex_unlock(&lock);
 
     if(pthread_create(&thread->tid, &attributes, threadStart, thread)) {
-        OBJ_DATA(jThread, Object*, vmthread_offset) = NULL;
+        INST_DATA(jThread, Object*, vmthread_offset) = NULL;
         sysFree(ee);
         enableSuspend(self);
         signalException(java_lang_OutOfMemoryError, "can't create thread");
@@ -756,7 +756,7 @@ Thread *attachJNIThread(char *name, char is_daemon, Object *group) {
 
     /* If no group is given add it to the main group */
     if(group == NULL)
-        group = OBJ_DATA(main_ee.thread, Object*, group_offset);
+        group = INST_DATA(main_ee.thread, Object*, group_offset);
 
     /* Initialise internal thread structure */
     memset(thread, 0, sizeof(Thread));
@@ -784,7 +784,7 @@ static void *shell(void *args) {
     /* VM helper threads should be added to the system group, but this doesn't
        exist.  As the root group is main, we add it to that for now... */
     attachThread(((char**)args)[0], TRUE, &self, self,
-                 OBJ_DATA(main_ee.thread, Object*, group_offset));
+                 INST_DATA(main_ee.thread, Object*, group_offset));
 
     sysFree(args);
     (*(void(*)(Thread*))start)(self);
@@ -1022,13 +1022,13 @@ void dumpThreadsLoop(Thread *self) {
 
         for(thread = &main_thread; thread != NULL; thread = thread->next) {
             Object *jThread = thread->ee->thread;
-            int priority = OBJ_DATA(jThread, int, priority_offset);
-            int daemon = OBJ_DATA(jThread, int, daemon_offset);
+            int priority = INST_DATA(jThread, int, priority_offset);
+            int daemon = INST_DATA(jThread, int, daemon_offset);
             Frame *last = thread->ee->last_frame;
 
             /* Get thread name; we don't use String2Cstr(), as this mallocs memory
                and may deadlock with a thread suspended in malloc/realloc/free */
-            String2Buff(OBJ_DATA(jThread, Object*, name_offset), buffer, sizeof(buffer));
+            String2Buff(INST_DATA(jThread, Object*, name_offset), buffer, sizeof(buffer));
 
             jam_printf("\n\"%s\"%s %p priority: %d tid: %p id: %d state: %s (%d)\n",
                   buffer, daemon ? " (daemon)" : "", thread, priority, thread->tid,
@@ -1141,7 +1141,7 @@ void mainThreadSetContextClassLoader(Object *loader) {
     FieldBlock *fb = findField(thread_class, SYMBOL(contextClassLoader),
                                              SYMBOL(sig_java_lang_ClassLoader));
     if(fb != NULL)
-        OBJ_DATA(main_ee.thread, Object*, fb->u.offset) = loader;
+        INST_DATA(main_ee.thread, Object*, fb->u.offset) = loader;
 }
 
 void initialiseThreadStage1(InitArgs *args) {
@@ -1272,7 +1272,7 @@ void initialiseThreadStage2(InitArgs *args) {
     rmveThrd_mtbl_idx = remove_thread->method_table_index;
 
     /* Add the main thread to the root thread group */
-    OBJ_DATA(java_thread, Object*, group_offset) = root->u.static_value.p;
+    INST_DATA(java_thread, Object*, group_offset) = root->u.static_value.p;
     executeMethod(((Object*)root->u.static_value.p), addThread_mb, java_thread);
 
     if(exceptionOccurred())

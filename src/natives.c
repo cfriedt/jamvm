@@ -647,7 +647,7 @@ uintptr_t *defineClass0(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
                 if(cstr[i]=='.') cstr[i]='/';
 
             if((class = defineClass(cstr, data, offset, data_len, class_loader)) != NULL) {
-                OBJ_DATA(class, uintptr_t, pd_offset) = pd;
+                INST_DATA(class, uintptr_t, pd_offset) = pd;
                 linkClass(class);
             }
 
@@ -915,7 +915,7 @@ void *getPntr2Field(uintptr_t *ostack) {
     if((ob = getAndCheckObject(ostack, fb->class)) == NULL)
         return NULL;
 
-    return &OBJ_DATA(ob, int, fb->u.offset);
+    return &INST_DATA(ob, int, fb->u.offset);
 }
 
 uintptr_t *fieldGet(Class *class, MethodBlock *mb, uintptr_t *ostack) {
@@ -1322,7 +1322,7 @@ uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     FieldBlock *fb = fbFromReflectObject((Object*)ostack[1]);
 
     *(long long*)ostack = (long long)(uintptr_t)
-                          &(OBJ_DATA((Object*)NULL, int, fb->u.offset));
+                          &(INST_DATA((Object*)NULL, int, fb->u.offset));
     return ostack + 2;
 }
 

@@ -489,7 +489,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
                     markVMThrowable(ob, mark, mark_soft_refs);
                 } else
                     if(IS_REFERENCE(cb)) {
-                        Object *referent = OBJ_DATA(ob, Object*, ref_referent_offset);
+                        Object *referent = INST_DATA(ob, Object*, ref_referent_offset);
 
                         TRACE_GC("Mark found Reference object @%p class %s flags %d referent %p\n",
                                  ob, cb->name, cb->flags, referent);
@@ -525,7 +525,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
             int end = cb->refs_offsets_table[i].end;
 
             for(; offset < end; offset += sizeof(Object*)) {
-                Object *ref = OBJ_DATA(ob, Object*, offset);
+                Object *ref = INST_DATA(ob, Object*, offset);
                 TRACE_GC("Offset %d reference @%p\n", offset, ref);
 
                 if(ref != NULL && mark > IS_MARKED(ref))
@@ -654,7 +654,7 @@ int handleMarkedSpecial(Object *ob) {
     int cleared = FALSE;
 
     if(IS_REFERENCE(cb)) {
-        Object *referent = OBJ_DATA(ob, Object*, ref_referent_offset);
+        Object *referent = INST_DATA(ob, Object*, ref_referent_offset);
 
         if(referent != NULL) {
             int ref_mark = IS_MARKED(referent);
@@ -670,14 +670,14 @@ int handleMarkedSpecial(Object *ob) {
                     goto out;
 
                 TRACE_GC("FREE: Clearing the referent field.\n");
-                OBJ_DATA(ob, Object*, ref_referent_offset) = NULL;
+                INST_DATA(ob, Object*, ref_referent_offset) = NULL;
                 cleared = TRUE;
             }
 
             /* If the reference has a queue, add it to the list for enqueuing
                by the Reference Handler thread. */
 
-            if(OBJ_DATA(ob, Object*, ref_queue_offset) != NULL) {
+            if(INST_DATA(ob, Object*, ref_queue_offset) != NULL) {
                 TRACE_GC("FREE: Adding to list for enqueuing.\n");
 
                 ADD_TO_OBJECT_LIST(reference, ob);
@@ -1109,7 +1109,7 @@ int threadChildren(Object *ob, Object *new_addr) {
                 threadLoaderClasses(ob);
             } else
                 if(IS_REFERENCE(cb)) {
-                    Object **referent = &OBJ_DATA(ob, Object*, ref_referent_offset);
+                    Object **referent = &INST_DATA(ob, Object*, ref_referent_offset);
 
                     if(*referent != NULL) {
                         int ref_mark = IS_MARKED(*referent);
@@ -1132,7 +1132,7 @@ int threadChildren(Object *ob, Object *new_addr) {
                         /* If the reference has a queue, add it to the list for enqueuing
                            by the Reference Handler thread. */
 
-                        if(OBJ_DATA(ob, Object*, ref_queue_offset) != NULL) {
+                        if(INST_DATA(ob, Object*, ref_queue_offset) != NULL) {
                             TRACE_GC("Adding to list for enqueuing.\n");
 
                             ADD_TO_OBJECT_LIST(reference, new_addr);
@@ -1155,7 +1155,7 @@ out:
             int end = cb->refs_offsets_table[i].end;
 
             for(; offset < end; offset += sizeof(Object*)) {
-                Object **ref = &OBJ_DATA(ob, Object*, offset);
+                Object **ref = &INST_DATA(ob, Object*, offset);
                 TRACE_COMPACT("Offset %d reference @%p\n", offset, *ref);
 
                 if(*ref != NULL)
@@ -2022,7 +2022,7 @@ Object *cloneObject(Object *ob) {
             /* Safety.  If it's a classloader, clear native
                pointer to class table */
             if(IS_CLASS_LOADER(CLASS_CB(clone->class)))
-                OBJ_DATA(clone, Object*, ldr_vmdata_offset) = NULL;
+                INST_DATA(clone, Object*, ldr_vmdata_offset) = NULL;
         }
 
         TRACE_ALLOC("<ALLOC: cloned object @%p clone @%p>\n", ob, clone);

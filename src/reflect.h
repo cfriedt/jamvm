@@ -26,16 +26,16 @@
 #define getPrimTypeIndex(cb) (cb->state - CLASS_PRIM)
 
 #define getConsParamTypes(vm_cons_obj) \
-    OBJ_DATA(vm_cons_obj, Object*, vm_cons_param_offset)
+    INST_DATA(vm_cons_obj, Object*, vm_cons_param_offset)
 
 #define getMethodParamTypes(vm_method_obj) \
-    OBJ_DATA(vm_method_obj, Object*, vm_mthd_param_offset)
+    INST_DATA(vm_method_obj, Object*, vm_mthd_param_offset)
 
 #define getMethodReturnType(vm_method_obj) \
-    OBJ_DATA(vm_method_obj, Class*, vm_mthd_ret_offset)
+    INST_DATA(vm_method_obj, Class*, vm_mthd_ret_offset)
 
 #define getFieldType(vm_field_obj) \
-    OBJ_DATA(vm_field_obj, Class*, vm_fld_type_offset)
+    INST_DATA(vm_field_obj, Class*, vm_fld_type_offset)
 
 extern MethodBlock *getConsMethodBlock(Object *cons_ref_obj);
 extern int getConsAccessFlag(Object *cons_ref_obj);
