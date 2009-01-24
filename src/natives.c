@@ -1321,7 +1321,8 @@ void unlockSpinLock() {
 uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     FieldBlock *fb = fbFromReflectObject((Object*)ostack[1]);
 
-    *(long long*)ostack = (long long)(uintptr_t)&(OBJ_DATA((Object*)NULL, int, fb->u.offset));
+    *(long long*)ostack = (long long)(uintptr_t)
+                          &(OBJ_DATA((Object*)NULL, int, fb->u.offset));
     return ostack + 2;
 }
 
@@ -1530,6 +1531,10 @@ uintptr_t *arrayIndexScale(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     ClassBlock *cb = CLASS_CB(array_class);
     int scale = 0;
 
+    /* Sub-int fields within objects are widened to int, whereas
+       sub-int arrays are packed.  This means sub-int arrays can
+       not be accessed, and must return zero. */
+
     if(cb->name[0] == '[')
         switch(cb->name[1]) {
             case 'I':
@@ -1537,14 +1542,14 @@ uintptr_t *arrayIndexScale(Class *class, MethodBlock *mb, uintptr_t *ostack) {
                 scale = 4;
                 break;
 
-            case '[':
-            case 'L':
-                scale = sizeof(Object*);
-                break;
-
             case 'J':
             case 'D':
                 scale = 8;
+                break;
+
+            case '[':
+            case 'L':
+                scale = sizeof(Object*);
                 break;
         }
 
