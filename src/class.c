@@ -766,16 +766,19 @@ void prepareFields(Class *class) {
       scanning of an objects references during the mark phase of GC. */
 
    if(refs_start_offset) {
-       if(spr_rfs_offsts_sze > 0 && spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].end == refs_start_offset) {
+       if(spr_rfs_offsts_sze > 0 && spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].end
+                                           == refs_start_offset) {
+
            cb->refs_offsets_size = spr_rfs_offsts_sze;
            refs_start_offset = spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].start;
        } else
            cb->refs_offsets_size = spr_rfs_offsts_sze + 1;
 
-      cb->refs_offsets_table = sysMalloc(cb->refs_offsets_size * sizeof(RefsOffsetsEntry));
+      cb->refs_offsets_table = sysMalloc(cb->refs_offsets_size *
+                                         sizeof(RefsOffsetsEntry));
 
       memcpy(cb->refs_offsets_table, spr_rfs_offsts_tbl,
-                                     spr_rfs_offsts_sze * sizeof(RefsOffsetsEntry));
+             spr_rfs_offsts_sze * sizeof(RefsOffsetsEntry));
 
       cb->refs_offsets_table[cb->refs_offsets_size-1].start = refs_start_offset;
       cb->refs_offsets_table[cb->refs_offsets_size-1].end = refs_end_offset;
