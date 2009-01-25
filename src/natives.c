@@ -712,6 +712,20 @@ uintptr_t *getBootClassPathResource(Class *class, MethodBlock *mb,
     return ostack;
 }
 
+int checkInvokeAccess(MethodBlock *mb) {
+    Class *caller = getCallerCallerClass();
+
+    if(!checkClassAccess(mb->class, caller) ||
+                            !checkMethodAccess(mb, caller)) {
+
+        signalException(java_lang_IllegalAccessException,
+                        "method is not accessible");
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
 /* java.lang.reflect.Constructor */
 
 uintptr_t *constructorConstruct(Class *class, MethodBlock *mb2,
@@ -727,6 +741,9 @@ uintptr_t *constructorConstruct(Class *class, MethodBlock *mb2,
     ClassBlock *cb = CLASS_CB(mb->class); 
     Object *ob;
 
+    if(!no_access_check && !checkInvokeAccess(mb))
+        return ostack;
+
     if(cb->access_flags & ACC_ABSTRACT) {
         signalException(java_lang_InstantiationException, cb->name);
         return ostack;
@@ -738,7 +755,7 @@ uintptr_t *constructorConstruct(Class *class, MethodBlock *mb2,
         return ostack;
 
     if((ob = allocObject(mb->class)) != NULL) {
-        invoke(ob, mb, args_array, param_types, !no_access_check);
+        invoke(ob, mb, args_array, param_types);
         *ostack++ = (uintptr_t) ob;
     }
 
@@ -1051,6 +1068,9 @@ uintptr_t *methodInvoke(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Object *ob = NULL;
     uintptr_t *ret;
 
+    if(!no_access_check && !checkInvokeAccess(mb))
+        return ostack;
+
     /* If it's a static method, class may not be initialised;
        interfaces are also not normally initialised. */
     if((mb->access_flags & ACC_STATIC) || IS_INTERFACE(CLASS_CB(mb->class)))
@@ -1059,11 +1079,12 @@ uintptr_t *methodInvoke(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
 
     if(!(mb->access_flags & ACC_STATIC))
         if(((ob = getAndCheckObject(ostack, mb->class)) == NULL) ||
-                                   ((mb = lookupVirtualMethod(ob, mb)) == NULL))
+                               ((mb = lookupVirtualMethod(ob, mb)) == NULL))
             return ostack;
  
-    if((ret = (uintptr_t*) invoke(ob, mb, args_array, param_types, !no_access_check)) != NULL)
-        *ostack++ = (uintptr_t) getReflectReturnObject(ret_type, ret, REF_SRC_OSTACK);
+    if((ret = (uintptr_t*) invoke(ob, mb, args_array, param_types)) != NULL)
+        *ostack++ = (uintptr_t) getReflectReturnObject(ret_type, ret,
+                                                       REF_SRC_OSTACK);
 
     return ostack;
 }
