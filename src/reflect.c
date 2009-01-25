@@ -1037,7 +1037,7 @@ int unwrapAndWidenObject(Class *type, Object *arg, void *pntr, int flags) {
 }
 
 Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
-                Object *param_types, int check_access) {
+                Object *param_types) {
 
     Object **args = ARRAY_DATA(arg_array, Object*);
     Class **types = ARRAY_DATA(param_types, Class*);
@@ -1047,21 +1047,9 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
 
     ExecEnv *ee = getExecEnv();
     uintptr_t *sp;
+    Object *excep;
     void *ret;
     int i;
-
-    Object *excep;
-
-    if(check_access) {
-        Class *caller = getCallerCallerClass();
-        if(!checkClassAccess(mb->class, caller) ||
-                                !checkMethodAccess(mb, caller)) {
-
-            signalException(java_lang_IllegalAccessException,
-                            "method is not accessible");
-            return NULL;
-        }
-    }
 
     if(args_len != types_len) {
         signalException(java_lang_IllegalArgumentException,
