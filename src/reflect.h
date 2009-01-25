@@ -69,7 +69,7 @@ extern int widenPrimitiveValue(int src_idx, int dest_idx, void *src,
 extern int unwrapAndWidenObject(Class *type, Object *arg, void *pntr,
                                 int flags);
 extern Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
-                      Object *param_types, int check_access);
+                      Object *param_types);
 
 extern MethodBlock *mbFromReflectObject(Object *reflect_ob);
 extern FieldBlock *fbFromReflectObject(Object *reflect_ob);
