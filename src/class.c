@@ -586,7 +586,7 @@ Class *createArrayClass(char *classname, Object *class_loader) {
     classblock->method_table = CLASS_CB(classblock->super)->method_table;
 
     classblock->interfaces_count = 2;
-    classblock->interfaces = (Class**)sysMalloc(2*sizeof(Class*));
+    classblock->interfaces = sysMalloc(sizeof(Class*) * 2);
     classblock->interfaces[0] = findSystemClass0(SYMBOL(java_lang_Cloneable));
     classblock->interfaces[1] = findSystemClass0(SYMBOL(java_io_Serializable));
 
@@ -596,7 +596,8 @@ Class *createArrayClass(char *classname, Object *class_loader) {
        this is used to speed up type checking (instanceof) */
 
     if(classname[1] == '[') {
-        Class *comp_class = findArrayClassFromClassLoader(classname + 1, class_loader);
+        Class *comp_class = findArrayClassFromClassLoader(classname + 1,
+                                                          class_loader);
 
         if(comp_class == NULL)
             goto error;
@@ -605,11 +606,12 @@ Class *createArrayClass(char *classname, Object *class_loader) {
         classblock->dim = CLASS_CB(comp_class)->dim + 1;
     } else { 
         if(classname[1] == 'L') {
-            char element_name[len-2];
+            char element_name[len - 1];
 
             strcpy(element_name, classname + 2);
-            element_name[len-3] = '\0';
-            classblock->element_class = findClassFromClassLoader(element_name, class_loader);
+            element_name[len - 3] = '\0';
+            classblock->element_class = findClassFromClassLoader(element_name,
+                                                                 class_loader);
         } else
             classblock->element_class = findPrimitiveClass(classname[1]);
 
@@ -641,8 +643,7 @@ error:
     return found;
 }
 
-Class *
-createPrimClass(char *classname, int index) {
+Class *createPrimClass(char *classname, int index) {
     Class *class;
     ClassBlock *classblock;
  
@@ -667,6 +668,21 @@ createPrimClass(char *classname, int index) {
     return prim_classes[index];
 }
 
+/* Layout the instance data.
+
+   The object layout places 64-bit fields on a double-word boundary
+   as on some architecures this leads to better performance (and
+   misaligned loads/store may cause traps).
+
+   Reference fields are also placed together as these must be scanned
+   during GC, and placing them together reduces the number of entries
+   required in the reference offsets list.
+
+   Double/long fields are layed out first, then references and finally
+   int-sized fields.  When padding is needed for 64-bit fields we try
+   to place an int-sized field, and only leave a hole when no int-sized
+   fields are available */
+
 void prepareFields(Class *class) {
     ClassBlock *cb = CLASS_CB(class);
     Class *super = (cb->access_flags & ACC_INTERFACE) ? NULL
@@ -689,6 +705,11 @@ void prepareFields(Class *class) {
         spr_rfs_offsts_sze = CLASS_CB(super)->refs_offsets_size;
         spr_rfs_offsts_tbl = CLASS_CB(super)->refs_offsets_table;
     }
+
+    /* Initialise static fields to default value, and separate
+       instance fields into three linked lists, holding
+       int-sized fields, double-sized fields and reference
+       fields */
 
     for(i = 0; i < cb->fields_count; i++) {
         FieldBlock *fb = &cb->fields[i];
@@ -713,6 +734,10 @@ void prepareFields(Class *class) {
         fb->class = class;
     }
 
+    /* Layout the double-sized fields.  If padding is required,
+       use the first int-sized field (int_list head), or leave
+       a hole if no int-fields */
+
     if(dbl_head != NULL) {
         if(field_offset & 0x7) {
             if(int_head != NULL) {
@@ -730,6 +755,10 @@ void prepareFields(Class *class) {
             field_offset += 8;
         } while(dbl_head != NULL);
     }
+
+    /* Layout the reference fields.  If padding is required,
+       use an int-sized field (int_list head), or leave
+       a hole if no int-fields remaining */
 
     if(ref_head != NULL) {
         if(sizeof(Object*) == 8 && field_offset & 0x7) {
@@ -753,6 +782,8 @@ void prepareFields(Class *class) {
         refs_end_offset = field_offset;
     }
 
+    /* Layout the remaining int-sized fields */
+
     while(int_head != NULL) {
         FieldBlock *fb = int_head;
         int_head = int_head->u.static_value.p;
@@ -763,7 +794,8 @@ void prepareFields(Class *class) {
    cb->object_size = field_offset;
 
    /* Construct the reference offsets list.  This is used to speed up
-      scanning of an objects references during the mark phase of GC. */
+      scanning of an objects references during the mark phase of GC.
+      If possible, merge the entry with the previous entry */
 
    if(refs_start_offset) {
        if(spr_rfs_offsts_sze > 0 && spr_rfs_offsts_tbl[spr_rfs_offsts_sze-1].end
@@ -857,6 +889,7 @@ void linkClass(Class *class) {
    }
 
    /* Calculate object layout */
+
    prepareFields(class);
 
    /* prepare methods */
