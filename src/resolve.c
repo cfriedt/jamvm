@@ -117,10 +117,13 @@ retry:
             if(resolved_class == NULL)
                 return NULL;
 
-if(CLASS_CB(resolved_class)->state < CLASS_LINKED) {
-    printf("%s NOT LINKED!!!\n", CLASS_CB(resolved_class)->name);
-    linkClass(resolved_class);
-}
+            /* Ensure class is linked (a class is linked immediately
+               after it is recorded in the class table, but a race
+               condition exists where another thread may find it in
+               the table before the first thread has linked it) */
+
+            if(CLASS_CB(resolved_class)->state < CLASS_LINKED)
+                linkClass(resolved_class);
 
             if(!checkClassAccess(resolved_class, class)) {
                 signalException(java_lang_IllegalAccessError,
