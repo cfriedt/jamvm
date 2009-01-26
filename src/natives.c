@@ -712,6 +712,8 @@ uintptr_t *getBootClassPathResource(Class *class, MethodBlock *mb,
     return ostack;
 }
 
+/* Helper function for constructorConstruct and methodInvoke */
+
 int checkInvokeAccess(MethodBlock *mb) {
     Class *caller = getCallerCallerClass();
 
@@ -740,6 +742,11 @@ uintptr_t *constructorConstruct(Class *class, MethodBlock *mb2,
 
     ClassBlock *cb = CLASS_CB(mb->class); 
     Object *ob;
+
+    /* First check that the constructor can be accessed (this
+       error takes priority in the reference implementation,
+       and Mauve expects this to be thrown before instantiation
+       error) */
 
     if(!no_access_check && !checkInvokeAccess(mb))
         return ostack;
@@ -1068,11 +1075,15 @@ uintptr_t *methodInvoke(Class *class, MethodBlock *mb2, uintptr_t *ostack) {
     Object *ob = NULL;
     uintptr_t *ret;
 
+    /* First check that the method can be accessed (this
+       error takes priority in the reference implementation) */
+
     if(!no_access_check && !checkInvokeAccess(mb))
         return ostack;
 
     /* If it's a static method, class may not be initialised;
        interfaces are also not normally initialised. */
+
     if((mb->access_flags & ACC_STATIC) || IS_INTERFACE(CLASS_CB(mb->class)))
         if(initClass(mb->class) == NULL)
             return ostack;
