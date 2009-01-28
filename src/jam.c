@@ -58,9 +58,12 @@ void showNonStandardOptions() {
     printf("\t\t   <value> copy when usage reaches threshold value\n");
     printf("  -Xcodemem:[unlimited|<size>] (default maximum heapsize/4)\n");
 #endif
-    printf("  -Xms<size>\t   set the initial size of the heap (default = %dM)\n", DEFAULT_MIN_HEAP/MB);
-    printf("  -Xmx<size>\t   set the maximum size of the heap (default = %dM)\n", DEFAULT_MAX_HEAP/MB);
-    printf("  -Xss<size>\t   set the Java stack size for each thread (default = %dK)\n", DEFAULT_STACK/KB);
+    printf("  -Xms<size>\t   set the initial size of the heap "
+           "(default = %dM)\n", DEFAULT_MIN_HEAP/MB);
+    printf("  -Xmx<size>\t   set the maximum size of the heap "
+           "(default = %dM)\n", DEFAULT_MAX_HEAP/MB);
+    printf("  -Xss<size>\t   set the Java stack size for each thread "
+           "(default = %dK)\n", DEFAULT_STACK/KB);
     printf("\t\t   size may be followed by K,k or M,m (e.g. 2M)\n");
 }
 
@@ -70,17 +73,20 @@ void showUsage(char *name) {
     printf("   or  %s [-options] -jar jarfile [arg1 arg2 ...]\n", name);
     printf("                 (to run a standalone jar file)\n");
     printf("\nwhere options include:\n");
-    printf("  -help\t\t   print out this message\n");
-    printf("  -version\t   print out version number and copyright information\n");
-    printf("  -showversion     show version number and copyright and continue\n");
-    printf("  -fullversion     show jpackage-compatible version number and exit\n");
-    printf("  -cp -classpath   <jar/zip files and directories separated by :>\n");
+    printf("  -client\t   compatibility (ignored)\n");
+    printf("  -server\t   compatibility (ignored)\n\n");
+    printf("  -cp\t\t   <jar/zip files and directories separated by :>\n");
+    printf("  -classpath\t   <jar/zip files and directories separated by :>\n");
     printf("\t\t   locations where to find application classes\n");
+    printf("  -D<name>=<value> set a system property\n");
     printf("  -verbose[:class|gc|jni]\n");
     printf("\t\t   :class print out information about class loading, etc.\n");
     printf("\t\t   :gc print out results of garbage collection\n");
     printf("\t\t   :jni print out native method dynamic resolution\n");
-    printf("  -D<name>=<value> set a system property\n");
+    printf("  -version\t   print out version number and copyright information\n");
+    printf("  -showversion     show version number and copyright and continue\n");
+    printf("  -fullversion     show jpackage-compatible version number and exit\n");
+    printf("  -? -help\t   print out this message\n");
     printf("  -X\t\t   show help on non-standard options\n");
 }
 
@@ -145,8 +151,10 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
             }
 
             if((args->props_count = props_count)) {
-                args->commandline_props = (Property*)sysMalloc(props_count * sizeof(Property));
-                memcpy(args->commandline_props, &props[0], props_count * sizeof(Property));
+                args->commandline_props = sysMalloc(props_count *
+                                                    sizeof(Property));
+                memcpy(args->commandline_props, &props[0], props_count *
+                                                           sizeof(Property));
             }
 
             if(is_jar) {
@@ -157,7 +165,8 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
             return i;
         }
 
-        if(strcmp(argv[i], "-help") == 0) {
+        if(strcmp(argv[i], "-?") == 0 ||
+           strcmp(argv[i], "-help") == 0) {
             status = 0;
             break;
 
@@ -194,38 +203,56 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
         } else if(strcmp(argv[i], "-Xnoasyncgc") == 0)
             args->noasyncgc = TRUE;
 
-        else if(strncmp(argv[i], "-ms", 3) == 0 || strncmp(argv[i], "-Xms", 4) == 0) {
-            args->min_heap = parseMemValue(argv[i] + (argv[i][1] == 'm' ? 3 : 4));
+        else if(strncmp(argv[i], "-ms", 3) == 0 ||
+                strncmp(argv[i], "-Xms", 4) == 0) {
+
+            char *value = argv[i] + (argv[i][1] == 'm' ? 3 : 4);
+            args->min_heap = parseMemValue(value);
+
             if(args->min_heap < MIN_HEAP) {
-                printf("Invalid minimum heap size: %s (min %dK)\n", argv[i], MIN_HEAP/KB);
+                printf("Invalid minimum heap size: %s (min %dK)\n", argv[i],
+                       MIN_HEAP/KB);
                 goto exit;
             }
 
-        } else if(strncmp(argv[i], "-mx", 3) == 0 || strncmp(argv[i], "-Xmx", 4) == 0) {
-            args->max_heap = parseMemValue(argv[i] + (argv[i][1] == 'm' ? 3 : 4));
+        } else if(strncmp(argv[i], "-mx", 3) == 0 ||
+                  strncmp(argv[i], "-Xmx", 4) == 0) {
+
+            char *value = argv[i] + (argv[i][1] == 'm' ? 3 : 4);
+            args->max_heap = parseMemValue(value);
+
             if(args->max_heap < MIN_HEAP) {
-                printf("Invalid maximum heap size: %s (min is %dK)\n", argv[i], MIN_HEAP/KB);
+                printf("Invalid maximum heap size: %s (min is %dK)\n", argv[i],
+                       MIN_HEAP/KB);
                 goto exit;
             }
 
-        } else if(strncmp(argv[i], "-ss", 3) == 0 || strncmp(argv[i], "-Xss", 4) == 0) {
-            args->java_stack = parseMemValue(argv[i] + (argv[i][1] == 's' ? 3 : 4));
+        } else if(strncmp(argv[i], "-ss", 3) == 0 ||
+                  strncmp(argv[i], "-Xss", 4) == 0) {
+
+            char *value = argv[i] + (argv[i][1] == 'm' ? 3 : 4);
+            args->java_stack = parseMemValue(value);
+
             if(args->java_stack < MIN_STACK) {
-                printf("Invalid Java stack size: %s (min is %dK)\n", argv[i], MIN_STACK/KB);
+                printf("Invalid Java stack size: %s (min is %dK)\n", argv[i],
+                       MIN_STACK/KB);
                 goto exit;
             }
 
         } else if(strncmp(argv[i], "-D", 2) == 0) {
-            char *pntr, *key = strcpy(sysMalloc(strlen(argv[i]+2) + 1), argv[i]+2);
+            char *key = strcpy(sysMalloc(strlen(argv[i] + 2) + 1), argv[i] + 2);
+            char *pntr;
+
             for(pntr = key; *pntr && (*pntr != '='); pntr++);
             if(*pntr)
                 *pntr++ = '\0';
             props[props_count].key = key;
             props[props_count++].value = pntr;
 
-        } else if(strcmp(argv[i], "-classpath") == 0 || strcmp(argv[i], "-cp") == 0) {
+        } else if(strcmp(argv[i], "-classpath") == 0 ||
+                  strcmp(argv[i], "-cp") == 0) {
 
-            if(i == (argc-1)) {
+            if(i == argc - 1) {
                 printf("%s : missing path list\n", argv[i]);
                 goto exit;
             }
@@ -299,6 +326,12 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
             status = 0;
             goto exit;
 #endif
+        /* Compatibility options */
+        } else if(strcmp(argv[i], "-client") == 0 ||
+                  strcmp(argv[i], "-server") == 0 ||
+                  strncmp(argv[i], "-XX:PermSize=", 13) == 0 ||
+                  strncmp(argv[i], "-XX:MaxPermSize=", 16) == 0) {
+            /* Ignore */
         } else {
             printf("Unrecognised command line option: %s\n", argv[i]);
             break;
@@ -336,13 +369,16 @@ int main(int argc, char *argv[]) {
         if(*cpntr == '.')
             *cpntr = '/';
 
-    if((main_class = findClassFromClassLoader(argv[class_arg], system_loader)) != NULL)
+    main_class = findClassFromClassLoader(argv[class_arg], system_loader);
+    if(main_class != NULL)
         initClass(main_class);
 
     if(exceptionOccurred())
         goto error;
 
-    mb = lookupMethod(main_class, SYMBOL(main), SYMBOL(_array_java_lang_String__V));
+    mb = lookupMethod(main_class, SYMBOL(main),
+                                  SYMBOL(_array_java_lang_String__V));
+
     if(mb == NULL || !(mb->access_flags & ACC_STATIC)) {
         signalException(java_lang_NoSuchMethodError, "main");
         goto error;
