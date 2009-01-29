@@ -151,7 +151,7 @@ AC_ARG_ENABLE(runtime-reloc-checks,
 AC_ARG_ENABLE(int-inlining,
     [AS_HELP_STRING(--enable-int-inlining,enable inline threaded version of the interpreter
                    (by default enabled on x86_64, i386 and powerpc, disabled otherwise))],,
-    [if test "$host_cpu" = x86_64 -o "$host_cpu" = i386 -o "$host_cpu" = powerpc && \
+    [if test "$host_cpu" = x86_64 -o "$host_cpu" = i386 -o "$host_cpu" = "x86" -o "$host_cpu" = powerpc && \
         test "$cross_compiling" = no -o "$enable_runtime_reloc_checks" != no; then
          enable_int_inlining=yes
        else
