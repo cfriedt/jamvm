@@ -29,66 +29,20 @@
 #include "jam.h"
 #include "thread.h"
 #include "lock.h"
-#include "interp.h"
 #include "excep.h"
 #include "symbol.h"
 #include "frame.h"
 
-#ifdef DIRECT
-#ifdef INLINING
-#include "interp-inlining.h"
-#else
-#include "interp-direct.h"
-#endif /* INLINING */
-#else
-#include "interp-indirect.h"
-#endif /* DIRECT */
+#include "interp.h"
 
 uintptr_t *executeJava() {
-#ifdef THREADED
-    DEF_HANDLER_TABLES(0);
 
-#ifdef USE_CACHE
-    DEF_HANDLER_TABLES(1);
-    DEF_HANDLER_TABLES(2);
-#endif /* USE_CACHE */
+    /* Definitions specific to the particular
+       interpreter variant */
+    INTERPRETER_DEFINITIONS
 
-#ifdef INLINING
-    DEF_BRANCH_TABLE(0);
-
-#ifdef USE_CACHE
-    DEF_BRANCH_TABLE(1);
-    DEF_BRANCH_TABLE(2);
-#endif /* USE_CACHE */
-
-    DEF_DUMMY_TABLE;
-#endif /* INLINING */
-
-    static const void **handlers[] = {HNDLR_TBLS(ENTRY)
-#ifdef INLINING
-                                    , HNDLR_TBLS(START)
-                                    , HNDLR_TBLS(END)
-                                    , HNDLR_TBLS(BRANCH)
-                                    , HNDLR_TBLS(GUARD)
-                                    , dummy_table
-#endif /* INLINING */
-    };
-#endif /* THREADED */
-
-#ifdef INLINING
-    void *throwArithmeticExcepLabel = &&throwArithmeticExcep;
-    void *throwNullLabel = &&throwNull;
-    void *throwOOBLabel = &&throwOOB;
-    int oob_array_index = 0;
-
-    extern int inlining_inited;
-    if(!inlining_inited) return (uintptr_t*)handlers;
-#endif
-
-#ifdef PREFETCH
-    const void *next_handler;
-#endif
-
+   /* Caching is supported in all variants and
+      may be enabled or disabled */
 #ifdef USE_CACHE
     union {
         struct {
@@ -99,6 +53,11 @@ uintptr_t *executeJava() {
     } cache;
 #endif
 
+    /* The interpreter definitions common to all
+       variants */
+
+    uintptr_t *arg1;
+    MethodBlock *new_mb;
     register CodePntr pc;
     ExecEnv *ee = getExecEnv();
     Frame *frame = ee->last_frame;
@@ -108,38 +67,14 @@ uintptr_t *executeJava() {
     ConstantPool *cp = &(CLASS_CB(mb->class)->constant_pool);
 
     Object *this = (Object*)lvars[0];
-    MethodBlock *new_mb;
-    uintptr_t *arg1;
 
     PREPARE_MB(mb);
     pc = (CodePntr)mb->code;
 
-#ifdef THREADED
-    DISPATCH_FIRST
-#else
-    while(TRUE) {
-        switch(*pc) {
-            default:
-#endif
 
-#ifndef DIRECT
-unused:
-    jam_printf("Unrecognised opcode %d in: %s.%s\n",
-               *pc, CLASS_CB(mb->class)->name, mb->name);
-    exitVM(1);
-#endif
+    /* The */
+    INTERPRETER_PROLOGUE
 
-#ifdef DIRECT
-rewrite_lock:
-    DISPATCH_FIRST
-unused:
-#endif
-
-#ifdef INLINING
-    throwOOBLabel = NULL;
-    throwNullLabel = NULL;
-    throwArithmeticExcepLabel = NULL;
-#endif
 
 #define MULTI_LEVEL_OPCODES(level)                         \
     DEF_OPC(OPC_ICONST_M1, level,                          \

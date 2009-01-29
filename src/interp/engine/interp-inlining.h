@@ -25,6 +25,54 @@
 
 #include "interp-threading.h"
 
+#ifdef USE_CACHE
+#define INTERPRETER_TABLES \
+    DEF_HANDLER_TABLES(0); \
+    DEF_HANDLER_TABLES(1); \
+    DEF_HANDLER_TABLES(2); \
+    DEF_BRANCH_TABLE(0);   \
+    DEF_BRANCH_TABLE(1);   \
+    DEF_BRANCH_TABLE(2);   \
+    DEF_DUMMY_TABLE;
+#else
+#define INTERPRETER_TABLES \
+    DEF_HANDLER_TABLES(0); \
+    DEF_BRANCH_TABLE(0);   \
+    DEF_DUMMY_TABLE;
+#endif
+
+#define INTERPRETER_DEFINITIONS                                       \
+    INTERPRETER_TABLES                                                \
+                                                                      \
+    static const void **handlers[] = {HNDLR_TBLS(ENTRY)               \
+                                    , HNDLR_TBLS(START)               \
+                                    , HNDLR_TBLS(END)                 \
+                                    , HNDLR_TBLS(BRANCH)              \
+                                    , HNDLR_TBLS(GUARD)               \
+                                    , dummy_table                     \
+    };                                                                \
+                                                                      \
+    void *throwArithmeticExcepLabel = &&throwArithmeticExcep;         \
+    void *throwNullLabel = &&throwNull;                               \
+    void *throwOOBLabel = &&throwOOB;                                 \
+    int oob_array_index = 0;                                          \
+                                                                      \
+    extern int inlining_inited;                                       \
+    if(!inlining_inited) return (uintptr_t*)handlers;
+
+
+#define INTERPRETER_PROLOGUE                                          \
+    goto rewrite_lock;                                                \
+                                                                      \
+rewrite_lock:                                                         \
+    DISPATCH_FIRST                                                    \
+unused:                                                               \
+                                                                      \
+    throwOOBLabel = NULL;                                             \
+    throwNullLabel = NULL;                                            \
+    throwArithmeticExcepLabel = NULL;
+
+
 #define I(opcode, level, label) L(opcode, level, label)
 #define D(opcode, level, label) &&rewrite_lock
 #define X(opcode, level, label) &&rewrite_lock

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -52,3 +52,16 @@
 #define READ_S1_OP(p)    (signed char)READ_U1_OP(p)
 #define READ_S2_OP(p)    (signed short)READ_U2_OP(p)
 #define READ_S4_OP(p)    (signed int)READ_U4_OP(p)
+
+
+/* Include the interpreter variant header */
+
+#ifdef DIRECT
+#ifdef INLINING
+#include "interp-inlining.h"
+#else
+#include "interp-direct.h"
+#endif /* INLINING */
+#else
+#include "interp-indirect.h"
+#endif /* DIRECT */
