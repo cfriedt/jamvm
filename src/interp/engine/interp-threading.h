@@ -33,6 +33,16 @@
 #define HNDLR_TBLS(label) TBL_NAME(0,label)
 #endif
 
+#ifdef USE_CACHE
+#define DEFINE_HANDLER_TABLES \
+    DEF_HANDLER_TABLES(0);    \
+    DEF_HANDLER_TABLES(1);    \
+    DEF_HANDLER_TABLES(2);
+#else
+#define DEFINE_HANDLER_TABLES \
+    DEF_HANDLER_TABLES(0);
+#endif
+
 #define DEF_HANDLER_TABLE(level,label)               \
     HANDLER_TABLE_T *TBL_NAME(level,label)[] = {     \
         L(OPC_NOP,                    level, label), \

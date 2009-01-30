@@ -25,31 +25,17 @@
 
 #include "interp-threading.h"
 
-#ifdef USE_CACHE
-#define INTERPRETER_TABLES \
-    DEF_HANDLER_TABLES(0); \
-    DEF_HANDLER_TABLES(1); \
-    DEF_HANDLER_TABLES(2); \
-    DEF_BRANCH_TABLE(0);   \
-    DEF_BRANCH_TABLE(1);   \
-    DEF_BRANCH_TABLE(2);   \
-    DEF_DUMMY_TABLE;
-#else
-#define INTERPRETER_TABLES \
-    DEF_HANDLER_TABLES(0); \
-    DEF_BRANCH_TABLE(0);   \
-    DEF_DUMMY_TABLE;
-#endif
-
 #define INTERPRETER_DEFINITIONS                                       \
-    INTERPRETER_TABLES                                                \
+    DEFINE_HANDLER_TABLES                                             \
+    DEFINE_BRANCH_TABLES                                              \
+    DEF_DUMMY_TABLE                                                   \
                                                                       \
-    static const void **handlers[] = {HNDLR_TBLS(ENTRY)               \
-                                    , HNDLR_TBLS(START)               \
-                                    , HNDLR_TBLS(END)                 \
-                                    , HNDLR_TBLS(BRANCH)              \
-                                    , HNDLR_TBLS(GUARD)               \
-                                    , dummy_table                     \
+    static const void **handlers[] = {HNDLR_TBLS(ENTRY),              \
+                                      HNDLR_TBLS(START),              \
+                                      HNDLR_TBLS(END),                \
+                                      HNDLR_TBLS(BRANCH),             \
+                                      HNDLR_TBLS(GUARD),              \
+                                      dummy_table                     \
     };                                                                \
                                                                       \
     void *throwArithmeticExcepLabel = &&throwArithmeticExcep;         \
@@ -66,8 +52,8 @@
                                                                       \
 rewrite_lock:                                                         \
     DISPATCH_FIRST                                                    \
-unused:                                                               \
                                                                       \
+unused:                                                               \
     throwOOBLabel = NULL;                                             \
     throwNullLabel = NULL;                                            \
     throwArithmeticExcepLabel = NULL;
@@ -83,6 +69,16 @@ unused:                                                               \
     DEF_HANDLER_TABLE(level, END);   \
     DEF_HANDLER_TABLE(level, GUARD);
 
+
+#ifdef USE_CACHE
+#define DEFINE_BRANCH_TABLES        \
+    DEF_BRANCH_TABLE(0);            \
+    DEF_BRANCH_TABLE(1);            \
+    DEF_BRANCH_TABLE(2);
+#else
+#define DEFINE_BRANCH_TABLES        \
+    DEF_BRANCH_TABLE(0);
+#endif
 
 #define B(level, cond) &&branch_##level##_##cond
 
