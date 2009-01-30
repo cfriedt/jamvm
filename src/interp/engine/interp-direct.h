@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -25,11 +25,27 @@
 
 #include "interp-threading.h"
 
-#define I(opcode, level, label) &&rewrite_lock
-#define D(opcode, level, label) &&rewrite_lock
+#ifdef PREFETCH
+#define INTERPRETER_DEFINITIONS                            \
+    DEFINE_HANDLER_TABLES                                  \
+    const void *next_handler;                              \
+    static const void **handlers[] = {HNDLR_TBLS(ENTRY)};
+#else
+#define INTERPRETER_DEFINITIONS                            \
+    DEFINE_HANDLER_TABLES                                  \
+    static const void **handlers[] = {HNDLR_TBLS(ENTRY)};
+#endif
+
+#define INTERPRETER_PROLOGUE                               \
+unused:                                                    \
+rewrite_lock:                                              \
+    DISPATCH_FIRST
+
+#define I(opcode, level, label) &&unused
+#define D(opcode, level, label) &&unused
 #define X(opcode, level, label) L(opcode, level, label)
 
-#define DEF_HANDLER_TABLES(level)    \
+#define DEF_HANDLER_TABLES(level)                          \
     DEF_HANDLER_TABLE(level, ENTRY);
 
 /* Macros for handler/bytecode rewriting */
