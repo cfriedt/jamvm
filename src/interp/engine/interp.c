@@ -53,28 +53,33 @@ uintptr_t *executeJava() {
     } cache;
 #endif
 
-    /* The interpreter definitions common to all
+    /* Variable definitions holding the interpreter
+       state.  These are common to all interpreter
        variants */
 
-    uintptr_t *arg1;
-    MethodBlock *new_mb;
     register CodePntr pc;
     ExecEnv *ee = getExecEnv();
     Frame *frame = ee->last_frame;
-    MethodBlock *mb = frame->mb;
     register uintptr_t *lvars = frame->lvars;
     register uintptr_t *ostack = frame->ostack;
-    ConstantPool *cp = &(CLASS_CB(mb->class)->constant_pool);
+
+    uintptr_t *arg1;
+    MethodBlock *new_mb, *mb = frame->mb;
 
     Object *this = (Object*)lvars[0];
+    ConstantPool *cp = &(CLASS_CB(mb->class)->constant_pool);
 
+    /* Initialise pc to the start of the method.  If it
+       hasn't been executed before it may need preparing */
     PREPARE_MB(mb);
     pc = (CodePntr)mb->code;
 
-
-    /* The */
+    /* The initial dispatch code - this is specific to
+       the interpreter variant */
     INTERPRETER_PROLOGUE
 
+
+    /* Definitions of the opcode handlers */
 
 #define MULTI_LEVEL_OPCODES(level)                         \
     DEF_OPC(OPC_ICONST_M1, level,                          \
@@ -1667,7 +1672,7 @@ uintptr_t *executeJava() {
         if(exceptionOccurred0(ee))
             goto throwException;
 
-        if(fb->offset > 255)
+        if(fb->u.offset > 255)
             OPCODE_REWRITE(OPC_GETFIELD_QUICK_W);
         else {
             int opcode;
@@ -1680,7 +1685,7 @@ uintptr_t *executeJava() {
                 else
                     opcode = OPC_GETFIELD_QUICK;
 
-            OPCODE_REWRITE_OPERAND1(opcode, fb->offset);
+            OPCODE_REWRITE_OPERAND1(opcode, fb->u.offset);
         }
 
         DISPATCH(0, 0);
@@ -1698,7 +1703,7 @@ uintptr_t *executeJava() {
         if(exceptionOccurred0(ee))
             goto throwException;
 
-        if(fb->offset > 255)
+        if(fb->u.offset > 255)
             OPCODE_REWRITE(OPC_PUTFIELD_QUICK_W);
         else {
             int opcode;
@@ -1711,7 +1716,7 @@ uintptr_t *executeJava() {
                 else
                     opcode = OPC_PUTFIELD_QUICK;
 
-            OPCODE_REWRITE_OPERAND1(opcode, fb->offset);
+            OPCODE_REWRITE_OPERAND1(opcode, fb->u.offset);
         }
 
         DISPATCH(0, 0);
@@ -1724,12 +1729,12 @@ uintptr_t *executeJava() {
         NULL_POINTER_CHECK(obj);
 
         if((*fb->type == 'J') || (*fb->type == 'D')) {
-            PUSH_LONG(INST_DATA(obj, u8, fb->offset), 3);
+            PUSH_LONG(INST_DATA(obj, u8, fb->u.offset), 3);
         } else {
             if(*fb->type == 'L' || *fb->type == '[') {
-                PUSH_0(INST_DATA(obj, uintptr_t, fb->offset), 3);
+                PUSH_0(INST_DATA(obj, uintptr_t, fb->u.offset), 3);
             } else {
-                PUSH_0(INST_DATA(obj, u4, fb->offset), 3);
+                PUSH_0(INST_DATA(obj, u4, fb->u.offset), 3);
             }
         }
     })
@@ -1742,16 +1747,16 @@ uintptr_t *executeJava() {
             Object *obj = (Object *)*--ostack;
 
             NULL_POINTER_CHECK(obj);
-            INST_DATA(obj, u8, fb->offset) = cache.l;
+            INST_DATA(obj, u8, fb->u.offset) = cache.l;
         } else {
             Object *obj = (Object *)cache.i.v1;
 
             NULL_POINTER_CHECK(obj);
 
             if(*fb->type == 'L' || *fb->type == '[')
-                INST_DATA(obj, uintptr_t, fb->offset) = cache.i.v2;
+                INST_DATA(obj, uintptr_t, fb->u.offset) = cache.i.v2;
             else
-                INST_DATA(obj, u4, fb->offset) = cache.i.v2;
+                INST_DATA(obj, u4, fb->u.offset) = cache.i.v2;
         }
         DISPATCH(0, 3);
     })
@@ -1764,7 +1769,7 @@ uintptr_t *executeJava() {
 
             ostack -= 3;
             NULL_POINTER_CHECK(obj);
-            INST_DATA(obj, u8, fb->offset) = *(u8*)&ostack[1];
+            INST_DATA(obj, u8, fb->u.offset) = *(u8*)&ostack[1];
         } else {
             Object *obj = (Object *)ostack[-2];
 
@@ -1772,9 +1777,9 @@ uintptr_t *executeJava() {
             NULL_POINTER_CHECK(obj);
 
             if(*fb->type == 'L' || *fb->type == '[')
-                INST_DATA(obj, uintptr_t, fb->offset) = ostack[1];
+                INST_DATA(obj, uintptr_t, fb->u.offset) = ostack[1];
             else
-                INST_DATA(obj, u4, fb->offset) = ostack[1];
+                INST_DATA(obj, u4, fb->u.offset) = ostack[1];
         }
         DISPATCH(0, 3);
     })
