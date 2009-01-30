@@ -1323,9 +1323,11 @@ Class *loadSystemClass(char *classname) {
 
     for(i = 0; i < bcp_entries && data == NULL; i++)
         if(bootclasspath[i].zip)
-            data = findArchiveEntry(filename+1, bootclasspath[i].zip, &file_len);
+            data = findArchiveEntry(filename + 1, bootclasspath[i].zip,
+                                    &file_len);
         else
-            data = findFileEntry(strcat(strcpy(buff, bootclasspath[i].path), filename), &file_len);
+            data = findFileEntry(strcat(strcpy(buff, bootclasspath[i].path),
+                                 filename), &file_len);
 
     if(data == NULL) {
         signalException(java_lang_NoClassDefFoundError, classname);

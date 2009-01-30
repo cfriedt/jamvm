@@ -500,9 +500,10 @@ uintptr_t *forName0(uintptr_t *ostack, int resolve, Object *loader) {
 
 out:
     if(class == NULL) {
-        Object *e = exceptionOccurred();
+        Object *excep = exceptionOccurred();
+
         clearException();
-        signalChainedException(java_lang_ClassNotFoundException, cstr, e);
+        signalChainedException(java_lang_ClassNotFoundException, cstr, excep);
     } else
         if(resolve)
             initClass(class);
