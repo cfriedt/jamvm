@@ -71,6 +71,7 @@ extern char *symbol_values[];
     action(declaringClass, "declaringClass"), \
     action(parameterTypes, "parameterTypes"), \
     action(printStackTrace, "printStackTrace"), \
+    action(fillInStackTrace, "fillInStackTrace"), \
     action(exceptionHandler, "exceptionHandler"), \
     action(uncaughtException, "uncaughtException"), \
     action(newLibraryUnloader, "newLibraryUnloader"), \
