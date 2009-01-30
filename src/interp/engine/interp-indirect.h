@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -22,13 +22,37 @@
 #ifdef THREADED
 #include "interp-threading.h"
 
+#define INTERPRETER_DEFINITIONS                            \
+    DEFINE_HANDLER_TABLES
+
+#define DISPATCH_PROLOGUE                                  \
+    DISPATCH_FIRST                                         \
+unused:
+
 #define I(opcode, level, label) &&unused
 #define D(opcode, level, label) L(opcode, level, label)
 #define X(opcode, level, label) L(opcode, level, label)
 
-#define DEF_HANDLER_TABLES(level)    \
+#define DEF_HANDLER_TABLES(level)                          \
     DEF_HANDLER_TABLE(level, ENTRY);
-#endif
+
+#else /* THREADED */
+
+#define INTERPRETER_DEFINITIONS                            \
+    /* none */
+
+#define DISPATCH_PROLOGUE                                  \
+    while(TRUE) {                                          \
+        switch(*pc) {                                      \
+            default:
+
+#endif /* THREADED */
+
+#define INTERPRETER_PROLOGUE                               \
+    DISPATCH_PROLOGUE                                      \
+    jam_printf("Unrecognised opcode %d in: %s.%s\n",       \
+               *pc, CLASS_CB(mb->class)->name, mb->name);  \
+    exitVM(1);
 
 /* Macros for handler/bytecode rewriting */
 
