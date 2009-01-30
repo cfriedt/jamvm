@@ -151,7 +151,7 @@ AC_ARG_ENABLE(runtime-reloc-checks,
 AC_ARG_ENABLE(int-inlining,
     [AS_HELP_STRING(--enable-int-inlining,enable inline threaded version of the interpreter
                    (by default enabled on x86_64, i386 and powerpc, disabled otherwise))],,
-    [if test "$host_cpu" = x86_64 -o "$host_cpu" = i386 -o "$host_cpu" = "x86" -o "$host_cpu" = powerpc && \
+    [if test "$host_cpu" = x86_64 -o "$host_cpu" = i386 -o "$host_cpu" = x86 -o "$host_cpu" = powerpc && \
         test "$cross_compiling" = no -o "$enable_runtime_reloc_checks" != no; then
          enable_int_inlining=yes
        else
@@ -279,11 +279,16 @@ AC_FUNC_MMAP
 AC_CHECK_FUNCS(gettimeofday strtol setlocale)
 AM_LC_MESSAGES
 
-AC_MSG_CHECKING([for __thread])
-AC_LINK_IFELSE([AC_LANG_PROGRAM(,[static __thread int foo = 0])],
-    [AC_DEFINE([HAVE_TLS],1,[__thread supported by compiler])
-     AC_MSG_RESULT([yes])],
-    [AC_MSG_RESULT([no])])
+dnl TLS is currently disabled on Solaris.  The test program links, but
+dnl JamVM doesn't run correctly (tested on OpenSolaris 2008.11).
+
+if test "$host_os" != solaris; then
+    AC_MSG_CHECKING([for __thread])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM(,[static __thread int foo = 0])],
+        [AC_DEFINE([HAVE_TLS],1,[__thread supported by compiler])
+         AC_MSG_RESULT([yes])],
+        [AC_MSG_RESULT([no])])
+fi
 
 AM_MAINTAINER_MODE
 
