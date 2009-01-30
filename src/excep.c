@@ -27,7 +27,7 @@
 #include "excep.h"
 
 static Class *ste_class, *ste_array_class, *throw_class, *vmthrow_class;
-static MethodBlock *vmthrow_init_mb;
+static MethodBlock *ste_init_mb;
 static int backtrace_offset;
 static int inited = FALSE;
 
@@ -38,24 +38,25 @@ static int exception_symbols[] = {
 };
 
 void initialiseException() {
-    FieldBlock *bcktrce;
+    FieldBlock *backtrace;
     int i;
 
     ste_class = findSystemClass0(SYMBOL(java_lang_StackTraceElement));
     ste_array_class = findArrayClass(SYMBOL(array_java_lang_StackTraceElement));
     vmthrow_class = findSystemClass0(SYMBOL(java_lang_VMThrowable));
     throw_class = findSystemClass0(SYMBOL(java_lang_Throwable));
-    bcktrce = findField(vmthrow_class, SYMBOL(backtrace), SYMBOL(sig_java_lang_Object));
-    vmthrow_init_mb = findMethod(ste_class, SYMBOL(object_init),
-                         SYMBOL(_java_lang_String_I_java_lang_String_java_lang_String_Z__V));
+    backtrace = findField(vmthrow_class, SYMBOL(backtrace),
+                                         SYMBOL(sig_java_lang_Object));
+    ste_init_mb = findMethod(ste_class, SYMBOL(object_init),
+           SYMBOL(_java_lang_String_I_java_lang_String_java_lang_String_Z__V));
 
-    if((bcktrce == NULL) || (vmthrow_init_mb == NULL)) {
+    if(backtrace == NULL || ste_init_mb == NULL) {
         jam_fprintf(stderr, "Error initialising VM (initialiseException)\n");
         exitVM(1);
     }
 
     CLASS_CB(vmthrow_class)->flags |= VMTHROWABLE;
-    backtrace_offset = bcktrce->u.offset;
+    backtrace_offset = backtrace->u.offset;
 
     registerStaticClassRef(&ste_class);
     registerStaticClassRef(&ste_array_class);
@@ -92,7 +93,9 @@ void clearException() {
     ee->exception = NULL;
 }
 
-void signalChainedExceptionClass(Class *exception, char *message, Object *cause) {
+void signalChainedExceptionClass(Class *exception, char *message,
+                                 Object *cause) {
+
     Object *exp = allocObject(exception);
     Object *str = message == NULL ? NULL : Cstr2String(message);
     MethodBlock *init = lookupMethod(exception, SYMBOL(object_init),
@@ -102,7 +105,7 @@ void signalChainedExceptionClass(Class *exception, char *message, Object *cause)
 
         if(cause && !exceptionOccurred()) {
             MethodBlock *mb = lookupMethod(exception, SYMBOL(initCause),
-                                           SYMBOL(_java_lang_Throwable__java_lang_Throwable));
+                             SYMBOL(_java_lang_Throwable__java_lang_Throwable));
             if(mb)
                 executeMethod(exp, mb, cause);
         }
@@ -143,26 +146,29 @@ void signalChainedExceptionEnum(int excep_enum, char *message, Object *cause) {
 
 void printException() {
     ExecEnv *ee = getExecEnv();
-    Object *exception = ee->exception;
+    Object *excep = ee->exception;
 
-    if(exception != NULL) {
-        MethodBlock *mb = lookupMethod(exception->class, SYMBOL(printStackTrace),
-                                                         SYMBOL(___V));
+    if(excep != NULL) {
+        MethodBlock *mb = lookupMethod(excep->class, SYMBOL(printStackTrace),
+                                                     SYMBOL(___V));
         clearException();
-        executeMethod(exception, mb);
+        executeMethod(excep, mb);
 
         /* If we're really low on memory we might have been able to throw
          * OutOfMemory, but then been unable to print any part of it!  In
          * this case the VM just seems to stop... */
         if(ee->exception) {
-            jam_fprintf(stderr, "Exception occurred while printing exception (%s)...\n",
-                            CLASS_CB(ee->exception->class)->name);
-            jam_fprintf(stderr, "Original exception was %s\n", CLASS_CB(exception->class)->name);
+            jam_fprintf(stderr, "Exception occurred while printing exception"
+                        " (%s)...\n", CLASS_CB(ee->exception->class)->name);
+            jam_fprintf(stderr, "Original exception was %s\n",
+                        CLASS_CB(excep->class)->name);
         }
     }
 }
 
-CodePntr findCatchBlockInMethod(MethodBlock *mb, Class *exception, CodePntr pc_pntr) {
+CodePntr findCatchBlockInMethod(MethodBlock *mb, Class *exception,
+                                CodePntr pc_pntr) {
+
     ExceptionTableEntry *table = mb->exception_table;
     int size = mb->exception_table_size;
     int pc = pc_pntr - ((CodePntr)mb->code);
@@ -176,7 +182,8 @@ CodePntr findCatchBlockInMethod(MethodBlock *mb, Class *exception, CodePntr pc_p
                be an instance of the caught exception class to catch it */
 
             if(table[i].catch_type != 0) {
-                Class *caught_class = resolveClass(mb->class, table[i].catch_type, FALSE);
+                Class *caught_class = resolveClass(mb->class,
+                                                   table[i].catch_type, FALSE);
                 if(caught_class == NULL) {
                     clearException();
                     continue;
@@ -215,7 +222,9 @@ int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr) {
     int i;
 
     if(mb->line_no_table_size > 0) {
-        for(i = mb->line_no_table_size-1; i && pc < mb->line_no_table[i].start_pc; i--);
+        for(i = mb->line_no_table_size-1; i &&
+                    pc < mb->line_no_table[i].start_pc; i--);
+
         return mb->line_no_table[i].line_no;
     }
 
@@ -229,15 +238,17 @@ Object *setStackTrace0(ExecEnv *ee, int max_depth) {
     int depth = 0;
 
     if(last->prev == NULL) {
-        if((array = allocTypeArray(sizeof(uintptr_t) == 4 ? T_INT : T_LONG, 0)) == NULL)
+        array = allocTypeArray(sizeof(uintptr_t) == 4 ? T_INT : T_LONG, 0);
+        if(array == NULL)
             return NULL;
         goto out2;
     }
 
-    for(; last->mb != NULL && isInstanceOf(vmthrow_class, last->mb->class);
+    for(; last->mb != NULL && last->mb->name == SYMBOL(fillInStackTrace);
           last = last->prev);
 
-    for(; last->mb != NULL && isInstanceOf(throw_class, last->mb->class);
+    for(; last->mb != NULL && last->mb->name == SYMBOL(object_init)
+                           && isInstanceOf(throw_class, last->mb->class);
           last = last->prev);
 
     bottom = last;
@@ -248,7 +259,8 @@ Object *setStackTrace0(ExecEnv *ee, int max_depth) {
     } while((last = last->prev)->prev != NULL);
     
 out:
-    if((array = allocTypeArray(sizeof(uintptr_t) == 4 ? T_INT : T_LONG, depth*2)) == NULL)
+    array = allocTypeArray(sizeof(uintptr_t) == 4 ? T_INT : T_LONG, depth*2);
+    if(array == NULL)
         return NULL;
 
     data = ARRAY_DATA(array, uintptr_t);
@@ -282,7 +294,8 @@ Object *convertStackTrace(Object *vmthrwble) {
     src = ARRAY_DATA(array, uintptr_t);
     depth = ARRAY_LEN(array);
 
-    if((ste_array = allocArray(ste_array_class, depth/2, sizeof(Object*))) == NULL)
+    ste_array = allocArray(ste_array_class, depth/2, sizeof(Object*));
+    if(ste_array == NULL)
         return NULL;
 
     dest = ARRAY_DATA(ste_array, Object*);
@@ -294,18 +307,19 @@ Object *convertStackTrace(Object *vmthrwble) {
         char *dot_name = slash2dots(cb->name);
 
         int isNative = mb->access_flags & ACC_NATIVE ? TRUE : FALSE;
-        Object *filename = isNative ? NULL : (cb->source_file_name ?
-                                             createString(cb->source_file_name) : NULL);
-        Object *classname = createString(dot_name);
+        Object *filename = isNative ? NULL : (cb->source_file_name == NULL ?
+                       NULL : createString(cb->source_file_name));
         Object *methodname = createString(mb->name);
+        Object *classname = createString(dot_name);
         Object *ste = allocObject(ste_class);
         sysFree(dot_name);
 
         if(exceptionOccurred())
             return NULL;
 
-        executeMethod(ste, vmthrow_init_mb, filename, isNative ? -1 : mapPC2LineNo(mb, pc),
-                        classname, methodname, isNative);
+        executeMethod(ste, ste_init_mb, filename,
+                      isNative ? -1 : mapPC2LineNo(mb, pc),
+                      classname, methodname, isNative);
 
         if(exceptionOccurred())
             return NULL;
