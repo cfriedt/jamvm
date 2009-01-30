@@ -201,7 +201,8 @@ CodePntr findCatchBlock(Class *exception) {
     Frame *frame = getExecEnv()->last_frame;
     CodePntr handler_pc = NULL;
 
-    while(((handler_pc = findCatchBlockInMethod(frame->mb, exception, frame->last_pc)) == NULL)
+    while(((handler_pc = findCatchBlockInMethod(frame->mb, exception,
+                                                frame->last_pc)) == NULL)
                     && (frame->prev->mb != NULL)) {
 
         if(frame->mb->access_flags & ACC_SYNCHRONIZED) {
