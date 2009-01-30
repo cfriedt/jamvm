@@ -583,12 +583,18 @@ jmethodID getMethodID(JNIEnv *env, jclass clazz, const char *name,
     return mb;
 }
 
-jmethodID Jam_GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
+jmethodID Jam_GetMethodID(JNIEnv *env, jclass clazz, const char *name,
+                          const char *sig) {
+
     return getMethodID(env, clazz, name, sig, FALSE);
 }
 
-jfieldID Jam_GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-    char *field_name = findUtf8((char*)name), *field_sig = findUtf8((char*)sig);
+jfieldID Jam_GetFieldID(JNIEnv *env, jclass clazz, const char *name,
+                        const char *sig) {
+
+    char *field_name = findUtf8((char*)name);
+    char *field_sig = findUtf8((char*)sig);
+
     Class *class = initClass(clazz);
     FieldBlock *fb = NULL;
 
@@ -612,7 +618,9 @@ jmethodID Jam_GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name,
 jfieldID Jam_GetStaticFieldID(JNIEnv *env, jclass clazz, const char *name,
                               const char *sig) {
 
-    char *field_name = findUtf8((char*)name), *field_sig = findUtf8((char*)sig);
+    char *field_name = findUtf8((char*)name);
+    char *field_sig = findUtf8((char*)sig);
+
     Class *class = initClass(clazz);
     FieldBlock *fb = NULL;
 
@@ -628,7 +636,8 @@ jfieldID Jam_GetStaticFieldID(JNIEnv *env, jclass clazz, const char *name,
 }
 
 jstring Jam_NewString(JNIEnv *env, const jchar *unicodeChars, jsize len) {
-    return addJNILref(createStringFromUnicode((unsigned short*)unicodeChars, len));
+    Object *str = createStringFromUnicode((unsigned short*)unicodeChars, len);
+    return addJNILref(str);
 }
 
 jsize Jam_GetStringLength(JNIEnv *env, jstring string) {
@@ -660,7 +669,8 @@ jsize Jam_GetStringUTFLength(JNIEnv *env, jstring string) {
     return getStringUtf8Len(string);
 }
 
-const char *Jam_GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy) {
+const char *Jam_GetStringUTFChars(JNIEnv *env, jstring string,
+                                  jboolean *isCopy) {
     if(isCopy != NULL)
         *isCopy = JNI_TRUE;
 
@@ -749,11 +759,14 @@ jarray Jam_GetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index) {
     return addJNILref(ARRAY_DATA((Object*)array, Object*)[index]);
 }
 
-void Jam_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index, jobject value) {
+void Jam_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index,
+                               jobject value) {
+
     ARRAY_DATA((Object*)array, Object*)[index] = value;
 }
 
-jint Jam_RegisterNatives(JNIEnv *env, jclass clazz, const JNINativeMethod *methods, jint nMethods) {
+jint Jam_RegisterNatives(JNIEnv *env, jclass clazz,
+                         const JNINativeMethod *methods, jint nMethods) {
     return JNI_OK;
 }
 
