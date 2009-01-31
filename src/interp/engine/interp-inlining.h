@@ -35,7 +35,7 @@
                                       HNDLR_TBLS(END),                \
                                       HNDLR_TBLS(BRANCH),             \
                                       HNDLR_TBLS(GUARD),              \
-                                      dummy_table                     \
+                                      DUMMY_TABLE                     \
     };                                                                \
                                                                       \
     void *throwArithmeticExcepLabel = &&throwArithmeticExcep;         \
@@ -47,8 +47,28 @@
     if(!inlining_inited) return (uintptr_t*)handlers;
 
 
+/* First of two massive gcc hacks.  For inlining to work, the
+   dispatch sequence contained between the labels "rewrite_lock"
+   and "unused" must be relocatable (if it isn't, inlining is
+   disabled).  On previous versions of gcc, even using
+   no-reorder-blocks, gcc will replace it with a jump.  To
+   prevent this, we ensure that the dispatch sequence is the
+   first indirect jump (the initial dispatch falls through).
+   However, on later versions of gcc, it moves part of the
+   interpreter setup to _after_ the "rewrite_lock" label,
+   leading to slower dispatch.  To prevent this, we use a
+   seperate initial dispatch, but this doesn't work on earlier
+   versions of gcc, hence the hack.
+*/
+
+#if (__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ == 0))
+#define GCC_HACK
+#else
+#define GCC_HACK DISPATCH_FIRST
+#endif
+
 #define INTERPRETER_PROLOGUE                                          \
-    goto rewrite_lock;                                                \
+    GCC_HACK;                                                         \
                                                                       \
 rewrite_lock:                                                         \
     DISPATCH_FIRST                                                    \
@@ -89,6 +109,14 @@ unused:                                                               \
         B(level,CMPLT), B(level,CMPGE), B(level,CMPGT), B(level,CMPLE), \
         B(level,CMPEQ), B(level,CMPNE), B(level,GOTO),  B(level,JSR)}
 
+
+/* Second gcc hack.  On x86_64, higher performance is achieved when "lvars"
+   is placed in a register.  However, gcc does not do this, putting it on the
+   stack (it also ignores the register modifier).  The dummy handlers are
+   used to force gcc to promote lvars, by increasing its apparent importance.
+*/
+
+#ifdef __x86_64__
 #define DEF_DUMMY_TABLE                                                    \
     HANDLER_TABLE_T *dummy_table[] = {                                     \
         &&d1, &&d2, &&d3, &&d4, &&d5, &&d6, &&d7, &&d8, &&d9, &&d10,&&d11, \
@@ -100,6 +128,11 @@ unused:                                                               \
         &&d67,&&d68,&&d69,&&d70,&&d71,&&d72,&&d73,&&d74,&&d75,&&d76,&&d77, \
         &&d78,&&d79,&&d80,&&d81,&&d82,&&d83,&&d84,&&d85,&&d86,&&d87,&&d88, \
         &&d89,&&d90,&&d91,&&d92,&&d93,&&d94,&&d95,&&d96,&&d97,&&d98,&&d99};
+#define DUMMY_TABLE dummy_table
+#else
+#define DEF_DUMMY_TABLE
+#define DUMMY_TABLE
+#endif
 
 #define H(X)           \
 d##X: {                \
