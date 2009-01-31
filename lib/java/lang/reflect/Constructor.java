@@ -35,10 +35,6 @@ this exception to your version of the library, but you are not
 obligated to do so.  If you do not wish to do so, delete this
 exception statement from your version. */
 
-/*
-Robert Lougher 17/11/2003.
-This Classpath reference implementation has been modified to work with JamVM.
-*/
 
 package java.lang.reflect;
 
@@ -46,7 +42,7 @@ import gnu.java.lang.ClassHelper;
 import gnu.java.lang.CPStringBuilder;
 
 import gnu.java.lang.reflect.MethodSignatureParser;
-import java.util.Arrays;
+
 import java.lang.annotation.Annotation;
 
 /**
@@ -73,7 +69,6 @@ import java.lang.annotation.Annotation;
  *
  * @author John Keiser
  * @author Eric Blake <ebb9@email.byu.edu>
- * @author Robert Lougher
  * @see Member
  * @see Class
  * @see java.lang.Class#getConstructor(Class[])
@@ -83,24 +78,24 @@ import java.lang.annotation.Annotation;
  * @since 1.1
  * @status updated to 1.4
  */
-public final class Constructor
+public final class Constructor<T>
   extends AccessibleObject
   implements GenericDeclaration, Member
-{
-  private Class declaringClass;
-  private int slot;
-  private Class[] parameterTypes;
-  private Class[] exceptionTypes;
-  
+{  
+  private static final int CONSTRUCTOR_MODIFIERS
+    = Modifier.PRIVATE | Modifier.PROTECTED | Modifier.PUBLIC;
+
+  private MethodSignatureParser p;
+
+  VMConstructor cons;
+
   /**
-   * This class is uninstantiable except from native code.
+   * This class is uninstantiable outside this package.
    */
-  private Constructor(Class declaringClass, Class[] parameterTypes, Class[] exceptionTypes, int slot)
+  Constructor(VMConstructor cons)
   {
-    this.declaringClass = declaringClass;
-    this.parameterTypes = parameterTypes;
-    this.exceptionTypes = exceptionTypes;
-    this.slot = slot;
+    this.cons = cons;
+    cons.cons = this;
   }
 
   private Constructor()
@@ -111,9 +106,12 @@ public final class Constructor
    * Gets the class that declared this constructor.
    * @return the class that declared this member
    */
-  public Class getDeclaringClass()
+  public Class<T> getDeclaringClass()
   {
-    return declaringClass;
+    // Inescapable as the VM layer is 1.4 based. 
+    @SuppressWarnings("unchecked")
+      Class<T> declClass = (Class<T>) cons.getDeclaringClass();
+    return declClass;
   }
 
   /**
@@ -123,7 +121,7 @@ public final class Constructor
    */
   public String getName()
   {
-    return getDeclaringClass().getName();
+    return cons.getDeclaringClass().getName();
   }
 
   /**
@@ -136,7 +134,7 @@ public final class Constructor
    */
   public int getModifiers()
   {
-      return getConstructorModifiers(declaringClass, slot);
+    return cons.getModifiersInternal() & CONSTRUCTOR_MODIFIERS;
   }
 
   /**
@@ -147,7 +145,7 @@ public final class Constructor
    */
   public boolean isSynthetic()
   {
-    return (getConstructorModifiers(declaringClass, slot) & Modifier.SYNTHETIC) != 0;
+    return (cons.getModifiersInternal() & Modifier.SYNTHETIC) != 0;
   }
 
   /**
@@ -157,7 +155,7 @@ public final class Constructor
    */
   public boolean isVarArgs()
   {
-    return (getConstructorModifiers(declaringClass, slot) & Modifier.VARARGS) != 0;
+    return (cons.getModifiersInternal() & Modifier.VARARGS) != 0;
   }
 
   /**
@@ -166,11 +164,9 @@ public final class Constructor
    *
    * @return a list of the types of the constructor's parameters
    */
-  public Class[] getParameterTypes()
+  public Class<?>[] getParameterTypes()
   {
-    if (parameterTypes == null)
-      return new Class[0];
-    return parameterTypes;
+    return (Class<?>[]) cons.getParameterTypes();
   }
 
   /**
@@ -180,11 +176,9 @@ public final class Constructor
    *
    * @return a list of the types in the constructor's throws clause
    */
-  public Class[] getExceptionTypes()
+  public Class<?>[] getExceptionTypes()
   {
-    if (exceptionTypes == null)
-      return new Class[0];
-    return exceptionTypes;
+    return (Class<?>[]) cons.getExceptionTypes();
   }
 
   /**
@@ -199,14 +193,7 @@ public final class Constructor
    */
   public boolean equals(Object o)
   {
-    if (!(o instanceof Constructor))
-      return false;
-    Constructor that = (Constructor)o; 
-    if (this.getDeclaringClass() != that.getDeclaringClass())
-      return false;
-    if (!Arrays.equals(this.getParameterTypes(), that.getParameterTypes()))
-      return false;
-    return true;
+    return cons.equals(o);
   }
 
   /**
@@ -217,7 +204,7 @@ public final class Constructor
    */
   public int hashCode()
   {
-    return getDeclaringClass().getName().hashCode();
+    return getName().hashCode();
   }
 
   /**
@@ -254,8 +241,8 @@ public final class Constructor
     return sb.toString();
   }
 
-  /* FIXME[GENERICS]: Add X extends GenericDeclaration and TypeVariable<X> */
-  static void addTypeParameters(CPStringBuilder sb, TypeVariable[] typeArgs)
+  static <X extends GenericDeclaration>
+  void addTypeParameters(CPStringBuilder sb, TypeVariable<X>[] typeArgs)
   {
     if (typeArgs.length == 0)
       return;
@@ -323,11 +310,14 @@ public final class Constructor
    * @throws ExceptionInInitializerError if construction triggered class
    *         initialization, which then failed
    */
-  public Object newInstance(Object args[])
+  public T newInstance(Object... args)
     throws InstantiationException, IllegalAccessException,
            InvocationTargetException
   {
-    return constructNative(args, declaringClass, parameterTypes, slot, flag);
+    // Inescapable as the VM layer is 1.4 based. 
+    @SuppressWarnings("unchecked")
+      T ins = (T) cons.construct(args);
+    return ins;
   }
 
   /**
@@ -342,13 +332,15 @@ public final class Constructor
    *         specification, version 3.
    * @since 1.5
    */
-  /* FIXME[GENERICS]: Add <Constructor<T>> */
-  public TypeVariable[] getTypeParameters()
+  public TypeVariable<Constructor<T>>[] getTypeParameters()
   {
-    String sig = getSignature(declaringClass, slot);
-    if (sig == null)
-      return new TypeVariable[0];
-    MethodSignatureParser p = new MethodSignatureParser(this, sig);
+    if (p == null)
+      {
+	String sig = cons.getSignature();
+	if (sig == null)
+	  return new TypeVariable[0];
+	p = new MethodSignatureParser(this, sig);
+      }
     return p.getTypeParameters();
   }
 
@@ -366,10 +358,13 @@ public final class Constructor
    */
   public Type[] getGenericExceptionTypes()
   {
-    String sig = getSignature(declaringClass, slot);
-    if (sig == null)
-      return getExceptionTypes();
-    MethodSignatureParser p = new MethodSignatureParser(this, sig);
+    if (p == null)
+      {
+	String sig = cons.getSignature();
+	if (sig == null)
+	  return getExceptionTypes();
+	p = new MethodSignatureParser(this, sig);
+      }
     return p.getGenericExceptionTypes();
   }
 
@@ -387,55 +382,72 @@ public final class Constructor
    */
   public Type[] getGenericParameterTypes()
   {
-    String sig = getSignature(declaringClass, slot);
-    if (sig == null)
-      return getParameterTypes();
-    MethodSignatureParser p = new MethodSignatureParser(this, sig);
+    if (p == null)
+      {
+	String sig = cons.getSignature();
+	if (sig == null)
+	  return getParameterTypes();
+	p = new MethodSignatureParser(this, sig);
+      }
     return p.getGenericParameterTypes();
   }
 
-  public Annotation getAnnotation(Class annoClass)
-  {
-    Annotation[] annos = getDeclaredAnnotations();
-    for (int i = 0; i < annos.length; i++)
-      if (annos[i].annotationType() == annoClass)
-	return annos[i];
-    return null;
-  }
-
-  public Annotation[] getDeclaredAnnotations()
-  {
-    return getDeclaredAnnotationsNative(declaringClass, slot);
-  }
-
+  /**
+   * <p>
+   * Return an array of arrays representing the annotations on each
+   * of the constructor's parameters.  The outer array is aligned against
+   * the parameters of the constructors and is thus equal in length to
+   * the number of parameters (thus having a length zero if there are none).
+   * Each array element in the outer array contains an inner array which
+   * holds the annotations.  This array has a length of zero if the parameter
+   * has no annotations.
+   * </p>
+   * <p>
+   * The returned annotations are serialized.  Changing the annotations has
+   * no affect on the return value of future calls to this method.
+   * </p>
+   * 
+   * @return an array of arrays which represents the annotations used on the
+   *         parameters of this constructor.  The order of the array elements
+   *         matches the declaration order of the parameters.
+   * @since 1.5
+   */
   public Annotation[][] getParameterAnnotations()
   {
-    return getParameterAnnotationsNative(declaringClass, slot);
+    return cons.getParameterAnnotations();
   }
 
-  /*
-   * NATIVE HELPERS
+  /**
+   * Returns the element's annotation for the specified annotation type,
+   * or <code>null</code> if no such annotation exists.
+   *
+   * @param annotationClass the type of annotation to look for.
+   * @return this element's annotation for the specified type, or
+   *         <code>null</code> if no such annotation exists.
+   * @throws NullPointerException if the annotation class is <code>null</code>.
    */
+  public <T extends Annotation> T getAnnotation(Class<T> annotationClass)
+  {
+    // Inescapable as the VM layer is 1.4 based. 
+    @SuppressWarnings("unchecked")
+      T ann = (T) cons.getAnnotation(annotationClass);
+    return ann;
+  }
 
   /**
-   * Return the String in the Signature attribute for this constructor. If there
-   * is no Signature attribute, return null.
+   * Returns all annotations directly defined by the element.  If there are
+   * no annotations directly associated with the element, then a zero-length
+   * array will be returned.  The returned array may be modified by the client
+   * code, but this will have no effect on the annotation content of this
+   * class, and hence no effect on the return value of this method for
+   * future callers.
+   *
+   * @return the annotations directly defined by the element.
+   * @since 1.5
    */
-  private native String getSignature(Class declaringClass, int slot);
+  public Annotation[] getDeclaredAnnotations()
+  {
+    return cons.getDeclaredAnnotations();
+  }
 
-  /**
-   * Return the raw modifiers for this constructor.  In particular
-   * this will include the synthetic and varargs bits.
-   * @return the constructor's modifiers
-   */
-  private native int getConstructorModifiers(Class declaringClass, int slot);
-
-  private native Object constructNative(Object[] args, Class declaringClass,
-					Class[] parameterTypes, int slot,
-					boolean noAccessCheck)
-    throws InstantiationException, IllegalAccessException,
-           InvocationTargetException;
-
-  private native Annotation[] getDeclaredAnnotationsNative(Class declaringClass, int slot);
-  private native Annotation[][] getParameterAnnotationsNative(Class declaringClass, int slot);
 }

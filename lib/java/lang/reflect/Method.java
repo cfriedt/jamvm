@@ -1,5 +1,5 @@
 /* java.lang.reflect.Method - reflection of Java methods
-   Copyright (C) 1998, 2001, 2002, 2005 Free Software Foundation, Inc.
+   Copyright (C) 1998, 2001, 2002, 2005, 2007, 2008 Free Software Foundation, Inc.
 
 This file is part of GNU Classpath.
 
@@ -35,10 +35,6 @@ this exception to your version of the library, but you are not
 obligated to do so.  If you do not wish to do so, delete this
 exception statement from your version. */
 
-/*
-Robert Lougher 17/11/2003.
-This Classpath reference implementation has been modified to work with JamVM.
-*/
 
 package java.lang.reflect;
 
@@ -46,8 +42,8 @@ import gnu.java.lang.ClassHelper;
 import gnu.java.lang.CPStringBuilder;
 
 import gnu.java.lang.reflect.MethodSignatureParser;
+
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
 
 /**
  * The Method class represents a member method of a class. It also allows
@@ -83,27 +79,24 @@ import java.util.Arrays;
  * @status updated to 1.4
  */
 public final class Method
-  extends AccessibleObject
-  implements Member, GenericDeclaration
+extends AccessibleObject implements Member, GenericDeclaration
 {
-  Class declaringClass;
-  private Class[] parameterTypes;
-  private Class[] exceptionTypes;
-  private Class returnType;
-  String name;
-  int slot;
+  private static final int METHOD_MODIFIERS
+    = Modifier.ABSTRACT | Modifier.FINAL | Modifier.NATIVE
+      | Modifier.PRIVATE | Modifier.PROTECTED | Modifier.PUBLIC
+      | Modifier.STATIC | Modifier.STRICT | Modifier.SYNCHRONIZED;
+
+  private MethodSignatureParser p;
+
+  VMMethod m;
 
   /**
-   * This class is uninstantiable.
+   * This class is uninstantiable outside this package.
    */
-  private Method(Class declaringClass, Class[] parameterTypes, Class[] exceptionTypes, Class returnType, String name, int slot)
+  Method(VMMethod m)
   {
-    this.declaringClass = declaringClass;
-    this.parameterTypes = parameterTypes;
-    this.exceptionTypes = exceptionTypes;
-    this.returnType = returnType;
-    this.name = name;
-    this.slot = slot;
+    this.m = m;
+    m.m = this;
   }
 
   /**
@@ -111,9 +104,9 @@ public final class Method
    * is a non-inherited member.
    * @return the class that declared this member
    */
-  public Class getDeclaringClass()
+  public Class<?> getDeclaringClass()
   {
-    return declaringClass;
+    return (Class<?>) m.getDeclaringClass();
   }
 
   /**
@@ -122,7 +115,7 @@ public final class Method
    */
   public String getName()
   {
-    return name;
+    return m.getName();
   }
 
   /**
@@ -136,7 +129,7 @@ public final class Method
    */
   public int getModifiers()
   {
-    return getMethodModifiers(declaringClass, slot);
+    return m.getModifiersInternal() & METHOD_MODIFIERS;
   }
 
   /**
@@ -147,7 +140,7 @@ public final class Method
    */
   public boolean isBridge()
   {
-    return (getMethodModifiers(declaringClass, slot) & Modifier.BRIDGE) != 0;
+    return (m.getModifiersInternal() & Modifier.BRIDGE) != 0;
   }
 
   /**
@@ -156,7 +149,7 @@ public final class Method
    */
   public boolean isSynthetic()
   {
-    return (getMethodModifiers(declaringClass, slot) & Modifier.SYNTHETIC) != 0;
+    return (m.getModifiersInternal() & Modifier.SYNTHETIC) != 0;
   }
 
   /**
@@ -166,16 +159,16 @@ public final class Method
    */
   public boolean isVarArgs()
   {
-    return (getMethodModifiers(declaringClass, slot) & Modifier.VARARGS) != 0;
+    return (m.getModifiersInternal() & Modifier.VARARGS) != 0;
   }
 
   /**
    * Gets the return type of this method.
    * @return the type of this method
    */
-  public Class getReturnType()
+  public Class<?> getReturnType()
   {
-      return returnType;
+    return (Class<?>) m.getReturnType();
   }
 
   /**
@@ -184,11 +177,9 @@ public final class Method
    *
    * @return a list of the types of the method's parameters
    */
-  public Class[] getParameterTypes()
+  public Class<?>[] getParameterTypes()
   {
-    if (parameterTypes == null)
-      return new Class[0];
-    return parameterTypes;
+    return (Class<?>[]) m.getParameterTypes();
   }
 
   /**
@@ -198,11 +189,9 @@ public final class Method
    *
    * @return a list of the types in the method's throws clause
    */
-  public Class[] getExceptionTypes()
+  public Class<?>[] getExceptionTypes()
   {
-    if (exceptionTypes == null)
-      return new Class[0];
-    return exceptionTypes;
+    return (Class<?>[]) m.getExceptionTypes();
   }
 
   /**
@@ -215,38 +204,7 @@ public final class Method
    */
   public boolean equals(Object o)
   {
-      // Implementation note:
-      // The following is a correct but possibly slow implementation.
-      //
-      // This class has a private field 'slot' that could be used by
-      // the VM implementation to "link" a particular method to a Class.
-      // In that case equals could be simply implemented as:
-      //
-      // if (o instanceof Method)
-      // {
-      //    Method m = (Method)o;
-      //    return m.declaringClass == this.declaringClass
-      //           && m.slot == this.slot;
-      // }
-      // return false;
-      //
-      // If a VM uses the Method class as their native/internal representation
-      // then just using the following would be optimal:
-      //
-      // return this == o;
-      //
-    if (!(o instanceof Method))
-      return false;
-    Method that = (Method)o;
-    if (this.getDeclaringClass() != that.getDeclaringClass())
-      return false;
-    if (!this.getName().equals(that.getName()))
-      return false;
-    if (this.getReturnType() != that.getReturnType())
-      return false;
-    if (!Arrays.equals(this.getParameterTypes(), that.getParameterTypes()))
-      return false;
-    return true;
+    return m.equals(o);
   }
 
   /**
@@ -257,7 +215,7 @@ public final class Method
    */
   public int hashCode()
   {
-    return getDeclaringClass().getName().hashCode() ^ getName().hashCode();
+    return m.getDeclaringClass().getName().hashCode() ^ m.getName().hashCode();
   }
 
   /**
@@ -363,10 +321,10 @@ public final class Method
    * @throws ExceptionInInitializerError if accessing a static method triggered
    *         class initialization, which then failed
    */
-  public Object invoke(Object o, Object[] args)
+  public Object invoke(Object o, Object... args)
     throws IllegalAccessException, InvocationTargetException
   {
-    return invokeNative(o, args, declaringClass, parameterTypes, returnType, slot, flag);
+    return m.invoke(o, args);
   }
 
   /**
@@ -381,13 +339,15 @@ public final class Method
    *         specification, version 3.
    * @since 1.5
    */
-  /* FIXME[GENERICS]: Should be TypeVariable<Method>[] */
-  public TypeVariable[] getTypeParameters()
+  public TypeVariable<Method>[] getTypeParameters()
   {
-    String sig = getSignature(declaringClass, slot);
-    if (sig == null)
-      return new TypeVariable[0];
-    MethodSignatureParser p = new MethodSignatureParser(this, sig);
+    if (p == null)
+      {
+	String sig = m.getSignature();
+	if (sig == null)
+	  return (TypeVariable<Method>[]) new TypeVariable[0];
+	p = new MethodSignatureParser(this, sig);
+      }
     return p.getTypeParameters();
   }
 
@@ -405,10 +365,13 @@ public final class Method
    */
   public Type[] getGenericExceptionTypes()
   {
-    String sig = getSignature(declaringClass, slot);
-    if (sig == null)
-      return getExceptionTypes();
-    MethodSignatureParser p = new MethodSignatureParser(this, sig);
+    if (p == null)
+      {
+	String sig = m.getSignature();
+	if (sig == null)
+	  return getExceptionTypes();
+	p = new MethodSignatureParser(this, sig);
+      }
     return p.getGenericExceptionTypes();
   }
 
@@ -426,10 +389,13 @@ public final class Method
    */
   public Type[] getGenericParameterTypes()
   {
-    String sig = getSignature(declaringClass, slot);
-    if (sig == null)
-      return getParameterTypes();
-    MethodSignatureParser p = new MethodSignatureParser(this, sig);
+    if (p == null)
+      {
+	String sig = m.getSignature();
+	if (sig == null)
+	  return getParameterTypes();
+	p = new MethodSignatureParser(this, sig);
+      }
     return p.getGenericParameterTypes();
   }
 
@@ -444,30 +410,14 @@ public final class Method
    */
   public Type getGenericReturnType()
   {
-    String sig = getSignature(declaringClass, slot);
-    if (sig == null)
-      return getReturnType();
-    MethodSignatureParser p = new MethodSignatureParser(this, sig);
+    if (p == null)
+      {
+	String sig = m.getSignature();
+	if (sig == null)
+	  return getReturnType();
+	p = new MethodSignatureParser(this, sig);
+      }
     return p.getGenericReturnType();
-  }
-
-  public Annotation getAnnotation(Class annoClass)
-  {
-    Annotation[] annos = getDeclaredAnnotations();
-    for (int i = 0; i < annos.length; i++)
-      if (annos[i].annotationType() == annoClass)
-	return annos[i];
-    return null;
-  }
-
-  public Annotation[] getDeclaredAnnotations()
-  {
-    return getDeclaredAnnotationsNative(declaringClass, slot);
-  }
-
-  public Annotation[][] getParameterAnnotations()
-  {
-    return getParameterAnnotationsNative(declaringClass, slot);
   }
 
   /**
@@ -483,32 +433,65 @@ public final class Method
    */
   public Object getDefaultValue()
   {
-    return getDefaultValueNative(declaringClass, slot);
+    return m.getDefaultValue();
   }
 
-  /*
-   * NATIVE HELPERS
+  /**
+   * <p>
+   * Return an array of arrays representing the annotations on each
+   * of the method's parameters.  The outer array is aligned against
+   * the parameters of the method and is thus equal in length to
+   * the number of parameters (thus having a length zero if there are none).
+   * Each array element in the outer array contains an inner array which
+   * holds the annotations.  This array has a length of zero if the parameter
+   * has no annotations.
+   * </p>
+   * <p>
+   * The returned annotations are serialized.  Changing the annotations has
+   * no affect on the return value of future calls to this method.
+   * </p>
+   * 
+   * @return an array of arrays which represents the annotations used on the
+   *         parameters of this method.  The order of the array elements
+   *         matches the declaration order of the parameters.
+   * @since 1.5
    */
+  public Annotation[][] getParameterAnnotations()
+  {
+    return m.getParameterAnnotations();
+  }
 
   /**
-   * Return the raw modifiers for this method.
-   * @return the method's modifiers
+   * Returns the element's annotation for the specified annotation type,
+   * or <code>null</code> if no such annotation exists.
+   *
+   * @param annotationClass the type of annotation to look for.
+   * @return this element's annotation for the specified type, or
+   *         <code>null</code> if no such annotation exists.
+   * @throws NullPointerException if the annotation class is <code>null</code>.
    */
-  private native int getMethodModifiers(Class declaringClass, int slot);
+  public <T extends Annotation> T getAnnotation(Class<T> annotationClass)
+  {
+    // Inescapable as the VM layer is 1.4 based. T will erase to Annotation anyway. 
+    @SuppressWarnings("unchecked")
+      T ann = (T) m.getAnnotation(annotationClass);
+    return ann;
+  }
 
   /**
-   * Return the String in the Signature attribute for this method. If there
-   * is no Signature attribute, return null.
+   * Returns all annotations directly defined by the element.  If there are
+   * no annotations directly associated with the element, then a zero-length
+   * array will be returned.  The returned array may be modified by the client
+   * code, but this will have no effect on the annotation content of this
+   * class, and hence no effect on the return value of this method for
+   * future callers.
+   *
+   * @return the annotations directly defined by the element.
+   * @since 1.5
    */
-  private native String getSignature(Class declaringClass, int slot);
+  public Annotation[] getDeclaredAnnotations()
+  {
+    return m.getDeclaredAnnotations();
+  }
 
-  private native Object invokeNative(Object o, Object[] args, Class declaringClass,
-                                     Class[] parameterTypes, Class returnType,
-                                     int slot, boolean noAccessCheck)
-    throws IllegalAccessException, InvocationTargetException;
-
-  private native Object getDefaultValueNative(Class declaringClass, int slot);
-  private native Annotation[] getDeclaredAnnotationsNative(Class declaringClass, int slot);
-  private native Annotation[][] getParameterAnnotationsNative(Class declaringClass, int slot);
 }
-
