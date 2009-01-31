@@ -64,7 +64,11 @@
 #if (__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ == 0))
 #define GCC_HACK
 #else
+#ifdef __x86_64__
+#define GCC_HACK goto rewrite_lock
+#else
 #define GCC_HACK DISPATCH_FIRST
+#endif
 #endif
 
 #define INTERPRETER_PROLOGUE                                          \
