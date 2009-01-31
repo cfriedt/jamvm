@@ -37,7 +37,7 @@
 #include <sys/param.h>
 #endif
 
-#if BYTE_ORDER == BIG_ENDIAN
+#if (defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)) || defined(_BIG_ENDIAN)
 #define FLOAT_CONST(val) (uintptr_t)val << (sizeof(uintptr_t) * 8 - 32)
 #else
 #define FLOAT_CONST(val) val
