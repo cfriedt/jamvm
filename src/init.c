@@ -32,7 +32,7 @@ extern void initialisePlatform();
 /* Setup default values for command line args */
 
 void setDefaultInitArgs(InitArgs *args) {
-    args->noasyncgc = FALSE;
+    args->asyncgc = FALSE;
 
     args->verbosegc    = FALSE;
     args->verbosedll   = FALSE;

@@ -1502,8 +1502,8 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
                 }
             } while(*type == ',');
 
-        } else if(strcmp(string, "-Xnoasyncgc") == 0)
-            args->noasyncgc = TRUE;
+        } else if(strcmp(string, "-Xasyncgc") == 0)
+            args->asyncgc = TRUE;
 
         else if(strncmp(string, "-Xms", 4) == 0) {
             args->min_heap = parseMemValue(string + 4);

@@ -1648,7 +1648,7 @@ void initialiseGC(InitArgs *args) {
     createVMThread("Reference Handler", referenceHandlerThreadLoop);
 
     /* Create and start VM thread for asynchronous GC */
-    if(!args->noasyncgc)
+    if(args->asyncgc)
         createVMThread("Async GC", asyncGCThreadLoop);
 
     /* GC will use mark-sweep or mark-compact as appropriate, but this

@@ -624,7 +624,7 @@ typedef struct prop {
 } Property;
 
 typedef struct InitArgs {
-    int noasyncgc;
+    int asyncgc;
     int verbosegc;
     int verbosedll;
     int verboseclass;

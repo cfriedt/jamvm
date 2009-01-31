@@ -46,7 +46,7 @@ void showNonStandardOptions() {
     printf("\t\t   locations where to find Classpath's classes\n");
     printf("  -Xbootclasspath/v:%s\n", BCP_MESSAGE);
     printf("\t\t   locations where to find JamVM's classes\n");
-    printf("  -Xnoasyncgc\t   turn off asynchronous garbage collection\n");
+    printf("  -Xasyncgc\t   turn on asynchronous garbage collection\n");
     printf("  -Xcompactalways  always compact the heap when garbage-collecting\n");
     printf("  -Xnocompact\t   turn off heap-compaction\n");
 #ifdef INLINING
@@ -200,8 +200,8 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
             else if(strcmp(type, ":jni") == 0)
                 args->verbosedll = TRUE;
 
-        } else if(strcmp(argv[i], "-Xnoasyncgc") == 0)
-            args->noasyncgc = TRUE;
+        } else if(strcmp(argv[i], "-Xasyncgc") == 0)
+            args->asyncgc = TRUE;
 
         else if(strncmp(argv[i], "-ms", 3) == 0 ||
                 strncmp(argv[i], "-Xms", 4) == 0) {
