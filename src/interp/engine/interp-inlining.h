@@ -28,13 +28,13 @@
 #define INTERPRETER_DEFINITIONS                                       \
     DEFINE_HANDLER_TABLES                                             \
     DEFINE_BRANCH_TABLES                                              \
-    DEF_DUMMY_TABLE                                                   \
+    DEFINE_DUMMY_TABLE                                                \
                                                                       \
     static const void **handlers[] = {HNDLR_TBLS(ENTRY),              \
                                       HNDLR_TBLS(START),              \
                                       HNDLR_TBLS(END),                \
                                       HNDLR_TBLS(BRANCH),             \
-                                      HNDLR_TBLS(GUARD),              \
+                                      HNDLR_TBLS(GUARD)               \
                                       DUMMY_TABLE                     \
     };                                                                \
                                                                       \
@@ -62,17 +62,17 @@
 */
 
 #if (__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ == 0))
-#define GCC_HACK
+#define GCC_HACK /* fall through */
 #else
 #ifdef __x86_64__
-#define GCC_HACK goto rewrite_lock
+#define GCC_HACK goto rewrite_lock;
 #else
 #define GCC_HACK DISPATCH_FIRST
 #endif
 #endif
 
 #define INTERPRETER_PROLOGUE                                          \
-    GCC_HACK;                                                         \
+    GCC_HACK                                                          \
                                                                       \
 rewrite_lock:                                                         \
     DISPATCH_FIRST                                                    \
@@ -121,7 +121,7 @@ unused:                                                               \
 */
 
 #ifdef __x86_64__
-#define DEF_DUMMY_TABLE                                                    \
+#define DEFINE_DUMMY_TABLE                                                 \
     HANDLER_TABLE_T *dummy_table[] = {                                     \
         &&d1, &&d2, &&d3, &&d4, &&d5, &&d6, &&d7, &&d8, &&d9, &&d10,&&d11, \
         &&d12,&&d13,&&d14,&&d15,&&d16,&&d17,&&d18,&&d19,&&d20,&&d21,&&d22, \
@@ -132,9 +132,9 @@ unused:                                                               \
         &&d67,&&d68,&&d69,&&d70,&&d71,&&d72,&&d73,&&d74,&&d75,&&d76,&&d77, \
         &&d78,&&d79,&&d80,&&d81,&&d82,&&d83,&&d84,&&d85,&&d86,&&d87,&&d88, \
         &&d89,&&d90,&&d91,&&d92,&&d93,&&d94,&&d95,&&d96,&&d97,&&d98,&&d99};
-#define DUMMY_TABLE dummy_table
+#define DUMMY_TABLE , dummy_table
 #else
-#define DEF_DUMMY_TABLE
+#define DEFINE_DUMMY_TABLE
 #define DUMMY_TABLE
 #endif
 
