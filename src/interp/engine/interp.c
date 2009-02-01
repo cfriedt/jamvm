@@ -880,35 +880,35 @@ uintptr_t *executeJava() {
     ostack -= sizeof(TYPE)/4;                   \
     DISPATCH(0, 1);
 
-    DEF_OPC_210(OPC_FADD,
+    DEF_OPC_FLOAT(OPC_FADD,
         BINARY_OP_fp(float, +);
     )
 
-    DEF_OPC_210(OPC_DADD,
+    DEF_OPC_FLOAT(OPC_DADD,
         BINARY_OP_fp(double, +);
     )
 
-    DEF_OPC_210(OPC_FSUB,
+    DEF_OPC_FLOAT(OPC_FSUB,
         BINARY_OP_fp(float, -);
     )
 
-    DEF_OPC_210(OPC_DSUB,
+    DEF_OPC_FLOAT(OPC_DSUB,
         BINARY_OP_fp(double, -);
     )
 
-    DEF_OPC_210(OPC_FMUL,
+    DEF_OPC_FLOAT(OPC_FMUL,
         BINARY_OP_fp(float, *);
     )
 
-    DEF_OPC_210(OPC_DMUL,
+    DEF_OPC_FLOAT(OPC_DMUL,
         BINARY_OP_fp(double, *);
     )
 
-    DEF_OPC_210(OPC_FDIV,
+    DEF_OPC_FLOAT(OPC_FDIV,
         BINARY_OP_fp(float, /);
     )
 
-    DEF_OPC_210(OPC_DDIV,
+    DEF_OPC_FLOAT(OPC_DDIV,
         BINARY_OP_fp(double, /);
     )
 
@@ -993,7 +993,7 @@ uintptr_t *executeJava() {
         SHIFT_OP_long(unsigned long long, >>);
     )
 
-    DEF_OPC_210(OPC_FREM, {
+    DEF_OPC_FLOAT(OPC_FREM, {
         float v2 = *(float *)&ostack[-1];
         float v1 = *(float *)&ostack[-2];
 
@@ -1002,7 +1002,7 @@ uintptr_t *executeJava() {
         DISPATCH(0, 1);
     })
 
-    DEF_OPC_210(OPC_DREM, {
+    DEF_OPC_FLOAT(OPC_DREM, {
         double v2 = *(double *)&ostack[-2];
         double v1 = *(double *)&ostack[-4];
 
@@ -1020,11 +1020,11 @@ uintptr_t *executeJava() {
         UNARY_MINUS(long long);
     )
 
-    DEF_OPC_210(OPC_FNEG,
+    DEF_OPC_FLOAT(OPC_FNEG,
         UNARY_MINUS(float);
     )
 
-    DEF_OPC_210(OPC_DNEG,
+    DEF_OPC_FLOAT(OPC_DNEG,
         UNARY_MINUS(double);
     )
 
@@ -1051,11 +1051,11 @@ uintptr_t *executeJava() {
     ostack += sizeof(DEST_TYPE)/4;       \
     DISPATCH(0, 1);
 
-    DEF_OPC_210(OPC_I2F,
+    DEF_OPC_FLOAT(OPC_I2F,
         OPC_int2fp(float);
     )
 
-    DEF_OPC_210(OPC_I2D,
+    DEF_OPC_FLOAT(OPC_I2D,
         OPC_int2fp(double);
     )
 
@@ -1069,19 +1069,19 @@ uintptr_t *executeJava() {
     DISPATCH(0, 1);                      \
 }
 
-    DEF_OPC_210(OPC_L2F,
+    DEF_OPC_FLOAT(OPC_L2F,
         OPC_X2Y(long long, float);
     )
 
-    DEF_OPC_210(OPC_L2D,
+    DEF_OPC_FLOAT(OPC_L2D,
         OPC_X2Y(long long, double);
     )
 
-    DEF_OPC_210(OPC_F2D,
+    DEF_OPC_FLOAT(OPC_F2D,
         OPC_X2Y(float, double);
     )
 
-    DEF_OPC_210(OPC_D2F,
+    DEF_OPC_FLOAT(OPC_D2F,
         OPC_X2Y(double, float);
     )
 
@@ -1104,11 +1104,11 @@ uintptr_t *executeJava() {
     PUSH_0(res, 1);                     \
 }
 
-    DEF_OPC_210(OPC_F2I,
+    DEF_OPC_FLOAT(OPC_F2I,
         OPC_fp2int(float);
     )
 
-    DEF_OPC_210(OPC_D2I,
+    DEF_OPC_FLOAT(OPC_D2I,
         OPC_fp2int(double);
     )
 
@@ -1131,11 +1131,11 @@ uintptr_t *executeJava() {
     PUSH_LONG(res, 1);                     \
 }
 
-    DEF_OPC_210(OPC_F2L,
+    DEF_OPC_FLOAT(OPC_F2L,
         OPC_fp2long(float);
     )
 
-    DEF_OPC_210(OPC_D2L,
+    DEF_OPC_FLOAT(OPC_D2L,
         OPC_fp2long(double);
     )
 
@@ -1189,19 +1189,19 @@ uintptr_t *executeJava() {
     PUSH_0(res, 1);                                       \
 })
 
-    DEF_OPC_210(OPC_DCMPG,
+    DEF_OPC_FLOAT(OPC_DCMPG,
         FCMP(double, 1);
     )
 
-    DEF_OPC_210(OPC_DCMPL,
+    DEF_OPC_FLOAT(OPC_DCMPL,
         FCMP(double, -1);
     )
 
-    DEF_OPC_210(OPC_FCMPG,
+    DEF_OPC_FLOAT(OPC_FCMPG,
         FCMP(float, 1);
     )
 
-    DEF_OPC_210(OPC_FCMPL,
+    DEF_OPC_FLOAT(OPC_FCMPL,
         FCMP(float, -1);
     )
 

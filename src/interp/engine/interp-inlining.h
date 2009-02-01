@@ -132,11 +132,8 @@ unused:                                                               \
         &&d67,&&d68,&&d69,&&d70,&&d71,&&d72,&&d73,&&d74,&&d75,&&d76,&&d77, \
         &&d78,&&d79,&&d80,&&d81,&&d82,&&d83,&&d84,&&d85,&&d86,&&d87,&&d88, \
         &&d89,&&d90,&&d91,&&d92,&&d93,&&d94,&&d95,&&d96,&&d97,&&d98,&&d99};
+
 #define DUMMY_TABLE , dummy_table
-#else
-#define DEFINE_DUMMY_TABLE
-#define DUMMY_TABLE
-#endif
 
 #define H(X)           \
 d##X: {                \
@@ -155,6 +152,11 @@ d##X: {                \
     H(71); H(72); H(73); H(74); H(75); H(76); H(77); H(78); H(79); H(80); \
     H(81); H(82); H(83); H(84); H(85); H(86); H(87); H(88); H(89); H(90); \
     H(92); H(91); H(93); H(94); H(95); H(96); H(97); H(98); H(99); 
+#else
+#define DEFINE_DUMMY_TABLE
+#define DEF_DUMMY_HANDLERS
+#define DUMMY_TABLE
+#endif
 
 /* Macros for handler/bytecode rewriting */
 
@@ -261,36 +263,48 @@ opc##x##_##y##_##z:
 
 #ifdef USE_CACHE
 
-#define DEF_OPC_PRE(opcode, level, PRE, BODY)   \
-    DEF_OPC_LBLS(opcode, level, PRE, BODY)      \
-    goto *pc->handler;
-
 #define DEF_OPC_012(opcode, BODY)               \
-    DEF_OPC_PRE(opcode, 0, ({                   \
+    DEF_OPC(opcode, 0, ({                       \
         cache.i.v2 = *--ostack;                 \
         cache.i.v1 = *--ostack;                 \
-    });, ({                                     \
         BODY                                    \
     });)                                        \
                                                 \
-    DEF_OPC_PRE(opcode, 1, ({                   \
+    DEF_OPC(opcode, 1, ({                       \
         cache.i.v2 = cache.i.v1;                \
         cache.i.v1 = *--ostack;                 \
-    });, ({                                     \
         BODY                                    \
     });)                                        \
                                                 \
     DEF_OPC(opcode, 2, ({BODY});)
         
 #define DEF_OPC_210(opcode, BODY)               \
-    DEF_OPC_PRE(opcode, 2, ({                   \
+    DEF_OPC(opcode, 2, ({                       \
+        *ostack++ = cache.i.v1;                 \
+        *ostack++ = cache.i.v2;                 \
+        BODY                                    \
+    });)                                        \
+                                                \
+    DEF_OPC(opcode, 1, ({                       \
+        *ostack++ = cache.i.v1;                 \
+        BODY                                    \
+    });)                                        \
+                                                \
+    DEF_OPC(opcode, 0, ({BODY});)
+        
+#define DEF_OPC_GRD(opcode, level, PRE, BODY)   \
+    DEF_OPC_LBLS(opcode, level, PRE, BODY)      \
+    goto *pc->handler;
+
+#define DEF_OPC_FLOAT(opcode, BODY)             \
+    DEF_OPC_GRD(opcode, 2, ({                   \
         *ostack++ = cache.i.v1;                 \
         *ostack++ = cache.i.v2;                 \
     });, ({                                     \
         BODY                                    \
     });)                                        \
                                                 \
-    DEF_OPC_PRE(opcode, 1, ({                   \
+    DEF_OPC_GRD(opcode, 1, ({                   \
         *ostack++ = cache.i.v1;                 \
     });, ({                                     \
         BODY                                    \
@@ -299,17 +313,15 @@ opc##x##_##y##_##z:
     DEF_OPC(opcode, 0, ({BODY});)
         
 #define DEF_OPC_JMP(TYPE, BODY)                 \
-    DEF_OPC_LBLS(OPC_##TYPE, 2, ({              \
+    DEF_OPC_LBLS(OPC_##TYPE, 2, /**/, ({        \
         *ostack++ = cache.i.v1;                 \
         *ostack++ = cache.i.v2;                 \
-    });, ({                                     \
         BODY                                    \
         BRANCH(TYPE, 2, TRUE);                  \
     });)                                        \
                                                 \
-    DEF_OPC_LBLS(OPC_##TYPE, 1, ({              \
+    DEF_OPC_LBLS(OPC_##TYPE, 1, /**/, ({        \
         *ostack++ = cache.i.v1;                 \
-    });, ({                                     \
         BODY                                    \
         BRANCH(TYPE, 1, TRUE);                  \
     });)                                        \
@@ -330,6 +342,9 @@ opc##x##_##y##_##z:
     DEF_OPC(opcode, 0, BODY)
 
 #define DEF_OPC_210(opcode, BODY)               \
+    DEF_OPC(opcode, 0, BODY)
+
+#define DEF_OPC_FLOAT(opcode, BODY)             \
     DEF_OPC(opcode, 0, BODY)
 
 #define DEF_OPC_JMP(TYPE, BODY)                 \
