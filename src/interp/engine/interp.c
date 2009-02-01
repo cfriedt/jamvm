@@ -56,7 +56,6 @@ uintptr_t *executeJava() {
     /* Variable definitions holding the interpreter
        state.  These are common to all interpreter
        variants */
-
     register CodePntr pc;
     ExecEnv *ee = getExecEnv();
     Frame *frame = ee->last_frame;
@@ -77,7 +76,6 @@ uintptr_t *executeJava() {
     /* The initial dispatch code - this is specific to
        the interpreter variant */
     INTERPRETER_PROLOGUE
-
 
     /* Definitions of the opcode handlers */
 

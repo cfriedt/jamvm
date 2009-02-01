@@ -46,7 +46,6 @@
     extern int inlining_inited;                                       \
     if(!inlining_inited) return (uintptr_t*)handlers;
 
-
 /* First of two massive gcc hacks.  For inlining to work, the
    dispatch sequence contained between the labels "rewrite_lock"
    and "unused" must be relocatable (if it isn't, inlining is
@@ -60,7 +59,6 @@
    seperate initial dispatch, but this doesn't work on earlier
    versions of gcc, hence the hack.
 */
-
 #if (__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ == 0))
 #define GCC_HACK /* fall through */
 #else
@@ -82,7 +80,6 @@ unused:                                                               \
     throwNullLabel = NULL;                                            \
     throwArithmeticExcepLabel = NULL;
 
-
 #define I(opcode, level, label) L(opcode, level, label)
 #define D(opcode, level, label) &&rewrite_lock
 #define X(opcode, level, label) &&rewrite_lock
@@ -92,7 +89,6 @@ unused:                                                               \
     DEF_HANDLER_TABLE(level, ENTRY); \
     DEF_HANDLER_TABLE(level, END);   \
     DEF_HANDLER_TABLE(level, GUARD);
-
 
 #ifdef USE_CACHE
 #define DEFINE_BRANCH_TABLES        \
@@ -113,13 +109,11 @@ unused:                                                               \
         B(level,CMPLT), B(level,CMPGE), B(level,CMPGT), B(level,CMPLE), \
         B(level,CMPEQ), B(level,CMPNE), B(level,GOTO),  B(level,JSR)}
 
-
 /* Second gcc hack.  On x86_64, higher performance is achieved when "lvars"
    is placed in a register.  However, gcc does not do this, putting it on the
    stack (it also ignores the register modifier).  The dummy handlers are
    used to force gcc to promote lvars, by increasing its apparent importance.
 */
-
 #ifdef __x86_64__
 #define DEFINE_DUMMY_TABLE                                                 \
     HANDLER_TABLE_T *dummy_table[] = {                                     \
@@ -442,5 +436,6 @@ extern void initialiseDirect(InitArgs *args);
 extern void inlineBlockWrappedOpcode(MethodBlock *mb, Instruction *pc);
 extern void prepare(MethodBlock *mb, const void ***handlers);
 extern void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb);
-extern void *inlineProfiledBlock(Instruction *pc, MethodBlock *mb, int force_inlining);
+extern void *inlineProfiledBlock(Instruction *pc, MethodBlock *mb,
+                                 int force_inlining);
 

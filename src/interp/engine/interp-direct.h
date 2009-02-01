@@ -118,6 +118,9 @@ opc##x##_##y##_##z:
         BRANCH(TYPE, 0, TRUE);                  \
     });)
 
+#define DEF_OPC_FLOAT(opcode, BODY)             \
+    DEF_OPC_210(opcode, BODY)
+
 #ifdef USE_CACHE
 #define DEF_OPC_012(opcode, BODY)               \
     label(opcode, 0, ENTRY)                     \
