@@ -33,8 +33,8 @@
     static const void **handlers[] = {HNDLR_TBLS(ENTRY),              \
                                       HNDLR_TBLS(START),              \
                                       HNDLR_TBLS(END),                \
-                                      HNDLR_TBLS(BRANCH),             \
-                                      HNDLR_TBLS(GUARD)               \
+                                      HNDLR_TBLS(BRANCH)              \
+                                      GUARD_TBLS                      \
                                       DUMMY_TABLE                     \
     };                                                                \
                                                                       \
@@ -46,7 +46,7 @@
     extern int inlining_inited;                                       \
     if(!inlining_inited) return (uintptr_t*)handlers;
 
-/* First of two massive gcc hacks.  For inlining to work, the
+/* First of three massive gcc hacks.  For inlining to work, the
    dispatch sequence contained between the labels "rewrite_lock"
    and "unused" must be relocatable (if it isn't, inlining is
    disabled).  On previous versions of gcc, even using
@@ -69,6 +69,25 @@
 #endif
 #endif
 
+/* Second gcc hack.  The more aggressive strict-aliasing
+   optimisations in gcc 4.3 breaks the decaching of the
+   operand stack cache at the start of floating-point
+   opcodes.  With gcc prior to 4.3, an empty asm statement
+   was sufficient as a guard to prevent optimisation.  On
+   4.3, we need to insert a label, and ensure its address
+   is taken (to stop it being optimised out).  However,
+   this reduces performance on PowerPC by approx 1 - 2%.
+*/
+#if (__GNUC__ == 4) && (__GNUC_MINOR__ >= 3)
+#define DEF_GUARD_TABLE(level) DEF_HANDLER_TABLE(level, GUARD)
+#define GUARD(opcode, level)   label(opcode, level, GUARD)
+#define GUARD_TBLS             , HNDLR_TBLS(GUARD)
+#else
+#define DEF_GUARD_TABLE(level) /* none */
+#define GUARD(opcode, level)   __asm__("");
+#define GUARD_TBLS             /* none */
+#endif
+
 #define INTERPRETER_PROLOGUE                                          \
     GCC_HACK                                                          \
                                                                       \
@@ -88,7 +107,7 @@ unused:                                                               \
     DEF_HANDLER_TABLE(level, START); \
     DEF_HANDLER_TABLE(level, ENTRY); \
     DEF_HANDLER_TABLE(level, END);   \
-    DEF_HANDLER_TABLE(level, GUARD);
+    DEF_GUARD_TABLE(level);
 
 #ifdef USE_CACHE
 #define DEFINE_BRANCH_TABLES        \
@@ -109,7 +128,7 @@ unused:                                                               \
         B(level,CMPLT), B(level,CMPGE), B(level,CMPGT), B(level,CMPLE), \
         B(level,CMPEQ), B(level,CMPNE), B(level,GOTO),  B(level,JSR)}
 
-/* Second gcc hack.  On x86_64, higher performance is achieved when "lvars"
+/* Third gcc hack.  On x86_64, higher performance is achieved when "lvars"
    is placed in a register.  However, gcc does not do this, putting it on the
    stack (it also ignores the register modifier).  The dummy handlers are
    used to force gcc to promote lvars, by increasing its apparent importance.
@@ -210,7 +229,7 @@ opc##x##_##y##_##z:
         PAD                                     \
     label(opcode, level, ENTRY)                 \
         PRE                                     \
-    label(opcode, level, GUARD)                 \
+    GUARD(opcode, level)                        \
         BODY                                    \
     label(opcode, level, END)
 
