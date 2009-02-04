@@ -1,3 +1,112 @@
+JamVM 1.5.2 released on 1st February 2009
+=========================================
+
+A summary of changes since 1.5.1:
+
+- Interpreter inlining changes
+
+  - Basic-blocks are now inlined across block boundaries removing
+    the need for dispatching between blocks in the case of
+    fall-through control flow
+
+  - Control-flow within inlined sequences now patched with real jumps,
+    removing the need for computed jumps
+
+  - Control flow between non-shared sequences now patched, replacing
+    dispatch with real jumps
+
+  - Simple basic-block profiling is now implemented.  This considerably
+    reduces the size of the code-cache, without reducing performance
+
+- Reworked Object layout
+
+  - Previously, on 64-bit machines the object layout was wasteful, with
+    padding on fields less than 64-bits (to preserve 64-bit alignment).
+    The new object layout on average reduces heap usage by approx
+    10 - 15%
+
+  - On 32-bit machines, 64-bit fields are now 64-bit aligned (without
+    introducing extra padding if possible)
+
+- Various alignment fixes
+
+  - 64-bit alignment of operand stack
+  - 64-bit alignment of static variable data
+
+- Reflection support
+
+  - Reworking required for new object layout
+
+  - Reworked to use VMConstructor, VMMethod, etc.
+
+  - Reworked to improve field access and method invocation performance
+    (this offsets the extra costs of the VM interface, and improves
+    performance over 1.5.1).
+
+  - Access permission checks take precedence over other errors
+
+  - Class/method signatures : do not convert slash to dots
+
+- JNI fixes/improvements
+
+  - Class references returned by JNI now use local references
+
+  - Throw InstantiationException not InstantiationError when allocating
+    objects and the class is an interface or abstract
+
+  - Reworked JNI global references
+
+    - Fix memory leak when expanding list
+
+    - Improve performance (optimise case where references are
+      created/deleted in a stack-like manner)
+
+- OpenSolaris/Solaris/x86 port
+
+- GC fixes
+
+  - Fix race-condition in registering references with the GC
+
+  - Separate "Async GC" thread is now disabled by default.  It didn't
+    improve performance, and could increase power-consumption on
+    embedded systems
+
+- Exception handling
+
+  - Fix method-skipping when filling in stack trace (methods could
+    be incorrectly excluded from the trace when a class subclassed
+    Throwable)
+
+  - Uncaught exceptions in the "main" thread will now use the thread's
+    uncaughtExceptionHandler
+
+- Various compatibility command line options recognised (and
+  ignored).  These include -XX:PermSize and XX:MaxPermSize
+  required to build OpenJDK.
+
+- sun.misc.Unsafe
+
+  - Object methods (compareAndSwapObject, etc.) fixed on 64-bit
+    machines
+
+  - Implemented support for thread park and unpark (removing previous
+    highly inefficient "empty" implementation)
+
+- Use thread-local storage (__thread), if available, instead of
+  pthread keys
+
+- Various minor race-conditions seen while running Dacapo benchmarks
+
+- Strict-aliasing fixes when compiled with GCC 4.3, interpreter
+  stack-caching is enabled, and interpreter inlining is on
+
+- A large amount of code-tidying throughout the VM
+
+- Minimum heap size increased to 16MB
+
+- Various compiler warnings.
+
+
 JamVM 1.5.1 released on 10th March 2008
 =======================================
 

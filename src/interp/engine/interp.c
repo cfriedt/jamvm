@@ -2018,7 +2018,8 @@ uintptr_t *executeJava() {
     PUTFIELD_QUICK(uintptr_t, _REF)
 
     DEF_OPC_210(OPC_INVOKESUPER_QUICK, {
-        new_mb = CLASS_CB(CLASS_CB(mb->class)->super)->method_table[DOUBLE_INDEX(pc)];
+        new_mb = CLASS_CB(CLASS_CB(mb->class)->super)->
+                                      method_table[DOUBLE_INDEX(pc)];
         arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
         goto invokeMethod;
@@ -2049,10 +2050,11 @@ uintptr_t *executeJava() {
 
         cb = CLASS_CB((*(Object **)arg1)->class);
 
-        if((cache >= cb->imethod_table_size) ||
-                  (new_mb->class != cb->imethod_table[cache].interface)) {
-            for(cache = 0; (cache < cb->imethod_table_size) &&
-                           (new_mb->class != cb->imethod_table[cache].interface); cache++);
+        if(cache >= cb->imethod_table_size ||
+                  new_mb->class != cb->imethod_table[cache].interface) {
+            for(cache = 0; cache < cb->imethod_table_size &&
+                           new_mb->class != cb->imethod_table[cache].interface;
+                cache++);
 
             if(cache == cb->imethod_table_size)
                 THROW_EXCEPTION(java_lang_IncompatibleClassChangeError,
@@ -2117,7 +2119,8 @@ uintptr_t *executeJava() {
         Object *obj = (Object*)ostack[-1]; 
                
         if((obj != NULL) && !isInstanceOf(class, obj->class))
-            THROW_EXCEPTION(java_lang_ClassCastException, CLASS_CB(obj->class)->name);
+            THROW_EXCEPTION(java_lang_ClassCastException,
+                            CLASS_CB(obj->class)->name);
     
         DISPATCH(0, 3);
     })

@@ -606,10 +606,11 @@ Class *createArrayClass(char *classname, Object *class_loader) {
         classblock->dim = CLASS_CB(comp_class)->dim + 1;
     } else { 
         if(classname[1] == 'L') {
-            char element_name[len - 1];
+            char element_name[len - 2];
 
-            strcpy(element_name, classname + 2);
+            memcpy(element_name, classname + 2, len - 3);
             element_name[len - 3] = '\0';
+
             classblock->element_class = findClassFromClassLoader(element_name,
                                                                  class_loader);
         } else

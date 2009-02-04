@@ -1,12 +1,12 @@
-JamVM 1.5.1
+JamVM 1.5.2
 ===========
 
-Welcome to the twenty-fourth release of JamVM!
+Welcome to the twenty-fifth release of JamVM!
 
 JamVM is a Java Virtual Machine which conforms to the JVM
 specification version 2 (blue book).  In comparison to most other
 VM's (free and commercial) it is extremely small, with a stripped
-executable on PowerPC of only ~200K, and Intel 180K.  However, unlike
+executable on PowerPC of only ~220K, and Intel 200K.  However, unlike
 other small VMs (e.g. KVM) it is designed to support the full
 specification, and includes support for object finalisation, 
 soft/weak/phantom references, the Java Native Interface (JNI) and
@@ -36,8 +36,8 @@ Linux
        machines are supported, soft/kernel FP emulation, and OABI or
        EABI.
 
-- AMD64: built and tested on AMD Athlon 64, Pentium 4 and Core 2 Duo
-         (using EM64T).
+- AMD64: built and tested on AMD Athlon, Phenom, Pentium 4 and Core 2
+         Duo (using EM64T).
 
 - MIPS: built and tested on mipsel using the O32 ABI.  The system
         was an embedded wireless router.
@@ -67,6 +67,13 @@ OpenBSD  : i386, powerpc, ARM, AMD64 (x86_64).
 FreeBSD  : i386, powerpc, ARM, AMD64 (x86_64).
 KFreeBSD : i386
 
+Solaris/OpenSolaris
+-------------------
+
+x86 : Solaris/OpenSolaris on x86 is combined, with only one OS for both
+      i386 and AMD64.  By default, JamVM will be built in 32-bit mode.
+      To build in 64-bit mode, you must specify CFLAGS when configuring
+      and include -m64.
 
 Class Libraries
 ===============
@@ -74,15 +81,14 @@ Class Libraries
 JamVM is designed to use the GNU classpath Java class library (see
 http://www.gnu.org/software/classpath).  A number of classes are
 reference classes which must be modified for a particular VM.  These are
-provided and built along with JamVM (see INSTALL).  JamVM 1.5.1 works with
-Classpath from version 0.92 to 0.97 (the latest development snapshot).
-It should also work with the latest version direct from CVS (but check
-the Classpath mailing lists for possible patches).  Later snapshots of
-Classpath may also work, if no modifications have been made to the VM
-interface.
+provided and built along with JamVM (see INSTALL).  JamVM 1.5.2 works with
+Classpath version 0.98 (the latest development snapshot).  It should also
+work with the latest version direct from CVS (but check the Classpath
+mailing lists for possible patches).  Later snapshots of Classpath may
+also work, if no modifications have been made to the VM interface.
 
-Note, JamVM 1.5.1 will not work with versions of Classpath earlier than
-0.92, nor will it work with the class library from Sun or IBM's Virtual
+Note, JamVM 1.5.2 will not work with versions of Classpath earlier than
+0.98, nor will it work with the class library from Sun or IBM's Virtual
 Machines, or OpenJDK.
 
 Building and Installing
@@ -190,4 +196,4 @@ particular order, is given below.
 That's it!
 
 Robert Lougher <rob@lougher.org.uk>
-28th October 2007.
+1st February 2009.
