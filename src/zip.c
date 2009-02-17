@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -41,7 +41,8 @@
 /* Definitions needed for hashtable */
 #define HASHTABSZE 1<<8
 #define HASH(ptr) utf8Hash(ptr)
-#define COMPARE(ptr1, ptr2, hash1, hash2) (hash1 == hash2) && utf8Comp(ptr1, ptr2) 
+#define COMPARE(ptr1, ptr2, hash1, hash2) ((hash1 == hash2) && \
+                                           utf8Comp(ptr1, ptr2)) 
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
 #define FOUND(ptr1, ptr2) ptr2
@@ -223,7 +224,8 @@ char *findArchiveEntry(char *pathname, ZipFile *zip, int *uncomp_len) {
     unsigned char *decomp_buff, *comp_data;
     unsigned char *dir_entry;
 
-    if((dir_entry = (unsigned char *)findArchiveDirEntry(pathname, zip)) == NULL)
+    dir_entry = (unsigned char *)findArchiveDirEntry(pathname, zip);
+    if(dir_entry == NULL)
         return NULL;
 
     /* Found the file -- the pathname points directly into the
@@ -240,16 +242,20 @@ char *findArchiveEntry(char *pathname, ZipFile *zip, int *uncomp_len) {
     extra_len = READ_LE_SHORT(zip->data + offset + LOC_FILE_EXTRA_OFFSET);
 
     /* Get the path_len again -- faster than doing a strlen */
-    path_len = READ_LE_SHORT(dir_entry + (CEN_FILE_PATHLEN_OFFSET - CEN_FILE_HEADER_LEN));
+    path_len = READ_LE_SHORT(dir_entry + (CEN_FILE_PATHLEN_OFFSET -
+                                          CEN_FILE_HEADER_LEN));
 
     /* The file's length when uncompressed -- this is passed out */
-    *uncomp_len = READ_LE_INT(dir_entry + (CEN_FILE_UNCOMPLEN_OFFSET - CEN_FILE_HEADER_LEN));
+    *uncomp_len = READ_LE_INT(dir_entry + (CEN_FILE_UNCOMPLEN_OFFSET -
+                                           CEN_FILE_HEADER_LEN));
 
     /* The compressed file's length, i.e. the data size in the file */
-    comp_len = READ_LE_INT(dir_entry + (CEN_FILE_COMPLEN_OFFSET - CEN_FILE_HEADER_LEN));
+    comp_len = READ_LE_INT(dir_entry + (CEN_FILE_COMPLEN_OFFSET -
+                                        CEN_FILE_HEADER_LEN));
 
     /* How the file is compressed */
-    comp_method = READ_LE_SHORT(dir_entry + (CEN_FILE_COMPMETH_OFFSET - CEN_FILE_HEADER_LEN));
+    comp_method = READ_LE_SHORT(dir_entry + (CEN_FILE_COMPMETH_OFFSET -
+                                             CEN_FILE_HEADER_LEN));
 
     /* Calculate the data start */
     offset += LOC_FILE_HEADER_LEN + path_len + extra_len;
