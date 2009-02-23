@@ -38,11 +38,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-/* Definitions needed for hashtable */
+/* Common definitions needed for hashtable */
 #define HASHTABSZE 1<<8
-#define HASH(ptr) utf8Hash(ptr)
-#define COMPARE(ptr1, ptr2, hash1, hash2) ((hash1 == hash2) && \
-                                           utf8Comp(ptr1, ptr2)) 
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
 #define FOUND(ptr1, ptr2) ptr2
@@ -84,6 +81,42 @@
 #define COMP_STORED                0
 #define COMP_DEFLATED              8
 
+#define HASH(ptr) zipHash(ptr)
+#define COMPARE(ptr1, ptr2, hash1, hash2) ((hash1 == hash2) && \
+                                           zipComp(ptr1, ptr2)) 
+
+/* The filenames within the zip file are added to a hash-table for faster
+   access.  To save memory, the entries point directly into the zip file's
+   central directory.  However, filenames within the directory are not null-
+   terminated.  This means the path length must be read each time.  As the
+   utf8 routines operate on null-terminated strings, the filename must also
+   be copied into a temporary buffer.  This is NOT performance critical,
+   as the hash is calculated only once per entry (on insertion)
+*/
+int zipHash(unsigned char *path) {
+    int path_len = READ_LE_SHORT(path + (CEN_FILE_PATHLEN_OFFSET -
+                                         CEN_FILE_HEADER_LEN));
+    char buff[path_len + 1];
+
+    memcpy(buff, path, path_len);
+    buff[path_len] = '\0';
+
+    return utf8Hash(buff);
+}
+
+/* When adding entries to the hash-table, the paths being compared will
+   both be within the zip file.  As there are no concerns about differing
+   encoding of null, we can do a memcmp to compare them
+*/
+int zipComp(unsigned char *path1, unsigned char *path2) {
+    int path1_len = READ_LE_SHORT(path1 + (CEN_FILE_PATHLEN_OFFSET -
+                                           CEN_FILE_HEADER_LEN));
+    int path2_len = READ_LE_SHORT(path2 + (CEN_FILE_PATHLEN_OFFSET -
+                                           CEN_FILE_HEADER_LEN));
+
+    return path1_len == path2_len && !memcmp(path1, path2, path1_len);
+}
+
 ZipFile *processArchive(char *path) {
     unsigned char magic[SIG_LEN];
     unsigned char *data, *pntr;
@@ -97,15 +130,15 @@ ZipFile *processArchive(char *path) {
         return NULL;
 
     /* First 4 bytes must be the signature for the first local file header */
-    if(read(fd, &magic[0], SIG_LEN) != SIG_LEN
-                     || READ_LE_INT(magic) != LOC_FILE_HEADER_SIG)
+    if(read(fd, &magic[0], SIG_LEN) != SIG_LEN ||
+                    READ_LE_INT(magic) != LOC_FILE_HEADER_SIG)
         goto error;
 
     /* Get the length */
     len = lseek(fd, 0, SEEK_END);
 
     /* Mmap the file into memory */
-    if((data = (unsigned char*)mmap(0, len, PROT_READ | PROT_WRITE, MAP_FILE |
+    if((data = (unsigned char*)mmap(0, len, PROT_READ, MAP_FILE |
                                             MAP_PRIVATE, fd, 0)) == MAP_FAILED)
         goto error;
 
@@ -135,7 +168,7 @@ ZipFile *processArchive(char *path) {
        Do not create lock -- we're single threaded (bootstrapping)
        and once entries are added, table is read-only */
 
-    hash_table = (HashTable*)sysMalloc(sizeof(HashTable));
+    hash_table = sysMalloc(sizeof(HashTable));
     initHashTable((*hash_table), HASHTABSZE, FALSE);
 
     /* Get the offset from the start of the file of the first directory entry */
@@ -143,25 +176,16 @@ ZipFile *processArchive(char *path) {
 
     /* Scan the directory list and add the entries to the hash table */
 
-    /* We terminate each pathname "in place" to save memory -- this may
-       over-write the signature for the next entry.  We therefore
-       speculatively load the next sig *before* we terminate the pathname */
-
-    if((pntr + SIG_LEN) > (data + len))
-        goto error2;
-
-    /* Speculatively read first sig */
-    next_file_sig = READ_LE_INT(pntr);
-
     while(entries--) {
-        char *found, *pathname, *term;
+        char *found, *pathname;
         int path_len, comment_len, extra_len;
 
+        /* Make sure we're not reading outside the file */
         if((pntr + CEN_FILE_HEADER_LEN) > (data + len))
             goto error2;
 
         /* Check directory entry signature is present */
-        if(next_file_sig != CEN_FILE_HEADER_SIG)
+        if(READ_LE_INT(pntr) != CEN_FILE_HEADER_SIG)
             goto error2;
 
         /* Get the length of the pathname */
@@ -173,22 +197,9 @@ ZipFile *processArchive(char *path) {
 
         /* The pathname starts after the fixed part of the dir entry */
         pathname = (char*)(pntr += CEN_FILE_HEADER_LEN);
-        term = (char*)(pntr += path_len);
 
-        /* Skip rest of variable fields -- should then be pointing to next
-           sig.  If no extra or comment fields, pntr == term */
-        pntr += extra_len + comment_len;
-
-        /* Even if this is the last entry, a well-formed zip file will *always*
-           have at least 4 extra bytes */
-        if((pntr + SIG_LEN) > (data + len))
-            goto error2;
-
-        /* Speculatively read next sig */
-        next_file_sig = READ_LE_INT(pntr);
-
-        /* Terminate the pathname */    
-        *term = '\0';
+        /* Skip variable fields, to point to next sig */
+        pntr += path_len + extra_len + comment_len;
 
         /* Add if absent, no scavenge, not locked */
         findHashEntry((*hash_table), pathname, found, TRUE, FALSE, FALSE);
@@ -208,6 +219,30 @@ error2:
 error:
     close(fd);
     return NULL;
+}
+
+#undef HASH
+#undef COMPARE
+
+#define HASH(ptr) utf8Hash(ptr)
+#define COMPARE(ptr1, ptr2, hash1, hash2) ((hash1 == hash2) && \
+                                           utf8ZipComp(ptr1, ptr2)) 
+
+/* When searching for an entry, the comparison will be between a null-
+   terminated utf8 path and a non null-terminated path within the zip.
+   Again, the memcpy is not performance critical, as comparisons are
+   performed using the hash value; a filename comparison is only
+   done when hash values clash (which is rare)
+*/
+int utf8ZipComp(unsigned char *path1, unsigned char *path2) {
+    int path2_len = READ_LE_SHORT(path2 + (CEN_FILE_PATHLEN_OFFSET -
+                                           CEN_FILE_HEADER_LEN));
+    char buff[path2_len + 1];
+
+    memcpy(buff, path2, path2_len);
+    buff[path2_len] = '\0';
+
+    return utf8Comp(path1, buff);
 }
 
 char *findArchiveDirEntry(char *pathname, ZipFile *zip) {
@@ -241,7 +276,7 @@ char *findArchiveEntry(char *pathname, ZipFile *zip, int *uncomp_len) {
     /* Get the variable length part of the local file header */
     extra_len = READ_LE_SHORT(zip->data + offset + LOC_FILE_EXTRA_OFFSET);
 
-    /* Get the path_len again -- faster than doing a strlen */
+    /* Get the path_len again */
     path_len = READ_LE_SHORT(dir_entry + (CEN_FILE_PATHLEN_OFFSET -
                                           CEN_FILE_HEADER_LEN));
 
