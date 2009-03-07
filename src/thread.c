@@ -391,14 +391,16 @@ void resetPeakThreadsCount() {
 }
 
 void initialiseJavaStack(ExecEnv *ee) {
-   int stack_size = ee->stack_size ?
-           (ee->stack_size > MIN_STACK ? ee->stack_size : MIN_STACK) : dflt_stack_size;
+   int stack_size = ee->stack_size
+          ? (ee->stack_size > MIN_STACK ? ee->stack_size : MIN_STACK)
+          : dflt_stack_size;
    char *stack = sysMalloc(stack_size);
-   MethodBlock *mb = (MethodBlock *) stack;
-   Frame *top = (Frame *) (mb+1);
+   MethodBlock *mb = (MethodBlock *)stack;
+   Frame *top = (Frame *)(mb + 1);
 
-   top->ostack = (uintptr_t*)(top+1);
+   top->ostack = (uintptr_t*)(top + 1);
    top->lvars = (uintptr_t*)top;
+   mb->args_count = 0;
    mb->max_stack = 0;
    top->prev = NULL;
    top->mb = mb;
@@ -421,7 +423,7 @@ Thread *findHashedThread(Thread *thread, long long id) {
 #define SCAVENGE(ptr) ptr == DELETED
 #define HASH(thread_id) (int)thread_id
 #define COMPARE(thread_id, ptr, hash1, hash2) ptr != DELETED && \
-                                              (hash1 == hash2 && thread_id == javaThreadId(ptr))
+                             (hash1 == hash2 && thread_id == javaThreadId(ptr))
 
     Thread *ptr;
 
@@ -468,7 +470,8 @@ Object *initJavaThread(Thread *thread, char is_daemon, char *name) {
 
     /* Call the initialiser method -- this is for use by threads
        created or attached by the VM "outside" of Java */
-    executeMethod(jlthread, init_mb, vmthread, thread_name, NORM_PRIORITY, is_daemon);
+    executeMethod(jlthread, init_mb, vmthread, thread_name, NORM_PRIORITY,
+                  is_daemon);
 
     if(exceptionOccurred())
         return NULL;
@@ -575,12 +578,15 @@ void uncaughtException() {
     Object *jThread = ee->thread;
     Object *excep = exceptionOccurred();
     Object *group = INST_DATA(jThread, Object*, group_offset);
-    FieldBlock *fb = findField(thread_class, SYMBOL(exceptionHandler),
-                                             SYMBOL(sig_java_lang_Thread_UncaughtExceptionHandler));
-    Object *thread_handler = fb == NULL ? NULL : INST_DATA(jThread, Object*, fb->u.offset);
+    FieldBlock *fb = findField(thread_class,
+                        SYMBOL(exceptionHandler),
+                        SYMBOL(sig_java_lang_Thread_UncaughtExceptionHandler));
+    Object *thread_handler = fb == NULL ? NULL :
+                                  INST_DATA(jThread, Object*, fb->u.offset);
     Object *handler = thread_handler == NULL ? group : thread_handler;
-    MethodBlock *uncaught_mb = lookupMethod(handler->class, SYMBOL(uncaughtException),
-                                            SYMBOL(_java_lang_Thread_java_lang_Throwable__V));
+    MethodBlock *uncaught_mb = lookupMethod(handler->class,
+                              SYMBOL(uncaughtException),
+                              SYMBOL(_java_lang_Thread_java_lang_Throwable__V));
 
     if(uncaught_mb != NULL) {
         clearException();
@@ -609,7 +615,8 @@ void detachThread(Thread *thread) {
         uncaughtException();
 
     /* remove thread from thread group */
-    executeMethod(group, (CLASS_CB(group->class))->method_table[rmveThrd_mtbl_idx], jThread);
+    executeMethod(group, (CLASS_CB(group->class))->
+                                     method_table[rmveThrd_mtbl_idx], jThread);
 
     /* set VMThread ref in Thread object to null - operations after this
        point will result in an IllegalThreadStateException */
@@ -662,11 +669,14 @@ void detachThread(Thread *thread) {
 
     if(non_daemon_thrds == 0) {
         /* No need to bother with disabling suspension
-         * around lock, as we're no longer on thread list */
+           around lock, as we're no longer on thread list */
         pthread_mutex_lock(&exit_lock);
         pthread_cond_signal(&exit_cv);
         pthread_mutex_unlock(&exit_lock);
     }
+
+    /* Finally, clear the thread local data */
+    setThreadSelf(NULL);
 
     TRACE("Thread 0x%x id: %d detached from VM\n", thread, thread->id);
 }
@@ -711,7 +721,8 @@ void createJavaThread(Object *jThread, long long stack_size) {
     if(INST_DATA(jThread, Object*, vmthread_offset) != NULL) {
         pthread_mutex_unlock(&lock);
         enableSuspend(self);
-        signalException(java_lang_IllegalThreadStateException, "thread already started");
+        signalException(java_lang_IllegalThreadStateException,
+                        "thread already started");
         return;
     }
 
@@ -816,12 +827,14 @@ void suspendThread(Thread *thread) {
     MBARRIER();
 
     if(!thread->blocking) {
-        TRACE("Sending suspend signal to thread 0x%x id: %d\n", thread, thread->id);
+        TRACE("Sending suspend signal to thread 0x%x id: %d\n",
+              thread, thread->id);
         pthread_kill(thread->tid, SIGUSR1);
     }
 
     while(thread->blocking != SUSP_BLOCKING && thread->state != SUSPENDED) {
-        TRACE("Waiting for thread 0x%x id: %d to suspend\n", thread, thread->id);
+        TRACE("Waiting for thread 0x%x id: %d to suspend\n",
+              thread, thread->id);
         sched_yield();
     }
 }
@@ -831,7 +844,8 @@ void resumeThread(Thread *thread) {
     MBARRIER();
 
     if(!thread->blocking) {
-        TRACE("Sending resume signal to thread 0x%x id: %d\n", thread, thread->id);
+        TRACE("Sending resume signal to thread 0x%x id: %d\n",
+              thread, thread->id);
         pthread_kill(thread->tid, SIGUSR1);
     }
 
@@ -855,7 +869,8 @@ void suspendAllThreads(Thread *self) {
         MBARRIER();
 
         if(!thread->blocking) {
-            TRACE("Sending suspend signal to thread 0x%x id: %d\n", thread, thread->id);
+            TRACE("Sending suspend signal to thread 0x%x id: %d\n",
+                  thread, thread->id);
             pthread_kill(thread->tid, SIGUSR1);
         }
     }
@@ -865,7 +880,8 @@ void suspendAllThreads(Thread *self) {
             continue;
 
         while(thread->blocking != SUSP_BLOCKING && thread->state != SUSPENDED) {
-            TRACE("Waiting for thread 0x%x id: %d to suspend\n", thread, thread->id);
+            TRACE("Waiting for thread 0x%x id: %d to suspend\n",
+                  thread, thread->id);
             sched_yield();
         }
     }
@@ -890,14 +906,16 @@ void resumeAllThreads(Thread *self) {
         MBARRIER();
 
         if(!thread->blocking) {
-            TRACE("Sending resume signal to thread 0x%x id: %d\n", thread, thread->id);
+            TRACE("Sending resume signal to thread 0x%x id: %d\n",
+                  thread, thread->id);
             pthread_kill(thread->tid, SIGUSR1);
         }
     }
 
     for(thread = &main_thread; thread != NULL; thread = thread->next) {
         while(thread->state == SUSPENDED) {
-            TRACE("Waiting for thread 0x%x id: %d to resume\n", thread, thread->id);
+            TRACE("Waiting for thread 0x%x id: %d to resume\n",
+                  thread, thread->id);
             sched_yield();
         }
     }
@@ -989,8 +1007,11 @@ void fastEnableSuspend(Thread *thread) {
         sigaddset(&mask, SIGUSR1);
         pthread_sigmask(SIG_BLOCK, &mask, NULL);
 
-        TRACE("Thread 0x%x id: %d is fast self suspending\n", thread, thread->id);
+        TRACE("Thread 0x%x id: %d is fast self suspending\n",
+              thread, thread->id);
+
         suspendLoop(thread);
+
         TRACE("Thread 0x%x id: %d resumed\n", thread, thread->id);
 
         pthread_sigmask(SIG_UNBLOCK, &mask, NULL);
@@ -1018,7 +1039,8 @@ void dumpThreadsLoop(Thread *self) {
         /* It must be a SIGQUIT.  Do a thread dump */
 
         suspendAllThreads(self);
-        jam_printf("\n------ JamVM version %s Full Thread Dump -------\n", VERSION);
+        jam_printf("\n------ JamVM version %s Full Thread Dump -------\n",
+                   VERSION);
 
         for(thread = &main_thread; thread != NULL; thread = thread->next) {
             Object *jThread = thread->ee->thread;
@@ -1026,21 +1048,25 @@ void dumpThreadsLoop(Thread *self) {
             int daemon = INST_DATA(jThread, int, daemon_offset);
             Frame *last = thread->ee->last_frame;
 
-            /* Get thread name; we don't use String2Cstr(), as this mallocs memory
-               and may deadlock with a thread suspended in malloc/realloc/free */
-            String2Buff(INST_DATA(jThread, Object*, name_offset), buffer, sizeof(buffer));
+            /* Get thread name; we don't use String2Cstr(), as this mallocs
+               memory and may deadlock with a thread suspended in
+               malloc/realloc/free */
+            String2Buff(INST_DATA(jThread, Object*, name_offset), buffer,
+                        sizeof(buffer));
 
-            jam_printf("\n\"%s\"%s %p priority: %d tid: %p id: %d state: %s (%d)\n",
-                  buffer, daemon ? " (daemon)" : "", thread, priority, thread->tid,
-                  thread->id, getThreadStateString(thread), thread->state);
+            jam_printf("\n\"%s\"%s %p priority: %d tid: %p id: %d state:"
+                       "%s (%d)\n", buffer, daemon ? " (daemon)" : "",
+                       thread, priority, thread->tid, thread->id,
+                       getThreadStateString(thread), thread->state);
 
             while(last->prev != NULL) {
                 for(; last->mb != NULL; last = last->prev) {
                     MethodBlock *mb = last->mb;
                     ClassBlock *cb = CLASS_CB(mb->class);
 
-                    /* Convert slashes in class name to dots.  Similar to above,
-                       we don't use slash2dots(), as this mallocs memory */
+                    /* Convert slashes in class name to dots.  Similar to
+                       above, we don't use slash2dots(), as this mallocs
+                       memory */
                     slash2dots2buff(cb->name, buffer, sizeof(buffer)); 
                     jam_printf("\tat %s.%s(", buffer, mb->name);
 
@@ -1208,10 +1234,12 @@ void initialiseThreadStage2(InitArgs *args) {
 
     registerStaticClassRef(&thread_class);
 
-    vmThread = findField(thread_class, SYMBOL(vmThread), SYMBOL(sig_java_lang_VMThread));
+    vmThread = findField(thread_class, SYMBOL(vmThread),
+                                       SYMBOL(sig_java_lang_VMThread));
     daemon = findField(thread_class, SYMBOL(daemon), SYMBOL(Z));
     name = findField(thread_class, SYMBOL(name), SYMBOL(sig_java_lang_String));
-    group = findField(thread_class, SYMBOL(group), SYMBOL(sig_java_lang_ThreadGroup));
+    group = findField(thread_class, SYMBOL(group),
+                                    SYMBOL(sig_java_lang_ThreadGroup));
     priority = findField(thread_class, SYMBOL(priority), SYMBOL(I));
     threadId = findField(thread_class, SYMBOL(threadId), SYMBOL(J));
 
@@ -1227,13 +1255,15 @@ void initialiseThreadStage2(InitArgs *args) {
     /* Register class reference for compaction threading */
     registerStaticClassRef(&vmthread_class);
 
-    thread = findField(vmthread_class, SYMBOL(thread), SYMBOL(sig_java_lang_Thread));
+    thread = findField(vmthread_class, SYMBOL(thread),
+                                       SYMBOL(sig_java_lang_Thread));
     vmData = findField(vmthread_class, SYMBOL(vmData), SYMBOL(J));
 
     /* findField and findMethod do not throw an exception... */
-    if((init_mb == NULL) || (vmData == NULL) || (run == NULL) || (daemon == NULL) ||
-       (name == NULL) || (group == NULL) || (priority == NULL) || (vmThread == NULL) ||
-       (thread == NULL) || (threadId == NULL))
+    if((init_mb == NULL)  || (vmData == NULL)   || (run == NULL) ||
+       (daemon == NULL)   || (name == NULL)     || (group == NULL) ||
+       (priority == NULL) || (vmThread == NULL) || (thread == NULL) ||
+       (threadId == NULL))
         goto error;
 
     vmthread_offset = vmThread->u.offset;
@@ -1257,13 +1287,14 @@ void initialiseThreadStage2(InitArgs *args) {
     if(exceptionOccurred())
         goto error;
 
-    root = findField(thrdGrp_class, SYMBOL(root), SYMBOL(sig_java_lang_ThreadGroup));
+    root = findField(thrdGrp_class, SYMBOL(root),
+                                    SYMBOL(sig_java_lang_ThreadGroup));
 
     addThread_mb = findMethod(thrdGrp_class, SYMBOL(addThread),
-                                             SYMBOL(_java_lang_Thread_args__void));
+                                          SYMBOL(_java_lang_Thread_args__void));
 
     remove_thread = findMethod(thrdGrp_class, SYMBOL(removeThread),
-                                              SYMBOL(_java_lang_Thread_args__void));
+                                          SYMBOL(_java_lang_Thread_args__void));
 
     /* findField and findMethod do not throw an exception... */
     if((root == NULL) || (addThread_mb == NULL) || (remove_thread == NULL))
