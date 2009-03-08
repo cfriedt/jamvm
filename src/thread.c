@@ -66,7 +66,7 @@ static Monitor sleep_mon;
    thread's Thread pntr.  If not, use a pthread thread
    specific key to hold it */
 #ifdef HAVE_TLS
-static __thread Thread *self;
+static __thread Thread *self = NULL;
 #else
 static pthread_key_t self;
 #endif
