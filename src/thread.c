@@ -1291,10 +1291,10 @@ void initialiseThreadStage2(InitArgs *args) {
                                     SYMBOL(sig_java_lang_ThreadGroup));
 
     addThread_mb = findMethod(thrdGrp_class, SYMBOL(addThread),
-                                          SYMBOL(_java_lang_Thread_args__void));
+                                             SYMBOL(_java_lang_Thread__V));
 
     remove_thread = findMethod(thrdGrp_class, SYMBOL(removeThread),
-                                          SYMBOL(_java_lang_Thread_args__void));
+                                              SYMBOL(_java_lang_Thread__V));
 
     /* findField and findMethod do not throw an exception... */
     if((root == NULL) || (addThread_mb == NULL) || (remove_thread == NULL))
