@@ -73,6 +73,7 @@ extern char *symbol_values[];
     action(printStackTrace, "printStackTrace"), \
     action(fillInStackTrace, "fillInStackTrace"), \
     action(exceptionHandler, "exceptionHandler"), \
+    action(createBootPackage, "createBootPackage"), \
     action(uncaughtException, "uncaughtException"), \
     action(newLibraryUnloader, "newLibraryUnloader"), \
     action(contextClassLoader, "contextClassLoader"), \
@@ -187,6 +188,7 @@ extern char *symbol_values[];
     action(array_C, "[C"), \
     action(array_java_lang_Class, "[Ljava/lang/Class;"), \
     action(array_java_lang_String, "[Ljava/lang/String;"), \
+    action(array_java_lang_Package, "[Ljava/lang/Package;"), \
     action(array_java_lang_reflect_Field, "[Ljava/lang/reflect/Field;"), \
     action(array_java_lang_reflect_Method, "[Ljava/lang/reflect/Method;"), \
     action(array_java_lang_StackTraceElement, "[Ljava/lang/StackTraceElement;"), \
@@ -216,6 +218,8 @@ extern char *symbol_values[];
     action(___Z, "()Z"), \
     action(_I__V, "(I)V"), \
     action(_J__V, "(J)V"), \
+    action(_java_lang_String_I__java_lang_Package, \
+           "(Ljava/lang/String;I)Ljava/lang/Package;"), \
     action(_java_lang_Thread_java_lang_Throwable__V, \
            "(Ljava/lang/Thread;Ljava/lang/Throwable;)V"), \
     action(_java_lang_VMThread_java_lang_String_I_Z__V, \
@@ -225,10 +229,10 @@ extern char *symbol_values[];
     action(_java_lang_Object_gnu_classpath_Pointer_III__V, \
            "(Ljava/lang/Object;Lgnu/classpath/Pointer;III)V"), \
     action(_java_lang_String__V, "(Ljava/lang/String;)V"), \
-    action(_array_java_lang_String__V, "([Ljava/lang/String;)V"), \
+    action(_java_lang_Thread__V, "(Ljava/lang/Thread;)V"), \
     action(_java_lang_Throwable__V, "(Ljava/lang/Throwable;)V"), \
+    action(_array_java_lang_String__V, "([Ljava/lang/String;)V"), \
     action(___java_lang_ClassLoader, "()Ljava/lang/ClassLoader;"), \
-    action(_java_lang_Thread_args__void, "(Ljava/lang/Thread;)V"), \
     action(_java_lang_Object_java_lang_Object__java_lang_Object, \
            "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"), \
     action(_java_lang_String_I_java_lang_String_java_lang_String_Z__V, \
