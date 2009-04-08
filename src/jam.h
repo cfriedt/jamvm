@@ -739,7 +739,7 @@ typedef struct InitArgs {
 #endif
 
 /* default size of the Java stack */
-#define DEFAULT_STACK 64*KB
+#define DEFAULT_STACK 256*KB
 
 /* size of emergency area - big enough to create
    a StackOverflow exception */
@@ -835,6 +835,9 @@ extern void threadBootClasses();
 extern void threadLoaderClasses(Object *class_loader);
 extern void newLibraryUnloader(Object *class_loader, void *entry);
 extern void initialiseClass(InitArgs *args);
+
+extern Object *bootPackage(char *package_name);
+extern Object *bootPackages();
 
 /* resolve */
 
@@ -1003,6 +1006,7 @@ extern void initialiseProperties(InitArgs *args);
 extern void addCommandLineProperties(Object *properties);
 extern void addDefaultProperties(Object *properties);
 extern char *getCommandLineProperty(char *key);
+extern char *getCwd();
 
 /* access */
 
