@@ -23,6 +23,7 @@ SUBDIRS = reflect
 
 EXTRA_DIST = \
 VMRuntime.java \
+VMClass.java \
 VMClassLoader.java \
 VMString.java \
 VMThread.java \
