@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -39,7 +39,8 @@ static int verbose;
 
 extern int nativeExtraArg(MethodBlock *mb);
 extern uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int extra,
-                                uintptr_t *ostack, unsigned char *native_func, int args);
+                                uintptr_t *ostack, unsigned char *native_func,
+                                int args);
 extern struct _JNINativeInterface Jam_JNINativeInterface;
 extern JavaVM invokeIntf; 
 
@@ -122,7 +123,7 @@ char *mangleString(char *utf8) {
 char *mangleClassAndMethodName(MethodBlock *mb) {
     char *classname = CLASS_CB(mb->class)->name;
     char *methodname = mb->name;
-    char *nonMangled = (char*) sysMalloc(strlen(classname) + strlen(methodname) + 7);
+    char *nonMangled = sysMalloc(strlen(classname) + strlen(methodname) + 7);
     char *mangled;
 
     sprintf(nonMangled, "Java/%s/%s", classname, methodname);
@@ -184,7 +185,8 @@ void *resolveNativeMethod(MethodBlock *mb) {
 
     if(verbose) {
         char *classname = slash2dots(CLASS_CB(mb->class)->name);
-        jam_printf("[Dynamic-linking native method %s.%s ... ", classname, mb->name);
+        jam_printf("[Dynamic-linking native method %s.%s ... ",
+                   classname, mb->name);
         sysFree(classname);
     }
 
@@ -202,14 +204,18 @@ void *resolveNativeMethod(MethodBlock *mb) {
     return func;
 }
 
-uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack) {
+
     void *func = resolveNativeMethod(mb);
 
     if(func == NULL) {
         signalException(java_lang_UnsatisfiedLinkError, mb->name);
         return ostack;
     }
-    return (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))func)(class, mb, ostack);
+
+    return (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))func)
+           (class, mb, ostack);
 }
 
 void initialiseDll(InitArgs *args) {
@@ -267,7 +273,9 @@ int resolveDll(char *name, Object *loader) {
             ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 
             if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4) {
-                TRACE("<DLL: JNI_OnLoad returned unsupported version %d.\n>", ver);
+                TRACE("<DLL: JNI_OnLoad returned unsupported version %d.\n>",
+                      ver);
+
                 return FALSE;
             }
         }
@@ -289,8 +297,12 @@ int resolveDll(char *name, Object *loader) {
         /* If the library has an OnUnload function it must be
            called from a running Java thread (i.e. not within
            the GC!). Create an unloader object which will be
-           finalised when the class loader is collected */
-        if(nativeLibSym(dll->handle, "JNI_OnUnload") != NULL)
+           finalised when the class loader is collected.
+           Note, only do this when there is a classloader -
+           the bootstrap classloader will never be collected,
+           therefore libraries loaded by it will never be
+           unloaded */
+        if(loader != NULL && nativeLibSym(dll->handle, "JNI_OnUnload") != NULL)
             newLibraryUnloader(loader, dll);
 
     } else
@@ -400,13 +412,15 @@ void unloadClassLoaderDlls(Object *loader) {
 static void *env = &Jam_JNINativeInterface;
 
 uintptr_t *callJNIWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    TRACE("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name, mb->name, mb->type);
+    TRACE("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name,
+          mb->name, mb->type);
 
     if(!initJNILrefs())
         return NULL;
 
     return callJNIMethod(&env, (mb->access_flags & ACC_STATIC) ? class : NULL,
-                         mb->type, mb->native_extra_arg, ostack, mb->code, mb->args_count);
+                         mb->type, mb->native_extra_arg, ostack, mb->code,
+                         mb->args_count);
 }
 
 void *lookupLoadedDlls(MethodBlock *mb) {
@@ -418,7 +432,7 @@ void *lookupLoadedDlls(MethodBlock *mb) {
 
     if(func == NULL) {
         char *mangledSig = mangleSignature(mb);
-        char *fullyMangled = (char*)sysMalloc(strlen(mangled)+strlen(mangledSig)+3);
+        char *fullyMangled = sysMalloc(strlen(mangled)+strlen(mangledSig)+3);
 
         sprintf(fullyMangled, "%s__%s", mangled, mangledSig);
         func = lookupLoadedDlls0(fullyMangled, loader);
