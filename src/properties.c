@@ -133,7 +133,7 @@ void setEndianProperty(Object *properties) {
 #endif
 }
 
-void setUserDirProperty(Object *properties) {
+char *getCwd() {
     char *cwd = NULL;
     int size = 256;
 
@@ -148,9 +148,13 @@ void setUserDirProperty(Object *properties) {
                exitVM(1);
             }
         else
-            break;
+            return cwd;
     }
+}
     
+void setUserDirProperty(Object *properties) {
+    char *cwd = getCwd();
+
     setProperty(properties, "user.dir", cwd);
     sysFree(cwd);
 }
