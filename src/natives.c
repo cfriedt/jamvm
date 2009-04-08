@@ -166,7 +166,8 @@ uintptr_t *arraycopy(Class *class, MethodBlock *mb, uintptr_t *ostack) {
             dob = &((Object**)ddata)[start2];
 
             for(i = 0; i < length; i++) {
-                if((*sob != NULL) && !arrayStoreCheck(dest->class, (*sob)->class))
+                if((*sob != NULL) && !arrayStoreCheck(dest->class,
+                                                      (*sob)->class))
                     goto storeExcep;
                 *dob++ = *sob++;
             }
@@ -189,7 +190,9 @@ uintptr_t *identityHashCode(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 /* java.lang.VMRuntime */
 
-uintptr_t *availableProcessors(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *availableProcessors(Class *class, MethodBlock *mb,
+                               uintptr_t *ostack) {
+
     *ostack++ = nativeAvailableProcessors();
     return ostack;
 }
@@ -261,10 +264,8 @@ uintptr_t *propertiesPostInit(Class *class, MethodBlock *mb, uintptr_t *ostack) 
 
 /* java.lang.VMClass */
 
-#define GET_CLASS(vmClass) (Class*)vmClass
-
 uintptr_t *isInstance(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+    Class *clazz = (Class*)ostack[0];
     Object *ob = (Object*)ostack[1];
 
     *ostack++ = ob == NULL ? FALSE : (uintptr_t)isInstanceOf(clazz, ob->class);
@@ -272,7 +273,7 @@ uintptr_t *isInstance(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *isAssignableFrom(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+    Class *clazz = (Class*)ostack[0];
     Class *clazz2 = (Class*)ostack[1];
 
     if(clazz2 == NULL)
@@ -284,61 +285,67 @@ uintptr_t *isAssignableFrom(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *isInterface(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    ClassBlock *cb = CLASS_CB((Class*)ostack[0]);
     *ostack++ = IS_INTERFACE(cb) ? TRUE : FALSE;
     return ostack;
 }
 
 uintptr_t *isPrimitive(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    ClassBlock *cb = CLASS_CB((Class*)ostack[0]);
     *ostack++ = IS_PRIMITIVE(cb) ? TRUE : FALSE;
     return ostack;
 }
 
 uintptr_t *isArray(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    ClassBlock *cb = CLASS_CB((Class*)ostack[0]);
     *ostack++ = IS_ARRAY(cb) ? TRUE : FALSE;
     return ostack;
 }
 
 uintptr_t *isMember(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    ClassBlock *cb = CLASS_CB((Class*)ostack[0]);
     *ostack++ = IS_MEMBER(cb) ? TRUE : FALSE;
     return ostack;
 }
 
 uintptr_t *isLocal(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    ClassBlock *cb = CLASS_CB((Class*)ostack[0]);
     *ostack++ = IS_LOCAL(cb) ? TRUE : FALSE;
     return ostack;
 }
 
 uintptr_t *isAnonymous(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    ClassBlock *cb = CLASS_CB((Class*)ostack[0]);
     *ostack++ = IS_ANONYMOUS(cb) ? TRUE : FALSE;
     return ostack;
 }
 
-uintptr_t *getEnclosingClass0(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+uintptr_t *getEnclosingClass0(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack) {
+
+    Class *clazz = (Class*)ostack[0];
     *ostack++ = (uintptr_t) getEnclosingClass(clazz);
     return ostack;
 }
 
-uintptr_t *getEnclosingMethod0(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+uintptr_t *getEnclosingMethod0(Class *class, MethodBlock *mb,
+                               uintptr_t *ostack) {
+
+    Class *clazz = (Class*)ostack[0];
     *ostack++ = (uintptr_t) getEnclosingMethodObject(clazz);
     return ostack;
 }
 
-uintptr_t *getEnclosingConstructor(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+uintptr_t *getEnclosingConstructor(Class *class, MethodBlock *mb,
+                                   uintptr_t *ostack) {
+
+    Class *clazz = (Class*)ostack[0];
     *ostack++ = (uintptr_t) getEnclosingConstructorObject(clazz);
     return ostack;
 }
 
 uintptr_t *getClassSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
+    ClassBlock *cb = CLASS_CB((Class*)ostack[0]);
     Object *string = cb->signature == NULL ? NULL : createString(cb->signature);
 
     *ostack++ = (uintptr_t)string;
@@ -346,13 +353,14 @@ uintptr_t *getClassSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *getSuperclass(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    ClassBlock *cb = CLASS_CB(GET_CLASS(ostack[0]));
-    *ostack++ = (uintptr_t) (IS_PRIMITIVE(cb) || IS_INTERFACE(cb) ? NULL : cb->super);
+    ClassBlock *cb = CLASS_CB((Class*)ostack[0]);
+    *ostack++ = (uintptr_t) (IS_PRIMITIVE(cb) || IS_INTERFACE(cb) ? NULL
+                                                                  : cb->super);
     return ostack;
 }
 
 uintptr_t *getComponentType(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
-    Class *class = GET_CLASS(ostack[0]);
+    Class *class = (Class*)ostack[0];
     ClassBlock *cb = CLASS_CB(class);
     Class *componentType = NULL;
 
@@ -372,67 +380,77 @@ uintptr_t *getComponentType(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *getName(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    char *dot_name = slash2dots(CLASS_CB((GET_CLASS(*ostack)))->name);
+    char *dot_name = slash2dots(CLASS_CB((Class*)ostack[0])->name);
     Object *string = createString(dot_name);
     *ostack++ = (uintptr_t)string;
     sysFree(dot_name);
     return ostack;
 }
 
-uintptr_t *getDeclaredClasses(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+uintptr_t *getDeclaredClasses(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack) {
+
+    Class *clazz = (Class*)ostack[0];
     int public = ostack[1];
     *ostack++ = (uintptr_t) getClassClasses(clazz, public);
     return ostack;
 }
 
-uintptr_t *getDeclaringClass0(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+uintptr_t *getDeclaringClass0(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack) {
+
+    Class *clazz = (Class*)ostack[0];
     *ostack++ = (uintptr_t) getDeclaringClass(clazz);
     return ostack;
 }
 
-uintptr_t *getDeclaredConstructors(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+uintptr_t *getDeclaredConstructors(Class *class, MethodBlock *mb,
+                                   uintptr_t *ostack) {
+
+    Class *clazz = (Class*)ostack[0];
     int public = ostack[1];
     *ostack++ = (uintptr_t) getClassConstructors(clazz, public);
     return ostack;
 }
 
-uintptr_t *getDeclaredMethods(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+uintptr_t *getDeclaredMethods(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack) {
+
+    Class *clazz = (Class*)ostack[0];
     int public = ostack[1];
     *ostack++ = (uintptr_t) getClassMethods(clazz, public);
     return ostack;
 }
 
 uintptr_t *getDeclaredFields(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+    Class *clazz = (Class*)ostack[0];
     int public = ostack[1];
     *ostack++ = (uintptr_t) getClassFields(clazz, public);
     return ostack;
 }
 
-uintptr_t *getClassDeclaredAnnotations(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+uintptr_t *getClassDeclaredAnnotations(Class *class, MethodBlock *mb,
+                                       uintptr_t *ostack) {
+
+    Class *clazz = (Class*)ostack[0];
     *ostack++ = (uintptr_t) getClassAnnotations(clazz);
     return ostack;
 }
 
 uintptr_t *getInterfaces(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+    Class *clazz = (Class*)ostack[0];
     *ostack++ = (uintptr_t) getClassInterfaces(clazz);
     return ostack;
 }
 
 uintptr_t *getClassLoader(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(*ostack);
+    Class *clazz = (Class*)ostack[0];
     *ostack++ = (uintptr_t)CLASS_CB(clazz)->class_loader;
     return ostack;
 }
 
 uintptr_t *getClassModifiers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    Class *clazz = GET_CLASS(ostack[0]);
+    Class *clazz = (Class*)ostack[0];
     int ignore_inner_attrs = ostack[1];
     ClassBlock *cb = CLASS_CB(clazz);
 
@@ -525,7 +543,9 @@ uintptr_t *throwException(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *hasClassInitializer(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *hasClassInitializer(Class *class, MethodBlock *mb,
+                               uintptr_t *ostack) {
+
     Class *clazz = (Class*)ostack[0];
     *ostack++ = findMethod(clazz, SYMBOL(class_init),
                                   SYMBOL(___V)) == NULL ? FALSE : TRUE;
@@ -552,7 +572,9 @@ uintptr_t *getCallingClass(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *getCallingClassLoader(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *getCallingClassLoader(Class *clazz, MethodBlock *mb,
+                                 uintptr_t *ostack) {
+
     Class *class = getCallerCallerClass();
 
     *ostack++ = (uintptr_t) (class ? CLASS_CB(class)->class_loader : NULL);
@@ -593,7 +615,9 @@ uintptr_t *getClassContext(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *firstNonNullClassLoader(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *firstNonNullClassLoader(Class *class, MethodBlock *mb,
+                                   uintptr_t *ostack) {
+
     Frame *last = getExecEnv()->last_frame;
     Object *loader = NULL;
 
@@ -647,7 +671,8 @@ uintptr_t *defineClass0(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
             for(i = 0; i < len; i++)
                 if(cstr[i]=='.') cstr[i]='/';
 
-            if((class = defineClass(cstr, data, offset, data_len, class_loader)) != NULL) {
+            class = defineClass(cstr, data, offset, data_len, class_loader);
+            if(class != NULL) {
                 INST_DATA(class, uintptr_t, pd_offset) = pd;
                 linkClass(class);
             }
@@ -710,6 +735,23 @@ uintptr_t *getBootClassPathResource(Class *class, MethodBlock *mb,
     int index = ostack[1];
 
     *ostack++ = (uintptr_t) bootClassPathResource(filename, index);
+
+    sysFree(filename);
+    return ostack;
+}
+
+uintptr_t *getBootClassPackage(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    Object *string = (Object *) ostack[0];
+    char *package_name = String2Cstr(string);
+
+    *ostack++ = (uintptr_t) bootPackage(package_name);
+
+    sysFree(package_name);
+    return ostack;
+}
+
+uintptr_t *getBootClassPackages(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    *ostack++ = (uintptr_t) bootPackages();
     return ostack;
 }
 
@@ -1716,6 +1758,8 @@ VMMethod vm_classloader[] = {
     {"resolveClass",                resolveClass0},
     {"getBootClassPathSize",        getBootClassPathSize},
     {"getBootClassPathResource",    getBootClassPathResource},
+    {"getBootPackages",             getBootClassPackages},
+    {"getBootPackage",              getBootClassPackage},
     {NULL,                          NULL}
 };
 
