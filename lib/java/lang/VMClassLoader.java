@@ -62,6 +62,9 @@ import java.util.Set;
 import java.util.Map;
 import java.util.Vector;
 
+import java.util.jar.Manifest;
+import java.util.jar.Attributes;
+
 /**
  * java.lang.VMClassLoader is a package-private helper for VMs to implement
  * on behalf of java.lang.ClassLoader.
@@ -72,45 +75,7 @@ import java.util.Vector;
  */
 final class VMClassLoader
 {
-  /** packages loaded by the bootstrap class loader */
-  static final HashMap definedPackages = new HashMap();
-
-  /**
-   * Converts the array string of native package names to
-   * Packages. The packages are then put into the
-   * definedPackages hashMap
-   */
-  static
-  {
-    String[] packages = getBootPackages();
-    
-    if( packages != null)
-      {
-        String specName = 
-              SystemProperties.getProperty("java.specification.name");
-        String vendor =
-              SystemProperties.getProperty("java.specification.vendor");
-        String version =
-              SystemProperties.getProperty("java.specification.version");
-        
-        Package p;
-              
-        for(int i = 0; i < packages.length; i++)
-          {
-            p = new Package(packages[i],
-                  specName,
-                  vendor,
-                  version,
-                  "GNU Classpath",
-                  "GNU",
-                  Configuration.CLASSPATH_VERSION,
-                  null,
-                  null);
-
-            definedPackages.put(packages[i], p);
-          }
-      }
-  }
+  static PackageInfo[] packageInfo;
 
   /**
    * Helper to define a class using a string of bytes. This assumes that
@@ -168,6 +133,60 @@ final class VMClassLoader
     return null;
   }
 
+  synchronized static void initBootPackages()
+  {
+    if(packageInfo == null) {
+      int entries = getBootClassPathSize();
+      packageInfo = new PackageInfo[entries];
+
+      for(int i = 0; i < entries; i++) {
+        String specTitle = null, specVendor = null, specVersion = null;
+        String implTitle = null, implVendor = null, implVersion = null;
+
+        String res = getBootClassPathResource("java/lang/Object.class", i);
+  
+        if(res != null) {
+          specTitle = SystemProperties.getProperty("java.specification.name");
+          specVendor = SystemProperties.getProperty("java.specification.vendor");
+          specVersion = SystemProperties.getProperty("java.specification.version");
+          implTitle = "GNU Classpath";
+          implVendor = "GNU";
+          implVersion = Configuration.CLASSPATH_VERSION;
+        } else {
+          res = getBootClassPathResource("jamvm/java/lang/JarLauncher.class", i);
+
+          if(res != null) {
+            specTitle = SystemProperties.getProperty("java.specification.name");
+            specVendor = SystemProperties.getProperty("java.specification.vendor");
+            specVersion = SystemProperties.getProperty("java.specification.version");
+            implTitle = "JamVM";
+            implVendor = "Robert Lougher";
+            implVersion = SystemProperties.getProperty("java.runtime.version");
+          } else {
+            res = getBootClassPathResource("META-INF/MANIFEST.MF", i);
+  
+            if(res != null)
+              try {
+                URL url = new URL(res);
+                Manifest man = new Manifest(url.openStream());
+                Attributes attr = man.getMainAttributes();
+
+                specTitle = attr.getValue(Attributes.Name.SPECIFICATION_TITLE);
+                specVersion = attr.getValue(Attributes.Name.SPECIFICATION_VERSION);
+                specVendor = attr.getValue(Attributes.Name.SPECIFICATION_VENDOR);
+                implTitle = attr.getValue(Attributes.Name.IMPLEMENTATION_TITLE);
+                implVersion = attr.getValue(Attributes.Name.IMPLEMENTATION_VERSION);
+                implVendor = attr.getValue(Attributes.Name.IMPLEMENTATION_VENDOR);
+              } catch(Exception e) {}
+          }
+        }
+
+        packageInfo[i] = new PackageInfo(specTitle, specVersion, specVendor,
+                                         implTitle, implVersion, implVendor);
+      }
+    }
+  }
+
   /**
    * Helper to get a list of resources from the bootstrap class loader.
    *
@@ -190,50 +209,6 @@ final class VMClassLoader
   }
 
   /**
-   * Returns a String[] of native package names. The default
-   * implementation tries to load a list of package from
-   * the META-INF/INDEX.LIST file in the boot jar file.
-   * If not found or if any exception is raised, it returns
-   * an empty array. You may decide this needs native help.
-   */
-  private static String[] getBootPackages()
-  {
-    URL indexList = getResource("META-INF/INDEX.LIST");
-    if (indexList != null)
-      {
-        try
-          {
-            Set packageSet = new HashSet();
-            String line;
-            int lineToSkip = 3;
-            BufferedReader reader = new BufferedReader(
-                                                       new InputStreamReader(
-                                                                             indexList.openStream()));
-            while ((line = reader.readLine()) != null)
-              {
-                if (lineToSkip == 0)
-                  {
-                    if (line.length() == 0)
-                      lineToSkip = 1;
-                    else
-                      packageSet.add(line.replace('/', '.'));
-                  }
-                else
-                  lineToSkip--;
-              }
-            reader.close();
-            return (String[]) packageSet.toArray(new String[packageSet.size()]);
-          }
-        catch (IOException e)
-          {
-            return new String[0];
-          }
-      }
-    else
-      return new String[0];
-  }
-
-  /**
    * Helper to get a package from the bootstrap class loader.
    *
    * @param name the name to find
@@ -241,7 +216,8 @@ final class VMClassLoader
    */
   static Package getPackage(String name)
   {
-    return (Package)definedPackages.get(name);
+    initBootPackages();
+    return getBootPackage(name);
   }
 
   /**
@@ -251,9 +227,8 @@ final class VMClassLoader
    */
   static Package[] getPackages()
   {
-    Package[] packages = new Package[definedPackages.size()];
-    definedPackages.values().toArray(packages);
-    return packages;
+    initBootPackages();
+    return getBootPackages();
   }
 
   /**
@@ -374,8 +349,42 @@ final class VMClassLoader
       }
   }
 
+  private static Package createBootPackage(String name, int index)
+  {
+      return new Package(name, packageInfo[index].specTitle,
+                               packageInfo[index].specVendor,
+                               packageInfo[index].specVersion,
+                               packageInfo[index].implTitle,
+                               packageInfo[index].implVendor,
+                               packageInfo[index].implVersion,
+                               null, null);
+  }
+
   /* Native helper functions */
+
+  private static native Package[] getBootPackages();
+  private static native Package getBootPackage(String name);
 
   private static native int getBootClassPathSize();
   private static native String getBootClassPathResource(String name, int index);
+
+  private static class PackageInfo {
+    String specTitle;
+    String specVersion;
+    String specVendor;
+    String implTitle;
+    String implVersion;
+    String implVendor;
+
+    PackageInfo(String specTitle, String specVersion, String specVendor,
+                String implTitle, String implVersion, String implVendor)
+    {
+      this.specTitle = specTitle;
+      this.specVersion = specVersion;
+      this.specVendor = specVendor;
+      this.implTitle = implTitle;
+      this.implVersion = implVersion;
+      this.implVendor = implVendor;
+    }
+  }
 }
