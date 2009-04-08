@@ -56,6 +56,11 @@ typedef struct bcp_entry {
 static BCPEntry *bootclasspath;
 static int bcp_entries;
 
+typedef struct package_entry {
+    int index;
+    char name[0];
+} PackageEntry;
+
 /* Cached offsets of fields in java.lang.ref.Reference objects */
 int ref_referent_offset = -1;
 int ref_queue_offset;
@@ -63,10 +68,12 @@ int ref_queue_offset;
 /* Cached offset of vmdata field in java.lang.ClassLoader objects */
 int ldr_vmdata_offset = -1;
 
+static MethodBlock *vm_loader_create_package = NULL;
 
-static Class *loader_data_class = NULL;
-static MethodBlock *ldr_new_unloader;
+static MethodBlock *ldr_new_unloader = NULL;
 static int ldr_data_tbl_offset;
+
+static Class *package_array_class;
 
 /* Instance of java.lang.Class for java.lang.Class */
 Class *java_lang_Class = NULL;
@@ -84,11 +91,14 @@ int enqueue_mtbl_idx;
 /* hash table containing classes loaded by the boot loader and
    internally created arrays */
 
-#define INITSZE 1<<8
-static HashTable loaded_classes;
+#define CLASS_INITSZE 1<<8
+static HashTable boot_classes;
+
+#define PCKG_INITSZE 1<<6
+static HashTable boot_packages;
 
 /* Array large enough to hold all primitive classes -
- * access protected by loaded_classes hash table lock */
+ * access protected by boot_classes hash table lock */
 #define MAX_PRIM_CLASSES 9
 static Class *prim_classes[MAX_PRIM_CLASSES];
 
@@ -105,7 +115,7 @@ static Class *addClassToHash(Class *class, Object *class_loader) {
             CLASS_CB((Class *)ptr1)->name == CLASS_CB((Class *)ptr2)->name
 
     if(class_loader == NULL)
-        table = &loaded_classes;
+        table = &boot_classes;
     else {
         Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
 
@@ -114,13 +124,13 @@ static Class *addClassToHash(Class *class, Object *class_loader) {
             vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
 
             if(vmdata == NULL) {
-                if((vmdata = allocObject(loader_data_class)) == NULL) {
+                if((vmdata = allocObject(ldr_new_unloader->class)) == NULL) {
                     objectUnlock(class_loader);
                     return NULL;
                 }
 
                 table = sysMalloc(sizeof(HashTable));
-                initHashTable((*table), INITSZE, TRUE);
+                initHashTable((*table), CLASS_INITSZE, TRUE);
 
                 INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset) = table;
                 INST_DATA(class_loader, Object*, ldr_vmdata_offset) = vmdata;
@@ -658,10 +668,10 @@ Class *createPrimClass(char *classname, int index) {
 
     prepareClass(class);
 
-    lockHashTable(loaded_classes);
+    lockHashTable(boot_classes);
     if(prim_classes[index] == NULL)
         prim_classes[index] = class;
-    unlockHashTable(loaded_classes);
+    unlockHashTable(boot_classes);
 
     if(verbose)
         jam_printf("[Created primitive class %s]\n", classname);
@@ -672,7 +682,7 @@ Class *createPrimClass(char *classname, int index) {
 /* Layout the instance data.
 
    The object layout places 64-bit fields on a double-word boundary
-   as on some architecures this leads to better performance (and
+   as on some architectures this leads to better performance (and
    misaligned loads/store may cause traps).
 
    Reference fields are also placed together as these must be scanned
@@ -1311,6 +1321,31 @@ char *findFileEntry(char *path, int *file_len) {
     return NULL;
 }
 
+void defineBootPackage(char *classname, int index) {
+    char *last_slash = strrchr(classname, '/');
+
+    if(last_slash != NULL && last_slash != classname) {
+        int len = last_slash - classname + 1;
+        PackageEntry *package = sysMalloc(sizeof(PackageEntry) + len);
+        PackageEntry *hashed;
+        
+        package->index = index;
+        slash2dots2buff(classname, package->name, len);
+
+#undef HASH
+#undef COMPARE
+#define HASH(ptr) utf8Hash(((PackageEntry*)ptr)->name)
+#define COMPARE(ptr1, ptr2, hash1, hash2) (hash1 == hash2 && \
+            utf8Comp(((PackageEntry*)ptr1)->name, ((PackageEntry*)ptr2)->name))
+
+        /* Add if absent, no scavenge, locked */
+        findHashEntry(boot_packages, package, hashed, TRUE, FALSE, TRUE);
+
+        if(package != hashed)
+            sysFree(package);
+    }
+}
+
 Class *loadSystemClass(char *classname) {
     int file_len, fname_len = strlen(classname) + 8;
     char buff[max_cp_element_len + fname_len];
@@ -1334,6 +1369,8 @@ Class *loadSystemClass(char *classname) {
         signalException(java_lang_NoClassDefFoundError, classname);
         return NULL;
     }
+
+    defineBootPackage(classname, i - 1);
 
     class = defineClass(classname, data, 0, file_len, NULL);
     sysFree(data);
@@ -1364,7 +1401,7 @@ Class *findHashedClass(char *classname, Object *class_loader) {
         return NULL;
 
     if(class_loader == NULL)
-        table = &loaded_classes;
+        table = &boot_classes;
     else {
         Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
 
@@ -1538,14 +1575,73 @@ Object *getSystemClassLoader() {
     return NULL;
 }
 
+Object *createBootPackage(PackageEntry *package_entry) {
+    Object *name = createString(package_entry->name);
+
+    if(name != NULL) {
+        Object *package = *(Object**)executeStaticMethod(
+                                            vm_loader_create_package->class,
+                                            vm_loader_create_package, name,
+                                            package_entry->index);
+
+        if(!exceptionOccurred()) 
+            return package;
+    }
+
+    return NULL;
+}
+
+Object *bootPackage(char *package_name) {
+    PackageEntry *hashed;
+
+#undef HASH
+#undef COMPARE
+#define HASH(ptr) utf8Hash(ptr)
+#define COMPARE(ptr1, ptr2, hash1, hash2) (hash1 == hash2 && \
+                                 utf8Comp(ptr1, ((PackageEntry*)ptr2)->name))
+
+    /* Do not add if absent, no scavenge, locked */
+    findHashEntry(boot_packages, package_name, hashed, FALSE, FALSE, TRUE);
+
+    if(hashed != NULL)
+        return createBootPackage(hashed);
+
+    return NULL;
+}
+
+#define ITERATE(ptr)                                       \
+    if((data[--count] = createBootPackage(ptr)) == NULL) { \
+        array = NULL;                                      \
+        goto error;                                        \
+    }
+
+Object *bootPackages() {
+    Object **data, *array;
+    int count;
+
+    lockHashTable(boot_packages);
+
+    count = hashTableCount(boot_packages);
+    if((array = allocArray(package_array_class, count, sizeof(Object*))) == NULL)
+        goto error;
+
+    data = ARRAY_DATA(array, Object*);
+    hashIterate(boot_packages);
+
+error:
+    unlockHashTable(boot_packages);
+    return array;
+}
+
 /* gc support for marking classes */
 
-#define ITERATE(ptr)  markRoot(ptr)
+#undef ITERATE
+#define ITERATE(ptr) markRoot(ptr)
 
 void markBootClasses() {
    int i;
 
-   hashIterate(loaded_classes);
+   hashIterate(boot_classes);
 
    for(i = 0; i < MAX_PRIM_CLASSES; i++)
        if(prim_classes[i] != NULL)
@@ -1558,7 +1654,7 @@ void markBootClasses() {
 void threadBootClasses() {
    int i;
 
-   hashIterateP(loaded_classes);
+   hashIterateP(boot_classes);
 
    for(i = 0; i < MAX_PRIM_CLASSES; i++)
        if(prim_classes[i] != NULL)
@@ -1870,35 +1966,53 @@ int bootClassPathSize() {
 }
 
 Object *bootClassPathResource(char *filename, int index) {
-    if(index < bcp_entries) {
-        /* Alloc enough space for Jar file URL -- jar:file://<path>!/<filename> */
-        char buff[strlen(filename) + strlen(bootclasspath[index].path) + 14];
+    Object *res = NULL;
 
-        if(bootclasspath[index].zip) {
+    if(index < bcp_entries) {
+        char *buff, *path = bootclasspath[index].path;
+        int path_len = strlen(path);
+
+        if(path[0] != '/') {
+            char *cwd = getCwd();
+            path_len += strlen(cwd) + 1;
+            path = strcat(strcat(strcpy(sysMalloc(path_len + 1), cwd), "/"), path);
+        }
+
+        /* Alloc enough space for Jar file URL -- jar:file://<path>!/<filename> */
+        buff = sysMalloc(strlen(filename) + path_len + 14);
+
+        if(bootclasspath[index].zip != NULL) {
             while(*filename == '/')
                 filename++;
 
-            if(!findArchiveDirEntry(filename, bootclasspath[index].zip))
-                return NULL;
+            if(findArchiveDirEntry(filename, bootclasspath[index].zip) == NULL)
+                goto out;
 
-            sprintf(buff, "jar:file://%s!/%s", bootclasspath[index].path, filename);
+            sprintf(buff, "jar:file://%s!/%s", path, filename);
         } else {
             struct stat info;
 
-            sprintf(buff, "file://%s/%s", bootclasspath[index].path, filename);
+            sprintf(buff, "file://%s/%s", path, filename);
             if(stat(&buff[7], &info) != 0 || S_ISDIR(info.st_mode))
-                return NULL;
+                goto out;
         }
 
-        return createString(buff);
+        res = createString(buff);
+
+out:
+        if(path != bootclasspath[index].path)
+            sysFree(path);
+        sysFree(buff);
     }
 
-    return NULL;
+    return res;
 }
 
 void initialiseClass(InitArgs *args) {
     char *bcp = setBootClassPath(args->bootpath, args->bootpathopt);
     FieldBlock *hashtable = NULL;
+    Class *loader_data_class;
+    Class *vm_loader_class;
 
     if(!(bcp && parseBootClassPath(bcp))) {
         jam_fprintf(stderr, "bootclasspath is empty!\n");
@@ -1909,11 +2023,11 @@ void initialiseClass(InitArgs *args) {
     setClassPath(args->classpath);
 
     /* Init hash table, and create lock */
-    initHashTable(loaded_classes, INITSZE, TRUE);
+    initHashTable(boot_classes, CLASS_INITSZE, TRUE);
+
+    initHashTable(boot_packages, PCKG_INITSZE, TRUE);
 
     loader_data_class = findSystemClass0(SYMBOL(jamvm_java_lang_VMClassLoaderData));
-    registerStaticClassRef(&loader_data_class);
-
     if(loader_data_class != NULL) {
         ldr_new_unloader = findMethod(loader_data_class, SYMBOL(newLibraryUnloader),
                                                          SYMBOL(_J__V));
@@ -1925,6 +2039,25 @@ void initialiseClass(InitArgs *args) {
         exitVM(1);
     }
     ldr_data_tbl_offset = hashtable->u.offset;
+
+    vm_loader_class = findSystemClass0(SYMBOL(java_lang_VMClassLoader));
+    if(vm_loader_class != NULL)
+       vm_loader_create_package =
+                  findMethod(vm_loader_class, SYMBOL(createBootPackage),
+                             SYMBOL(_java_lang_String_I__java_lang_Package));
+
+    if(vm_loader_create_package == NULL) {
+        jam_fprintf(stderr, "Fatal error: Bad java.lang.VMClassLoader (missing or corrupt)\n");
+        exitVM(1);
+    }
+
+    package_array_class = findArrayClass(SYMBOL(array_java_lang_Package));
+    registerStaticClassRef(&package_array_class);
+
+    if(package_array_class == NULL) {
+        jam_fprintf(stderr, "Fatal error: missing java.lang.Package\n");
+        exitVM(1);
+    }
 
     /* Register the address of where the java.lang.Class ref _will_ be */
     registerStaticClassRef(&java_lang_Class);
