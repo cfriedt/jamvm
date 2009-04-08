@@ -53,6 +53,9 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
 #define unlockHashTable(table)                                                     \
     unlockHashTable0(&table, threadSelf());
 
+#define hashTableCount(table)                                                      \
+    table.hash_count
+
 #define findHashEntry(table, ptr, ptr2, add_if_absent, scavenge, locked)           \
 {                                                                                  \
     int hash = HASH(ptr);                                                          \
@@ -145,14 +148,14 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
 
 #define hashIterate(table)                                                         \
 {                                                                                  \
-    HashEntry *entry = table.hash_table;                                           \
-    int cnt = table.hash_count;                                                    \
+    HashEntry *_entry = table.hash_table;                                          \
+    int _cnt = table.hash_count;                                                   \
                                                                                    \
-    while(cnt) {                                                                   \
-        void *data = entry++->data;                                                \
-        if(data) {                                                                 \
-            ITERATE(data);                                                         \
-            cnt--;                                                                 \
+    while(_cnt) {                                                                  \
+        void *_data = _entry++->data;                                              \
+        if(_data) {                                                                \
+            ITERATE(_data);                                                        \
+            _cnt--;                                                                \
         }                                                                          \
     }                                                                              \
 }
