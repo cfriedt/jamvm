@@ -1,3 +1,18 @@
+JamVM 1.5.3 released on 12th April 2009
+=======================================
+
+JamVM 1.5.3 is primarily a bug-fix release, and fixes issues seen
+while running Eclipse 3.4.2.  A summary of the changes:
+
+- Zip/Jar support in the boot classloader has been rewritten to
+  no longer require the Zip/Jar files to be mmap-ed read/write.
+  This increases shareability between multiple VM instances, and
+  improves memory-usage on embedded systems.
+
+- JNI invocation API:
+
+
+
 JamVM 1.5.2 released on 1st February 2009
 =========================================
 
