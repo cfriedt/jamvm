@@ -214,6 +214,9 @@ AC_DEFINE_UNQUOTED(INSTALL_DIR, "$install_dir", [Installation directory (prefix)
 AC_ARG_ENABLE(zip,
     [AS_HELP_STRING(--disable-zip,turn-off zip support in the bootstrap loader)],,)
 
+AC_ARG_ENABLE(tls,
+    [AS_HELP_STRING(--enable-tls,use thread-local-storage (enabled by default if supported by compiler))],,)
+
 dnl Initialise libtool
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
@@ -282,7 +285,8 @@ AM_LC_MESSAGES
 dnl TLS is currently disabled on Solaris.  The test program links, but
 dnl JamVM doesn't run correctly (tested on OpenSolaris 2008.11).
 
-if test "$host_os" != solaris; then
+dnl if test "$host_os" != solaris; then
+if test "$enable_tls" != no; then
     AC_MSG_CHECKING([for __thread])
     AC_LINK_IFELSE([AC_LANG_PROGRAM(,[static __thread int foo = 0])],
         [AC_DEFINE([HAVE_TLS],1,[__thread supported by compiler])
