@@ -22,7 +22,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.5.3-devel)
+AM_INIT_AUTOMAKE(jamvm, 1.5.3)
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
 
@@ -285,8 +285,7 @@ AM_LC_MESSAGES
 dnl TLS is currently disabled on Solaris.  The test program links, but
 dnl JamVM doesn't run correctly (tested on OpenSolaris 2008.11).
 
-dnl if test "$host_os" != solaris; then
-if test "$enable_tls" != no; then
+if test "$enable_tls" != no -a "$host_os" != solaris; then
     AC_MSG_CHECKING([for __thread])
     AC_LINK_IFELSE([AC_LANG_PROGRAM(,[static __thread int foo = 0])],
         [AC_DEFINE([HAVE_TLS],1,[__thread supported by compiler])
