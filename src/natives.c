@@ -740,7 +740,9 @@ uintptr_t *getBootClassPathResource(Class *class, MethodBlock *mb,
     return ostack;
 }
 
-uintptr_t *getBootClassPackage(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *getBootClassPackage(Class *class, MethodBlock *mb,
+                               uintptr_t *ostack) {
+
     Object *string = (Object *) ostack[0];
     char *package_name = String2Cstr(string);
 
@@ -750,7 +752,9 @@ uintptr_t *getBootClassPackage(Class *class, MethodBlock *mb, uintptr_t *ostack)
     return ostack;
 }
 
-uintptr_t *getBootClassPackages(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *getBootClassPackages(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack) {
+
     *ostack++ = (uintptr_t) bootPackages();
     return ostack;
 }
@@ -1381,6 +1385,16 @@ uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb,
     return ostack;
 }
 
+uintptr_t *getMemoryPoolNames(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack) {
+    Class *array_class = findArrayClass(SYMBOL(array_java_lang_String));
+
+    if(array_class != NULL)
+        *ostack++ = (uintptr_t)allocArray(array_class, 0, sizeof(Object*));
+        
+    return ostack;
+}
+
 /* sun.misc.Unsafe */
 
 static volatile uintptr_t spinlock = 0;
@@ -1854,6 +1868,13 @@ VMMethod vm_access_controller[] = {
     {NULL,                          NULL}
 };
 
+VMMethod vm_management_factory[] = {
+    {"getMemoryPoolNames",          getMemoryPoolNames},
+    {"getMemoryManagerNames",       getMemoryPoolNames},
+    {"getGarbageCollectorNames",    getMemoryPoolNames},
+    {NULL,                          NULL}
+};
+
 VMMethod vm_threadmx_bean_impl[] = {
     {"getThreadCount",              getThreadCount},
     {"getPeakThreadCount",          getPeakThreadCount},
@@ -1889,6 +1910,7 @@ VMClass native_methods[] = {
     {"java/security/VMAccessController",            vm_access_controller},
     {"gnu/classpath/VMSystemProperties",            vm_system_properties},
     {"gnu/classpath/VMStackWalker",                 vm_stack_walker},
+    {"java/lang/management/VMManagementFactory",    vm_management_factory},
     {"gnu/java/lang/management/VMThreadMXBeanImpl", vm_threadmx_bean_impl},
     {"sun/misc/Unsafe",                             sun_misc_unsafe},
     {"jamvm/java/lang/VMClassLoaderData$Unloader",  vm_class_loader_data},
