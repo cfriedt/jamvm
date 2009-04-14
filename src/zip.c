@@ -93,8 +93,9 @@
    be copied into a temporary buffer.  This is NOT performance critical,
    as the hash is calculated only once per entry (on insertion)
 */
-int zipHash(unsigned char *path) {
-    int path_len = READ_LE_SHORT(path + (CEN_FILE_PATHLEN_OFFSET -
+int zipHash(char *path) {
+    int path_len = READ_LE_SHORT((unsigned char*)path +
+                                        (CEN_FILE_PATHLEN_OFFSET -
                                          CEN_FILE_HEADER_LEN));
     char buff[path_len + 1];
 
@@ -108,10 +109,12 @@ int zipHash(unsigned char *path) {
    both be within the zip file.  As there are no concerns about differing
    encoding of null, we can do a memcmp to compare them
 */
-int zipComp(unsigned char *path1, unsigned char *path2) {
-    int path1_len = READ_LE_SHORT(path1 + (CEN_FILE_PATHLEN_OFFSET -
+int zipComp(char *path1, char *path2) {
+    int path1_len = READ_LE_SHORT((unsigned char*)path1 +
+                                          (CEN_FILE_PATHLEN_OFFSET -
                                            CEN_FILE_HEADER_LEN));
-    int path2_len = READ_LE_SHORT(path2 + (CEN_FILE_PATHLEN_OFFSET -
+    int path2_len = READ_LE_SHORT((unsigned char*)path2 +
+                                          (CEN_FILE_PATHLEN_OFFSET -
                                            CEN_FILE_HEADER_LEN));
 
     return path1_len == path2_len && !memcmp(path1, path2, path1_len);
@@ -121,7 +124,6 @@ ZipFile *processArchive(char *path) {
     unsigned char magic[SIG_LEN];
     unsigned char *data, *pntr;
     int entries, fd, len;
-    int next_file_sig;
 
     HashTable *hash_table;
     ZipFile *zip;
@@ -234,8 +236,9 @@ error:
    performed using the hash value; a filename comparison is only
    done when hash values clash (which is rare)
 */
-int utf8ZipComp(unsigned char *path1, unsigned char *path2) {
-    int path2_len = READ_LE_SHORT(path2 + (CEN_FILE_PATHLEN_OFFSET -
+int utf8ZipComp(char *path1, char *path2) {
+    int path2_len = READ_LE_SHORT((unsigned char*)path2 +
+                                          (CEN_FILE_PATHLEN_OFFSET -
                                            CEN_FILE_HEADER_LEN));
     char buff[path2_len + 1];
 
