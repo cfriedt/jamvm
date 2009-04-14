@@ -20,7 +20,7 @@ features.  A summary of the changes:
 - Do not create a library unloader for libraries loaded by the bootstrap
   loader if they have an JNI_OnUnload method (the bootstrap loader is
   never unloaded, and so they will never be called).  Fixes a SEGV with
-  JRUby.
+  JRuby.
 
 - Fix to annotation handling.  When the annotation value is an array,
   the native annotation parser constructs an Object array.  However,
@@ -42,7 +42,7 @@ features.  A summary of the changes:
 - Fix broken implementation of VMClass.getSimpleName() (use the
   implementation from gcj)
 
-- Default stack size increased to 256K from 64K
+- Default Java stack size increased to 256K from 64K
 
 - Fix to bootstrap loader getResources() when the bootclasspath
   entry is relative (prepend the current working directory)
