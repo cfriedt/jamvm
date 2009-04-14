@@ -1,8 +1,9 @@
-JamVM 1.5.3 released on 12th April 2009
+JamVM 1.5.3 released on 14th April 2009
 =======================================
 
-JamVM 1.5.3 is primarily a bug-fix release, and fixes issues seen
-while running Eclipse 3.4.2.  A summary of the changes:
+JamVM 1.5.3 is primarily a bug-fix release.  It fixes issues seen
+while running Eclipse 3.4.2 and JRuby 1.2.0RC2, and adds some minor
+features.  A summary of the changes:
 
 - Zip/Jar support in the boot classloader has been rewritten to
   no longer require the Zip/Jar files to be mmap-ed read/write.
@@ -10,7 +11,46 @@ while running Eclipse 3.4.2.  A summary of the changes:
   improves memory-usage on embedded systems.
 
 - JNI invocation API:
+  - set thread-self to NULL when thread detaches (if the thread tries
+    to re-attach, it appears to still be attached)
 
+  - init args_count in dummy stack frame (fix problem if the thread
+    detaches and then re-attaches)
+ 
+- Do not create a library unloader for libraries loaded by the bootstrap
+  loader if they have an JNI_OnUnload method (the bootstrap loader is
+  never unloaded, and so they will never be called).  Fixes a SEGV with
+  JRUby.
+
+- Fix to annotation handling.  When the annotation value is an array,
+  the native annotation parser constructs an Object array.  However,
+  the method return value is the specific type.  This leads to an
+  AnnotationTypeMismatchException.  The fix coerces the Object
+  array to the correct type.
+
+- Simple implementation of java.lang.management.VMManagementFactory
+  (returns no memory pool, memory manager or GC names).  Sufficient
+  to run JRuby.
+
+- Implemented package support in the bootstrap class loader.  Package
+  information is obtained from the manifest file if it exists.  However,
+  GNU Classpath's glibj.zip's manifest has no package information.
+  The class library is therefore recognised by the presence of
+  java/lang/Object.class, and appropriate package information is
+  constructed.
+
+- Fix broken implementation of VMClass.getSimpleName() (use the
+  implementation from gcj)
+
+- Default stack size increased to 256K from 64K
+
+- Fix to bootstrap loader getResources() when the bootclasspath
+  entry is relative (prepend the current working directory)
+
+- Fix minor memory leak in bootstrap loader getResources()
+
+- Add --enable-tls option to configure, enabling thread-local-storage
+  (__thread) to be disabled
 
 
 JamVM 1.5.2 released on 1st February 2009
@@ -1088,9 +1128,9 @@ JamVM 1.1.1 released on 25th January 2004
 JamVM 1.1.0 released on 17th November 2003
 ==========================================
 
-There's been quite a few changes, including performance improvements and more of
-the specification is now implemented (should be everything now but Runtime.exec),
-as well as the usual bug-fixes.
+There's been quite a few changes, including performance improvements and
+more of the specification is now implemented (should be everything now but
+Runtime.exec), as well as the usual bug-fixes.
 
 - Interface method tables are now implemented.  This means an interface method
   invocation should now be almost as fast as a normal virtual method.
