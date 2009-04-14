@@ -166,9 +166,9 @@ static void prepareClass(Class *class) {
 Class *defineClass(char *classname, char *data, int offset, int len,
                    Object *class_loader) {
 
-    unsigned char *ptr = (unsigned char *)data+offset;
-    int cp_count, intf_count, i;
     u2 major_version, minor_version, this_idx, super_idx;
+    unsigned char *ptr = (unsigned char *)data + offset;
+    int cp_count, intf_count, i;
     u2 attr_count;
     u4 magic;
 
