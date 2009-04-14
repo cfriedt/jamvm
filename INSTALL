@@ -13,19 +13,21 @@ You must already have the compressed tar file containing the source
 code for JamVM (you're reading this!).  For JamVM to run, it must also
 have a class library containing the system classes and the associated
 native methods (e.g. java.lang.Object).  JamVM 1.5.3 has been written to
-use GNU Classpath.  It is compatible with Classpath 0.92 and versions
-upto and including the latest snapshot version 0.97.  It should also be
-compatible with the CVS version, and later snapshots, as long as the VM
-interface has remained the same.
+use GNU Classpath.  It is compatible with the latest released version
+which is currently 0.98.  It is not compatible with earlier versions. 
+It should also be compatible with the CVS version, and later snapshots,
+as long as the VM interface has remained the same.
 
 Classpath can be obtained from the following URL:
 
 ftp://ftp.gnu.org/gnu/classpath
 
 The class library consists of the Java classes and the shared libraries
-containing the native methods.  To build the Java classes you must have
-either ECJ, GCJ or Jikes.  To build Classpath >= 0.95 ECJ is required as
-it uses generics.
+containing the native methods.  As GNU Classpath uses generics, a Java 1.5
+compatible compiler is required to build the classes, e.g. the Eclipse
+Java Compiler (ecj).  This is available as a standalone package in most
+Linux distributions.
+
 
 Building and Installing JamVM
 -----------------------------
