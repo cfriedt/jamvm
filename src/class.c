@@ -56,11 +56,6 @@ typedef struct bcp_entry {
 static BCPEntry *bootclasspath;
 static int bcp_entries;
 
-typedef struct package_entry {
-    int index;
-    char name[0];
-} PackageEntry;
-
 /* Cached offsets of fields in java.lang.ref.Reference objects */
 int ref_referent_offset = -1;
 int ref_queue_offset;
@@ -68,12 +63,23 @@ int ref_queue_offset;
 /* Cached offset of vmdata field in java.lang.ClassLoader objects */
 int ldr_vmdata_offset = -1;
 
+/* Helper method to create a Package Object representing a
+   package loaded by the boot loader */
 static MethodBlock *vm_loader_create_package = NULL;
+static Class *package_array_class;
+
+/* hash table containing packages loaded by the boot loader */
+#define PCKG_INITSZE 1<<6
+static HashTable boot_packages;
+
+/* Hashtable entry for each package defined by the boot loader */
+typedef struct package_entry {
+    int index;
+    char name[0];
+} PackageEntry;
 
 static MethodBlock *ldr_new_unloader = NULL;
 static int ldr_data_tbl_offset;
-
-static Class *package_array_class;
 
 /* Instance of java.lang.Class for java.lang.Class */
 Class *java_lang_Class = NULL;
@@ -90,12 +96,8 @@ int enqueue_mtbl_idx;
 
 /* hash table containing classes loaded by the boot loader and
    internally created arrays */
-
 #define CLASS_INITSZE 1<<8
 static HashTable boot_classes;
-
-#define PCKG_INITSZE 1<<6
-static HashTable boot_packages;
 
 /* Array large enough to hold all primitive classes -
  * access protected by boot_classes hash table lock */
