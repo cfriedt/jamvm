@@ -62,9 +62,8 @@ Note, you must be root to install in the default location.
 configure options
 -----------------
 
-JamVM by default installs in /usr/local/include, /usr/local/bin
-and /usr/local/libexec.  You can change the install prefix (/usr/local)
-by giving configure the option :-
+JamVM by default installs in /usr/local/jamvm.  You can change the
+installation directory by giving configure the option :-
 
 --prefix=PATH
 
@@ -93,13 +92,13 @@ Building and Installing GNU classpath
 -------------------------------------
 
 This section gives basic instructions for building and installing
-GNU Classpath using Jikes.  For full information on Classpath options
+GNU Classpath using ecj.  For full information on Classpath options
 see the INSTALL file inside the GNU Classpath directory.
 
 1) Run `configure' - cd into the unpacked GNU Classpath directory
    and type :-
 
-./configure --with-jikes --enable-jni
+./configure
  
 Note, this builds the AWT "peer" classes, the gconf peer classes and
 gcjwebplugin.  If configure fails, refer to the Classpath INSTALL file
@@ -119,7 +118,7 @@ make install
 As with installing JamVM, you may need to be root to install the files.
 
 
-That's it!  As long as you have /usr/local/bin in your path, you should
+That's it!  As long as you have /usr/local/jamvm/bin in your path, you should
 now be able to run JamVM by typing `jamvm'.
 
 ------
