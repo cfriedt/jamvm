@@ -1088,20 +1088,19 @@ CALL_METHOD(STATIC);
 
 jobject Jam_CallObjectMethod(JNIEnv *env, jobject obj,
                              jmethodID methodID, ...) {
-    Object *ob = (Object *)obj;
-    Object *ret;
+    Object **ret;
     va_list jargs;
+    Object *ob = (Object *)obj;
     MethodBlock *mb = lookupVirtualMethod(ob, methodID);
 
     if(mb == NULL)
         return NULL;
 
     va_start(jargs, methodID);
-    ret = addJNILref(*(Object**)
-                     executeMethodVaList(ob, ob->class, mb, jargs));
+    ret = executeMethodVaList(ob, ob->class, mb, jargs);
     va_end(jargs);
 
-    return ret;
+    return addJNILref(*ret);
 }
 
 jobject Jam_CallObjectMethodV(JNIEnv *env, jobject obj, jmethodID methodID,
@@ -1124,56 +1123,54 @@ jobject Jam_CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID,
 
 jobject Jam_CallNonvirtualObjectMethod(JNIEnv *env, jobject obj, jclass clazz,
                                        jmethodID methodID, ...) {
-    Object *ret;
+    Object **ret;
     va_list jargs;
 
     va_start(jargs, methodID);
-    ret = addJNILref(*(Object**)
-                     executeMethodVaList(obj, clazz, methodID, jargs));
+    ret = executeMethodVaList(obj, clazz, methodID, jargs);
     va_end(jargs);
 
-    return ret;
+    return addJNILref(*ret);
 }
 
 jobject Jam_CallNonvirtualObjectMethodV(JNIEnv *env, jobject obj, jclass clazz,
                                         jmethodID methodID, va_list jargs) {
 
-    return addJNILref(*(Object**)
-                      executeMethodVaList(obj, clazz, methodID, jargs));
+    Object **ret = executeMethodVaList(obj, clazz, methodID, jargs);
+    return addJNILref(*ret);
 }
 
 jobject Jam_CallNonvirtualObjectMethodA(JNIEnv *env, jobject obj, jclass clazz,
                                         jmethodID methodID, jvalue *jargs) {
 
-    return addJNILref(*(Object**)
-                      executeMethodList(obj, clazz, methodID, (u8*)jargs));
+    Object **ret = executeMethodList(obj, clazz, methodID, (u8*)jargs);
+    return addJNILref(*ret);
 }
 
 jobject Jam_CallStaticObjectMethod(JNIEnv *env, jclass clazz,
                                    jmethodID methodID, ...) {
-    Object *ret;
+    Object **ret;
     va_list jargs;
 
     va_start(jargs, methodID);
-    ret = addJNILref(*(Object**)
-                     executeMethodVaList(NULL, clazz, methodID, jargs));
+    ret = executeMethodVaList(NULL, clazz, methodID, jargs);
     va_end(jargs);
 
-    return ret;
+    return addJNILref(*ret);
 }
 
 jobject Jam_CallStaticObjectMethodV(JNIEnv *env, jclass clazz,
                 jmethodID methodID, va_list jargs) {
 
-    return addJNILref(*(Object**)
-                      executeMethodVaList(NULL, clazz, methodID, jargs));
+    Object **ret = executeMethodVaList(NULL, clazz, methodID, jargs);
+    return addJNILref(*ret);
 }
 
 jobject Jam_CallStaticObjectMethodA(JNIEnv *env, jclass clazz,
                                     jmethodID methodID, jvalue *jargs) {
 
-    return addJNILref(*(Object**)
-                      executeMethodList(NULL, clazz, methodID, (u8*)jargs));
+    Object **ret = executeMethodList(NULL, clazz, methodID, (u8*)jargs);
+    return addJNILref(*ret);
 }
 
 void Jam_CallVoidMethod(JNIEnv *env, jobject obj, jmethodID methodID, ...) {
