@@ -1088,9 +1088,8 @@ CALL_METHOD(STATIC);
 
 jobject Jam_CallObjectMethod(JNIEnv *env, jobject obj,
                              jmethodID methodID, ...) {
-    Object **ret;
     va_list jargs;
-    Object *ob = (Object *)obj;
+    Object **ret, *ob = obj;
     MethodBlock *mb = lookupVirtualMethod(ob, methodID);
 
     if(mb == NULL)
@@ -1105,20 +1104,26 @@ jobject Jam_CallObjectMethod(JNIEnv *env, jobject obj,
 
 jobject Jam_CallObjectMethodV(JNIEnv *env, jobject obj, jmethodID methodID,
                               va_list jargs) {
-    Object *ob = obj;
+    Object **ret, *ob = obj;
     MethodBlock *mb = lookupVirtualMethod(ob, methodID);
 
-    return mb == NULL ? NULL : addJNILref(*(Object**)
-                             executeMethodVaList(ob, ob->class, mb, jargs));
+    if(mb == NULL)
+        return NULL;
+
+    ret = executeMethodVaList(ob, ob->class, mb, jargs);
+    return addJNILref(*ret);
 }
 
 jobject Jam_CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID,
                               jvalue *jargs) {
-    Object *ob = obj;
+    Object **ret, *ob = obj;
     MethodBlock *mb = lookupVirtualMethod(ob, methodID);
 
-    return mb == NULL ? NULL : addJNILref(*(Object**)
-                             executeMethodList(ob, ob->class, mb, (u8*)jargs));
+    if(mb == NULL)
+        return NULL;
+
+    ret = executeMethodList(ob, ob->class, mb, (u8*)jargs);
+    return addJNILref(*ret);
 }
 
 jobject Jam_CallNonvirtualObjectMethod(JNIEnv *env, jobject obj, jclass clazz,
