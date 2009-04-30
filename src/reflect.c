@@ -597,7 +597,7 @@ Class *findClassFromSignature(char *type_name, Class *class) {
     Class *type_class;
     char *name, *pntr;
 
-    name = pntr = sysMalloc(strlen(type_name));
+    name = pntr = sysMalloc(strlen(type_name) + 1);
     strcpy(name, type_name);
 
     type_class = convertSigElement2Class(&pntr, class);
