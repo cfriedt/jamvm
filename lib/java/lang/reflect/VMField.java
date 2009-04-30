@@ -519,7 +519,14 @@ final class VMField
    *         <code>null</code> if no such annotation exists.
    * @throws NullPointerException if the annotation class is <code>null</code>.
    */
-  native Annotation getAnnotation(Class annotationClass);
+  public Annotation getAnnotation(Class annoClass)
+  {
+    Annotation[] annos = getDeclaredAnnotations();
+    for (int i = 0; i < annos.length; i++)
+      if (annos[i].annotationType() == annoClass)
+	return annos[i];
+    return null;
+  }
 
   /**
    * Returns all annotations directly defined by the element.  If there are
