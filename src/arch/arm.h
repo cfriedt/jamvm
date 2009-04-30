@@ -125,18 +125,23 @@ do {                                                      \
 #endif
 
 #define GEN_REL_JMP(target_addr, patch_addr, patch_size)  \
-{                                                         \
+({                                                        \
+    int patched = FALSE;                                  \
+                                                          \
     if(patch_size >= 4) {                                 \
         /* Guard against the pointer difference being     \
            larger than the signed range */                \
         long long offset = (uintptr_t)(target_addr) -     \
                            (uintptr_t)(patch_addr) - 8;   \
                                                           \
-        if(offset >= -1<<25 && offset < 1<<25)            \
+        if(offset >= -1<<25 && offset < 1<<25) {          \
             *(int*)(patch_addr) = offset>>2 & 0x00ffffff  \
                                             | 0xea000000; \
+            patched = TRUE;                               \
+        }                                                 \
     }                                                     \
-}
+    patched;                                              \
+})
 
 #define MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
