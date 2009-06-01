@@ -335,7 +335,7 @@ Object *convertStackTrace(Object *vmthrwble) {
    In rare circumstances a stack backtrace may hold the only
    reference to a class */
 
-void markVMThrowable(Object *vmthrwble, int mark, int mark_soft_refs) {
+void markVMThrowable(Object *vmthrwble, int mark) {
     Object *array;
 
     if((array = INST_DATA(vmthrwble, Object*, backtrace_offset)) != NULL) {
@@ -344,7 +344,7 @@ void markVMThrowable(Object *vmthrwble, int mark, int mark_soft_refs) {
 
         for(i = 0; i < depth; i += 2) {
             MethodBlock *mb = (MethodBlock*)src[i];
-            markObject(mb->class, mark, mark_soft_refs);
+            markObject(mb->class, mark);
         }
     }
 }
