@@ -1666,9 +1666,9 @@ void threadBootClasses() {
 #undef ITERATE
 #define ITERATE(ptr)                                         \
     if(CLASS_CB((Class *)ptr)->class_loader == class_loader) \
-        markObject(ptr, mark, mark_soft_refs)
+        markObject(ptr, mark)
 
-void markLoaderClasses(Object *class_loader, int mark, int mark_soft_refs) {
+void markLoaderClasses(Object *class_loader, int mark) {
     Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
 
     if(vmdata != NULL) {
