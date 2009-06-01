@@ -761,7 +761,7 @@ extern Object *allocMultiArray(Class *array_class, int dim, intptr_t *count);
 extern Object *cloneObject(Object *ob);
 extern void markRoot(Object *ob);
 extern void markConservativeRoot(Object *ob);
-extern void markObject(Object *ob, int mark, int mark_soft_refs);
+extern void markObject(Object *ob, int mark);
 extern uintptr_t getObjectHashcode(Object *ob);
 
 extern void gc1();
@@ -830,7 +830,7 @@ extern char *getClassPath();
 extern char *getBootClassPath();
 
 extern void markBootClasses();
-extern void markLoaderClasses(Object *loader, int mark, int mark_soft_refs);
+extern void markLoaderClasses(Object *loader, int mark);
 extern void threadBootClasses();
 extern void threadLoaderClasses(Object *class_loader);
 extern void newLibraryUnloader(Object *class_loader, void *entry);
@@ -889,7 +889,7 @@ extern CodePntr findCatchBlock(Class *exception);
 extern Object *setStackTrace0(ExecEnv *ee, int max_depth);
 extern Object *convertStackTrace(Object *vmthrwble);
 extern int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr);
-extern void markVMThrowable(Object *vmthrwble, int mark, int mark_soft_refs);
+extern void markVMThrowable(Object *vmthrwble, int mark);
 extern void initialiseException();
 
 #define exceptionOccurred0(ee) \
