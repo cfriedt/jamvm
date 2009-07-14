@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -23,16 +23,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <dlfcn.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 #include <pthread.h>
 
 #ifndef __NetBSD__
 #include <pthread_np.h>
-#endif
-
-#ifdef __OpenBSD__
-#include <sys/signal.h>
 #endif
 
 #include "../../jam.h"
