@@ -375,14 +375,16 @@ try_again2:
 
     if(mon->obj != obj) {
         while(entering = LOCKWORD_READ(&mon->entering),
-                        !(LOCKWORD_COMPARE_AND_SWAP(&mon->entering, entering, entering-1)));
+                        !(LOCKWORD_COMPARE_AND_SWAP(&mon->entering,
+                                                    entering, entering-1)));
         goto try_again;
     }
 
     monitorLock(mon, self);
 
     while(entering = LOCKWORD_READ(&mon->entering),
-                    !(LOCKWORD_COMPARE_AND_SWAP(&mon->entering, entering, entering-1)));
+                    !(LOCKWORD_COMPARE_AND_SWAP(&mon->entering,
+                                                entering, entering-1)));
 
     while((LOCKWORD_READ(&obj->lock) & SHAPE_BIT) == 0) {
         setFlcBit(obj);
@@ -435,8 +437,9 @@ retry:
                                 (mon->in_wait == 0)) {
                     TRACE("Thread %p is deflating obj %p...\n", self, obj);
 
-                    /* This barrier is not needed for the thin-locking implementation --
-                       it's a requirement of the Java memory model. */
+                    /* This barrier is not needed for the thin-locking
+                       implementation -- it's a requirement of the Java
+                       memory model. */
                     JMM_UNLOCK_MBARRIER();
 
                     LOCKWORD_WRITE(&obj->lock, 0);
