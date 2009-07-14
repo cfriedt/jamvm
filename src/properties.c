@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -66,7 +66,7 @@ void setProperty(Object *properties, char *key, char *value) {
     Object *v = Cstr2String(value ? value : "?");
 
     MethodBlock *mb = lookupMethod(properties->class, SYMBOL(put),
-                           SYMBOL(_java_lang_Object_java_lang_Object__java_lang_Object));
+                  SYMBOL(_java_lang_Object_java_lang_Object__java_lang_Object));
     executeMethod(properties, mb, k, v);
 }
 
@@ -75,7 +75,8 @@ void addCommandLineProperties(Object *properties) {
         int i;
 
         for(i = 0; i < commandline_props_count; i++) {
-            setProperty(properties, commandline_props[i].key, commandline_props[i].value);
+            setProperty(properties, commandline_props[i].key,
+                                    commandline_props[i].value);
             sysFree(commandline_props[i].key);
         }
 
@@ -179,22 +180,26 @@ void addDefaultProperties(Object *properties) {
     setProperty(properties, "java.vm.vendor", "Robert Lougher");
     setProperty(properties, "java.vm.vendor.url", "http://jamvm.org");
     setProperty(properties, "java.vm.specification.version", "1.0");
-    setProperty(properties, "java.vm.specification.vendor", "Sun Microsystems, Inc.");
-    setProperty(properties, "java.vm.specification.name", "Java Virtual Machine Specification");
-
+    setProperty(properties, "java.vm.specification.vendor",
+                            "Sun Microsystems, Inc.");
+    setProperty(properties, "java.vm.specification.name",
+                            "Java Virtual Machine Specification");
     setProperty(properties, "java.runtime.version", VERSION);
     setProperty(properties, "java.version", JAVA_COMPAT_VERSION);
     setProperty(properties, "java.vendor", "GNU Classpath");
     setProperty(properties, "java.vendor.url", "http://www.classpath.org");
     setProperty(properties, "java.home", getJavaHome());
     setProperty(properties, "java.specification.version", "1.5");
-    setProperty(properties, "java.specification.vendor", "Sun Microsystems, Inc.");
-    setProperty(properties, "java.specification.name", "Java Platform API Specification");
+    setProperty(properties, "java.specification.vendor",
+                            "Sun Microsystems, Inc.");
+    setProperty(properties, "java.specification.name",
+                            "Java Platform API Specification");
     setProperty(properties, "java.class.version", "48.0");
     setProperty(properties, "java.class.path", getClassPath());
     setProperty(properties, "sun.boot.class.path", getBootClassPath());
     setProperty(properties, "java.boot.class.path", getBootClassPath());
-    setProperty(properties, "gnu.classpath.boot.library.path", getBootDllPath());
+    setProperty(properties, "gnu.classpath.boot.library.path",
+                            getBootDllPath());
     setProperty(properties, "java.library.path", getDllPath());
     setProperty(properties, "java.io.tmpdir", "/tmp");
     setProperty(properties, "java.compiler", "");
