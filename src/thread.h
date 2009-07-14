@@ -20,10 +20,13 @@
  */
 
 #ifndef CREATING
-#include <alloca.h>
 #include <pthread.h>
 #include <setjmp.h>
 #include <stdlib.h>
+
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
 
 /* Thread states */
 
