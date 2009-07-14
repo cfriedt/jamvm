@@ -39,8 +39,8 @@ i386-*-solaris*) host_cpu=x86 host_os=solaris ;;
 x86_64-*-linux*) host_os=linux ;;
 hppa*-*-linux*) host_cpu=parisc host_os=linux ;;
 mipsel-*-linux*) host_cpu=mips host_os=linux ;;
-amd64-*-openbsd*) host_os=bsd libdl_needed=no ;;
-amd64-*-freebsd*) host_os=bsd libdl_needed=no ;;
+x86_64-*-openbsd*) host_os=bsd libdl_needed=no ;;
+x86_64-*-freebsd*) host_os=bsd libdl_needed=no ;;
 arm*-*-linux*) host_cpu=arm host_os=linux ;;
 arm*-*-openbsd*) host_cpu=arm host_os=bsd libdl_needed=no ;;
 arm*-*-freebsd*) host_cpu=arm host_os=bsd libdl_needed=no ;;
@@ -246,7 +246,7 @@ fi
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(sys/time.h unistd.h endian.h sys/param.h locale.h)
+AC_CHECK_HEADERS(sys/time.h unistd.h endian.h sys/param.h locale.h alloca.h)
 
 if test "$enable_zip" != no; then
     AC_CHECK_HEADER(zlib.h,,AC_MSG_ERROR(zlib.h is missing))
@@ -282,12 +282,20 @@ AC_FUNC_MMAP
 AC_CHECK_FUNCS(gettimeofday strtol setlocale)
 AM_LC_MESSAGES
 
-dnl TLS is currently disabled on Solaris.  The test program links, but
-dnl JamVM doesn't run correctly (tested on OpenSolaris 2008.11).
+dnl This check initially determined if thread local storage is supported by
+dnl trying to compile and link a program that uses TLS.  However, on several
+dnl OS/C-libraries, the check succeeds but the program doesn't actually run
+dnl (the check can't run the program as this won't work when cross-compiling).
+dnl So we take a conservative approach, and only check OS/C-library
+dnl combinations which should work (currenty Linux/glibc).
 
-if test "$enable_tls" != no -a "$host_os" != solaris; then
+if test "$enable_tls" != no; then
     AC_MSG_CHECKING([for __thread])
-    AC_LINK_IFELSE([AC_LANG_PROGRAM(,[static __thread int foo = 0])],
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <features.h>
+                                     #if !defined(__linux__) || !defined(__GLIBC__)
+                                         #error not supported on this OS/C library
+                                     #endif]
+                                   ,[static __thread int foo = 0])],
         [AC_DEFINE([HAVE_TLS],1,[__thread supported by compiler])
          AC_MSG_RESULT([yes])],
         [AC_MSG_RESULT([no])])
