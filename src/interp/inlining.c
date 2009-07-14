@@ -927,7 +927,7 @@ void inlineBlock(MethodBlock *mb, BasicBlock *block, Thread *self) {
        inlineBlocks doesn't free the blocks as previously scanned
        blocks may be inlined later */
 
-    while(start != end->next) {
+    for(end = end->next; start != end; ) {
         BasicBlock *next = start->next;
 
         sysFree(start->opcodes);
