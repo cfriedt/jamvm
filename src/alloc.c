@@ -127,14 +127,13 @@ static unsigned long heapfree;
 static unsigned int *markbits;
 static int markbit_size;
 
-/* The mark stack, allocated on start-up.  The mark stack
-   is fixed size.  If it overflows (which shouldn't normally
-   happen except in extremely nested structures), marking
-   falls back to a slower heap scan */
+/* The mark stack is fixed size.  If it overflows (which
+   shouldn't normally happen except in extremely nested
+   structures), marking falls back to a slower heap scan */
 #define MARK_STACK_SIZE 16384
-static int mark_stack_count = 0;
 static int mark_stack_overflow;
-static Object **mark_stack;
+static int mark_stack_count = 0;
+static Object *mark_stack[MARK_STACK_SIZE];
 
 /* The mark heap scan pointer.  Reduces mark stack usage
    by limiting marking to a region of the heap */
@@ -279,7 +278,7 @@ void allocMarkBits() {
 }
 
 void clearMarkBits() {
-    memset(markbits, 0, markbit_size*sizeof(*markbits));
+    memset(markbits, 0, markbit_size * sizeof(*markbits));
 }
 
 void initialiseAlloc(InitArgs *args) {
@@ -305,9 +304,6 @@ void initialiseAlloc(InitArgs *args) {
 
     TRACE_GC("Alloced heap size %p\n", heaplimit-heapbase);
     allocMarkBits();
-
-    /* Allocate the mark stack (explicit stack rather than recursion) */
-    mark_stack = sysMalloc(MARK_STACK_SIZE * sizeof(Object*));
 
     /* Initialise GC locks */
     initVMLock(heap_lock);
@@ -590,17 +586,19 @@ void markStack(int mark_soft_refs) {
 void scanHeap(int mark_soft_refs) {
     for(mark_scan_ptr = heapbase; mark_scan_ptr < heaplimit;) {
         uintptr_t hdr = HEADER(mark_scan_ptr);
-        uintptr_t size = HDR_SIZE(hdr);
+        uintptr_t size;
 
         if(HDR_ALLOCED(hdr)) {
             Object *ob = (Object*)(mark_scan_ptr + HEADER_SIZE);
             int mark = IS_MARKED(ob);
+            size = HDR_SIZE(hdr);
 
             if(mark) {
                 markChildren(ob, mark, mark_soft_refs);
                 markStack(mark_soft_refs);
             }
-        }
+        } else
+            size = hdr;
 
         /* Skip to next block */
         mark_scan_ptr += size;
@@ -636,7 +634,7 @@ static void doMark(Thread *self, int mark_soft_refs) {
     scanHeapAndMark(mark_soft_refs);
 
     /* Now all reachable objects are marked.  All other objects are garbage.
-       Any object with a finalizer which is unmarked, however, must have it's
+       Any object with a finalizer which is unmarked, however, must have its
        finalizer ran before collecting.  Scan the has_finaliser list and move
        all unmarked objects to the run_finaliser list.  This ensures that
        finalizers are ran only once, even if finalization resurrects the
@@ -784,11 +782,14 @@ static uintptr_t doSweep(Thread *self) {
 
     for(ptr = heapbase; ptr < heaplimit; ) {
         uintptr_t hdr = HEADER(ptr);
-        uintptr_t size = HDR_SIZE(hdr);
+        uintptr_t size;
         Object *ob;
+
+        curr = (Chunk *) ptr;
 
         if(HDR_ALLOCED(hdr)) {
             ob = (Object*)(ptr+HEADER_SIZE);
+            size = HDR_SIZE(hdr);
 
             if(IS_MARKED(ob))
                 goto marked;
@@ -799,17 +800,16 @@ static uintptr_t doSweep(Thread *self) {
             if(HDR_SPECIAL_OBJ(hdr) && ob->class != NULL)
                 handleUnmarkedSpecial(ob);
 
+            /* Clear any set flag bits within the header */
+            curr->header &= HDR_FLAGS_MASK;
+
             TRACE_GC("FREE: Freeing ob @%p class %s - start of block\n", ob,
                                     ob->class ? CLASS_CB(ob->class)->name : "?");
-        }
-        else
+        } else {
             TRACE_GC("FREE: Unalloced block @%p size %d - start of block\n", ptr, size);
+            size = hdr;
+        }
         
-        curr = (Chunk *) ptr;
-
-        /* Clear any set flag bits within the header */
-        curr->header &= HDR_FLAGS_MASK;
-
         /* Scan the next chunks - while they are
            free, merge them onto the first free
            chunk */
@@ -817,13 +817,13 @@ static uintptr_t doSweep(Thread *self) {
         for(;;) {
             ptr += size;
 
-            if(ptr>=heaplimit)
+            if(ptr >= heaplimit)
                 goto out_last_free;
 
             hdr = HEADER(ptr);
-            size = HDR_SIZE(hdr);
             if(HDR_ALLOCED(hdr)) {
                 ob = (Object*)(ptr+HEADER_SIZE);
+                size = HDR_SIZE(hdr);
 
                 if(IS_MARKED(ob))
                     break;
@@ -835,11 +835,14 @@ static uintptr_t doSweep(Thread *self) {
                     handleUnmarkedSpecial(ob);
 
                 TRACE_GC("FREE: Freeing object @%p class %s - merging onto block @%p\n",
-                                       ob, ob->class ? CLASS_CB(ob->class)->name : "?", curr);
+                         ob, ob->class ? CLASS_CB(ob->class)->name : "?", curr);
 
+            } else {
+                TRACE_GC("FREE: unalloced block @%p size %d - merging onto block @%p\n",
+                         ptr, size, curr);
+                size = hdr;
             }
-            else 
-                TRACE_GC("FREE: unalloced block @%p size %d - merging onto block @%p\n", ptr, size, curr);
+
             curr->header += size;
         }
 
@@ -1257,7 +1260,7 @@ uintptr_t doCompact() {
        and updates forward references to each object */
     for(new_addr = ptr = heapbase; ptr < heaplimit;) {
         uintptr_t hdr = HEADER(ptr);
-        uintptr_t size = HDR_SIZE(hdr);
+        uintptr_t size;
         Object *ob;
 
         if(HDR_THREADED(hdr)) {
@@ -1278,6 +1281,7 @@ uintptr_t doCompact() {
 
         if(HDR_ALLOCED(hdr)) {
             ob = (Object*)(ptr+HEADER_SIZE);
+            size = HDR_SIZE(hdr);
 
             if(IS_MARKED(ob)) {
                 if(IS_CONSERVATIVE_ROOT(ob))
@@ -1302,7 +1306,8 @@ marked_phase1:
 
             freed += size;
             unmarked++;
-        }
+        } else
+            size = hdr;
 
 next:
         /* Skip to next block */
@@ -1315,7 +1320,7 @@ next:
        to each object, and then moves them. */
     for(new_addr = ptr = heapbase; ptr < heaplimit;) {
         uintptr_t hdr = HEADER(ptr);
-        uintptr_t size = HDR_SIZE(hdr);
+        uintptr_t size;
         Object *ob;
 
         if(HDR_THREADED(hdr)) {
@@ -1338,6 +1343,7 @@ next:
 
         if(HDR_ALLOCED(hdr)) {
             ob = (Object*)(ptr+HEADER_SIZE);
+            size = HDR_SIZE(hdr);
 
             if(IS_MARKED(ob)) {
                 if(IS_CONSERVATIVE_ROOT(ob) && new_addr != ptr) {
@@ -1359,7 +1365,8 @@ marked_phase2:
 
                 new_addr += size;
             }
-        }
+        } else
+            size = hdr;
 
         /* Skip to next block */
         ptr += size;
