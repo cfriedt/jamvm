@@ -261,10 +261,15 @@ int resolveDll(char *name, Object *loader) {
         DllEntry *dll2;
         void *onload, *handle = nativeLibOpen(name);
 
-        if(handle == NULL)
-            return FALSE;
+        if(handle == NULL) {
+            if(verbose) {
+                char *error = nativeLibError();
 
-        TRACE("<DLL: Successfully opened library %s>\n", name);
+                jam_printf("[Failed to open library %s: %s]\n", name,
+                           error == NULL ? "<no reason available>" : error);
+            }
+            return FALSE;
+        }
 
         if((onload = nativeLibSym(handle, "JNI_OnLoad")) != NULL) {
             int ver;
@@ -273,15 +278,19 @@ int resolveDll(char *name, Object *loader) {
             ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 
             if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4) {
-                TRACE("<DLL: JNI_OnLoad returned unsupported version %d.\n>",
-                      ver);
+                if(verbose)
+                    jam_printf("[%s: JNI_OnLoad returned unsupported version"
+                               " number %d.\n>", name, ver);
 
                 return FALSE;
             }
         }
 
-        dll = (DllEntry*)sysMalloc(sizeof(DllEntry));
-        dll->name = strcpy((char*)sysMalloc(strlen(name)+1), name);
+        if(verbose)
+           jam_printf("[Opened native library %s]\n", name);
+
+        dll = sysMalloc(sizeof(DllEntry));
+        dll->name = strcpy(sysMalloc(strlen(name) + 1), name);
         dll->handle = handle;
         dll->loader = loader;
 
@@ -306,8 +315,11 @@ int resolveDll(char *name, Object *loader) {
             newLibraryUnloader(loader, dll);
 
     } else
-        if(dll->loader != loader)
+        if(dll->loader != loader) {
+            if(verbose)
+                jam_printf("[%s: already loaded by another classloader]\n");
             return FALSE;
+        }
 
     return TRUE;
 }
