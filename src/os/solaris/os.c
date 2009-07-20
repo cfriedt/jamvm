@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Robert Lougher <rob@lougher.org.uk>.
+ * Copyright (C) 2008, 2009 Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -37,6 +37,10 @@ void *nativeStackBase() {
 
 int nativeAvailableProcessors() {
     return sysconf(_SC_NPROCESSORS_ONLN);
+}
+
+char *nativeLibError() {
+    return dlerror();
 }
 
 char *nativeLibPath() {
