@@ -969,6 +969,7 @@ extern void threadLiveClassLoaderDlls();
 /* OS */
 
 extern char *nativeLibPath();
+extern char *nativeLibError();
 extern void *nativeLibOpen(char *path);
 extern void nativeLibClose(void *handle);
 extern char *nativeLibMapName(char *name);
