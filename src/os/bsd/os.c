@@ -67,6 +67,10 @@ int nativeAvailableProcessors() {
         return processors;
 }
 
+char *nativeLibError() {
+    return dlerror();
+}
+
 char *nativeLibPath() {
     return getenv("LD_LIBRARY_PATH");
 }
