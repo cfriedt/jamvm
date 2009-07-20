@@ -36,7 +36,6 @@
 #include "natives.h"
 #include "symbol.h"
 #include "excep.h"
-
 #include "reflect.h"
 
 static int pd_offset;
@@ -236,7 +235,7 @@ uintptr_t *nativeLoad(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     ostack[0] = resolveDll(name, class_loader);
     sysFree(name);
 
-    return ostack+1;
+    return ostack + 1;
 }
 
 uintptr_t *mapLibraryName(Class *class, MethodBlock *mb, uintptr_t *ostack) {
@@ -354,8 +353,8 @@ uintptr_t *getClassSignature(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *getSuperclass(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     ClassBlock *cb = CLASS_CB((Class*)ostack[0]);
-    *ostack++ = (uintptr_t) (IS_PRIMITIVE(cb) || IS_INTERFACE(cb) ? NULL
-                                                                  : cb->super);
+    *ostack++ = (uintptr_t) (IS_PRIMITIVE(cb) ||
+                             IS_INTERFACE(cb) ? NULL : cb->super);
     return ostack;
 }
 
