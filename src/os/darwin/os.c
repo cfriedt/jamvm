@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -43,6 +43,10 @@ int nativeAvailableProcessors() {
         return 1;
     else
         return processors;
+}
+
+char *nativeLibError() {
+    return dlerror();
 }
 
 char *nativeLibPath() {
