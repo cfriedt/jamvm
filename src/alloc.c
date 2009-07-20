@@ -909,8 +909,9 @@ out_last_marked:
 			(long long)unmarked, (long long)freed);
         if(cleared)
             jam_printf(", cleared %lld reference(s)", (long long)cleared);
-        jam_printf(">\n<GC: Largest block is %lld total free is %lld out of %lld (%lld%%)>\n",
-                         (long long)largest, (long long)heapfree, size, pcnt_used);
+        jam_printf(">\n<GC: Largest block is %lld total free is %lld out of"
+                   " %lld (%lld%%)>\n", (long long)largest,
+                   (long long)heapfree, size, pcnt_used);
     }
 
     /* Return the size of the largest free chunk in heap - this
@@ -1394,8 +1395,9 @@ marked_phase2:
 			(long long)unmarked, (long long)freed);
         if(cleared)
             jam_printf(", cleared %lld reference(s)", (long long)cleared);
-        jam_printf(">\n<GC: Moved %lld objects, largest block is %lld total free is %lld out of %lld (%lld%%)>\n",
-                         (long long)moved, (long long)largest, (long long)heapfree, size, pcnt_used);
+        jam_printf(">\n<GC: Moved %lld objects, largest block is %lld total"
+                   " free is %lld out of %lld (%lld%%)>\n", (long long)moved,
+                   (long long)largest, (long long)heapfree, size, pcnt_used);
     }
 
     /* Return the size of the largest free chunk in heap - this
