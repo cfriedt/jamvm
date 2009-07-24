@@ -38,11 +38,9 @@ exception statement from your version. */
 package java.lang;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 
 /*
  * This class is a reference version, mainly for compiling a class library
