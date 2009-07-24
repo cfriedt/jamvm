@@ -1,7 +1,7 @@
-JamVM 1.5.3
+JamVM 1.5.4
 ===========
 
-Welcome to the twenty-sixth release of JamVM!
+Welcome to the twenty-seventh release of JamVM!
 
 JamVM is a Java Virtual Machine which conforms to the JVM
 specification version 2 (blue book).  In comparison to most other
@@ -81,13 +81,13 @@ Class Libraries
 JamVM is designed to use the GNU classpath Java class library (see
 http://www.gnu.org/software/classpath).  A number of classes are
 reference classes which must be modified for a particular VM.  These are
-provided and built along with JamVM (see INSTALL).  JamVM 1.5.3 works with
+provided and built along with JamVM (see INSTALL).  JamVM 1.5.4 works with
 Classpath version 0.98 (the latest development snapshot).  It should also
 work with the latest version direct from CVS (but check the Classpath
 mailing lists for possible patches).  Later snapshots of Classpath may
 also work, if no modifications have been made to the VM interface.
 
-Note, JamVM 1.5.3 will not work with versions of Classpath earlier than
+Note, JamVM 1.5.4 will not work with versions of Classpath earlier than
 0.98, nor will it work with the class library from Sun or IBM's Virtual
 Machines, or OpenJDK.
 
@@ -196,4 +196,4 @@ particular order, is given below.
 That's it!
 
 Robert Lougher <rob@lougher.org.uk>
-14th April 2009.
+15th July 2009.

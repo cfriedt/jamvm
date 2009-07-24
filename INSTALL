@@ -1,4 +1,4 @@
-JamVM 1.5.3 Installation
+JamVM 1.5.4 Installation
 ========================
 
 This section describes how to configure, build and install JamVM on
@@ -12,7 +12,7 @@ Getting the Files
 You must already have the compressed tar file containing the source
 code for JamVM (you're reading this!).  For JamVM to run, it must also
 have a class library containing the system classes and the associated
-native methods (e.g. java.lang.Object).  JamVM 1.5.3 has been written to
+native methods (e.g. java.lang.Object).  JamVM 1.5.4 has been written to
 use GNU Classpath.  It is compatible with the latest released version
 which is currently 0.98.  It is not compatible with earlier versions. 
 It should also be compatible with the CVS version, and later snapshots,
