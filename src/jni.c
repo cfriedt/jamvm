@@ -29,8 +29,9 @@
 #include "symbol.h"
 #include "excep.h"
 #include "reflect.h"
+#include "jni-internal.h"
 
-#define JNI_VERSION JNI_VERSION_1_4
+#define JNI_VERSION JNI_VERSION_1_6
 
 /* The extra used in expanding the local refs table.
  * This must be >= size of JNIFrame to be thread safe
@@ -142,7 +143,7 @@ JNIFrame *ensureJNILrefCapacity(int cap) {
     return frame;
 }
 
-Object *addJNILref(Object *ref) {
+jobject addJNILref(Object *ref) {
     ExecEnv *ee = getExecEnv();
     JNIFrame *frame = (JNIFrame*)ee->last_frame;
 
@@ -200,92 +201,141 @@ void popJNILrefFrame() {
     ee->last_frame = (Frame*)prev;
 }
 
-static VMLock global_ref_lock;
-static Object **global_ref_table;
-static int global_ref_size = 0;
-static int global_ref_next = 0;
-static int global_ref_deleted = FALSE;
+typedef struct global_ref_table {
+    Object **table;
+    int    size;
+    int    next;
+    int    has_deleted;
+    VMLock lock;
+} GlobalRefTable;
+
+#define NUM_GLOBAL_TABLES 3
+static GlobalRefTable global_refs[NUM_GLOBAL_TABLES];
 
 static void initJNIGrefs() {
-    initVMLock(global_ref_lock);
+    int i;
+
+    for(i = 0; i < NUM_GLOBAL_TABLES; i++)
+        initVMLock(global_refs[i].lock);
 }
 
-void lockJNIGrefs(Thread *self) {
+void lockJNIGrefs(Thread *self, int type) {
     /* Only disable/enable suspension (slow) if
        we have to block */
-    if(!tryLockVMLock(global_ref_lock, self)) {
+    if(!tryLockVMLock(global_refs[type].lock, self)) {
         disableSuspend(self);
-        lockVMLock(global_ref_lock, self);
+        lockVMLock(global_refs[type].lock, self);
         enableSuspend(self);
     }
     fastDisableSuspend(self);
 }
 
-void unlockJNIGrefs(Thread *self) {
+void unlockJNIGrefs(Thread *self, int type) {
     fastEnableSuspend(self);
-    unlockVMLock(global_ref_lock, self);
+    unlockVMLock(global_refs[type].lock, self);
 }
 
-static Object *addJNIGref(Object *ref) {
-    Thread *self = threadSelf();
-    lockJNIGrefs(self);
-
-    if(global_ref_next == global_ref_size) {
-
-        if(global_ref_deleted) {
+void addJNIGrefUnlocked(Object *ref, int type) {
+    if(global_refs[type].next == global_refs[type].size) {
+        if(global_refs[type].has_deleted) {
             int i, j;
 
-            for(i = 0, j = 0; i < global_ref_size; i++)
-                if(global_ref_table[i])
-                    global_ref_table[j++] = global_ref_table[i];
+            for(i = j = 0; i < global_refs[type].size; i++)
+                if(global_refs[type].table[i])
+                    global_refs[type].table[j++] = global_refs[type].table[i];
 
-            global_ref_deleted = FALSE;
-            global_ref_next = j;
+            global_refs[type].has_deleted = FALSE;
+            global_refs[type].next = j;
         }
 
-        if(global_ref_next + GREF_LIST_INCR > global_ref_size) {
-            global_ref_size = global_ref_next + GREF_LIST_INCR;
-            global_ref_table = sysRealloc(global_ref_table,
-                                          global_ref_size * sizeof(Object*));
+        if(global_refs[type].next + GREF_LIST_INCR > global_refs[type].size) {
+            global_refs[type].size = global_refs[type].next + GREF_LIST_INCR;
+            global_refs[type].table = sysRealloc(global_refs[type].table,
+                                   global_refs[type].size * sizeof(Object*));
         }
     }
 
-    global_ref_table[global_ref_next++] = ref;
-
-    unlockJNIGrefs(self);
-    return ref;
+    global_refs[type].table[global_refs[type].next++] = ref;
 }
 
-static void delJNIGref(Object *ref) {
+static jobject addJNIGref(Object *ref, int type) {
+    if(ref == NULL)
+        return NULL;
+    else {
+        Thread *self = threadSelf();
+
+        lockJNIGrefs(self, type);
+        addJNIGrefUnlocked(ref, type);
+        unlockJNIGrefs(self, type);
+
+        return OBJ_TO_REF(ref, type);
+    }
+}
+
+static int delJNIGref(Object *ref, int type) {
     Thread *self = threadSelf();
     int i;
 
-    lockJNIGrefs(self);
+    lockJNIGrefs(self, type);
 
-    for(i = global_ref_next - 1; i >= 0; i--)
-        if(global_ref_table[i] == ref) {
-            if(i == global_ref_next - 1)
-                global_ref_next = i;
+    for(i = global_refs[type].next - 1; i >= 0; i--)
+        if(global_refs[type].table[i] == ref) {
+            if(i == global_refs[type].next - 1)
+                global_refs[type].next = i;
             else {
-                global_ref_table[i] = NULL;
-                global_ref_deleted = TRUE;
+                global_refs[type].table[i] = NULL;
+                global_refs[type].has_deleted = TRUE;
             }
             break;
         }
 
-    unlockJNIGrefs(self);
+    unlockJNIGrefs(self, type);
+    return i >= 0;
+}
+
+static int findJNIGref(Object *ref, int type) {
+    Thread *self = threadSelf();
+    int i;
+
+    lockJNIGrefs(self, type);
+
+    for(i = global_refs[type].next - 1; i >= 0; i--)
+        if(global_refs[type].table[i] == ref)
+            break;
+
+    unlockJNIGrefs(self, type);
+    return i >= 0;
 }
 
 /* Called during mark phase of GC.  No need to
    grab lock as no thread can be suspended
-   while it is held */
+   while the list is being modified */
 
-void markJNIGlobalRefs() {
+#define MARK_JNI_GLOBAL_REFS(type, ref_type)                    \
+void markJNI##type##Refs() {                                    \
+    int i;                                                      \
+                                                                \
+    for(i = 0; i < global_refs[ref_type].next; i++)             \
+        if(global_refs[ref_type].table[i])                      \
+            markJNI##type##Ref(global_refs[ref_type].table[i]); \
+}
+
+MARK_JNI_GLOBAL_REFS(Global, GLOBAL_REF)
+MARK_JNI_GLOBAL_REFS(ClearedWeak, CLEARED_WEAK_REF)
+
+void scanJNIWeakGlobalRefs() {
     int i;
 
-    for(i = 0; i < global_ref_next; i++)
-        if(global_ref_table[i])
-            markConservativeRoot(global_ref_table[i]);
+    for(i = 0; i < global_refs[WEAK_GLOBAL_REF].next; i++) {
+        Object *ref = global_refs[WEAK_GLOBAL_REF].table[i];
+
+        if(ref != NULL && !isMarked(ref)) {
+            convertToPlaceHolder(ref);
+            addJNIGrefUnlocked(ref, CLEARED_WEAK_REF);
+            global_refs[WEAK_GLOBAL_REF].table[i] = NULL;
+            global_refs[WEAK_GLOBAL_REF].has_deleted = TRUE;
+        }
+    }
 }
 
 /* Extensions added to JNI in JDK 1.4 */
@@ -304,11 +354,11 @@ jobject Jam_NewDirectByteBuffer(JNIEnv *env, void *addr, jlong capacity) {
                       (int)capacity, 0);
     }
 
-    return (jobject) addJNILref(buff);
+    return addJNILref(buff);
 }
 
 static void *Jam_GetDirectBufferAddress(JNIEnv *env, jobject buffer) {
-    Object *buff = (Object*)buffer;
+    Object *buff = REF_TO_OBJ(buffer);
 
     if(!nio_init_OK)
         return NULL;
@@ -323,7 +373,7 @@ static void *Jam_GetDirectBufferAddress(JNIEnv *env, jobject buffer) {
 }
 
 jlong Jam_GetDirectBufferCapacity(JNIEnv *env, jobject buffer) {
-    Object *buff = (Object*)buffer;
+    Object *buff = REF_TO_OBJ(buffer);
 
     if(!nio_init_OK)
         return -1;
@@ -340,11 +390,11 @@ jlong Jam_GetDirectBufferCapacity(JNIEnv *env, jobject buffer) {
 /* Extensions added to JNI in JDK 1.2 */
 
 jmethodID Jam_FromReflectedMethod(JNIEnv *env, jobject method) {
-    return mbFromReflectObject(method);
+    return mbFromReflectObject(REF_TO_OBJ(method));
 }
 
 jfieldID Jam_FromReflectedField(JNIEnv *env, jobject field) {
-    return fbFromReflectObject(field);
+    return fbFromReflectObject(REF_TO_OBJ(field));
 }
 
 jobject Jam_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID methodID,
@@ -364,7 +414,8 @@ jobject Jam_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID methodID,
 jobject Jam_ToReflectedField(JNIEnv *env, jclass cls, jfieldID fieldID,
                              jboolean isStatic) {
 
-    return addJNILref(createReflectFieldObject(fieldID));
+    Object *field = createReflectFieldObject(fieldID);
+    return addJNILref(field);
 }
 
 jint Jam_PushLocalFrame(JNIEnv *env, jint capacity) {
@@ -373,19 +424,21 @@ jint Jam_PushLocalFrame(JNIEnv *env, jint capacity) {
 
 jobject Jam_PopLocalFrame(JNIEnv *env, jobject result) {
     popJNILrefFrame();
-    return addJNILref(result);
+    return addJNILref(REF_TO_OBJ(result));
 }
 
 jobject Jam_NewLocalRef(JNIEnv *env, jobject obj) {
-    return addJNILref(obj);
+    return addJNILref(REF_TO_OBJ(obj));
 }
 
 jint Jam_EnsureLocalCapacity(JNIEnv *env, jint capacity) {
     return ensureJNILrefCapacity(capacity) == NULL ? JNI_ERR : JNI_OK;
 }
 
-void Jam_GetStringRegion(JNIEnv *env, jstring string, jsize start,
+void Jam_GetStringRegion(JNIEnv *env, jstring string_ref, jsize start,
                          jsize len, jchar *buf) {
+
+    Object *string = REF_TO_OBJ(string_ref);
 
     if((start + len) > getStringLen(string))
         signalException(java_lang_StringIndexOutOfBoundsException, NULL);
@@ -393,8 +446,10 @@ void Jam_GetStringRegion(JNIEnv *env, jstring string, jsize start,
         memcpy(buf, getStringChars(string) + start, len * sizeof(short));
 }
 
-void Jam_GetStringUTFRegion(JNIEnv *env, jstring string, jsize start,
+void Jam_GetStringUTFRegion(JNIEnv *env, jstring string_ref, jsize start,
                             jsize len, char *buf) {
+
+    Object *string = REF_TO_OBJ(string_ref);
 
     if((start + len) > getStringLen(string))
         signalException(java_lang_StringIndexOutOfBoundsException, NULL);
@@ -402,20 +457,24 @@ void Jam_GetStringUTFRegion(JNIEnv *env, jstring string, jsize start,
         StringRegion2Utf8(string, start, len, buf);
 }
 
-void *Jam_GetPrimitiveArrayCritical(JNIEnv *env, jarray array,
+void *Jam_GetPrimitiveArrayCritical(JNIEnv *env, jarray array_ref,
                                     jboolean *isCopy) {
+
+    Object *array = REF_TO_OBJ(array_ref);
+
     if(isCopy != NULL)
         *isCopy = JNI_FALSE;
 
     /* Pin the array */
-    addJNIGref(array);
+    addJNIGref(array, GLOBAL_REF);
 
-    return ARRAY_DATA((Object*)array, void);
+    return ARRAY_DATA(array, void);
 }
 
-void Jam_ReleasePrimitiveArrayCritical(JNIEnv *env, jarray array, void *carray,
-                                       jint mode) {
-    delJNIGref(array);
+void Jam_ReleasePrimitiveArrayCritical(JNIEnv *env, jarray array,
+                                       void *carray, jint mode) {
+
+    delJNIGref(REF_TO_OBJ(array), GLOBAL_REF);
 }
 
 const jchar *Jam_GetStringCritical(JNIEnv *env, jstring string,
@@ -431,11 +490,14 @@ void Jam_ReleaseStringCritical(JNIEnv *env, jstring string,
 }
 
 jweak Jam_NewWeakGlobalRef(JNIEnv *env, jobject obj) {
-    return Jam_NewGlobalRef(env, obj);
+    return addJNIGref(REF_TO_OBJ(obj), WEAK_GLOBAL_REF);
 }
 
 void Jam_DeleteWeakGlobalRef(JNIEnv *env, jweak obj) {
-    Jam_DeleteGlobalRef(env, obj);
+    Object *ob = REF_TO_OBJ(obj);
+
+    if(!delJNIGref(ob, WEAK_GLOBAL_REF))
+        delJNIGref(ob, CLEARED_WEAK_REF);
 }
 
 jboolean Jam_ExceptionCheck(JNIEnv *env) {
@@ -452,7 +514,7 @@ jclass Jam_DefineClass(JNIEnv *env, const char *name, jobject loader,
                        const jbyte *buf, jsize bufLen) {
 
     Class *class = defineClass((char*)name, (char *)buf, 0,
-                               (int)bufLen, loader);
+                               (int)bufLen, REF_TO_OBJ(loader));
 
     return addJNILref(class);
 }
@@ -481,21 +543,21 @@ jclass Jam_FindClass(JNIEnv *env, const char *name) {
 }
 
 jclass Jam_GetSuperClass(JNIEnv *env, jclass clazz) {
-    ClassBlock *cb = CLASS_CB((Class *)clazz);
-    return IS_INTERFACE(cb) ? NULL : cb->super;
+    ClassBlock *cb = CLASS_CB(REF_TO_OBJ(clazz));
+    return IS_INTERFACE(cb) ? NULL : addJNILref(cb->super);
 }
 
 jboolean Jam_IsAssignableFrom(JNIEnv *env, jclass clazz1, jclass clazz2) {
-    return isInstanceOf(clazz2, clazz1);
+    return isInstanceOf(REF_TO_OBJ(clazz2), REF_TO_OBJ(clazz1));
 }
 
 jint Jam_Throw(JNIEnv *env, jthrowable obj) {
-    setException(obj);
+    setException(REF_TO_OBJ(obj));
     return JNI_TRUE;
 }
 
 jint Jam_ThrowNew(JNIEnv *env, jclass clazz, const char *message) {
-    signalExceptionClass(clazz, (char*)message);
+    signalExceptionClass(REF_TO_OBJ(clazz), (char*)message);
     return JNI_TRUE;
 }
 
@@ -517,11 +579,11 @@ void Jam_FatalError(JNIEnv *env, const char *message) {
 }
 
 jobject Jam_NewGlobalRef(JNIEnv *env, jobject obj) {
-    return addJNIGref(obj);
+    return addJNIGref(REF_TO_OBJ(obj), GLOBAL_REF);
 }
 
 void Jam_DeleteGlobalRef(JNIEnv *env, jobject obj) {
-    delJNIGref(obj);
+    delJNIGref(REF_TO_OBJ(obj), GLOBAL_REF);
 }
 
 void Jam_DeleteLocalRef(JNIEnv *env, jobject obj) {
@@ -529,7 +591,14 @@ void Jam_DeleteLocalRef(JNIEnv *env, jobject obj) {
 }
 
 jboolean Jam_IsSameObject(JNIEnv *env, jobject obj1, jobject obj2) {
-    return obj1 == obj2;
+    if((obj2 == NULL && REF_TYPE(obj1) == WEAK_GLOBAL_REF) ||
+       (obj1 == NULL && REF_TYPE(obj2) == WEAK_GLOBAL_REF)) {
+        Object *ob = REF_TO_OBJ(obj1 == NULL ? obj2 : obj1);
+
+        return findJNIGref(ob, CLEARED_WEAK_REF);
+    }
+
+    return REF_TO_OBJ(obj1) == REF_TO_OBJ(obj2);
 }
 
 /* JNI helper function.  The class may be invalid
@@ -552,21 +621,23 @@ Object *allocObjectClassCheck(Class *class) {
 }
 
 jobject Jam_AllocObject(JNIEnv *env, jclass clazz) {
-    return addJNILref(allocObjectClassCheck(clazz));
+    Object *obj = allocObjectClassCheck(REF_TO_OBJ(clazz));
+    return addJNILref(obj);
 }
 
 jclass Jam_GetObjectClass(JNIEnv *env, jobject obj) {
-    return addJNILref(((Object*)obj)->class);
+    return addJNILref(REF_TO_OBJ(obj)->class);
 }
 
 jboolean Jam_IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
-    return (obj == NULL) || isInstanceOf(clazz, ((Object*)obj)->class);
+    return (obj == NULL) || isInstanceOf(REF_TO_OBJ(clazz),
+                                         REF_TO_OBJ(obj)->class);
 }
 
 jmethodID getMethodID(JNIEnv *env, jclass clazz, const char *name,
                       const char *sig, char is_static) {
 
-    Class *class = initClass(clazz);
+    Class *class = initClass(REF_TO_OBJ(clazz));
     MethodBlock *mb = NULL;
 
     if(class != NULL) {
@@ -602,7 +673,7 @@ jfieldID Jam_GetFieldID(JNIEnv *env, jclass clazz, const char *name,
     char *field_name = findUtf8((char*)name);
     char *field_sig = findUtf8((char*)sig);
 
-    Class *class = initClass(clazz);
+    Class *class = initClass(REF_TO_OBJ(clazz));
     FieldBlock *fb = NULL;
 
     if(class != NULL) {
@@ -628,7 +699,7 @@ jfieldID Jam_GetStaticFieldID(JNIEnv *env, jclass clazz, const char *name,
     char *field_name = findUtf8((char*)name);
     char *field_sig = findUtf8((char*)sig);
 
-    Class *class = initClass(clazz);
+    Class *class = initClass(REF_TO_OBJ(clazz));
     FieldBlock *fb = NULL;
 
     if(class != NULL) {
@@ -648,22 +719,26 @@ jstring Jam_NewString(JNIEnv *env, const jchar *unicodeChars, jsize len) {
 }
 
 jsize Jam_GetStringLength(JNIEnv *env, jstring string) {
-    return getStringLen(string);
+    return getStringLen(REF_TO_OBJ(string));
 }
 
-const jchar *Jam_GetStringChars(JNIEnv *env, jstring string, jboolean *isCopy) {
+const jchar *Jam_GetStringChars(JNIEnv *env, jstring string_ref,
+                                jboolean *isCopy) {
+
+    Object *string = REF_TO_OBJ(string_ref);
+
     if(isCopy != NULL)
         *isCopy = JNI_FALSE;
 
     /* Pin the reference */
-    addJNIGref(getStringCharsArray(string));
+    addJNIGref(getStringCharsArray(string), GLOBAL_REF);
 
     return (const jchar *)getStringChars(string);
 }
 
 void Jam_ReleaseStringChars(JNIEnv *env, jstring string, const jchar *chars) {
     /* Unpin the reference */
-    delJNIGref(getStringCharsArray(string));
+    delJNIGref(getStringCharsArray(REF_TO_OBJ(string)), GLOBAL_REF);
 }
 
 jstring Jam_NewStringUTF(JNIEnv *env, const char *bytes) {
@@ -673,7 +748,7 @@ jstring Jam_NewStringUTF(JNIEnv *env, const char *bytes) {
 jsize Jam_GetStringUTFLength(JNIEnv *env, jstring string) {
     if(string == NULL)
         return 0;
-    return getStringUtf8Len(string);
+    return getStringUtf8Len(REF_TO_OBJ(string));
 }
 
 const char *Jam_GetStringUTFChars(JNIEnv *env, jstring string,
@@ -683,7 +758,7 @@ const char *Jam_GetStringUTFChars(JNIEnv *env, jstring string,
 
     if(string == NULL)
         return NULL;
-    return (const char*)String2Utf8(string);
+    return (const char*)String2Utf8(REF_TO_OBJ(string));
 }
 
 void Jam_ReleaseStringUTFChars(JNIEnv *env, jstring string, const char *chars) {
@@ -691,11 +766,11 @@ void Jam_ReleaseStringUTFChars(JNIEnv *env, jstring string, const char *chars) {
 }
 
 jsize Jam_GetArrayLength(JNIEnv *env, jarray array) {
-    return ARRAY_LEN((Object*)array);
+    return ARRAY_LEN(REF_TO_OBJ(array));
 }
 
 jobject Jam_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, ...) {
-    Object *ob = allocObjectClassCheck(clazz);
+    Object *ob = allocObjectClassCheck(REF_TO_OBJ(clazz));
 
     if(ob != NULL) {
         va_list jargs;
@@ -710,7 +785,7 @@ jobject Jam_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, ...) {
 jobject Jam_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
                        jvalue *args) {
 
-    Object *ob = allocObjectClassCheck(clazz);
+    Object *ob = allocObjectClassCheck(REF_TO_OBJ(clazz));
 
     if(ob != NULL)
         executeMethodList(ob, ob->class, methodID, (u8*)args);
@@ -721,7 +796,7 @@ jobject Jam_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
 jobject Jam_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
                        va_list args) {
 
-    Object *ob = allocObjectClassCheck(clazz);
+    Object *ob = allocObjectClassCheck(REF_TO_OBJ(clazz));
 
     if(ob != NULL)
         executeMethodVaList(ob, ob->class, methodID, args);
@@ -729,10 +804,12 @@ jobject Jam_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
     return addJNILref(ob);
 }
 
-jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass,
-                          jobject initialElement) {
+jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass_ref,
+                          jobject initialElement_ref) {
 
-    char *element_name = CLASS_CB((Class*)elementClass)->name;
+    Object *initialElement = REF_TO_OBJ(initialElement_ref);
+    Class *elementClass = REF_TO_OBJ(elementClass_ref);
+    char *element_name = CLASS_CB(elementClass)->name;
     char ac_name[strlen(element_name) + 4];
     Class *array_class;
 
@@ -746,7 +823,7 @@ jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass,
     else
         strcat(strcat(strcpy(ac_name, "[L"), element_name), ";");
 
-    array_class = findArrayClassFromClass(ac_name, (Class*)elementClass);
+    array_class = findArrayClassFromClass(ac_name, elementClass);
     if(array_class != NULL) {
         Object *array = allocArray(array_class, length, sizeof(Object*));
         if(array != NULL) {
@@ -763,13 +840,13 @@ jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass,
 }
 
 jarray Jam_GetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index) {
-    return addJNILref(ARRAY_DATA((Object*)array, Object*)[index]);
+    return addJNILref(ARRAY_DATA(REF_TO_OBJ(array), Object*)[index]);
 }
 
 void Jam_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index,
                                jobject value) {
 
-    ARRAY_DATA((Object*)array, Object*)[index] = value;
+    ARRAY_DATA(REF_TO_OBJ(array), Object*)[index] = value;
 }
 
 jint Jam_RegisterNatives(JNIEnv *env, jclass clazz,
@@ -782,12 +859,12 @@ jint Jam_UnregisterNatives(JNIEnv *env, jclass clazz) {
 }
 
 jint Jam_MonitorEnter(JNIEnv *env, jobject obj) {
-    objectLock(obj);
+    objectLock(REF_TO_OBJ(obj));
     return JNI_OK;
 }
 
 jint Jam_MonitorExit(JNIEnv *env, jobject obj) {
-    objectUnlock(obj);
+    objectUnlock(REF_TO_OBJ(obj));
     return JNI_OK;
 }
 
@@ -802,32 +879,32 @@ jint Jam_GetJavaVM(JNIEnv *env, JavaVM **vm) {
 #define GET_FIELD(type, native_type)                                         \
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj,                   \
                                  jfieldID fieldID) {                         \
-    Object *ob = obj;                                                        \
     FieldBlock *fb = fieldID;                                                \
+    Object *ob = REF_TO_OBJ(obj);                                            \
     return INST_DATA(ob, native_type, fb->u.offset);                         \
 }
 
 #define INT_GET_FIELD(type, native_type)                                     \
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj,                   \
                                  jfieldID fieldID) {                         \
-    Object *ob = obj;                                                        \
     FieldBlock *fb = fieldID;                                                \
+    Object *ob = REF_TO_OBJ(obj);                                            \
     return (native_type)INST_DATA(ob, int, fb->u.offset);                    \
 }
 
 #define SET_FIELD(type, native_type)                                         \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID,        \
                           native_type value) {                               \
-    Object *ob = obj;                                                        \
     FieldBlock *fb = fieldID;                                                \
+    Object *ob = REF_TO_OBJ(obj);                                            \
     INST_DATA(ob, native_type, fb->u.offset) = value;                        \
 }
 
 #define INT_SET_FIELD(type, native_type)                                     \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID,        \
                           native_type value) {                               \
-    Object *ob = obj;                                                        \
     FieldBlock *fb = fieldID;                                                \
+    Object *ob = REF_TO_OBJ(obj);                                            \
     INST_DATA(ob, int, fb->u.offset) = (int)value;                           \
 }
 
@@ -881,7 +958,7 @@ FIELD_ACCESS(Float, jfloat);
 FIELD_ACCESS(Double, jdouble);
 
 jobject Jam_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID) {
-    Object *ob = obj;
+    Object *ob = REF_TO_OBJ(obj);
     FieldBlock *fb = fieldID;
 
     return addJNILref(INST_DATA(ob, Object*, fb->u.offset));
@@ -889,7 +966,7 @@ jobject Jam_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID) {
 
 void Jam_SetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID,
                         jobject value) {
-    Object *ob = obj;
+    Object *ob = REF_TO_OBJ(obj);
     FieldBlock *fb = fieldID;
 
     INST_DATA(ob, jobject, fb->u.offset) = value;
@@ -910,7 +987,7 @@ void Jam_SetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID,
 #define VIRTUAL_METHOD(type, native_type)                                    \
 native_type Jam_Call##type##Method(JNIEnv *env, jobject obj,                 \
                                    jmethodID mID, ...) {                     \
-    Object *ob = obj;                                                        \
+    Object *ob = REF_TO_OBJ(obj);                                            \
     native_type *ret;                                                        \
     va_list jargs;                                                           \
                                                                              \
@@ -927,7 +1004,7 @@ native_type Jam_Call##type##Method(JNIEnv *env, jobject obj,                 \
                                                                              \
 native_type Jam_Call##type##MethodV(JNIEnv *env, jobject obj, jmethodID mID, \
                                     va_list jargs) {                         \
-    Object *ob = obj;                                                        \
+    Object *ob = REF_TO_OBJ(obj);                                            \
     MethodBlock *mb = lookupVirtualMethod(ob, mID);                          \
     if(mb == NULL)                                                           \
         return (native_type) 0;                                              \
@@ -936,7 +1013,7 @@ native_type Jam_Call##type##MethodV(JNIEnv *env, jobject obj, jmethodID mID, \
                                                                              \
 native_type Jam_Call##type##MethodA(JNIEnv *env, jobject obj, jmethodID mID, \
                                     jvalue *jargs) {                         \
-    Object *ob = obj;                                                        \
+    Object *ob = REF_TO_OBJ(obj);                                            \
     MethodBlock *mb = lookupVirtualMethod(ob, mID);                          \
     if(mb == NULL)                                                           \
         return (native_type) 0;                                              \
@@ -946,7 +1023,7 @@ native_type Jam_Call##type##MethodA(JNIEnv *env, jobject obj, jmethodID mID, \
 #define INT_VIRTUAL_METHOD(type, native_type)                                \
 native_type Jam_Call##type##Method(JNIEnv *env, jobject obj, jmethodID mID,  \
                                    ...) {                                    \
-    Object *ob = obj;                                                        \
+    Object *ob = REF_TO_OBJ(obj);                                            \
     uintptr_t *ret;                                                          \
     va_list jargs;                                                           \
                                                                              \
@@ -963,7 +1040,7 @@ native_type Jam_Call##type##Method(JNIEnv *env, jobject obj, jmethodID mID,  \
                                                                              \
 native_type Jam_Call##type##MethodV(JNIEnv *env, jobject obj, jmethodID mID, \
                                     va_list jargs) {                         \
-    Object *ob = obj;                                                        \
+    Object *ob = REF_TO_OBJ(obj);                                            \
     MethodBlock *mb = lookupVirtualMethod(ob, mID);                          \
     if(mb == NULL)                                                           \
         return (native_type) 0;                                              \
@@ -973,7 +1050,7 @@ native_type Jam_Call##type##MethodV(JNIEnv *env, jobject obj, jmethodID mID, \
                                                                              \
 native_type Jam_Call##type##MethodA(JNIEnv *env, jobject obj, jmethodID mID, \
                                     jvalue *jargs) {                         \
-    Object *ob = obj;                                                        \
+    Object *ob = REF_TO_OBJ(obj);                                            \
     MethodBlock *mb = lookupVirtualMethod(ob, mID);                          \
     if(mb == NULL)                                                           \
         return (native_type) 0;                                              \
@@ -989,7 +1066,8 @@ native_type Jam_CallNonvirtual##type##Method(JNIEnv *env, jobject obj,       \
     va_list jargs;                                                           \
                                                                              \
     va_start(jargs, mID);                                                    \
-    ret = (native_type*) executeMethodVaList(obj, clazz, mID, jargs);        \
+    ret = (native_type*) executeMethodVaList(REF_TO_OBJ(obj),                \
+                                             REF_TO_OBJ(clazz), mID, jargs); \
     va_end(jargs);                                                           \
                                                                              \
     return *ret;                                                             \
@@ -998,13 +1076,17 @@ native_type Jam_CallNonvirtual##type##Method(JNIEnv *env, jobject obj,       \
 native_type Jam_CallNonvirtual##type##MethodV(JNIEnv *env, jobject obj,      \
                                               jclass clazz, jmethodID mID,   \
                                               va_list jargs) {               \
-    return *(native_type*) executeMethodVaList(obj, clazz, mID, jargs);      \
+    return *(native_type*)                                                   \
+                  executeMethodVaList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz),    \
+                                      mID, jargs);                           \
 }                                                                            \
                                                                              \
 native_type Jam_CallNonvirtual##type##MethodA(JNIEnv *env, jobject obj,      \
                                               jclass clazz, jmethodID mID,   \
                                               jvalue *jargs) {               \
-    return *(native_type*) executeMethodList(obj, clazz, mID, (u8*)jargs);   \
+    return *(native_type*)                                                   \
+                  executeMethodList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz),      \
+                                    mID, (u8*)jargs);                        \
 }
 
 #define INT_NONVIRTUAL_METHOD(type, native_type)                             \
@@ -1015,7 +1097,8 @@ native_type Jam_CallNonvirtual##type##Method(JNIEnv *env, jobject obj,       \
     va_list jargs;                                                           \
                                                                              \
     va_start(jargs, mID);                                                    \
-    ret = executeMethodVaList(obj, clazz, mID, jargs);                       \
+    ret = executeMethodVaList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz),            \
+                              mID, jargs);                                   \
     va_end(jargs);                                                           \
                                                                              \
     return (native_type)*ret;                                                \
@@ -1025,14 +1108,16 @@ native_type Jam_CallNonvirtual##type##MethodV(JNIEnv *env, jobject obj,      \
                                               jclass clazz, jmethodID mID,   \
                                               va_list jargs) {               \
     return (native_type)*(uintptr_t*)                                        \
-                       executeMethodVaList(obj, clazz, mID, jargs);          \
+                     executeMethodVaList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz), \
+                                         mID, jargs);                        \
 }                                                                            \
                                                                              \
 native_type Jam_CallNonvirtual##type##MethodA(JNIEnv *env, jobject obj,      \
                                               jclass clazz, jmethodID mID,   \
                                               jvalue *jargs) {               \
     return (native_type)*(uintptr_t*)                                        \
-                       executeMethodList(obj, clazz, mID, (u8*)jargs);       \
+                       executeMethodList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz), \
+                                         mID, (u8*)jargs);                   \
 }
 
 #define STATIC_METHOD(type, native_type)                                     \
@@ -1042,7 +1127,8 @@ native_type Jam_CallStatic##type##Method(JNIEnv *env, jclass clazz,          \
     va_list jargs;                                                           \
                                                                              \
     va_start(jargs, methodID);                                               \
-    ret = (native_type*) executeMethodVaList(NULL, clazz, methodID, jargs);  \
+    ret = (native_type*)                                                     \
+             executeMethodVaList(NULL, REF_TO_OBJ(clazz), methodID, jargs);  \
     va_end(jargs);                                                           \
                                                                              \
     return *ret;                                                             \
@@ -1050,12 +1136,14 @@ native_type Jam_CallStatic##type##Method(JNIEnv *env, jclass clazz,          \
                                                                              \
 native_type Jam_CallStatic##type##MethodV(JNIEnv *env, jclass clazz,         \
                                           jmethodID mID, va_list jargs) {    \
-    return *(native_type*) executeMethodVaList(NULL, clazz, mID, jargs);     \
+    return *(native_type*)                                                   \
+               executeMethodVaList(NULL, REF_TO_OBJ(clazz), mID, jargs);     \
 }                                                                            \
                                                                              \
 native_type Jam_CallStatic##type##MethodA(JNIEnv *env, jclass clazz,         \
                                           jmethodID mID, jvalue *jargs) {    \
-    return *(native_type*) executeMethodList(NULL, clazz, mID, (u8*)jargs);  \
+    return *(native_type*)                                                   \
+               executeMethodList(NULL, REF_TO_OBJ(clazz), mID, (u8*)jargs);  \
 }
 
 #define INT_STATIC_METHOD(type, native_type)                                 \
@@ -1065,7 +1153,7 @@ native_type Jam_CallStatic##type##Method(JNIEnv *env, jclass clazz,          \
     va_list jargs;                                                           \
                                                                              \
     va_start(jargs, methodID);                                               \
-    ret = executeMethodVaList(NULL, clazz, methodID, jargs);                 \
+    ret = executeMethodVaList(NULL, REF_TO_OBJ(clazz), methodID, jargs);     \
     va_end(jargs);                                                           \
                                                                              \
     return (native_type)*ret;                                                \
@@ -1074,13 +1162,13 @@ native_type Jam_CallStatic##type##Method(JNIEnv *env, jclass clazz,          \
 native_type Jam_CallStatic##type##MethodV(JNIEnv *env, jclass clazz,         \
                                           jmethodID mID, va_list jargs) {    \
     return (native_type)*(uintptr_t*)                                        \
-                        executeMethodVaList(NULL, clazz, mID, jargs);        \
+            executeMethodVaList(NULL, REF_TO_OBJ(clazz), mID, jargs);        \
 }                                                                            \
                                                                              \
 native_type Jam_CallStatic##type##MethodA(JNIEnv *env, jclass clazz,         \
                                           jmethodID mID, jvalue *jargs) {    \
     return (native_type)*(uintptr_t*)                                        \
-                       executeMethodList(NULL, clazz, mID, (u8*)jargs);      \
+           executeMethodList(NULL, REF_TO_OBJ(clazz), mID, (u8*)jargs);      \
 }
 
 #define CALL_METHOD(access)               \
@@ -1100,7 +1188,7 @@ CALL_METHOD(STATIC);
 jobject Jam_CallObjectMethod(JNIEnv *env, jobject obj,
                              jmethodID methodID, ...) {
     va_list jargs;
-    Object **ret, *ob = obj;
+    Object **ret, *ob = REF_TO_OBJ(obj);
     MethodBlock *mb = lookupVirtualMethod(ob, methodID);
 
     if(mb == NULL)
@@ -1115,7 +1203,8 @@ jobject Jam_CallObjectMethod(JNIEnv *env, jobject obj,
 
 jobject Jam_CallObjectMethodV(JNIEnv *env, jobject obj, jmethodID methodID,
                               va_list jargs) {
-    Object **ret, *ob = obj;
+
+    Object **ret, *ob = REF_TO_OBJ(obj);
     MethodBlock *mb = lookupVirtualMethod(ob, methodID);
 
     if(mb == NULL)
@@ -1127,7 +1216,8 @@ jobject Jam_CallObjectMethodV(JNIEnv *env, jobject obj, jmethodID methodID,
 
 jobject Jam_CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID,
                               jvalue *jargs) {
-    Object **ret, *ob = obj;
+
+    Object **ret, *ob = REF_TO_OBJ(obj);
     MethodBlock *mb = lookupVirtualMethod(ob, methodID);
 
     if(mb == NULL)
@@ -1143,7 +1233,8 @@ jobject Jam_CallNonvirtualObjectMethod(JNIEnv *env, jobject obj, jclass clazz,
     va_list jargs;
 
     va_start(jargs, methodID);
-    ret = executeMethodVaList(obj, clazz, methodID, jargs);
+    ret = executeMethodVaList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz),
+                              methodID, jargs);
     va_end(jargs);
 
     return addJNILref(*ret);
@@ -1152,14 +1243,16 @@ jobject Jam_CallNonvirtualObjectMethod(JNIEnv *env, jobject obj, jclass clazz,
 jobject Jam_CallNonvirtualObjectMethodV(JNIEnv *env, jobject obj, jclass clazz,
                                         jmethodID methodID, va_list jargs) {
 
-    Object **ret = executeMethodVaList(obj, clazz, methodID, jargs);
+    Object **ret = executeMethodVaList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz),
+                                       methodID, jargs);
     return addJNILref(*ret);
 }
 
 jobject Jam_CallNonvirtualObjectMethodA(JNIEnv *env, jobject obj, jclass clazz,
                                         jmethodID methodID, jvalue *jargs) {
 
-    Object **ret = executeMethodList(obj, clazz, methodID, (u8*)jargs);
+    Object **ret = executeMethodList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz),
+                                     methodID, (u8*)jargs);
     return addJNILref(*ret);
 }
 
@@ -1169,7 +1262,7 @@ jobject Jam_CallStaticObjectMethod(JNIEnv *env, jclass clazz,
     va_list jargs;
 
     va_start(jargs, methodID);
-    ret = executeMethodVaList(NULL, clazz, methodID, jargs);
+    ret = executeMethodVaList(NULL, REF_TO_OBJ(clazz), methodID, jargs);
     va_end(jargs);
 
     return addJNILref(*ret);
@@ -1178,21 +1271,23 @@ jobject Jam_CallStaticObjectMethod(JNIEnv *env, jclass clazz,
 jobject Jam_CallStaticObjectMethodV(JNIEnv *env, jclass clazz,
                 jmethodID methodID, va_list jargs) {
 
-    Object **ret = executeMethodVaList(NULL, clazz, methodID, jargs);
+    Object **ret = executeMethodVaList(NULL, REF_TO_OBJ(clazz),
+                                       methodID, jargs);
     return addJNILref(*ret);
 }
 
 jobject Jam_CallStaticObjectMethodA(JNIEnv *env, jclass clazz,
                                     jmethodID methodID, jvalue *jargs) {
 
-    Object **ret = executeMethodList(NULL, clazz, methodID, (u8*)jargs);
+    Object **ret = executeMethodList(NULL, REF_TO_OBJ(clazz),
+                                     methodID, (u8*)jargs);
     return addJNILref(*ret);
 }
 
 void Jam_CallVoidMethod(JNIEnv *env, jobject obj, jmethodID methodID, ...) {
     va_list jargs;
     MethodBlock *mb;
-    Object *ob = obj;
+    Object *ob = REF_TO_OBJ(obj);
  
     va_start(jargs, methodID);
     if((mb = lookupVirtualMethod(ob, methodID)) != NULL)
@@ -1203,7 +1298,7 @@ void Jam_CallVoidMethod(JNIEnv *env, jobject obj, jmethodID methodID, ...) {
 void Jam_CallVoidMethodV(JNIEnv *env, jobject obj, jmethodID methodID,
                          va_list jargs) {
     MethodBlock *mb;
-    Object *ob = obj;
+    Object *ob = REF_TO_OBJ(obj);
 
     if((mb = lookupVirtualMethod(ob, methodID)) != NULL)
         executeMethodVaList(ob, ob->class, mb, jargs);
@@ -1212,7 +1307,7 @@ void Jam_CallVoidMethodV(JNIEnv *env, jobject obj, jmethodID methodID,
 void Jam_CallVoidMethodA(JNIEnv *env, jobject obj, jmethodID methodID,
                          jvalue *jargs) {
     MethodBlock *mb;
-    Object *ob = obj;
+    Object *ob = REF_TO_OBJ(obj);
 
     if((mb = lookupVirtualMethod(ob, methodID)) != NULL)
         executeMethodList(ob, ob->class, mb, (u8*)jargs);
@@ -1223,20 +1318,20 @@ void Jam_CallNonvirtualVoidMethod(JNIEnv *env, jobject obj, jclass clazz,
     va_list jargs;
 
     va_start(jargs, methodID);
-    executeMethodVaList(obj, clazz, methodID, jargs);
+    executeMethodVaList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz), methodID, jargs);
     va_end(jargs);
 }
 
 void Jam_CallNonvirtualVoidMethodV(JNIEnv *env, jobject obj, jclass clazz,
                 jmethodID methodID, va_list jargs) {
 
-      executeMethodVaList(obj, clazz, methodID, jargs);
+      executeMethodVaList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz), methodID, jargs);
 }
 
 void Jam_CallNonvirtualVoidMethodA(JNIEnv *env, jobject obj, jclass clazz,
                 jmethodID methodID, jvalue *jargs) {
 
-    executeMethodList(obj, clazz, methodID, (u8*)jargs);
+    executeMethodList(REF_TO_OBJ(obj), REF_TO_OBJ(clazz), methodID, (u8*)jargs);
 }
 
 void Jam_CallStaticVoidMethod(JNIEnv *env, jclass clazz, jmethodID methodID,
@@ -1244,20 +1339,20 @@ void Jam_CallStaticVoidMethod(JNIEnv *env, jclass clazz, jmethodID methodID,
     va_list jargs;
 
     va_start(jargs, methodID);
-    executeMethodVaList(NULL, clazz, methodID, jargs);
+    executeMethodVaList(NULL, REF_TO_OBJ(clazz), methodID, jargs);
     va_end(jargs);
 }
 
 void Jam_CallStaticVoidMethodV(JNIEnv *env, jclass clazz, jmethodID methodID,
                                va_list jargs) {
 
-    executeMethodVaList(NULL, clazz, methodID, jargs);
+    executeMethodVaList(NULL, REF_TO_OBJ(clazz), methodID, jargs);
 }
 
 void Jam_CallStaticVoidMethodA(JNIEnv *env, jclass clazz, jmethodID methodID,
                                jvalue *jargs) {
 
-    executeMethodList(NULL, clazz, methodID, (u8*)jargs);
+    executeMethodList(NULL, REF_TO_OBJ(clazz), methodID, (u8*)jargs);
 }
 
 #define NEW_PRIM_ARRAY(type, native_type, array_type)                        \
@@ -1268,31 +1363,32 @@ native_type##Array Jam_New##type##Array(JNIEnv *env, jsize length) {         \
 
 #define GET_PRIM_ARRAY_ELEMENTS(type, native_type)                           \
 native_type *Jam_Get##type##ArrayElements(JNIEnv *env,                       \
-                                          native_type##Array array,          \
+                                          native_type##Array array_ref,      \
                                           jboolean *isCopy) {                \
+    Object *array = REF_TO_OBJ(array_ref);                                   \
     if(isCopy != NULL)                                                       \
         *isCopy = JNI_FALSE;                                                 \
-    addJNIGref(array);                                                       \
-    return ARRAY_DATA((Object*)array, native_type);                          \
+    addJNIGref(array, GLOBAL_REF);                                           \
+    return ARRAY_DATA(array, native_type);                                   \
 }
 
 #define RELEASE_PRIM_ARRAY_ELEMENTS(type, native_type)                       \
 void Jam_Release##type##ArrayElements(JNIEnv *env, native_type##Array array, \
                                       native_type *elems, jint mode) {       \
-    delJNIGref(array);                                                       \
+    delJNIGref(REF_TO_OBJ(array), GLOBAL_REF);                               \
 }
 
 #define GET_PRIM_ARRAY_REGION(type, native_type)                             \
 void Jam_Get##type##ArrayRegion(JNIEnv *env, native_type##Array array,       \
                                 jsize start, jsize len, native_type *buf) {  \
-    memcpy(buf, ARRAY_DATA((Object*)array, native_type) + start,             \
+    memcpy(buf, ARRAY_DATA(REF_TO_OBJ(array), native_type) + start,          \
            len * sizeof(native_type));                                       \
 }
 
 #define SET_PRIM_ARRAY_REGION(type, native_type)                             \
 void Jam_Set##type##ArrayRegion(JNIEnv *env, native_type##Array array,       \
                                 jsize start, jsize len, native_type *buf) {  \
-    memcpy(ARRAY_DATA((Object*)array, native_type) + start, buf,             \
+    memcpy(ARRAY_DATA(REF_TO_OBJ(array), native_type) + start, buf,          \
            len * sizeof(native_type));                                       \
 }
 
@@ -1455,7 +1551,8 @@ static jint attachCurrentThread(void **penv, void *args, int is_daemon) {
 
         if(args != NULL) {
             JavaVMAttachArgs *attach_args = (JavaVMAttachArgs*)args;
-            if(attach_args->version != JNI_VERSION_1_4 &&
+            if(attach_args->version != JNI_VERSION_1_6 &&
+               attach_args->version != JNI_VERSION_1_4 &&
                attach_args->version != JNI_VERSION_1_2)
                 return JNI_EVERSION;
 
@@ -1492,8 +1589,8 @@ jint Jam_DetachCurrentThread(JavaVM *vm) {
 }
 
 jint Jam_GetEnv(JavaVM *vm, void **penv, jint version) {
-    if((version != JNI_VERSION_1_4) && (version != JNI_VERSION_1_2)
-                                    && (version != JNI_VERSION_1_1)) {
+    if((version != JNI_VERSION_1_6) && (version != JNI_VERSION_1_4) &&
+       (version != JNI_VERSION_1_2) && (version != JNI_VERSION_1_1)) {
         *penv = NULL;
         return JNI_EVERSION;
     }
@@ -1521,7 +1618,8 @@ struct _JNIInvokeInterface Jam_JNIInvokeInterface = {
 jint JNI_GetDefaultJavaVMInitArgs(void *args) {
     JavaVMInitArgs *vm_args = (JavaVMInitArgs*) args;
 
-    if(vm_args->version != JNI_VERSION_1_4 &&
+    if(vm_args->version != JNI_VERSION_1_6 &&
+       vm_args->version != JNI_VERSION_1_4 &&
        vm_args->version != JNI_VERSION_1_2)
         return JNI_EVERSION;
 
@@ -1660,7 +1758,8 @@ jint JNI_CreateJavaVM(JavaVM **pvm, void **penv, void *args) {
     JavaVMInitArgs *vm_args = (JavaVMInitArgs*) args;
     InitArgs init_args;
 
-    if(vm_args->version != JNI_VERSION_1_4 &&
+    if(vm_args->version != JNI_VERSION_1_6 &&
+       vm_args->version != JNI_VERSION_1_4 &&
        vm_args->version != JNI_VERSION_1_2)
         return JNI_EVERSION;
 
