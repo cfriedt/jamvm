@@ -671,6 +671,7 @@ uintptr_t *defineClass0(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
                 if(cstr[i]=='.') cstr[i]='/';
 
             class = defineClass(cstr, data, offset, data_len, class_loader);
+
             if(class != NULL) {
                 INST_DATA(class, uintptr_t, pd_offset) = pd;
                 linkClass(class);
