@@ -1678,7 +1678,7 @@ void markLoaderClasses(Object *class_loader, int mark) {
 }
 
 #undef ITERATE
-#define ITERATE(ptr)  threadReference((Object**)ptr)
+#define ITERATE(ptr) threadReference((Object**)ptr)
 
 void threadLoaderClasses(Object *class_loader) {
     Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
