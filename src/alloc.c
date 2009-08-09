@@ -33,6 +33,7 @@
 #include "lock.h"
 #include "symbol.h"
 #include "excep.h"
+#include "jni-internal.h"
 
 /* Trace GC heap mark/sweep phases - useful for debugging heap
  * corruption */
@@ -202,6 +203,9 @@ extern int finalize_mtbl_idx;
 extern int enqueue_mtbl_idx;
 extern int ldr_vmdata_offset;
 
+/* Forward declarations */
+void handleUnmarkedSpecial(Object *ob);
+
 /* During GC all threads are suspended.  To safeguard against a
    suspended thread holding the malloc-lock, free cannot be called
    within the GC to free native memory associated with "special
@@ -332,8 +336,8 @@ void initialiseAlloc(InitArgs *args) {
     }                                                \
 }
 
-int isMarked(Object *ob) {
-    return ob != NULL && IS_MARKED(ob);
+int isMarked(Object *object) {
+    return object != NULL && IS_MARKED(object);
 }
 
 void markObject(Object *object, int mark) {
@@ -346,18 +350,30 @@ void markRoot(Object *object) {
         MARK(object, HARD_MARK);
 }
 
-void markConservativeRoot(Object *object) {
-    if(object == NULL)
-        return;
-
-    MARK(object, HARD_MARK);
-
+void addConservativeRoot(Object *object) {
     if((conservative_root_count % LIST_INCREMENT) == 0) {
         int new_size = conservative_root_count + LIST_INCREMENT;
         conservative_roots = gcMemRealloc(conservative_roots,
                                           new_size * sizeof(Object *));
     }
     conservative_roots[conservative_root_count++] = object;
+}
+
+void markConservativeRoot(Object *object) {
+    if(object == NULL)
+        return;
+
+    MARK(object, HARD_MARK);
+    addConservativeRoot(object);
+}
+
+void markJNIGlobalRef(Object *object) {
+    markConservativeRoot(object);
+}
+
+void markJNIClearedWeakRef(Object *object) {
+    MARK(object, FINALIZER_MARK);
+    addConservativeRoot(object);
 }
 
 void freeConservativeRoots() {
@@ -415,6 +431,24 @@ void scanThread(Thread *thread) {
         slot -= sizeof(Frame)/sizeof(uintptr_t);
         frame = frame->prev;
     }
+}
+
+void convertToPlaceHolder(Object *object) {
+    uintptr_t *hdr_address = HDR_ADDRESS(object);
+    int size = HDR_SIZE(*hdr_address);
+
+    if(HDR_SPECIAL_OBJ(*hdr_address) && object->class != NULL)
+        handleUnmarkedSpecial(object);
+
+    if(size > MIN_OBJECT_SIZE) {
+        uintptr_t *rem_hdr_address =
+                      (uintptr_t*)((char*)hdr_address + MIN_OBJECT_SIZE);
+        *rem_hdr_address = size - MIN_OBJECT_SIZE;
+    }
+
+    *hdr_address = MIN_OBJECT_SIZE | ALLOC_BIT;
+    object->class = NULL;
+    object->lock = 0;
 }
 
 void markClassData(Class *class, int mark) {
@@ -695,6 +729,9 @@ static void doMark(Thread *self, int mark_soft_refs) {
     /* Scan the interned string hash table and remove
        any entries that are unmarked */
     freeInternedStrings();
+
+    scanJNIWeakGlobalRefs();
+    markJNIClearedWeakRefs();
 }
 
 /* ------------------------- SWEEP PHASE ------------------------- */
