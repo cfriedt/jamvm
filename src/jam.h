@@ -763,6 +763,9 @@ extern void markRoot(Object *ob);
 extern void markConservativeRoot(Object *ob);
 extern void markObject(Object *ob, int mark);
 extern uintptr_t getObjectHashcode(Object *ob);
+extern void convertToPlaceHolder(Object *ob);
+extern void markJNIClearedWeakRef(Object *ob);
+extern void markJNIGlobalRef(Object *ob);
 
 extern void gc1();
 extern void runFinalizers();
@@ -1000,6 +1003,8 @@ extern int initJNILrefs();
 extern void initialiseJNI();
 extern void *getJNIInterface();
 extern void markJNIGlobalRefs();
+extern void scanJNIWeakGlobalRefs();
+extern void markJNIClearedWeakRefs();
 
 /* properties */
 
