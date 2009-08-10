@@ -30,6 +30,7 @@
 #include "excep.h"
 #include "reflect.h"
 #include "jni-internal.h"
+#include "alloc.h"
 
 #define JNI_VERSION JNI_VERSION_1_6
 
@@ -65,7 +66,7 @@ void initialiseJNI() {
     FieldBlock *buffCap_fb, *buffAddr_fb, *rawdata_fb;
     Class *buffer_class;
 
-    /* Initialise the global references table */
+    /* Initialise the global reference tables */
     initJNIGrefs();
 
     /* Cache class and method/fields for JNI 1.4 NIO support */
@@ -428,7 +429,7 @@ jobject Jam_PopLocalFrame(JNIEnv *env, jobject result) {
 }
 
 jobject Jam_NewLocalRef(JNIEnv *env, jobject obj) {
-    return addJNILref(REF_TO_OBJ(obj));
+    return addJNILref(REF_TO_OBJ_WEAK_NULL_CHECK(obj));
 }
 
 jint Jam_EnsureLocalCapacity(JNIEnv *env, jint capacity) {
@@ -490,14 +491,16 @@ void Jam_ReleaseStringCritical(JNIEnv *env, jstring string,
 }
 
 jweak Jam_NewWeakGlobalRef(JNIEnv *env, jobject obj) {
-    return addJNIGref(REF_TO_OBJ(obj), WEAK_GLOBAL_REF);
+    return addJNIGref(REF_TO_OBJ_WEAK_NULL_CHECK(obj), WEAK_GLOBAL_REF);
 }
 
 void Jam_DeleteWeakGlobalRef(JNIEnv *env, jweak obj) {
-    Object *ob = REF_TO_OBJ(obj);
+    if(REF_TYPE(obj) == WEAK_GLOBAL_REF) {
+        Object *ob = REF_TO_OBJ(obj);
 
-    if(!delJNIGref(ob, WEAK_GLOBAL_REF))
-        delJNIGref(ob, CLEARED_WEAK_REF);
+        if(!delJNIGref(ob, WEAK_GLOBAL_REF))
+            delJNIGref(ob, CLEARED_WEAK_REF);
+    }
 }
 
 jboolean Jam_ExceptionCheck(JNIEnv *env) {
@@ -579,11 +582,12 @@ void Jam_FatalError(JNIEnv *env, const char *message) {
 }
 
 jobject Jam_NewGlobalRef(JNIEnv *env, jobject obj) {
-    return addJNIGref(REF_TO_OBJ(obj), GLOBAL_REF);
+    return addJNIGref(REF_TO_OBJ_WEAK_NULL_CHECK(obj), GLOBAL_REF);
 }
 
 void Jam_DeleteGlobalRef(JNIEnv *env, jobject obj) {
-    delJNIGref(REF_TO_OBJ(obj), GLOBAL_REF);
+    if(REF_TYPE(obj) == GLOBAL_REF)
+        delJNIGref(REF_TO_OBJ(obj), GLOBAL_REF);
 }
 
 void Jam_DeleteLocalRef(JNIEnv *env, jobject obj) {
@@ -591,14 +595,8 @@ void Jam_DeleteLocalRef(JNIEnv *env, jobject obj) {
 }
 
 jboolean Jam_IsSameObject(JNIEnv *env, jobject obj1, jobject obj2) {
-    if((obj2 == NULL && REF_TYPE(obj1) == WEAK_GLOBAL_REF) ||
-       (obj1 == NULL && REF_TYPE(obj2) == WEAK_GLOBAL_REF)) {
-        Object *ob = REF_TO_OBJ(obj1 == NULL ? obj2 : obj1);
-
-        return findJNIGref(ob, CLEARED_WEAK_REF);
-    }
-
-    return REF_TO_OBJ(obj1) == REF_TO_OBJ(obj2);
+    return REF_TO_OBJ_WEAK_NULL_CHECK(obj1)
+        == REF_TO_OBJ_WEAK_NULL_CHECK(obj2);
 }
 
 /* JNI helper function.  The class may be invalid
