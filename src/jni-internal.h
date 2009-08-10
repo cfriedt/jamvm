@@ -23,7 +23,13 @@
 #define WEAK_GLOBAL_REF  0x1
 #define CLEARED_WEAK_REF 0x0
 
+#define REF_TO_OBJ_WEAK_NULL_CHECK(ref) ({           \
+    Object *_obj = REF_TO_OBJ(ref);                  \
+    if(REF_TYPE(ref) == WEAK_GLOBAL_REF)             \
+        _obj = isPlaceholderObj(_obj) ? NULL : _obj; \
+    _obj;                                            \
+})
+
 #define REF_TYPE(ref)   (((uintptr_t)(ref))&REF_MASK)
 #define REF_TO_OBJ(ref) ((Object*)(((uintptr_t)(ref))&~REF_MASK))
 #define OBJ_TO_REF(ref, ref_type) ((jobject)(((uintptr_t)(ref))|ref_type))
-
