@@ -294,20 +294,6 @@ static int delJNIGref(Object *ref, int type) {
     return i >= 0;
 }
 
-static int findJNIGref(Object *ref, int type) {
-    Thread *self = threadSelf();
-    int i;
-
-    lockJNIGrefs(self, type);
-
-    for(i = global_refs[type].next - 1; i >= 0; i--)
-        if(global_refs[type].table[i] == ref)
-            break;
-
-    unlockJNIGrefs(self, type);
-    return i >= 0;
-}
-
 /* Called during mark phase of GC.  No need to
    grab lock as no thread can be suspended
    while the list is being modified */
@@ -337,6 +323,28 @@ void scanJNIWeakGlobalRefs() {
             global_refs[WEAK_GLOBAL_REF].has_deleted = TRUE;
         }
     }
+}
+
+/* Extensions added to JNI in JDK 1.6 */
+
+jobjectRefType Jam_GetObjectRefType(JNIEnv *env, jobject obj) {
+    if(obj != NULL) {
+        switch(REF_TYPE(obj)) {
+            case GLOBAL_REF:
+                return JNIGlobalRefType;
+
+            case WEAK_GLOBAL_REF:
+                return JNIWeakGlobalRefType;
+
+            case LOCAL_REF:
+                return JNILocalRefType;
+
+            default:
+                break;
+        }
+    }
+
+    return JNIInvalidRefType;
 }
 
 /* Extensions added to JNI in JDK 1.4 */
@@ -1530,7 +1538,8 @@ struct _JNINativeInterface Jam_JNINativeInterface = {
     Jam_ExceptionCheck,
     Jam_NewDirectByteBuffer,
     Jam_GetDirectBufferAddress,
-    Jam_GetDirectBufferCapacity
+    Jam_GetDirectBufferCapacity,
+    Jam_GetObjectRefType
 };
 
 jint Jam_DestroyJavaVM(JavaVM *vm) {
