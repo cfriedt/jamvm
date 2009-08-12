@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -96,6 +96,16 @@ typedef const struct _JNINativeInterface *JNIEnv;
 
 struct _JNIInvokeInterface;
 typedef const struct _JNIInvokeInterface *JavaVM;
+
+enum _jobjectRefType
+{
+  JNIInvalidRefType    = 0,
+  JNILocalRefType      = 1,
+  JNIGlobalRefType     = 2,
+  JNIWeakGlobalRefType = 3 
+};
+
+typedef enum _jobjectRefType jobjectRefType;
 
 #define VIRTUAL_METHOD(type, native_type)                                                   \
 native_type (*Call##type##Method)(JNIEnv *env, jobject obj, jmethodID mID, ...);            \
@@ -310,6 +320,7 @@ struct _JNINativeInterface {
     jobject (*NewDirectByteBuffer)(JNIEnv *env, void *addr, jlong capacity);
     void* (*GetDirectBufferAddress)(JNIEnv *env, jobject buffer);
     jlong (*GetDirectBufferCapacity)(JNIEnv *env, jobject buffer);
+    jobjectRefType (*GetObjectRefType)(JNIEnv *env, jobject obj);
 };
 
 struct _JNIInvokeInterface {
