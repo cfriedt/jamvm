@@ -33,7 +33,6 @@
 #include "lock.h"
 #include "symbol.h"
 #include "excep.h"
-#include "jni-internal.h"
 
 /* Trace GC heap mark/sweep phases - useful for debugging heap
  * corruption */
@@ -730,6 +729,10 @@ static void doMark(Thread *self, int mark_soft_refs) {
        any entries that are unmarked */
     freeInternedStrings();
 
+    /* Handle JNI weak global references.  First, scan the global
+       weak reference list and move any unmarked entries to the
+       cleared reference list.  Then mark the cleared reference
+       placeholder objects to prevent them from being collected */
     scanJNIWeakGlobalRefs();
     markJNIClearedWeakRefs();
 }
