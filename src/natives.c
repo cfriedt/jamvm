@@ -696,7 +696,7 @@ uintptr_t *findLoadedClass(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
         return ostack;
     }
 
-    cstr = String2Cstr(string);
+    cstr = String2Utf8(string);
     len = strlen(cstr);
 
     for(i = 0; i < len; i++)
