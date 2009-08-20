@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -149,7 +149,7 @@ int utf8CharLen(unsigned short *unicode, int len) {
 
     for(; len > 0; len--) {
         unsigned short c = *unicode++;
-        count += c > 0x7f ? (c > 0x7ff ? 3 : 2) : 1;
+        count += c == 0 || c > 0x7f ? (c > 0x7ff ? 3 : 2) : 1;
     }
 
     return count;
