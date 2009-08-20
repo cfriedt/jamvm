@@ -881,7 +881,7 @@ void linkClass(Class *class) {
    if(cb->state >= CLASS_LINKED)
        return;
 
-   objectLock((Object *)class);
+   objectLock(class);
 
    if(cb->state >= CLASS_LINKED)
        goto unlock;
@@ -1196,7 +1196,7 @@ void linkClass(Class *class) {
    cb->state = CLASS_LINKED;
 
 unlock:
-   objectUnlock((Object *)class);
+   objectUnlock(class);
 }
 
 Class *initClass(Class *class) {
@@ -1211,27 +1211,27 @@ Class *initClass(Class *class) {
       return class;
 
    linkClass(class);
-   objectLock((Object *)class);
+   objectLock(class);
 
    while(cb->state == CLASS_INITING)
       if(cb->initing_tid == threadSelf()->id) {
-         objectUnlock((Object *)class);
+         objectUnlock(class);
          return class;
       } else {
           /* FALSE means this wait is non-interruptible.
              An interrupt will appear as if the initialiser
              failed (below), and clearing will lose the
              interrupt status */
-          objectWait0((Object *)class, 0, 0, FALSE);
+          objectWait0(class, 0, 0, FALSE);
       }
 
    if(cb->state >= CLASS_INITED) {
-      objectUnlock((Object *)class);
+      objectUnlock(class);
       return class;
    }
 
    if(cb->state == CLASS_BAD) {
-       objectUnlock((Object *)class);
+       objectUnlock(class);
        signalException(java_lang_NoClassDefFoundError, cb->name);
        return NULL;
    }
@@ -1239,7 +1239,7 @@ Class *initClass(Class *class) {
    cb->state = CLASS_INITING;
    cb->initing_tid = threadSelf()->id;
 
-   objectUnlock((Object *)class);
+   objectUnlock(class);
 
    if(!(cb->access_flags & ACC_INTERFACE) && cb->super
               && (CLASS_CB(cb->super)->state != CLASS_INITED)) {
@@ -1291,11 +1291,11 @@ Class *initClass(Class *class) {
        state = CLASS_INITED;
    
 set_state_and_notify:
-   objectLock((Object *)class);
+   objectLock(class);
    cb->state = state;
 
-   objectNotifyAll((Object *)class);
-   objectUnlock((Object *)class);
+   objectNotifyAll(class);
+   objectUnlock(class);
 
    return state == CLASS_BAD ? NULL : class;
 }
@@ -1312,7 +1312,7 @@ char *findFileEntry(char *path, int *file_len) {
     *file_len = ftell(fd);
     fseek(fd, 0L, SEEK_SET);
 
-    data = (char *)sysMalloc(*file_len);
+    data = sysMalloc(*file_len);
     read_len = fread(data, sizeof(char), *file_len, fd);
     fclose(fd);
 
@@ -1806,7 +1806,7 @@ int parseBootClassPath(char *cp_var) {
     int i, j, len, max = 0;
     struct stat info;
 
-    cp = (char*)sysMalloc(strlen(cp_var)+1);
+    cp = sysMalloc(strlen(cp_var)+1);
     strcpy(cp, cp_var);
 
     for(i = 0, start = pntr = cp; *pntr; pntr++) {
@@ -1897,8 +1897,8 @@ void scanDirForJars(char *dir) {
 void scanDirsForJars(char *directories) {
     int dirslen = strlen(directories);
     char *pntr, *end, *dirs = sysMalloc(dirslen + 1);
-    strcpy(dirs, directories);
 
+    strcpy(dirs, directories);
     for(end = pntr = &dirs[dirslen]; pntr != dirs; pntr--) {
         if(*pntr == ':') {
             char *start = pntr + 1;
