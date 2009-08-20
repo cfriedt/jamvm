@@ -103,6 +103,8 @@ void initialiseJNI() {
     nio_init_OK = TRUE;
 }
 
+/* ---------- Local reference support functions ---------- */
+
 int initJNILrefs() {
     JNIFrame *frame = ensureJNILrefCapacity(JNI_DEFAULT_LREFS);
 
@@ -202,6 +204,13 @@ void popJNILrefFrame() {
     ee->last_frame = (Frame*)prev;
 }
 
+/* ----------------- Global reference support ----------------- */
+
+/* There are 3 global reference tables, one for normal (strong)
+   global references, one for weak global references and one for
+   weak references that have been cleared */
+#define NUM_GLOBAL_TABLES 3
+
 typedef struct global_ref_table {
     Object **table;
     int    size;
@@ -210,7 +219,6 @@ typedef struct global_ref_table {
     VMLock lock;
 } GlobalRefTable;
 
-#define NUM_GLOBAL_TABLES 3
 static GlobalRefTable global_refs[NUM_GLOBAL_TABLES];
 
 static void initJNIGrefs() {
@@ -221,8 +229,8 @@ static void initJNIGrefs() {
 }
 
 void lockJNIGrefs(Thread *self, int type) {
-    /* Only disable/enable suspension (slow) if
-       we have to block */
+    /* Disabling and enabling suspension is slow,
+       so only do it if we have to block */
     if(!tryLockVMLock(global_refs[type].lock, self)) {
         disableSuspend(self);
         lockVMLock(global_refs[type].lock, self);
@@ -238,6 +246,9 @@ void unlockJNIGrefs(Thread *self, int type) {
 
 void addJNIGrefUnlocked(Object *ref, int type) {
     if(global_refs[type].next == global_refs[type].size) {
+        /* To save the cost of shuffling entries every time a ref is deleted,
+           refs are simply nulled-out, and a flag is set.  We then compact
+           the table when it becomes full */
         if(global_refs[type].has_deleted) {
             int i, j;
 
@@ -279,8 +290,14 @@ static int delJNIGref(Object *ref, int type) {
 
     lockJNIGrefs(self, type);
 
+    /* As NewRef and DeleteRef are paired, we search
+       backwards to optimise the case where the ref
+       has recently been added */
     for(i = global_refs[type].next - 1; i >= 0; i--)
         if(global_refs[type].table[i] == ref) {
+
+            /* If it's the last ref we can just update
+               the next free index */
             if(i == global_refs[type].next - 1)
                 global_refs[type].next = i;
             else {
@@ -324,6 +341,8 @@ void scanJNIWeakGlobalRefs() {
         }
     }
 }
+
+/* --------------- JNI interface functions --------------- */
 
 /* Extensions added to JNI in JDK 1.6 */
 
