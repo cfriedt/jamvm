@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -81,7 +81,8 @@ int checkClassAccess(Class *class1, Class *class2) {
     return isSameRuntimePackage(class1, class2);
 }
 
-static int checkMethodOrFieldAccess(int access_flags, Class *decl_class, Class *class) {
+static int checkMethodOrFieldAccess(int access_flags, Class *decl_class,
+                                    Class *class) {
 
     /* Public methods and fields are always accessible */
     if(access_flags & ACC_PUBLIC)
