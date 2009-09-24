@@ -27,17 +27,7 @@
 
 #include "jam.h"
 #include "symbol.h"
-
-/* If we have endian.h include it.  Otherwise, include sys/param.h
-   if we have it. If the BYTE_ORDER macro is still undefined, we
-   fall-back, and work out the endianness ourselves at runtime --
-   this always works.
-*/
-#ifdef HAVE_ENDIAN_H
-#include <endian.h>
-#elif HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
+#include "properties.h"
 
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
@@ -111,26 +101,6 @@ void setLocaleProperties(Object *properties) {
             }
         }
     }
-#endif
-}
-
-void setEndianProperty(Object *properties) {
-#ifdef BYTE_ORDER
-#if BYTE_ORDER == BIG_ENDIAN
-    setProperty(properties, "gnu.cpu.endian", "big");
-#else
-    setProperty(properties, "gnu.cpu.endian", "little");
-#endif
-#else
-    /* No byte-order macro -- work it out ourselves at runtime */
-    union {
-        int i;
-        char c[sizeof(int)];
-    } u;
-
-    u.i = 1;
-    setProperty(properties, "gnu.cpu.endian",
-                u.c[sizeof(int)-1] == 1 ? "big" : "little");
 #endif
 }
 
@@ -209,9 +179,10 @@ void addDefaultProperties(Object *properties) {
     setProperty(properties, "line.separator", "\n");
     setProperty(properties, "user.name", getenv("USER"));
     setProperty(properties, "user.home", getenv("HOME"));
+    setProperty(properties, "gnu.cpu.endian",
+                            IS_BIG_ENDIAN ? "big" : "little");
 
     setOSProperties(properties);
-    setEndianProperty(properties);
     setUserDirProperty(properties);
     setLocaleProperties(properties);
 }
