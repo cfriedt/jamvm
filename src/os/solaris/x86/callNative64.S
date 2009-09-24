@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Robert Lougher <rob@lougher.org.uk>.
+ * Copyright (C) 2008, 2009 Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -208,16 +208,28 @@ done:
     movzbq  (%r14), %rbx
     cmpq    $86, %rbx                /* 'V' */
     je      return
+    cmpq    $76, %rbx                /* 'L' */
+    je      int_ret
+    cmpq    $91, %rbx                /* '[' */
+    je      int_ret
+    cmpq    $73, %rbx                /* 'I' */
+    je      int_ret
     cmpq    $68, %rbx                /* 'D' */
     je      double_ret
     cmpq    $70, %rbx                /* 'F' */
     je      float_ret
-
-    movq    %rax, (%rcx)
-
     cmpq    $74, %rbx                /* 'J' */
-    je      double_inc
+    je      long_ret
+    cmpq    $67, %rbx                /* 'C' */
+    je      char_ret
+    cmpq    $83, %rbx                /* 'S' */
+    je      short_ret
 
+    /* remaining types Z and B */
+    movsbq  %al, %rax
+
+int_ret:
+    movq    %rax, (%rcx)
     addq    $8, %rcx
 
 return:
@@ -232,9 +244,21 @@ return:
     movq    %rcx, %rax
     retq
 
+char_ret:
+    movzwq  %ax, %rax
+    jmp     int_ret
+
+short_ret:
+    movswq  %ax, %rax
+    jmp     int_ret
+
+long_ret:
+    movq    %rax, (%rcx)
+    addq    $16, %rcx
+    jmp     return
+
 double_ret:
     movsd   %xmm0, (%rcx)
-double_inc:
     addq    $16, %rcx
     jmp     return
 
