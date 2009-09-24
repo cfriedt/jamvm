@@ -20,6 +20,7 @@
  */
 
 #include <limits.h>
+#include "properties.h"
 
 /* _GNU_SOURCE doesn't bring in C99 long long constants,
    but we do get the GNU constants */
@@ -31,21 +32,10 @@
 #define LLONG_MIN LONG_LONG_MIN
 #endif
 
-#ifdef HAVE_ENDIAN_H
-#include <endian.h>
-#elif HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
+#define IS_BE64 (sizeof(uintptr_t) == 8 && IS_BIG_ENDIAN)
 
-#if ( defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)) || \
-    (!defined(BYTE_ORDER) && defined(_BIG_ENDIAN))
-#define FLOAT_CONST(val) (uintptr_t)val << (sizeof(uintptr_t) * 8 - 32)
-#else
-#define FLOAT_CONST(val) val
-#endif
-
-#define FLOAT_1_BITS FLOAT_CONST(0x3f800000)
-#define FLOAT_2_BITS FLOAT_CONST(0x40000000)
+#define FLOAT_1_BITS 0x3f800000
+#define FLOAT_2_BITS 0x40000000
 
 #define READ_U1_OP(p)    ((p)[1])
 #define READ_U2_OP(p)    (((p)[1]<<8)|(p)[2])
@@ -54,6 +44,30 @@
 #define READ_S2_OP(p)    (signed short)READ_U2_OP(p)
 #define READ_S4_OP(p)    (signed int)READ_U4_OP(p)
 
+/* Stack related macros */
+
+#define STACK_float(offset)    *(((float*)&ostack[offset]) + IS_BE64)
+#define STACK_uint64_t(offset) *(uint64_t*)&ostack[offset * 2]
+#define STACK_int64_t(offset)  *(int64_t*)&ostack[offset * 2]
+#define STACK_double(offset)   *(double*)&ostack[offset * 2]
+#define STACK_uint16_t(offset) (uint16_t)ostack[offset]
+#define STACK_int16_t(offset)  (int16_t)ostack[offset]
+#define STACK_int8_t(offset)   (int8_t)ostack[offset]
+#define STACK_int(offset)      (int)ostack[offset]
+
+#define STACK(type, offset)  STACK_##type(offset)
+
+#define SLOTS(type) (sizeof(type) + 3)/4
+
+#define STACK_POP(type) ({       \
+    ostack -= SLOTS(type);       \
+    STACK(type, 0);              \
+})
+
+#define STACK_PUSH(type, val) {  \
+    STACK(type, 0) = val;        \
+    ostack += SLOTS(type);       \
+}
 
 /* Include the interpreter variant header */
 
@@ -66,4 +80,3 @@
 #else
 #include "interp-indirect.h"
 #endif /* DIRECT */
-
