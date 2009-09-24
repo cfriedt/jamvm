@@ -49,7 +49,7 @@ uintptr_t *executeJava() {
             uintptr_t v1;
             uintptr_t v2;
         } i;
-        long long l;
+        int64_t l;
     } cache;
 #endif
 
@@ -368,10 +368,11 @@ uintptr_t *executeJava() {
     cache.i.v1 = value;                                    \
     DISPATCH(1, ins_len);
 #else
-#define PUSH_0(value, ins_len)                             \
-    *ostack = value;                                       \
-    ostack++;                                              \
-    DISPATCH(0, ins_len);
+#define PUSH_0(value, ins_len) {                           \
+    uintptr_t tos = value;                                 \
+    *ostack++ = tos;                                       \
+    DISPATCH(0, ins_len);                                  \
+}
 #endif
 
 #define PUSH_1(value, ins_len)                             \
@@ -449,10 +450,7 @@ uintptr_t *executeJava() {
 }
 
 #define UNARY_MINUS_0                                      \
-{                                                          \
-    int v = (int)*--ostack;                                \
-    PUSH_0(-v, 1);                                         \
-}
+    PUSH_0(-STACK_POP(int), 1);
 
 #define UNARY_MINUS_1                                      \
     PUSH_0(-(int)cache.i.v1, 1);
@@ -539,8 +537,7 @@ uintptr_t *executeJava() {
     DISPATCH(2, ins_len);
 #else
 #define PUSH_LONG(value, ins_len) \
-    *(u8*)ostack = value;         \
-    ostack += 2;                  \
+    STACK_PUSH(uint64_t, value);  \
     DISPATCH(0, ins_len);
 #endif
     
@@ -598,8 +595,7 @@ uintptr_t *executeJava() {
     DISPATCH(0, ins_len);
 #else
 #define POP_LONG(dest, ins_len) \
-    ostack -= 2;                \
-    dest = *(u8*)ostack;        \
+    dest = STACK_POP(uint64_t); \
     DISPATCH(0, ins_len);
 #endif
 
@@ -871,11 +867,9 @@ uintptr_t *executeJava() {
     })
 #endif /* USE_CACHE */
 
-#define BINARY_OP_fp(TYPE, OP)                  \
-    *(TYPE *)&ostack[-sizeof(TYPE)/4 * 2] =     \
-        *(TYPE *)&ostack[-sizeof(TYPE)/4 * 2] OP\
-        *(TYPE *)&ostack[-sizeof(TYPE)/4];      \
-    ostack -= sizeof(TYPE)/4;                   \
+#define BINARY_OP_fp(TYPE, OP)             \
+    STACK(TYPE, -2) OP##= STACK(TYPE, -1); \
+    ostack -= SLOTS(TYPE);                 \
     DISPATCH(0, 1);
 
     DEF_OPC_FLOAT(OPC_FADD,
@@ -911,19 +905,18 @@ uintptr_t *executeJava() {
     )
 
 #ifdef USE_CACHE
-#define BINARY_OP_long(OP)                               \
-    cache.l = *(long long*)&ostack[-2] OP cache.l;       \
-    ostack -= 2;                                         \
+#define BINARY_OP_long(OP)                   \
+    cache.l = STACK_POP(int64_t) OP cache.l; \
     DISPATCH(2, 1);
 
-#define ZERO_DIVISOR_CHECK_long                          \
+#define ZERO_DIVISOR_CHECK_long              \
     ZERO_DIVISOR_CHECK(cache.l);
 #else
-#define BINARY_OP_long(OP)                               \
-    BINARY_OP_fp(long long, OP)
+#define BINARY_OP_long(OP)                   \
+    BINARY_OP_fp(int64_t, OP)
 
-#define ZERO_DIVISOR_CHECK_long                          \
-    ZERO_DIVISOR_CHECK(*(u8*)&ostack[-2]);
+#define ZERO_DIVISOR_CHECK_long              \
+    ZERO_DIVISOR_CHECK(STACK(int64_t, -1));
 #endif
 
     DEF_OPC_012(OPC_LADD,
@@ -973,49 +966,43 @@ uintptr_t *executeJava() {
 #define SHIFT_OP_long(TYPE, OP)       \
 {                                     \
     int shift = *--ostack & 0x3f;     \
-    *(TYPE*)&ostack[-2] =             \
-        *(TYPE*)&ostack[-2] OP shift; \
+    STACK(TYPE, -1) OP##= shift;      \
     DISPATCH(0, 1);                   \
 }
 #endif
 
     DEF_OPC_012(OPC_LSHL,
-        SHIFT_OP_long(long long, <<);
+        SHIFT_OP_long(int64_t, <<);
     )
 
     DEF_OPC_012(OPC_LSHR,
-        SHIFT_OP_long(long long, >>);
+        SHIFT_OP_long(int64_t, >>);
     )
 
     DEF_OPC_012(OPC_LUSHR,
-        SHIFT_OP_long(unsigned long long, >>);
+        SHIFT_OP_long(uint64_t, >>);
     )
 
-    DEF_OPC_FLOAT(OPC_FREM, {
-        float v2 = *(float *)&ostack[-1];
-        float v1 = *(float *)&ostack[-2];
+#define FREM(TYPE)                           \
+    STACK(TYPE, -2) = fmod(STACK(TYPE, -1),  \
+                           STACK(TYPE, -2)); \
+    ostack -= SLOTS(TYPE);                   \
+    DISPATCH(0, 1);
 
-        *(float *)&ostack[-2] = fmod(v1, v2);
-        ostack -= 1;
-        DISPATCH(0, 1);
-    })
+    DEF_OPC_FLOAT(OPC_FREM,
+        FREM(float);
+    )
 
-    DEF_OPC_FLOAT(OPC_DREM, {
-        double v2 = *(double *)&ostack[-2];
-        double v1 = *(double *)&ostack[-4];
+    DEF_OPC_FLOAT(OPC_DREM,
+        FREM(double);
+    )
 
-        *(double *)&ostack[-4] = fmod(v1, v2);
-        ostack -= 2;
-        DISPATCH(0, 1);
-    })
-
-#define UNARY_MINUS(TYPE)                    \
-    *(TYPE*)&ostack[-sizeof(TYPE)/4] =       \
-          -*(TYPE*)&ostack[-sizeof(TYPE)/4]; \
+#define UNARY_MINUS(TYPE)               \
+    STACK(TYPE, -1) = -STACK(TYPE, -1); \
     DISPATCH(0, 1);
 
     DEF_OPC_210(OPC_LNEG,
-        UNARY_MINUS(long long);
+        UNARY_MINUS(int64_t);
     )
 
     DEF_OPC_FLOAT(OPC_FNEG,
@@ -1026,53 +1013,36 @@ uintptr_t *executeJava() {
         UNARY_MINUS(double);
     )
 
-    DEF_OPC_210(OPC_I2L, {
-        ostack -= 1;
-        PUSH_LONG((int)*ostack, 1);
-    })
-
     DEF_OPC_012(OPC_L2I, {
-       long long l;
 #ifdef USE_CACHE
-        l = cache.l;
+        int64_t value = cache.l;
 #else
-        ostack -= 2;
-        l = *(long long*)ostack;
+        int64_t value = STACK_POP(int64_t);
 #endif
-        PUSH_0((int)l, 1);
+        PUSH_0((int)value, 1);
     })
 
-#define OPC_int2fp(DEST_TYPE)            \
-    ostack -= 1;                         \
-    *(DEST_TYPE *)ostack =               \
-              (DEST_TYPE)(int)*ostack;   \
-    ostack += sizeof(DEST_TYPE)/4;       \
-    DISPATCH(0, 1);
+#define OPC_X2Y(SRC_TYPE, DEST_TYPE)         \
+{                                            \
+    SRC_TYPE value = STACK_POP(SRC_TYPE);    \
+    STACK_PUSH(DEST_TYPE, (DEST_TYPE)value); \
+    DISPATCH(0, 1);                          \
+}
 
     DEF_OPC_FLOAT(OPC_I2F,
-        OPC_int2fp(float);
+        OPC_X2Y(int, float);
     )
 
     DEF_OPC_FLOAT(OPC_I2D,
-        OPC_int2fp(double);
+        OPC_X2Y(int, double);
     )
 
-#define OPC_X2Y(SRC_TYPE, DEST_TYPE)     \
-{                                        \
-    SRC_TYPE v;                          \
-    ostack -= sizeof(SRC_TYPE)/4;        \
-    v = *(SRC_TYPE *)ostack;             \
-    *(DEST_TYPE *)ostack = (DEST_TYPE)v; \
-    ostack += sizeof(DEST_TYPE)/4;       \
-    DISPATCH(0, 1);                      \
-}
-
     DEF_OPC_FLOAT(OPC_L2F,
-        OPC_X2Y(long long, float);
+        OPC_X2Y(int64_t, float);
     )
 
     DEF_OPC_FLOAT(OPC_L2D,
-        OPC_X2Y(long long, double);
+        OPC_X2Y(int64_t, double);
     )
 
     DEF_OPC_FLOAT(OPC_F2D,
@@ -1083,23 +1053,21 @@ uintptr_t *executeJava() {
         OPC_X2Y(double, float);
     )
 
-#define OPC_fp2int(SRC_TYPE)            \
-{                                       \
-    int res;                            \
-    SRC_TYPE value;                     \
-    ostack -= sizeof(SRC_TYPE)/4;       \
-    value = *(SRC_TYPE *)ostack;        \
-                                        \
-    if(value >= (SRC_TYPE)INT_MAX)      \
-        res = INT_MAX;                  \
-    else if(value <= (SRC_TYPE)INT_MIN) \
-        res = INT_MIN;                  \
-    else if(value != value)             \
-        res = 0;                        \
-    else                                \
-        res = (int) value;              \
-                                        \
-    PUSH_0(res, 1);                     \
+#define OPC_fp2int(SRC_TYPE)              \
+{                                         \
+    int res;                              \
+    SRC_TYPE value = STACK_POP(SRC_TYPE); \
+                                          \
+    if(value >= (SRC_TYPE)INT_MAX)        \
+        res = INT_MAX;                    \
+    else if(value <= (SRC_TYPE)INT_MIN)   \
+        res = INT_MIN;                    \
+    else if(value != value)               \
+        res = 0;                          \
+    else                                  \
+        res = (int) value;                \
+                                          \
+    PUSH_0(res, 1);                       \
 }
 
     DEF_OPC_FLOAT(OPC_F2I,
@@ -1110,23 +1078,21 @@ uintptr_t *executeJava() {
         OPC_fp2int(double);
     )
 
-#define OPC_fp2long(SRC_TYPE)              \
-{                                          \
-    long long res;                         \
-    SRC_TYPE value;                        \
-    ostack -= sizeof(SRC_TYPE)/4;          \
-    value = *(SRC_TYPE *)ostack;           \
-                                           \
-    if(value >= (SRC_TYPE)LLONG_MAX)       \
-        res = LLONG_MAX;                   \
-    else if(value <= (SRC_TYPE)LLONG_MIN)  \
-        res = LLONG_MIN;                   \
-    else if(value != value)                \
-        res = 0;                           \
-    else                                   \
-        res = (long long) value;           \
-                                           \
-    PUSH_LONG(res, 1);                     \
+#define OPC_fp2long(SRC_TYPE)             \
+{                                         \
+    int64_t res;                          \
+    SRC_TYPE value = STACK_POP(SRC_TYPE); \
+                                          \
+    if(value >= (SRC_TYPE)LLONG_MAX)      \
+        res = LLONG_MAX;                  \
+    else if(value <= (SRC_TYPE)LLONG_MIN) \
+        res = LLONG_MIN;                  \
+    else if(value != value)               \
+        res = 0;                          \
+    else                                  \
+        res = (int64_t) value;            \
+                                          \
+    PUSH_LONG(res, 1);                    \
 }
 
     DEF_OPC_FLOAT(OPC_F2L,
@@ -1137,54 +1103,46 @@ uintptr_t *executeJava() {
         OPC_fp2long(double);
     )
 
-    DEF_OPC_210(OPC_I2B, {
-        signed char v = *--ostack & 0xff;
-        PUSH_0(v, 1);
-    })
+    DEF_OPC_210(OPC_I2L,
+        PUSH_LONG(STACK_POP(int), 1);
+    )
 
-    DEF_OPC_210(OPC_I2C, {
-        int v = *--ostack & 0xffff;
-        PUSH_0(v, 1);
-    })
+    DEF_OPC_210(OPC_I2B,
+        PUSH_0(STACK_POP(int8_t), 1);
+    )
 
-    DEF_OPC_210(OPC_I2S, {
-        signed short v = *--ostack & 0xffff;
-        PUSH_0((int) v, 1);
-    })
+    DEF_OPC_210(OPC_I2C,
+        PUSH_0(STACK_POP(uint16_t), 1);
+    )
 
+    DEF_OPC_210(OPC_I2S,
+        PUSH_0(STACK_POP(int16_t), 1);
+    )
+
+    DEF_OPC_012(OPC_LCMP, {
 #ifdef USE_CACHE
-    DEF_OPC_012(OPC_LCMP, {
-        long long v1 = *(long long*)&ostack[-2];
-        int r = (v1 == cache.l) ? 0 : ((v1 < cache.l) ? -1 : 1);
-        cache.i.v1 = r;
-        ostack -= 2;
-        DISPATCH(1, 1);
-    })
+        int64_t v2 = cache.l;
 #else
-    DEF_OPC_012(OPC_LCMP, {
-        long long v2 = *(long long*)&ostack[-2];
-        long long v1 = *(long long*)&ostack[-4];
-        ostack[-4] = (v1 == v2) ? 0 : ((v1 < v2) ? -1 : 1);
-        ostack -= 3;
-        DISPATCH(0, 1);
-    })
+        int64_t v2 = STACK_POP(int64_t);
 #endif
+        int64_t v1 = STACK_POP(int64_t);
+        PUSH_0(v1 == v2 ? 0 : (v1 < v2 ? -1 : 1), 1);
+    })
 
-#define FCMP(TYPE, isNan)                                 \
-({                                                        \
-    int res;                                              \
-    TYPE v1, v2;                                          \
-    ostack -= sizeof(TYPE)/4; v2 = *(TYPE *)ostack;       \
-    ostack -= sizeof(TYPE)/4; v1 = *(TYPE *)ostack;       \
-    if(v1 == v2)                                          \
-        res = 0;                                          \
-    else if(v1 < v2)                                      \
-        res = -1;                                         \
-    else if(v1 > v2)                                      \
-         res = 1;                                         \
-    else                                                  \
-         res = isNan;                                     \
-    PUSH_0(res, 1);                                       \
+#define FCMP(TYPE, isNan)           \
+({                                  \
+    int res;                        \
+    TYPE v2 = STACK_POP(TYPE);      \
+    TYPE v1 = STACK_POP(TYPE);      \
+    if(v1 == v2)                    \
+        res = 0;                    \
+    else if(v1 < v2)                \
+        res = -1;                   \
+    else if(v1 > v2)                \
+         res = 1;                   \
+    else                            \
+         res = isNan;               \
+    PUSH_0(res, 1);                 \
 })
 
     DEF_OPC_FLOAT(OPC_DCMPG,
@@ -1220,8 +1178,7 @@ uintptr_t *executeJava() {
 #ifdef USE_CACHE
         *(u8*)lvars = cache.l;
 #else
-        ostack -= 2;
-        *(u8*)lvars = *(u8*)ostack;
+        *(u8*)lvars = STACK_POP(uint64_t);
 #endif
         lvars += 2;
         goto methodReturn;
