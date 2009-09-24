@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -29,7 +29,10 @@
 #define RET_DOUBLE  1
 #define RET_LONG    2
 #define RET_FLOAT   3
-#define RET_DFLT    4
+#define RET_BYTE    4
+#define RET_CHAR    5
+#define RET_SHORT   6
+#define RET_DFLT    7
 
 int nativeExtraArg(MethodBlock *mb) {
     int len = strlen(mb->type);
@@ -43,12 +46,20 @@ int nativeExtraArg(MethodBlock *mb) {
                 return RET_LONG;
             case 'F':
                 return RET_FLOAT;
+            case 'B':
+            case 'Z':
+                return RET_BYTE;
+            case 'C':
+                return RET_CHAR;
+            case 'S':
+                return RET_SHORT;
         }
 
     return RET_DFLT;
 }
 
-u4 *callJNIMethod(void *env, Class *class, char *sig, int ret_type, u4 *ostack, unsigned char *f, int args) {
+u4 *callJNIMethod(void *env, Class *class, char *sig, int ret_type,
+                  u4 *ostack, unsigned char *f, int args) {
     int tot_args = args + 1 + (class ? 1 : 0);
     int aligned = (tot_args + 3) & ~0x3;
     u4 *opntr = ostack + args;
@@ -56,7 +67,8 @@ u4 *callJNIMethod(void *env, Class *class, char *sig, int ret_type, u4 *ostack, 
 
     /* The Darwin/i386 ABI requires the stack to be 16-byte aligned.
        Pad the beginning of the parameter area to ensure this. */
-    asm volatile ("subl %0,%%esp" :: "r" ((aligned - tot_args) * sizeof(u4)) : "cc", "sp");
+    asm volatile ("subl %0,%%esp" :: "r" ((aligned - tot_args) * sizeof(u4))
+                  : "cc", "sp");
 
     for(i = 0; i < args; i++)
         asm volatile ("pushl %0" :: "m" (*--opntr) : "sp");
@@ -84,6 +96,18 @@ u4 *callJNIMethod(void *env, Class *class, char *sig, int ret_type, u4 *ostack, 
         case RET_FLOAT:
             *(float*)ostack = (*(float (*)())f)();
             ostack++;
+            break;
+
+        case RET_BYTE:
+            *ostack++ = (*(signed char (*)())f)();
+            break;
+
+        case RET_CHAR:
+            *ostack++ = (*(unsigned short (*)())f)();
+            break;
+
+        case RET_SHORT:
+            *ostack++ = (*(signed short (*)())f)();
             break;
 
         default:
