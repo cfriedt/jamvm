@@ -21,6 +21,12 @@
 
 #define OS_ARCH "i386"
 
+/* On i386 prior to gcc 4.3, return types less than 4 bytes in size
+   were zero or sign extended.  This no longer happens, and so when
+   calling a method through FFI, we need to do the extension.  This
+   is unnecessary on most architectures */
+#define FFI_RET_EXTEND
+
 #define HANDLER_TABLE_T static const void
 #define DOUBLE_1_BITS 0x3ff0000000000000LL
 
