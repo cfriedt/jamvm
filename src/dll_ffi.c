@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -28,27 +28,18 @@
 #include "sig.h"
 
 ffi_type *sig2ffi(char sig) {
-    ffi_type *type;
-
     switch(sig) {
         case 'V':
-	    type = &ffi_type_void;
-            break;
+	    return &ffi_type_void;
         case 'D':
-	    type = &ffi_type_double;
-            break;
+	    return &ffi_type_double;
         case 'J':
-	    type = &ffi_type_sint64;
-            break;
+	    return &ffi_type_sint64;
         case 'F':
-	    type = &ffi_type_float;
-            break;
-	default:
-	    type = &ffi_type_pointer;
-            break;
+	    return &ffi_type_float;
     }
 
-    return type;
+    return &ffi_type_pointer;
 }
 
 int nativeExtraArg(MethodBlock *mb) {
@@ -72,6 +63,7 @@ int nativeExtraArg(MethodBlock *mb) {
 uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int num_args,
                          uintptr_t *ostack, unsigned char *func) {
     ffi_cif cif;
+    ffi_status err;
     void *values[num_args];
     ffi_type *types[num_args];
     uintptr_t *opntr = ostack;
@@ -86,13 +78,41 @@ uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int num_args,
 
     SCAN_SIG(sig, DOUBLE, SINGLE);
 
-    if(ffi_prep_cif(&cif, FFI_DEFAULT_ABI, num_args, sig2ffi(*sig), types) == FFI_OK) {
+    err = ffi_prep_cif(&cif, FFI_DEFAULT_ABI, num_args, sig2ffi(*sig), types);
+
+    /* ffi_prep_cif should never fail, but throw an internal error if
+       it does to be safe */
+    if(err != FFI_OK)
+        signalException(java_lang_InternalError, "ffi_prep_cif failed");
+    else {
         ffi_call(&cif, FFI_FN(func), ostack, values);
 
-	if(*sig == 'J' || *sig == 'D')
-	    ostack += 2;
-	else if(*sig != 'V')
-	    ostack++;
+        switch(*sig) {
+            case 'V':
+                break;
+            case 'J':
+            case 'D':
+	        ostack += 2;
+                break;
+#ifdef FFI_RET_EXTEND
+            case 'Z':
+            case 'B':
+                *ostack = (signed char)*ostack;
+                ostack++;
+                break;
+            case 'C':
+                *ostack = (unsigned short)*ostack;
+                ostack++;
+                break;
+            case 'S':
+                *ostack = (signed short)*ostack;
+                ostack++;
+                break;
+#endif
+            default:
+	        ostack++;
+                break;
+        }
     }
 
     return ostack;
