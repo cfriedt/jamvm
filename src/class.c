@@ -223,18 +223,10 @@ Class *defineClass(char *classname, char *data, int offset, int len,
                break;
            }
 
+           case CONSTANT_Float:
            case CONSTANT_Integer:
                READ_U4(CP_INFO(constant_pool,i), ptr, len);
                break;
-
-           case CONSTANT_Float:
-           {
-               u4 val;
-
-               READ_U4(val, ptr, len);
-               CP_INFO(constant_pool,i) = FLOAT_CONST(val);
-               break;
-           }
 
            case CONSTANT_Long:
                READ_U8(*(u8 *)&(CP_INFO(constant_pool,i)), ptr, len);
