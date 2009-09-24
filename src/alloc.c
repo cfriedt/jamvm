@@ -2177,9 +2177,9 @@ unsigned long maxHeapMem() {
     suspended while holding the malloc lock */
 
 void *gcMemMalloc(int n) {
-    int size = n + sizeof(int);
-    int *mem = mmap(0, size, PROT_READ|PROT_WRITE,
-                             MAP_PRIVATE|MAP_ANON, -1, 0);
+    uintptr_t size = n + sizeof(uintptr_t);
+    uintptr_t *mem = mmap(0, size, PROT_READ|PROT_WRITE,
+                                   MAP_PRIVATE|MAP_ANON, -1, 0);
 
     if(mem == MAP_FAILED) {
         jam_fprintf(stderr, "Mmap failed - aborting VM...\n");
@@ -2194,18 +2194,18 @@ void *gcMemRealloc(void *addr, int size) {
     if(addr == NULL)
         return gcMemMalloc(size);
     else {
-        int *mem = addr;
-        int old_size = *--mem;
-        int new_size = size + sizeof(int);
+        uintptr_t *mem = addr;
+        uintptr_t old_size = *--mem;
+        uintptr_t new_size = size + sizeof(uintptr_t);
 
         if(old_size/sys_page_size == new_size/sys_page_size) {
             *mem = new_size;
             return addr;
         } else {
-            int copy_size = new_size > old_size ? old_size : new_size;
+            uintptr_t copy_size = new_size > old_size ? old_size : new_size;
             void *new_mem = gcMemMalloc(size);
 
-            memcpy(new_mem, addr, copy_size - sizeof(int));
+            memcpy(new_mem, addr, copy_size - sizeof(uintptr_t));
             munmap(mem, old_size);
 
             return new_mem;
@@ -2215,8 +2215,8 @@ void *gcMemRealloc(void *addr, int size) {
 
 void gcMemFree(void *addr) {
     if(addr != NULL) {
-        int *mem = addr;
-        int size = *--mem;
+        uintptr_t *mem = addr;
+        uintptr_t size = *--mem;
         munmap(mem, size);
     }
 }
