@@ -495,7 +495,11 @@ typedef struct method_annotation_data {
     AnnotationData *dft_val;
 } MethodAnnotationData;
 
-typedef struct methodblock {
+typedef struct methodblock MethodBlock;
+
+typedef uintptr_t *(*NativeMethod)(Class*, struct methodblock*, uintptr_t*);
+
+struct methodblock {
    Class *class;
    char *name;
    char *type;
@@ -508,7 +512,7 @@ typedef struct methodblock {
    u2 exception_table_size;
    u2 line_no_table_size;
    int native_extra_arg;
-   void *native_invoker;
+   NativeMethod native_invoker;
    void *code;
    int code_size;
    u2 *throw_table;
@@ -520,7 +524,7 @@ typedef struct methodblock {
    QuickPrepareInfo *quick_prepare_info;
    ProfileInfo *profile_info;
 #endif
-} MethodBlock;
+};
 
 typedef struct fieldblock {
    Class *class;
