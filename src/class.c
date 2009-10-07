@@ -925,7 +925,7 @@ void linkClass(Class *class) {
            /* set up native invoker to wrapper to resolve function 
               on first invocation */
 
-           mb->native_invoker = (void *) resolveNativeWrapper;
+           mb->native_invoker = &resolveNativeWrapper;
 
            /* native methods have no code attribute so these aren't filled
               in at load time - as these values are used when creating frame
