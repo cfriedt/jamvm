@@ -51,3 +51,4 @@
 })
 #endif
 
+#define IS_BE64 (sizeof(uintptr_t) == 8 && IS_BIG_ENDIAN)
