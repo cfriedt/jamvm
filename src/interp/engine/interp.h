@@ -32,8 +32,6 @@
 #define LLONG_MIN LONG_LONG_MIN
 #endif
 
-#define IS_BE64 (sizeof(uintptr_t) == 8 && IS_BIG_ENDIAN)
-
 #define FLOAT_1_BITS 0x3f800000
 #define FLOAT_2_BITS 0x40000000
 
@@ -46,7 +44,7 @@
 
 /* Stack related macros */
 
-#define STACK_float(offset)    *(((float*)&ostack[offset]) + IS_BE64)
+#define STACK_float(offset)    *((float*)&ostack[offset] + IS_BE64)
 #define STACK_uint64_t(offset) *(uint64_t*)&ostack[offset * 2]
 #define STACK_int64_t(offset)  *(int64_t*)&ostack[offset * 2]
 #define STACK_double(offset)   *(double*)&ostack[offset * 2]
