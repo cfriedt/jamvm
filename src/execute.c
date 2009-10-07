@@ -26,47 +26,48 @@
 #include "lock.h"
 #include "symbol.h"
 #include "excep.h"
+#include "properties.h"
 #include "jni-internal.h"
 
-#define VA_DOUBLE(args, sp)                        \
-    if(*sig == 'D')                                \
-        *(double*)sp = va_arg(args, double);       \
-    else                                           \
-        *(u8*)sp = va_arg(args, u8);               \
+#define VA_DOUBLE(args, sp)                                 \
+    if(*sig == 'D')                                         \
+        *(double*)sp = va_arg(args, double);                \
+    else                                                    \
+        *(u8*)sp = va_arg(args, u8);                        \
     sp+=2
-
-#define VA_SINGLE(args, sp)                        \
-    if(*sig == 'L' || *sig == '[')                 \
-        *sp = va_arg(args, uintptr_t) & ~REF_MASK; \
-    else                                           \
-        if(*sig == 'F')                            \
-            *(float*)sp = va_arg(args, double);    \
-        else                                       \
-            *sp = va_arg(args, u4);                \
+         
+#define VA_SINGLE(args, sp)                                 \
+    if(*sig == 'L' || *sig == '[')                          \
+        *sp = va_arg(args, uintptr_t) & ~REF_MASK;          \
+    else                                                    \
+        if(*sig == 'F')                                     \
+            *((float*)sp + IS_BE64) = va_arg(args, double); \
+        else                                                \
+            *sp = va_arg(args, u4);                         \
     sp++
 
 #define JA_DOUBLE(args, sp)  *(u8*)sp = *args++; sp+=2
-#define JA_SINGLE(args, sp)                        \
-    switch(*sig) {                                 \
-        case 'L': case '[':                        \
-            *sp = *(uintptr_t*)args & ~REF_MASK;   \
-            break;                                 \
-        case 'F':                                  \
-            *sp = *(uintptr_t*)args;               \
-            break;                                 \
-        case 'B': case 'Z':                        \
-            *sp = *(signed char*)args;             \
-            break;                                 \
-        case 'C':                                  \
-            *sp = *(unsigned short*)args;          \
-            break;                                 \
-        case 'S':                                  \
-            *sp = *(signed short*)args;            \
-            break;                                 \
-        case 'I':                                  \
-            *sp = *(signed int*)args;              \
-            break;                                 \
-    }                                              \
+#define JA_SINGLE(args, sp)                                 \
+    switch(*sig) {                                          \
+        case 'L': case '[':                                 \
+            *sp = *(uintptr_t*)args & ~REF_MASK;            \
+            break;                                          \
+        case 'F':                                           \
+            *((float*)sp + IS_BE64) = *(float*)args;        \
+            break;                                          \
+        case 'B': case 'Z':                                 \
+            *sp = *(signed char*)args;                      \
+            break;                                          \
+        case 'C':                                           \
+            *sp = *(unsigned short*)args;                   \
+            break;                                          \
+        case 'S':                                           \
+            *sp = *(signed short*)args;                     \
+            break;                                          \
+        case 'I':                                           \
+            *sp = *(signed int*)args;                       \
+            break;                                          \
+    }                                                       \
     sp++; args++
 
 void *executeMethodArgs(Object *ob, Class *class, MethodBlock *mb, ...) {
@@ -80,10 +81,11 @@ void *executeMethodArgs(Object *ob, Class *class, MethodBlock *mb, ...) {
     return ret;
 }
 
-void *executeMethodVaList(Object *ob, Class *class, MethodBlock *mb, va_list jargs) {
-    char *sig = mb->type;
+void *executeMethodVaList(Object *ob, Class *class, MethodBlock *mb,
+                          va_list jargs) {
 
     ExecEnv *ee = getExecEnv();
+    char *sig = mb->type;
     uintptr_t *sp;
     void *ret;
 
@@ -100,7 +102,7 @@ void *executeMethodVaList(Object *ob, Class *class, MethodBlock *mb, va_list jar
         objectLock(ob ? ob : (Object*)mb->class);
 
     if(mb->access_flags & ACC_NATIVE)
-        (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))mb->native_invoker)(class, mb, ret);
+        (*mb->native_invoker)(class, mb, ret);
     else
         executeJava();
 
@@ -131,7 +133,7 @@ void *executeMethodList(Object *ob, Class *class, MethodBlock *mb, u8 *jargs) {
         objectLock(ob ? ob : (Object*)mb->class);
 
     if(mb->access_flags & ACC_NATIVE)
-        (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))mb->native_invoker)(class, mb, ret);
+        (*mb->native_invoker)(class, mb, ret);
     else
         executeJava();
 
