@@ -28,8 +28,8 @@
 #include "class.h"
 #include "symbol.h"
 #include "excep.h"
-#include "interp.h"
 #include "reflect.h"
+#include "properties.h"
 
 static char inited = FALSE;
 
@@ -959,14 +959,14 @@ int widenPrimitiveValue(int src_idx, int dest_idx, void *src, void *dest,
 
     static void *handlers[3][9] = {
          /* field -> field */
-         {&&illegal_arg, &&u4_f2f, &&u8, &&i2f_sf, &&i2d_sf,
-                         &&i2j_sf, &&j2f, &&j2d, &&f2d},
+         {&&illegal_arg, &&u4_f2f, &&u8, &&i2f_f2f, &&i2d_sf,
+                         &&i2j_sf, &&j2f_df, &&j2d, &&f2d_sf},
          /* ostack -> field */
-         {&&illegal_arg, &&u4_o2f, &&u8, &&i2f_so, &&i2d_so,
-                         &&i2j_so, &&j2f, &&j2d, &&f2d},
+         {&&illegal_arg, &&u4_o2f, &&u8, &&i2f_o2f, &&i2d_so,
+                         &&i2j_so, &&j2f_df, &&j2d, &&f2d_so},
          /* field -> ostack */
-         {&&illegal_arg, &&u4_f2o, &&u8, &&i2f_sf, &&i2d_sf,
-                         &&i2j_sf, &&j2f, &&j2d, &&f2d}
+         {&&illegal_arg, &&u4_f2o, &&u8, &&i2f_f2o, &&i2d_sf,
+                         &&i2j_sf, &&j2f_do, &&j2d, &&f2d_sf}
     };
 
     int handler = conv_table[src_idx][dest_idx - 1];
@@ -984,10 +984,13 @@ u4_f2f: /* field -> field */
 u8:
     *(u8*)dest = *(u8*)src;
     return 2;
-i2f_so: /*src ostack */
+i2f_o2f: /* ostack -> field */
     *(float*)dest = (float)(int)*(uintptr_t*)src;
     return 1;
-i2f_sf: /*src field */
+i2f_f2o: /* field -> ostack */
+    *((float*)dest + IS_BE64) = (float)*(int*)src;
+    return 1;
+i2f_f2f: /* field -> field */
     *(float*)dest = (float)*(int*)src;
     return 1;
 i2d_so: /* src ostack */
@@ -1002,13 +1005,19 @@ i2j_so: /* src ostack */
 i2j_sf: /* src field */
     *(long long*)dest = (long long)*(int*)src;
     return 2;
-j2f:
+j2f_do: /* dst ostack */
+    *((float*)dest + IS_BE64) = (float)*(long long*)src;
+    return 1;
+j2f_df: /* dst field */
     *(float*)dest = (float)*(long long*)src;
     return 1;
 j2d:
     *(double*)dest = (double)*(long long*)src;
     return 2;
-f2d:
+f2d_so: /* src ostack */
+    *(double*)dest = (double)*((float*)src + IS_BE64);
+    return 2;
+f2d_sf: /* src field */
     *(double*)dest = (double)*(float*)src;
     return 2;
 
@@ -1078,8 +1087,7 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
         objectLock(ob ? ob : mb->class);
 
     if(mb->access_flags & ACC_NATIVE)
-        (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))mb->native_invoker)
-                                (mb->class, mb, ret);
+        (*mb->native_invoker)(mb->class, mb, ret);
     else
         executeJava();
 
