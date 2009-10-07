@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -21,7 +21,7 @@
 
 typedef struct vm_method {
     char *methodname;
-    uintptr_t *(*method)(Class *, MethodBlock *, uintptr_t *);
+    NativeMethod method;
 } VMMethod;
 
 typedef struct vm_class {
