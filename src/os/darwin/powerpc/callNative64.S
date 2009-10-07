@@ -1,5 +1,5 @@
 ;
-; Copyright (C) 2003, 2004, 2005, 2006, 2007
+; Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
 ; Robert Lougher <rob@lougher.org.uk>.
 ;
 ; This file is part of JamVM.
@@ -148,7 +148,8 @@ do_double:
         b do_float_1
 
 do_float:
-        lfsu f0,8(r15)
+        lfs f0,12(r15)
+        addi r15,r15,8
 
 do_float_1:
         mtctr r18
@@ -233,7 +234,8 @@ ret_double:
         b return
 
 ret_float:
-        stfsu f1,8(r16)
+        stfs f1,12(r16)
+        addi r16,r16,8
 
 return:
         addi r3,r16,8
