@@ -173,7 +173,7 @@ void *lookupInternal(MethodBlock *mb) {
                 jam_printf("internal");
 
             /* Found it -- set the invoker to the native method */
-            return mb->native_invoker = (void*)methods[i].method;
+            return mb->native_invoker = methods[i].method;
         }
     }
 
@@ -461,7 +461,7 @@ void *lookupLoadedDlls(MethodBlock *mb) {
 
         mb->code = (unsigned char *) func;
         mb->native_extra_arg = nativeExtraArg(mb);
-        return mb->native_invoker = (void*) callJNIWrapper;
+        return mb->native_invoker = &callJNIWrapper;
     }
 
     return NULL;
