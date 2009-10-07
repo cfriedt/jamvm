@@ -26,6 +26,8 @@
 #include <ffi.h>
 #include <stdio.h>
 #include "sig.h"
+#include "excep.h"
+#include "properties.h"
 
 ffi_type *sig2ffi(char sig) {
     switch(sig) {
@@ -37,9 +39,9 @@ ffi_type *sig2ffi(char sig) {
 	    return &ffi_type_sint64;
         case 'F':
 	    return &ffi_type_float;
+        default:
+            return &ffi_type_pointer;
     }
-
-    return &ffi_type_pointer;
 }
 
 int nativeExtraArg(MethodBlock *mb) {
@@ -51,14 +53,18 @@ int nativeExtraArg(MethodBlock *mb) {
     return count;
 }
 
-#define DOUBLE                    \
-    *types_pntr++ = sig2ffi(*sig);\
-    *values_pntr++ = opntr;       \
+#define DOUBLE                             \
+    *types_pntr++ = sig2ffi(*sig);         \
+    *values_pntr++ = opntr;                \
     opntr += 2
 
-#define SINGLE                    \
-    *types_pntr++ = sig2ffi(*sig);\
-    *values_pntr++ = opntr++
+#define SINGLE                             \
+    *types_pntr++ = sig2ffi(*sig);         \
+    if(*sig == 'F' && IS_BE64)             \
+        *values_pntr++ = (float*)opntr + 1;\
+    else                                   \
+        *values_pntr++ = opntr;            \
+    opntr += 1
 
 uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int num_args,
                          uintptr_t *ostack, unsigned char *func) {
@@ -80,12 +86,14 @@ uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int num_args,
 
     err = ffi_prep_cif(&cif, FFI_DEFAULT_ABI, num_args, sig2ffi(*sig), types);
 
-    /* ffi_prep_cif should never fail, but throw an internal error if
-       it does to be safe */
+    /* ffi_prep_cif should never fail, but throw an internal error
+       if it does */
     if(err != FFI_OK)
         signalException(java_lang_InternalError, "ffi_prep_cif failed");
     else {
-        ffi_call(&cif, FFI_FN(func), ostack, values);
+        float *ret = (float*)ostack + (*sig == 'F' && IS_BE64);
+
+        ffi_call(&cif, FFI_FN(func), ret, values);
 
         switch(*sig) {
             case 'V':
