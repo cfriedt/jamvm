@@ -98,6 +98,7 @@ struct thread {
 extern Thread *threadSelf();
 extern Thread *jThread2Thread(Object *jThread);
 extern Thread *vmThread2Thread(Object *vmThread);
+extern long long javaThreadId(Thread *thread);
 
 extern void *getStackTop(Thread *thread);
 extern void *getStackBase(Thread *thread);
@@ -134,6 +135,7 @@ extern void detachJNIThread(Thread *thread);
 extern char *getThreadStateString(Thread *thread);
 
 extern Thread *findThreadById(long long id);
+extern Thread *findRunningThreadByTid(int tid);
 extern void suspendThread(Thread *thread);
 extern void resumeThread(Thread *thread);
 
