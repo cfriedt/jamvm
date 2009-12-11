@@ -56,16 +56,15 @@ uintptr_t *executeJava() {
     /* Variable definitions holding the interpreter
        state.  These are common to all interpreter
        variants */
+    uintptr_t *arg1;
     register CodePntr pc;
     ExecEnv *ee = getExecEnv();
     Frame *frame = ee->last_frame;
     register uintptr_t *lvars = frame->lvars;
     register uintptr_t *ostack = frame->ostack;
 
-    uintptr_t *arg1;
-    MethodBlock *new_mb, *mb = frame->mb;
-
     Object *this = (Object*)lvars[0];
+    MethodBlock *new_mb, *mb = frame->mb;
     ConstantPool *cp = &(CLASS_CB(mb->class)->constant_pool);
 
     /* Initialise pc to the start of the method.  If it
@@ -2188,8 +2187,7 @@ invokeMethod:
     }
 
     if(new_mb->access_flags & ACC_NATIVE) {
-        ostack = (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))
-                     new_mb->native_invoker)(new_mb->class, new_mb, arg1);
+        ostack = (*new_mb->native_invoker)(new_mb->class, new_mb, arg1);
 
         if(sync_ob)
             objectUnlock(sync_ob);
