@@ -1129,6 +1129,17 @@ int systemIdle(Thread *self) {
     return TRUE;
 }
 
+Thread *findRunningThreadByTid(int tid) {
+    Thread *thread;
+
+    pthread_mutex_lock(&lock);
+    for(thread = &main_thread; thread != NULL && thread->id != tid;
+        thread = thread->next);
+    pthread_mutex_unlock(&lock);
+
+    return thread;
+}
+
 void exitVM(int status) {
     main_exited = TRUE;
 
