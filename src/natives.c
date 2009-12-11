@@ -1334,15 +1334,27 @@ uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb,
     Object *info = NULL;
 
     if(thread != NULL) {
+        Class *helper_class = findSystemClass("jamvm/ThreadInfoHelper");
         Class *info_class = findSystemClass("java/lang/management/ThreadInfo");
 
-        if(info_class != NULL) {
+        if(info_class != NULL && helper_class != NULL) {
+            MethodBlock *helper = findMethod(helper_class,
+                                             newUtf8("createThreadInfo"),
+                                             newUtf8("(Ljava/lang/Thread;"
+                                                     "Ljava/lang/Object;"
+                                                     "Ljava/lang/Thread;)"
+                                                     "[Ljava/lang/Object;"));
             MethodBlock *init = findMethod(info_class, SYMBOL(object_init),
-                                   newUtf8("(Ljava/lang/Thread;"
-                                           "JJLjava/lang/Object;"
-                                           "Ljava/lang/Thread;JJZZ"
-                                           "[Ljava/lang/StackTraceElement;)V"));
-            if(init != NULL) {
+                                 newUtf8("(JLjava/lang/String;"
+                                         "Ljava/lang/Thread$State;"
+                                         "JJLjava/lang/String;"
+                                         "JLjava/lang/String;JJZZ"
+                                         "[Ljava/lang/StackTraceElement;"
+                                         "[Ljava/lang/management/MonitorInfo;"
+                                         "[Ljava/lang/management/LockInfo;)V"));
+
+
+            if(init != NULL && helper != NULL) {
                 Frame *last;
                 int in_native;
                 Object *vmthrowable;
@@ -1361,20 +1373,35 @@ uintptr_t *getThreadInfoForId(Class *class, MethodBlock *mb,
                     resumeThread(thread);
 
                 if(vmthrowable != NULL) {
-                    Object *trace;
+                    Object **helper_info, *trace;
+
                     if((info = allocObject(info_class)) != NULL &&
                              (trace = convertStackTrace(vmthrowable)) != NULL) {
 
                         Monitor *mon = thread->blocked_mon;
                         Object *lock = mon != NULL ? mon->obj : NULL;
-                        Thread *owner = mon != NULL ? mon->owner : NULL;
+                        Thread *owner = lock != NULL ?
+                                             objectLockedBy(lock) : NULL;
                         Object *lock_owner = owner != NULL ?
                                                owner->ee->thread : NULL;
+                        long long owner_id = owner != NULL ?
+                                               javaThreadId(owner) : -1;
 
-                        executeMethod(info, init, thread->ee->thread,
-                                      thread->blocked_count, 0LL, lock,
-                                      lock_owner, thread->waited_count,
-                                      0LL, in_native, FALSE, trace);
+                        helper_info = executeStaticMethod(helper_class,
+                                              helper, thread->ee->thread, lock,
+                                              lock_owner);
+
+                        if(!exceptionOccurred()) {
+                            helper_info = ARRAY_DATA(*helper_info, Object*);
+
+                            executeMethod(info, init, id,
+                                          helper_info[0], helper_info[1],
+                                          thread->blocked_count, 0LL,
+                                          helper_info[2], owner_id,
+                                          helper_info[3], thread->waited_count,
+                                          0LL, in_native, FALSE, trace,
+                                          NULL, NULL);
+                        }
                     }
                 }
             }
