@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -209,9 +209,10 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
     if(interruptible && self->interrupted)
         interrupted = TRUE;
     else {
-        if(blocked)
+        if(blocked) {
+            self->blocked_mon = mon;
             self->blocked_count++;
-        else
+        } else
             self->waited_count++;
 
         self->interrupting = FALSE;
@@ -259,6 +260,9 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
 
     self->state = RUNNING;
     self->wait_mon = NULL;
+
+    if(blocked)
+        self->blocked_mon = NULL;
 
    /* Restore the monitor owner and recursion count */
     mon->count = old_count;
@@ -474,7 +478,8 @@ void objectWait0(Object *obj, long long ms, int ns, int interruptible) {
         return;
 
 not_owner:
-    signalException(java_lang_IllegalMonitorStateException, "thread not owner");
+    signalException(java_lang_IllegalMonitorStateException,
+                    "thread not owner");
 }
 
 void objectNotify(Object *obj) {
@@ -493,7 +498,8 @@ void objectNotify(Object *obj) {
             return;
     }
 
-    signalException(java_lang_IllegalMonitorStateException, "thread not owner");
+    signalException(java_lang_IllegalMonitorStateException,
+                    "thread not owner");
 }
 
 void objectNotifyAll(Object *obj) {
@@ -512,7 +518,8 @@ void objectNotifyAll(Object *obj) {
             return;
     }
 
-    signalException(java_lang_IllegalMonitorStateException, "thread not owner");
+    signalException(java_lang_IllegalMonitorStateException,
+                    "thread not owner");
 }
 
 int objectLockedByCurrent(Object *obj) {
@@ -529,6 +536,18 @@ int objectLockedByCurrent(Object *obj) {
             return TRUE;
     }
     return FALSE;
+}
+
+Thread *objectLockedBy(Object *obj) {
+    uintptr_t lockword = LOCKWORD_READ(&obj->lock);
+
+    if((lockword & SHAPE_BIT) == 0) {
+        int tid = (lockword&TID_MASK)>>TID_SHIFT;
+        return findRunningThreadByTid(tid);
+    } else {
+        Monitor *mon = (Monitor*) (lockword & ~SHAPE_BIT);
+        return mon->owner;
+    }
 }
 
 void initialiseMonitor() {
