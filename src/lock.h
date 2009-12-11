@@ -38,6 +38,7 @@ extern void objectNotify(Object *ob);
 extern void objectNotifyAll(Object *ob);
 extern void objectWait0(Object *ob, long long ms, int ns, int interruptible);
 extern int objectLockedByCurrent(Object *ob);
+extern Thread *objectLockedBy(Object *ob);
 extern void threadMonitorCache();
 
 #define objectWait(ob, ms, ns) \
