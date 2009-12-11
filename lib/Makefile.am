@@ -29,6 +29,7 @@ noinst_DATA = inst_classes.zip
 
 JAVA_FILES = $(srcdir)/jamvm/java/lang/JarLauncher.java \
              $(srcdir)/jamvm/java/lang/VMClassLoaderData.java \
+             $(srcdir)/jamvm/ThreadInfoHelper.java \
              $(srcdir)/java/lang/VMRuntime.java \
              $(srcdir)/java/lang/VMClass.java \
              $(srcdir)/java/lang/VMClassLoader.java \
