@@ -48,6 +48,7 @@ powerpc*-*-linux*) host_cpu=powerpc host_os=linux ;;
 powerpc*-*-openbsd*) host_cpu=powerpc host_os=bsd libdl_needed=no ;;
 powerpc*-*-freebsd*) host_cpu=powerpc host_os=bsd libdl_needed=no ;;
 powerpc-*-darwin*) host_os=darwin ;;
+sparc*-*-freebsd*) host_cpu=sparc host_os=bsd libdl_needed=no ;;
 *) AC_MSG_ERROR($host not supported) ;;
 esac
 
@@ -189,8 +190,9 @@ AC_SUBST(interp_cflags)
 AM_CONDITIONAL(COMPILE_TIME_RELOC_CHECKS, test "$compile_time_reloc_checks" = yes)
 
 AC_ARG_ENABLE(ffi,
-    [AS_HELP_STRING(--enable-ffi,use libffi to call native methods)],,
-    [if test "$host_cpu" != parisc; then
+    [AS_HELP_STRING(--enable-ffi,use libffi to call native methods
+                                 (enabled by default on parisc and sparc))],,
+    [if test "$host_cpu" != parisc -a "$host_cpu" != sparc; then
         enable_ffi=no
      fi])
 
@@ -229,7 +231,11 @@ AC_CHECK_PROGS(JAVAC, ecj jikes "gcj -C" javac)
 
 dnl Checks for libraries.
 
-AC_CHECK_LIB(pthread,pthread_self,,AC_MSG_ERROR(libpthread is missing))
+dnl Prefer libthr to libpthread (for FreeBSD)
+AC_CHECK_LIB(thr,pthread_self,,[
+  AC_CHECK_LIB(pthread,pthread_self,,AC_MSG_ERROR(libpthread is missing))
+])
+
 AC_CHECK_LIB(m,fmod,,AC_MSG_ERROR(libm is missing))
 
 if test "$libdl_needed" != no; then
@@ -330,6 +336,7 @@ AC_CONFIG_FILES(
     src/os/bsd/arm/Makefile \
     src/os/bsd/i386/Makefile \
     src/os/bsd/x86_64/Makefile \
+    src/os/bsd/sparc/Makefile \
     lib/Makefile \
     lib/java/Makefile \
     lib/java/lang/Makefile \
