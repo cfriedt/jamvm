@@ -43,8 +43,8 @@ void *nativeStackBase() {
 #else
 void *nativeStackBase() {
     pthread_attr_t attr;
+    size_t size;
     void *addr;
-    int size;
 
     pthread_attr_init(&attr);
     pthread_attr_get_np(pthread_self(), &attr);
