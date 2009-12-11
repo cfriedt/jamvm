@@ -19,4 +19,4 @@
 ## Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 ##
 
-EXTRA_DIST = powerpc.h arm.h i386.h x86_64.h parisc.h mips.h
+EXTRA_DIST = powerpc.h arm.h i386.h x86_64.h parisc.h mips.h sparc.h
