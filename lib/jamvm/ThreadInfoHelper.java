@@ -35,7 +35,7 @@ class ThreadInfoHelper {
         }
 
         return new Object[] {thread.getName(), thread.getState(),
-                              lockName, lockOwnerName};
+                             lockName, lockOwnerName};
     }
 }
 
