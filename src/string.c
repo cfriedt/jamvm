@@ -159,7 +159,7 @@ char *String2Buff(Object *string, char *buff, int buff_len) {
 
 char *String2Cstr(Object *string) {
     int len = INST_DATA(string, int, count_offset);
-    char *buff = (char *)sysMalloc(len + 1);
+    char *buff = sysMalloc(len + 1);
 
     return String2Buff0(string, buff, len);
 }
