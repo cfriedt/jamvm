@@ -19,7 +19,6 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <stdio.h>
 #include "jam.h"
 #include "sig.h"
 #include "frame.h"
@@ -70,6 +69,29 @@
     }                                                       \
     sp++; args++
 
+#define ADJUST_RET_ADDR(ret_addr, ret_type) ({              \
+    char *adjusted = ret_addr;                              \
+    if(IS_BIG_ENDIAN) {                                     \
+        int size;                                           \
+        switch(ret_type) {                                  \
+            case 'B': case 'Z':                             \
+                size = sizeof(uintptr_t) - 1;               \
+                break;                                      \
+            case 'C': case 'S':                             \
+                size = sizeof(uintptr_t) - 2;               \
+                break;                                      \
+            case 'I': case 'F':                             \
+                size = sizeof(uintptr_t) - 4;               \
+                break;                                      \
+            default:                                        \
+                size = 0;                                   \
+                break;                                      \
+        }                                                   \
+        adjusted += size;                                   \
+    }                                                       \
+    adjusted;                                               \
+})
+
 void *executeMethodArgs(Object *ob, Class *class, MethodBlock *mb, ...) {
     va_list jargs;
     void *ret;
@@ -99,7 +121,7 @@ void *executeMethodVaList(Object *ob, Class *class, MethodBlock *mb,
     SCAN_SIG(sig, VA_DOUBLE(jargs, sp), VA_SINGLE(jargs, sp))
 
     if(mb->access_flags & ACC_SYNCHRONIZED)
-        objectLock(ob ? ob : (Object*)mb->class);
+        objectLock(ob ? ob : mb->class);
 
     if(mb->access_flags & ACC_NATIVE)
         (*mb->native_invoker)(class, mb, ret);
@@ -107,10 +129,11 @@ void *executeMethodVaList(Object *ob, Class *class, MethodBlock *mb,
         executeJava();
 
     if(mb->access_flags & ACC_SYNCHRONIZED)
-        objectUnlock(ob ? ob : (Object*)mb->class);
+        objectUnlock(ob ? ob : mb->class);
 
     POP_TOP_FRAME(ee);
-    return ret;
+
+    return ADJUST_RET_ADDR(ret, *sig);
 }
 
 void *executeMethodList(Object *ob, Class *class, MethodBlock *mb, u8 *jargs) {
@@ -130,7 +153,7 @@ void *executeMethodList(Object *ob, Class *class, MethodBlock *mb, u8 *jargs) {
     SCAN_SIG(sig, JA_DOUBLE(jargs, sp), JA_SINGLE(jargs, sp))
 
     if(mb->access_flags & ACC_SYNCHRONIZED)
-        objectLock(ob ? ob : (Object*)mb->class);
+        objectLock(ob ? ob : mb->class);
 
     if(mb->access_flags & ACC_NATIVE)
         (*mb->native_invoker)(class, mb, ret);
@@ -138,8 +161,10 @@ void *executeMethodList(Object *ob, Class *class, MethodBlock *mb, u8 *jargs) {
         executeJava();
 
     if(mb->access_flags & ACC_SYNCHRONIZED)
-        objectUnlock(ob ? ob : (Object*)mb->class);
+        objectUnlock(ob ? ob : mb->class);
 
     POP_TOP_FRAME(ee);
-    return ret;
+
+    return ADJUST_RET_ADDR(ret, *sig);
 }
+
