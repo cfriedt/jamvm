@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007
+## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
 ## Robert Lougher <rob@lougher.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -20,7 +20,7 @@
 ##
 
 SUBDIRS = @arch@
-DIST_SUBDIRS = powerpc arm i386 x86_64
+DIST_SUBDIRS = powerpc arm i386 x86_64 sparc
 
 noinst_LTLIBRARIES = libos.la
 libos_la_SOURCES = os.c
