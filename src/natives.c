@@ -118,32 +118,7 @@ uintptr_t *arraycopy(Class *class, MethodBlock *mb, uintptr_t *ostack) {
         }
 
         if(isInstanceOf(dest->class, src->class)) {
-            int size;
-
-            switch(scb->name[1]) {
-                case 'B':
-                case 'Z':
-                    size = 1;
-                    break;
-                case 'C':
-                case 'S':
-                    size = 2;
-                    break;
-                case 'I':
-                case 'F':
-                    size = 4;
-                    break;
-                case 'L':
-                case '[':
-                    size = sizeof(Object*);
-                    break;
-                case 'J':
-                case 'D':
-		default:
-                    size = 8;
-                    break;
-            } 
-
+            int size = sigElement2Size(scb->name[1]);
             memmove(ddata + start2*size, sdata + start1*size, length*size);
         } else {
             Object **sob, **dob;
