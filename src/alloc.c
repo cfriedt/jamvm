@@ -2038,7 +2038,6 @@ Object *allocTypeArray(int type, int size) {
 }
 
 Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
-
     int i;
     Object *array;
     char *element_name = CLASS_CB(array_class)->name + 1;
@@ -2057,35 +2056,9 @@ Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
         for(i = 0; i < *count; i++)
             if((*body++ = allocMultiArray(aclass, dim - 1, count + 1)) == NULL)
                 return NULL;
-    } else {
-        int el_size;
-
-        switch(*element_name) {
-            case 'B':
-            case 'Z':
-                el_size = 1;
-                break;
-
-            case 'C':
-            case 'S':
-                el_size = 2;
-                break;
-
-            case 'I':
-            case 'F':
-                el_size = 4;
-                break;
-
-            case 'L':
-                el_size = sizeof(Object*);
-                break;
-
-            default:
-                el_size = 8;
-                break;
-        }
-        array = allocArray(array_class, *count, el_size);        
-    }
+    } else
+        array = allocArray(array_class, *count,
+                           sigElement2Size(*element_name));
 
     return array;
 }
