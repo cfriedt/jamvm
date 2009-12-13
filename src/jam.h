@@ -1070,3 +1070,7 @@ extern void getTimeoutAbsolute(struct timespec *ts, long long millis,
 extern void getTimeoutRelative(struct timespec *ts, long long millis,
                         long long nanos);
 
+/* sig */
+
+extern int sigElement2Size(char element);
+
