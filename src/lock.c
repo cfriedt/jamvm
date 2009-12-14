@@ -307,7 +307,7 @@ Monitor *allocMonitor(Object *obj) {
         mon = mon_free_list;
         mon_free_list = mon->next;      
     } else {
-        mon = (Monitor *)sysMalloc(sizeof(Monitor));
+        mon = sysMalloc(sizeof(Monitor));
         monitorInit(mon);
     }
     mon->obj = obj;
@@ -540,14 +540,16 @@ int objectLockedByCurrent(Object *obj) {
 
 Thread *objectLockedBy(Object *obj) {
     uintptr_t lockword = LOCKWORD_READ(&obj->lock);
+    Thread *owner;
 
     if((lockword & SHAPE_BIT) == 0) {
         int tid = (lockword&TID_MASK)>>TID_SHIFT;
-        return findRunningThreadByTid(tid);
+        owner = findRunningThreadByTid(tid);
     } else {
         Monitor *mon = (Monitor*) (lockword & ~SHAPE_BIT);
-        return mon->owner;
+        owner = mon->owner;
     }
+    return owner;
 }
 
 void initialiseMonitor() {

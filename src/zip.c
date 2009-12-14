@@ -207,7 +207,7 @@ ZipFile *processArchive(char *path) {
         findHashEntry((*hash_table), pathname, found, TRUE, FALSE, FALSE);
     }
 
-    zip = (ZipFile*) sysMalloc(sizeof(ZipFile));
+    zip = sysMalloc(sizeof(ZipFile));
 
     zip->data = data;
     zip->length = len;

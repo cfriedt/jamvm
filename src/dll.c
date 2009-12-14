@@ -58,7 +58,7 @@ void *lookupLoadedDlls(MethodBlock *mb);
 
 char *mangleString(char *utf8) {
     int len = utf8Len(utf8);
-    unsigned short *unicode = (unsigned short*) sysMalloc(len * 2);
+    unsigned short *unicode = sysMalloc(len * 2);
     char *mangled, *mngldPtr;
     int i, mangledLen = 0;
 
@@ -81,7 +81,7 @@ char *mangleString(char *utf8) {
         }
     }
 
-    mangled = mngldPtr = (char*) sysMalloc(mangledLen + 1);
+    mangled = mngldPtr = sysMalloc(mangledLen + 1);
 
     /* Construct the mangled string */
 
@@ -142,7 +142,7 @@ char *mangleSignature(MethodBlock *mb) {
     /* find ending ) */
     for(i = strlen(type) - 1; type[i] != ')'; i--);
 
-    nonMangled = (char *) sysMalloc(i);
+    nonMangled = sysMalloc(i);
     strncpy(nonMangled, type + 1, i - 1);
     nonMangled[i - 1] = '\0';
     

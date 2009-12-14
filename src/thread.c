@@ -726,8 +726,8 @@ void createJavaThread(Object *jThread, long long stack_size) {
         return;
     }
 
-    ee = (ExecEnv*)sysMalloc(sizeof(ExecEnv));
-    thread = (Thread*)sysMalloc(sizeof(Thread));
+    ee = sysMalloc(sizeof(ExecEnv));
+    thread = sysMalloc(sizeof(Thread));
     memset(ee, 0, sizeof(ExecEnv));
     memset(thread, 0, sizeof(Thread));
 
@@ -803,7 +803,7 @@ static void *shell(void *args) {
 }
 
 void createVMThread(char *name, void (*start)(Thread*)) {
-    Thread *thread = (Thread*)sysMalloc(sizeof(Thread));
+    Thread *thread = sysMalloc(sizeof(Thread));
     void **args = sysMalloc(3 * sizeof(void*));
     pthread_t tid;
 

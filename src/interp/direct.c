@@ -548,12 +548,12 @@ retry:
                         i = high - low + 4;
 #endif
                     } else {
-                        SwitchTable *table = (SwitchTable*) sysMalloc(sizeof(SwitchTable));
+                        SwitchTable *table = sysMalloc(sizeof(SwitchTable));
 
                         table->low = low;
                         table->high = high; 
                         table->deflt = &new_code[map[pc + deflt]];
-                        table->entries = (Instruction**) sysMalloc((high - low + 1) * sizeof(Instruction *));
+                        table->entries = sysMalloc((high - low + 1) * sizeof(Instruction *));
 
                         for(i = 3; i < (high - low + 4); i++)
                             table->entries[i - 3] = &new_code[map[pc + ntohl(aligned_pc[i])]];
@@ -606,11 +606,11 @@ retry:
                         i = npairs*2+2;
 #endif
                     } else {
-                        LookupTable *table = (LookupTable*)sysMalloc(sizeof(LookupTable));
+                        LookupTable *table = sysMalloc(sizeof(LookupTable));
    
                         table->num_entries = npairs;
                         table->deflt = &new_code[map[pc + deflt]];
-                        table->entries = (LookupEntry*)sysMalloc(npairs * sizeof(LookupEntry));
+                        table->entries = sysMalloc(npairs * sizeof(LookupEntry));
                             
                         for(i = 2, j = 0; j < npairs; i += 2, j++) {
                             table->entries[j].key = ntohl(aligned_pc[i]);

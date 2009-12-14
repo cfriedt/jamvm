@@ -194,9 +194,8 @@ Class *defineClass(char *classname, char *data, int offset, int len,
     READ_U2(cp_count, ptr, len);
 
     constant_pool = &classblock->constant_pool;
-    constant_pool->type = (u1 *)sysMalloc(cp_count);
-    constant_pool->info = (ConstantPoolEntry *)
-                       sysMalloc(cp_count*sizeof(ConstantPoolEntry));
+    constant_pool->type = sysMalloc(cp_count);
+    constant_pool->info = sysMalloc(cp_count*sizeof(ConstantPoolEntry));
 
     for(i = 1; i < cp_count; i++) {
         u1 tag;
@@ -297,8 +296,7 @@ Class *defineClass(char *classname, char *data, int offset, int len,
     classblock->class_loader = class_loader;
 
     READ_U2(intf_count = classblock->interfaces_count, ptr, len);
-    interfaces = classblock->interfaces =
-                      (Class **)sysMalloc(intf_count * sizeof(Class *));
+    interfaces = classblock->interfaces = sysMalloc(intf_count * sizeof(Class *));
 
     memset(interfaces, 0, intf_count * sizeof(Class *));
     for(i = 0; i < intf_count; i++) {
@@ -310,8 +308,7 @@ Class *defineClass(char *classname, char *data, int offset, int len,
     }
 
     READ_U2(classblock->fields_count, ptr, len);
-    classblock->fields = (FieldBlock *)
-                     sysMalloc(classblock->fields_count * sizeof(FieldBlock));
+    classblock->fields = sysMalloc(classblock->fields_count * sizeof(FieldBlock));
 
     for(i = 0; i < classblock->fields_count; i++) {
         u2 name_idx, type_idx;
@@ -356,8 +353,7 @@ Class *defineClass(char *classname, char *data, int offset, int len,
 
     READ_U2(classblock->methods_count, ptr, len);
 
-    classblock->methods = (MethodBlock *)
-            sysMalloc(classblock->methods_count * sizeof(MethodBlock));
+    classblock->methods = sysMalloc(classblock->methods_count * sizeof(MethodBlock));
 
     memset(classblock->methods, 0, classblock->methods_count * sizeof(MethodBlock));
 
@@ -394,15 +390,14 @@ Class *defineClass(char *classname, char *data, int offset, int len,
                 READ_U2(method->max_locals, ptr, len);
 
                 READ_U4(code_length, ptr, len);
-                method->code = (char *)sysMalloc(code_length);
+                method->code = sysMalloc(code_length);
                 memcpy(method->code, ptr, code_length);
                 ptr += code_length;
 
                 method->code_size = code_length;
 
                 READ_U2(method->exception_table_size, ptr, len);
-                method->exception_table = (ExceptionTableEntry *)
-                sysMalloc(method->exception_table_size*sizeof(ExceptionTableEntry));
+                method->exception_table = sysMalloc(method->exception_table_size*sizeof(ExceptionTableEntry));
 
                 for(j = 0; j < method->exception_table_size; j++) {
                     ExceptionTableEntry *entry = &method->exception_table[j];              
@@ -424,8 +419,7 @@ Class *defineClass(char *classname, char *data, int offset, int len,
 
                     if(attr_name == SYMBOL(LineNumberTable)) {
                         READ_U2(method->line_no_table_size, ptr, len);
-                        method->line_no_table = (LineNoTableEntry *)
-                            sysMalloc(method->line_no_table_size*sizeof(LineNoTableEntry));
+                        method->line_no_table = sysMalloc(method->line_no_table_size*sizeof(LineNoTableEntry));
 
                         for(j = 0; j < method->line_no_table_size; j++) {
                             LineNoTableEntry *entry = &method->line_no_table[j];              
@@ -441,7 +435,7 @@ Class *defineClass(char *classname, char *data, int offset, int len,
                     int j;
 
                     READ_U2(method->throw_table_size, ptr, len);
-                    method->throw_table = (u2 *)sysMalloc(method->throw_table_size*sizeof(u2));
+                    method->throw_table = sysMalloc(method->throw_table_size*sizeof(u2));
                     for(j = 0; j < method->throw_table_size; j++) {
                         READ_U2(method->throw_table[j], ptr, len);
                     }
@@ -968,7 +962,7 @@ void linkClass(Class *class) {
    method_table_size = spr_mthd_tbl_sze + new_methods_count;
 
    if(!(cb->access_flags & ACC_INTERFACE)) {
-       method_table = (MethodBlock**)sysMalloc(method_table_size * sizeof(MethodBlock*));
+       method_table = sysMalloc(method_table_size * sizeof(MethodBlock*));
 
        /* Copy parents method table to the start */
        memcpy(method_table, spr_mthd_tbl, spr_mthd_tbl_sze * sizeof(MethodBlock*));
@@ -990,7 +984,7 @@ void linkClass(Class *class) {
        new_itable_count += CLASS_CB(cb->interfaces[i])->imethod_table_size;
 
    cb->imethod_table_size = spr_imthd_tbl_sze + new_itable_count;
-   cb->imethod_table = (ITableEntry*)sysMalloc(cb->imethod_table_size * sizeof(ITableEntry));
+   cb->imethod_table = sysMalloc(cb->imethod_table_size * sizeof(ITableEntry));
 
    /* copy parent's interface table - the offsets into the method table won't change */
 
@@ -1019,7 +1013,7 @@ void linkClass(Class *class) {
    /* if we're an interface all finished - offsets aren't used */
 
    if(!(cb->access_flags & ACC_INTERFACE)) {
-       int *offsets_pntr = (int*)sysMalloc(itbl_offset_count * sizeof(int));
+       int *offsets_pntr = sysMalloc(itbl_offset_count * sizeof(int));
        int old_mtbl_size = method_table_size;
        MethodBlock *miranda[MRNDA_CACHE_SZE];
        int miranda_count = 0;
@@ -1813,7 +1807,7 @@ int parseBootClassPath(char *cp_var) {
     if(start != pntr)
         i++;
 
-    bootclasspath = (BCPEntry *)sysMalloc(sizeof(BCPEntry)*i);
+    bootclasspath = sysMalloc(sizeof(BCPEntry)*i);
 
     for(j = 0, pntr = cp; i > 0; i--) {
         while(*pntr == ':')
