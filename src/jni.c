@@ -333,8 +333,7 @@ void scanJNIWeakGlobalRefs() {
     for(i = 0; i < global_refs[WEAK_GLOBAL_REF].next; i++) {
         Object *ref = global_refs[WEAK_GLOBAL_REF].table[i];
 
-        if(ref != NULL && !isMarked(ref)) {
-            convertToPlaceHolder(ref);
+        if(ref != NULL && !isMarkedJNIWeakGlobalRef(ref)) {
             addJNIGrefUnlocked(ref, CLEARED_WEAK_REF);
             global_refs[WEAK_GLOBAL_REF].table[i] = NULL;
             global_refs[WEAK_GLOBAL_REF].has_deleted = TRUE;

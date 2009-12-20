@@ -763,13 +763,7 @@ extern Object *allocTypeArray(int type, int size);
 extern Object *allocArray(Class *class, int size, int el_size);
 extern Object *allocMultiArray(Class *array_class, int dim, intptr_t *count);
 extern Object *cloneObject(Object *ob);
-extern void markRoot(Object *ob);
-extern void markConservativeRoot(Object *ob);
-extern void markObject(Object *ob, int mark);
 extern uintptr_t getObjectHashcode(Object *ob);
-extern void convertToPlaceHolder(Object *ob);
-extern void markJNIClearedWeakRef(Object *ob);
-extern void markJNIGlobalRef(Object *ob);
 
 extern void gc1();
 extern void runFinalizers();
@@ -798,8 +792,14 @@ extern void registerStaticObjectRefLocked(Object **ref, Object *obj);
 extern void gcPendingFree(void *addr);
 
 /* GC support */
-extern void threadReference(Object **ref);
+extern void markRoot(Object *ob);
+extern void markConservativeRoot(Object *ob);
+extern void markObject(Object *ob, int mark);
+extern void markJNIClearedWeakRef(Object *ob);
+extern void markJNIGlobalRef(Object *ob);
+extern int isMarkedJNIWeakGlobalRef(Object *ob);
 extern int isMarked(Object *ob);
+extern void threadReference(Object **ref);
 
 /* Class */
 

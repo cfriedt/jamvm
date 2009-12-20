@@ -366,6 +366,38 @@ void markConservativeRoot(Object *object) {
     addConservativeRoot(object);
 }
 
+void convertToPlaceholder(Object *object) {
+    uintptr_t *hdr_address = HDR_ADDRESS(object);
+    int size = HDR_SIZE(*hdr_address);
+
+    if(HDR_SPECIAL_OBJ(*hdr_address) && object->class != NULL)
+        handleUnmarkedSpecial(object);
+
+    if(size > MIN_OBJECT_SIZE) {
+        uintptr_t *rem_hdr_address =
+                      (uintptr_t*)((char*)hdr_address + MIN_OBJECT_SIZE);
+        *rem_hdr_address = size - MIN_OBJECT_SIZE;
+    }
+
+    *hdr_address = MIN_OBJECT_SIZE | ALLOC_BIT;
+    object->class = NULL;
+    object->lock = 0;
+}
+
+int isMarkedJNIWeakGlobalRef(Object *object) {
+    int marked = IS_MARKED(object);
+
+    if(marked)
+        addConservativeRoot(object);
+    else {
+        TRACE_GC("Converting JNI weak global reference @%p to place holder",
+                 object);
+        convertToPlaceholder(object);
+    }
+
+    return marked;
+}
+
 void markJNIGlobalRef(Object *object) {
     markConservativeRoot(object);
 }
@@ -386,7 +418,7 @@ void scanThread(Thread *thread) {
     Frame *frame = ee->last_frame;
     uintptr_t *end, *slot;
 
-    TRACE_GC("Scanning stacks for thread 0x%x id %d\n", thread, thread->id);
+    TRACE_GC("Scanning stacks for thread %p id %d\n", thread, thread->id);
 
     /* Mark the java.lang.Thread object */
     markConservativeRoot(ee->thread);
@@ -430,24 +462,6 @@ void scanThread(Thread *thread) {
         slot -= sizeof(Frame)/sizeof(uintptr_t);
         frame = frame->prev;
     }
-}
-
-void convertToPlaceHolder(Object *object) {
-    uintptr_t *hdr_address = HDR_ADDRESS(object);
-    int size = HDR_SIZE(*hdr_address);
-
-    if(HDR_SPECIAL_OBJ(*hdr_address) && object->class != NULL)
-        handleUnmarkedSpecial(object);
-
-    if(size > MIN_OBJECT_SIZE) {
-        uintptr_t *rem_hdr_address =
-                      (uintptr_t*)((char*)hdr_address + MIN_OBJECT_SIZE);
-        *rem_hdr_address = size - MIN_OBJECT_SIZE;
-    }
-
-    *hdr_address = MIN_OBJECT_SIZE | ALLOC_BIT;
-    object->class = NULL;
-    object->lock = 0;
 }
 
 void markClassData(Class *class, int mark) {
