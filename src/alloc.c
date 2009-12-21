@@ -402,6 +402,11 @@ void markJNIGlobalRef(Object *object) {
     markConservativeRoot(object);
 }
 
+/* This function marks the placeholder objects, keeping them from
+   being collected.  A finalizer mark is used because a hard mark
+   would prevent soft references being cleared in the case where
+   the original object has just become garbage, and is both a soft
+   reference referent and a JNI weak global ref */
 void markJNIClearedWeakRef(Object *object) {
     MARK(object, FINALIZER_MARK);
     addConservativeRoot(object);
@@ -442,7 +447,8 @@ void scanThread(Thread *thread) {
 
     while(frame->prev != NULL) {
         if(frame->mb != NULL) {
-            TRACE_GC("Scanning %s.%s\n", CLASS_CB(frame->mb->class)->name, frame->mb->name);
+            TRACE_GC("Scanning %s.%s\n", CLASS_CB(frame->mb->class)->name,
+                     frame->mb->name);
             TRACE_GC("lvars @%p ostack @%p\n", frame->lvars, frame->ostack);
 
             /* Mark the method's defining class.  This should always
@@ -455,7 +461,8 @@ void scanThread(Thread *thread) {
         for(; slot >= end; slot--)
             if(IS_OBJECT(*slot)) {
                 Object *ob = (Object*)*slot;
-                TRACE_GC("Found Java stack ref @%p object ref is %p\n", slot, ob);
+                TRACE_GC("Found Java stack ref @%p object ref is %p\n",
+                         slot, ob);
                 markConservativeRoot(ob);
             }
 
@@ -518,7 +525,8 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
             Object **body = ARRAY_DATA(ob, Object*);
             int len = ARRAY_LEN(ob);
             int i;
-            TRACE_GC("Scanning Array object @%p class is %s len is %d\n", ob, cb->name, len);
+            TRACE_GC("Scanning Array object @%p class is %s len is %d\n",
+                     ob, cb->name, len);
 
             for(i = 0; i < len; i++) {
                 Object *ob = *body++;
@@ -528,17 +536,20 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
                     MARK_AND_PUSH(ob, mark);
             }
         } else {
-            TRACE_GC("Array object @%p class is %s  - Not Scanning...\n", ob, cb->name);
+            TRACE_GC("Array object @%p class is %s  - Not Scanning...\n",
+                     ob, cb->name);
         }
     } else {
         int i;
 
         if(IS_CLASS_CLASS(cb)) {
-            TRACE_GC("Found class object @%p name is %s\n", ob, CLASS_CB(ob)->name);
+            TRACE_GC("Found class object @%p name is %s\n", ob,
+                     CLASS_CB(ob)->name);
             markClassData(ob, mark);
         } else
             if(IS_CLASS_LOADER(cb)) {
-                TRACE_GC("Mark found class loader object @%p class %s\n", ob, cb->name);
+                TRACE_GC("Mark found class loader object @%p class %s\n", ob,
+                         cb->name);
                 markLoaderClasses(ob, mark);
             } else
                 if(IS_VMTHROWABLE(cb)) {
@@ -546,9 +557,11 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
                     markVMThrowable(ob, mark);
                 } else
                     if(IS_REFERENCE(cb)) {
-                        Object *referent = INST_DATA(ob, Object*, ref_referent_offset);
+                        Object *referent = INST_DATA(ob, Object*,
+                                                     ref_referent_offset);
 
-                        TRACE_GC("Mark found Reference object @%p class %s flags %d referent %p\n",
+                        TRACE_GC("Mark found Reference object @%p class %s"
+                                 " flags %d referent %p\n",
                                  ob, cb->name, cb->flags, referent);
 
                         if(!IS_WEAK_REFERENCE(cb) && referent != NULL) {
@@ -564,8 +577,9 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
                                     new_mark = 0;
 
                             if(new_mark > ref_mark) {
-                                TRACE_GC("Marking referent object @%p mark %d ref_mark %d new_mark %d\n",
-                                                                        referent, mark, ref_mark, new_mark);
+                                TRACE_GC("Marking referent object @%p mark %d"
+                                         " ref_mark %d new_mark %d\n",
+                                         referent, mark, ref_mark, new_mark);
                                 MARK_AND_PUSH(referent, new_mark);
                             }
                         }
@@ -763,7 +777,8 @@ int handleMarkedSpecial(Object *ob) {
         if(referent != NULL) {
             int ref_mark = IS_MARKED(referent);
 
-            TRACE_GC("FREE: found Reference Object @%p class %s flags %d referent %x mark %d\n",
+            TRACE_GC("FREE: found Reference Object @%p class %s"
+                     " flags %d referent %x mark %d\n",
                       ob, cb->name, cb->flags, referent, ref_mark);
 
             if(IS_PHANTOM_REFERENCE(cb)) {
@@ -858,9 +873,10 @@ static uintptr_t doSweep(Thread *self) {
             curr->header &= HDR_FLAGS_MASK;
 
             TRACE_GC("FREE: Freeing ob @%p class %s - start of block\n", ob,
-                                    ob->class ? CLASS_CB(ob->class)->name : "?");
+                                  ob->class ? CLASS_CB(ob->class)->name : "?");
         } else {
-            TRACE_GC("FREE: Unalloced block @%p size %d - start of block\n", ptr, size);
+            TRACE_GC("FREE: Unalloced block @%p size %d - start of block\n",
+                     ptr, size);
             size = hdr;
         }
         
@@ -979,7 +995,9 @@ out_last_marked:
 void threadReference(Object **ref) {
     Object *ob = *ref;
     uintptr_t *hdr = HDR_ADDRESS(ob);
-    TRACE_COMPACT("Threading ref addr %p object ref %p link %p\n", ref, ob, *hdr);
+
+    TRACE_COMPACT("Threading ref addr %p object ref %p link %p\n",
+                  ref, ob, *hdr);
 
     *ref = (Object*)*hdr;
     *hdr = ((uintptr_t)ref | FLC_BIT);
@@ -988,7 +1006,8 @@ void threadReference(Object **ref) {
 void unthreadHeader(uintptr_t *hdr_addr, Object *new_addr) {
     uintptr_t hdr = *hdr_addr;
 
-    TRACE_COMPACT("Unthreading header address %p new addr %p\n", hdr_addr, new_addr);
+    TRACE_COMPACT("Unthreading header address %p new addr %p\n",
+                  hdr_addr, new_addr);
 
     while(HDR_THREADED(hdr)) {
         uintptr_t *ref_addr = (uintptr_t*)(hdr & ~0x3);
@@ -1021,8 +1040,10 @@ void addConservativeRoots2Hash() {
     for(i = 1; i < conservative_root_count; i <<= 1);
     con_roots_hashtable_size = i << 1;
 
-    con_roots_hashtable = gcMemMalloc(con_roots_hashtable_size * sizeof(uintptr_t));
-    memset(con_roots_hashtable, 0, con_roots_hashtable_size * sizeof(uintptr_t));
+    con_roots_hashtable = gcMemMalloc(con_roots_hashtable_size *
+                                      sizeof(uintptr_t));
+    memset(con_roots_hashtable, 0, con_roots_hashtable_size *
+                                   sizeof(uintptr_t));
 
     for(i = 0; i < conservative_root_count; i++) {
         uintptr_t data = ((uintptr_t)conservative_roots[i]) >> LOG_BYTESPERMARK;
@@ -1113,7 +1134,8 @@ int compactSlideBlock(char *block_addr, char *new_addr) {
         uintptr_t *hdr_addr = &HEADER(new_addr);
         uintptr_t *hash_addr = (uintptr_t*)(new_addr + size);
 
-        TRACE_COMPACT("Adding hashCode to object %p\n", block_addr + HEADER_SIZE);
+        TRACE_COMPACT("Adding hashCode to object %p\n",
+                      block_addr + HEADER_SIZE);
 
         /* Add the original address onto the end of the object */
         *hash_addr = (uintptr_t)(block_addr + HEADER_SIZE);
@@ -1157,18 +1179,24 @@ void threadClassData(Class *class, Class *new_addr) {
     if(cb->state >= CLASS_LINKED)
         for(i = 0; i < cb->fields_count; i++, fb++)
             if((fb->access_flags & ACC_STATIC) &&
-                        ((*fb->type == 'L') || (*fb->type == '['))) {
+               ((*fb->type == 'L') || (*fb->type == '['))) {
+
                 Object **ob = (Object**)fb->u.static_value.data;
-                TRACE_COMPACT("Field %s %s object @%p\n", fb->name, fb->type, *ob);
+                TRACE_COMPACT("Field %s %s object @%p\n", fb->name,
+                              fb->type, *ob);
                 if(*ob != NULL)
                     threadReference(ob);
             }
 
-    TRACE_COMPACT("Threading constant pool references for class %s\n", cb->name);
+    TRACE_COMPACT("Threading constant pool references for class %s\n",
+                  cb->name);
 
     for(i = 1; i < cb->constant_pool_count; i++)
-        if(CP_TYPE(cp, i) == CONSTANT_ResolvedClass || CP_TYPE(cp, i) == CONSTANT_ResolvedString) {
-            TRACE_COMPACT("Constant pool ref idx %d type %d object @%p\n", i, CP_TYPE(cp, i), CP_INFO(cp, i));
+        if(CP_TYPE(cp, i) == CONSTANT_ResolvedClass ||
+           CP_TYPE(cp, i) == CONSTANT_ResolvedString) {
+
+            TRACE_COMPACT("Constant pool ref idx %d type %d object @%p\n",
+                          i, CP_TYPE(cp, i), CP_INFO(cp, i));
             threadReference((Object**)&(CP_INFO(cp, i)));
         }
 
@@ -1196,7 +1224,8 @@ int threadChildren(Object *ob, Object *new_addr) {
             Object **body = ARRAY_DATA(ob, Object*);
             int len = ARRAY_LEN(ob);
             int i;
-            TRACE_COMPACT("Scanning Array object @%p class is %s len is %d\n", ob, cb->name, len);
+            TRACE_COMPACT("Scanning Array object @%p class is %s len is %d\n",
+                          ob, cb->name, len);
 
             for(i = 0; i < len; i++, body++) {
                 TRACE_COMPACT("Object at index %d is @%p\n", i, *body);
@@ -1205,27 +1234,32 @@ int threadChildren(Object *ob, Object *new_addr) {
                     threadReference(body);
             }
         } else {
-            TRACE_COMPACT("Array object @%p class is %s - not Scanning...\n", ob, cb->name);
+            TRACE_COMPACT("Array object @%p class is %s - not Scanning...\n",
+                          ob, cb->name);
         }
     } else {
         int i;
 
         if(IS_CLASS_CLASS(cb)) {
-            TRACE_COMPACT("Found class object @%p name is %s\n", ob, CLASS_CB(ob)->name);
+            TRACE_COMPACT("Found class object @%p name is %s\n",
+                          ob, CLASS_CB(ob)->name);
             threadClassData(ob, new_addr);
         } else
             if(IS_CLASS_LOADER(cb)) {
-                TRACE_COMPACT("Found class loader object @%p class %s\n", ob, cb->name);
+                TRACE_COMPACT("Found class loader object @%p class %s\n",
+                              ob, cb->name);
                 threadLoaderClasses(ob);
             } else
                 if(IS_REFERENCE(cb)) {
-                    Object **referent = &INST_DATA(ob, Object*, ref_referent_offset);
+                    Object **referent = &INST_DATA(ob, Object*,
+                                                   ref_referent_offset);
 
                     if(*referent != NULL) {
                         int ref_mark = IS_MARKED(*referent);
 
-                        TRACE_GC("Found Reference Object @%p class %s flags %d referent %x mark %d\n",
-                                  ob, cb->name, cb->flags, *referent, ref_mark);
+                        TRACE_GC("Found Reference Object @%p class %s flags"
+                                 " %d referent %x mark %d\n", ob, cb->name,
+                                 cb->flags, *referent, ref_mark);
 
                         if(IS_PHANTOM_REFERENCE(cb)) {
                             if(ref_mark != PHANTOM_MARK)
