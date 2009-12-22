@@ -983,8 +983,8 @@ uintptr_t *executeJava() {
     )
 
 #define FREM(TYPE)                           \
-    STACK(TYPE, -2) = fmod(STACK(TYPE, -1),  \
-                           STACK(TYPE, -2)); \
+    STACK(TYPE, -2) = fmod(STACK(TYPE, -2),  \
+                           STACK(TYPE, -1)); \
     ostack -= SLOTS(TYPE);                   \
     DISPATCH(0, 1);
 
