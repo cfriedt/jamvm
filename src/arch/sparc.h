@@ -70,6 +70,5 @@ compare_and_swap_64(volatile uint64_t *addr, uint64_t oldval, uint64_t newval)
 #define LOCKWORD_COMPARE_AND_SWAP COMPARE_AND_SWAP
 
 #define MBARRIER() FULL_MBAR()
-#define UNLOCK_MBARRIER() MBARRIER()
 #define JMM_LOCK_MBARRIER() MBARRIER()
 #define JMM_UNLOCK_MBARRIER() MBARRIER()

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -76,7 +76,6 @@
         .set  pop\n"            \
     ::: "memory")
 
-#define UNLOCK_MBARRIER()     MBARRIER()
 #define JMM_LOCK_MBARRIER()   MBARRIER()
 #define JMM_UNLOCK_MBARRIER() MBARRIER()
 

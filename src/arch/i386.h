@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
  * Robert Lougher <rob@lougher.org.uk>.
  *
  * This file is part of JamVM.
@@ -111,7 +111,6 @@ extern void setDoublePrecision();
 #define LOCKWORD_COMPARE_AND_SWAP(addr, old_val, new_val) \
         COMPARE_AND_SWAP(addr, old_val, new_val)
 
-#define UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define JMM_LOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define JMM_UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define MBARRIER() __asm__ __volatile__ ("lock; addl $0,0(%%esp)" ::: "memory")
