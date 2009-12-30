@@ -142,7 +142,7 @@ retry:
         }
     }
 
-    tidBitmap = (unsigned int *)sysRealloc(tidBitmap,
+    tidBitmap = sysRealloc(tidBitmap,
                        (tidBitmapSize + MAP_INC) * sizeof(unsigned int));
     memset(tidBitmap + tidBitmapSize, 0, MAP_INC * sizeof(unsigned int));
     tidBitmapSize += MAP_INC;
@@ -172,9 +172,9 @@ void threadYield(Thread *thread) {
 }
 
 int threadInterrupted(Thread *thread) {
-    int r = thread->interrupted;
+    int interrupted = thread->interrupted;
     thread->interrupted = FALSE;
-    return r;
+    return interrupted;
 }
 
 int threadIsInterrupted(Thread *thread) {
@@ -200,7 +200,8 @@ void threadInterrupt(Thread *thread) {
            entered the wait (in which case the signal will be lost).
            Loop until we can get ownership (i.e. the thread has released
            it on waiting) */
-        while(!(locked = !pthread_mutex_trylock(&mon->lock)) && mon->owner == NULL)
+        while(!(locked = !pthread_mutex_trylock(&mon->lock)) &&
+                    mon->owner == NULL)
             sched_yield();
 
         pthread_cond_signal(&thread->wait_cv);
@@ -625,6 +626,12 @@ void detachThread(Thread *thread) {
     /* Remove thread from the ID map hash table */
     deleteThreadFromHash(thread);
 
+    /* notify any threads waiting on VMThread object -
+       these are joining this thread */
+    objectLock(vmthread);
+    objectNotifyAll(vmthread);
+    objectUnlock(vmthread);
+
     /* Disable suspend to protect lock operation */
     disableSuspend(thread);
 
@@ -647,12 +654,6 @@ void detachThread(Thread *thread) {
         non_daemon_thrds--;
 
     pthread_mutex_unlock(&lock);
-
-    /* notify any threads waiting on VMThread object -
-       these are joining this thread */
-    objectLock(vmthread);
-    objectNotifyAll(vmthread);
-    objectUnlock(vmthread);
 
     /* It is safe to free the thread's ExecEnv and stack now as these are
        only used within the thread.  It is _not_ safe to free the native
@@ -1054,7 +1055,7 @@ void dumpThreadsLoop(Thread *self) {
             String2Buff(INST_DATA(jThread, Object*, name_offset), buffer,
                         sizeof(buffer));
 
-            jam_printf("\n\"%s\"%s %p priority: %d tid: %p id: %d state:"
+            jam_printf("\n\"%s\"%s %p priority: %d tid: %p id: %d state: "
                        "%s (%d)\n", buffer, daemon ? " (daemon)" : "",
                        thread, priority, thread->tid, thread->id,
                        getThreadStateString(thread), thread->state);
