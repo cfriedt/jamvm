@@ -40,12 +40,11 @@ extern void setDoublePrecision();
 #define COMPARE_AND_SWAP_64(addr, old_val, new_val) \
 ({                                                  \
     char result;                                    \
-    int read_val;                                   \
     __asm__ __volatile__ ("                         \
         lock;                                       \
-        cmpxchgq %5, %1;                            \
+        cmpxchgq %4, %1;                            \
         sete %0"                                    \
-    : "=q" (result), "=m" (*addr), "=a" (read_val)  \
+    : "=q" (result), "=m" (*addr)                   \
     : "m" (*addr), "a" ((uintptr_t)old_val),        \
       "r" ((uintptr_t)new_val)                      \
     : "memory");                                    \
@@ -117,7 +116,6 @@ extern void setDoublePrecision();
 
 #define FLUSH_CACHE(addr, length)
 
-#define UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
+#define MBARRIER() __asm__ __volatile__ ("mfence" ::: "memory")
 #define JMM_LOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define JMM_UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
-#define MBARRIER() __asm__ __volatile__ ("lock; addl $0,0(%%rsp)" ::: "memory")
