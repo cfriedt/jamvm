@@ -346,7 +346,7 @@ void objectLock(Object *obj) {
     TRACE("Thread %p lock on obj %p...\n", self, obj);
 
     if(LOCKWORD_COMPARE_AND_SWAP(&obj->lock, 0, thin_locked)) {
-        /* This barrier is not needed for the thin-locking implementation --
+        /* This barrier is not needed for the thin-locking implementation;
            it's a requirement of the Java memory model. */
         JMM_LOCK_MBARRIER();
         return;
@@ -408,13 +408,13 @@ void objectUnlock(Object *obj) {
     TRACE("Thread %p unlock on obj %p...\n", self, obj);
 
     if(lockword == thin_locked) {
-        /* This barrier is not needed for the thin-locking implementation --
+        /* This barrier is not needed for the thin-locking implementation;
            it's a requirement of the Java memory model. */
         JMM_UNLOCK_MBARRIER();
         LOCKWORD_WRITE(&obj->lock, 0);
 
         /* Required by thin-locking mechanism. */
-        UNLOCK_MBARRIER();
+        MBARRIER();
 
 retry:
         if(testFlcBit(obj)) {
@@ -442,7 +442,7 @@ retry:
                     TRACE("Thread %p is deflating obj %p...\n", self, obj);
 
                     /* This barrier is not needed for the thin-locking
-                       implementation -- it's a requirement of the Java
+                       implementation; it's a requirement of the Java
                        memory model. */
                     JMM_UNLOCK_MBARRIER();
 
