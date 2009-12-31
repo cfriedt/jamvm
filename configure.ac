@@ -22,7 +22,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.5.4-devel)
+AM_INIT_AUTOMAKE(jamvm, 1.5.4)
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
 
@@ -146,14 +146,15 @@ AC_ARG_ENABLE(int-prefetch,
      fi])
 
 AC_ARG_ENABLE(runtime-reloc-checks,
-    [AS_HELP_STRING(--enable-runtime-reloc-checks,compute relocatability at runtime (inlining interpreter))],,
-    [enable_runtime_reloc_checks=no])
+    [AS_HELP_STRING(--enable-runtime-reloc-checks,compute relocatability at runtime
+                   (inlining interpreter, enabled by default if cross-compiling))],,
+    [enable_runtime_reloc_checks="$cross_compiling"])
 
 AC_ARG_ENABLE(int-inlining,
     [AS_HELP_STRING(--enable-int-inlining,enable inline threaded version of the interpreter
-                   (by default enabled on x86_64, i386 and powerpc, disabled otherwise))],,
-    [if test "$host_cpu" = x86_64 -o "$host_cpu" = i386 -o "$host_cpu" = x86 -o "$host_cpu" = powerpc && \
-        test "$cross_compiling" = no -o "$enable_runtime_reloc_checks" != no; then
+                   (by default enabled on x86_64, i386, powerpc and arm, disabled otherwise))],,
+    [if test "$host_cpu" = x86_64 -o "$host_cpu" = i386 -o "$host_cpu" = x86 -o \
+             "$host_cpu" = powerpc -o "$host_cpu" = arm; then
          enable_int_inlining=yes
        else
          enable_int_inlining=no
