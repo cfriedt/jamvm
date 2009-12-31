@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Robert Lougher <rob@lougher.org.uk>.
+ * Copyright (C) 2008 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
