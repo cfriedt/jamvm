@@ -34,14 +34,22 @@ A summary of changes since 1.5.3:
 
 - Platform changes:
 
-  - Extensive changes to support 64-bit Big Endian systems.  These
-    were previously supported, but support was completely broken
-    with the introduction of the new object layout in JamVM 1.5.2.
+  - Interpreter inlining (aka code-copying JIT) now enabled by
+    default on ARM systems.  Testing on Cortex-A8 indicates
+    82% speed improvement on integer benchmarks, and 55% on
+    floating-point.
 
-  - Initial port to Sparc/FreeBSD.  Interpreter inlining (aka
-    code-copying JIT) is currently not supported due to missing
-    architecture dependent code for flushing the instruction/data
-    caches.
+  - If cross-compiling, and interpreter inlining is enabled, runtime
+    relocation checks will be enabled (relocation information is
+    normally generated at compile time; as this can't be done
+    when cross-compiling it must be done at runtime, but it
+    increases the size of the executable by ~30%).
+
+  - Initial port to Sparc/FreeBSD.  My thanks to Per Ola Ingvarsson
+    for architecture dependent definitions.  Interpreter inlining
+    (aka code-copying JIT) is currently not supported due to missing
+    code for flushing the instruction/data caches, and branch
+    generation. It also requires libffi, which is enabled by default.
 
   - Changes to x86 and x86_64 across all platforms to zero/sign
     extend return values from native methods whose size is less
@@ -53,16 +61,9 @@ A summary of changes since 1.5.3:
     extra memory barrier is required.  Seen intermittently while
     running a thread intensive benchmark using at least 4 cores.
 
-  - Interpreter inlining (aka code-copying JIT) now enabled by
-    default on ARM systems.  Testing on Cortex-A8 indicates
-    82% speed improvement on integer benchmarks, and 55% on
-    floating-point.
-
-  - If cross-compiling, and interpreter inlining is enabled, runtime
-    relocation checks will be enabled (relocation information is
-    normally generated at compile time; as this can't be done
-    when cross-compiling it must be done at runtime, but it
-    increases the size of the executable by ~30%).
+  - Extensive changes to support 64-bit Big Endian systems.  These
+    were previously supported, but support was completely broken
+    with the introduction of the new object layout in JamVM 1.5.2.
 
 - Miscellaneous fixes:
 
