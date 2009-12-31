@@ -941,7 +941,7 @@ retry:
     enableSuspend(self);
 
     /* We don't need the old bytecode stream anymore */
-    if(!mb->access_flags & ACC_ABSTRACT)
+    if(!(mb->access_flags & ACC_ABSTRACT))
         sysFree(code);
 }
 #endif
