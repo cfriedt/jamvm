@@ -15,14 +15,14 @@ the Reflection API.
 Supported Architectures
 =======================
 
-JamVM currently only includes an interpreter (keeps it small).  This
-means it is easy to port to new architectures as most of the code
-is written in C.  So far, JamVM has been built and tested on :
+JamVM is easy to port to new architectures as most of the code
+is written in C (only a small amount of assembler code is required).
+So far, JamVM has been built and tested on :
 
 Linux
 -----
 
-- PowerPC: for many years my main platform, so this is well tested.
+- PowerPC: for many years my main platform, so this was well tested.
            Built and tested on G3 and G4 systems.
 
 - i386: built and tested on i586, i686 (Pentium III), Pentium 4,
@@ -32,12 +32,12 @@ Linux
 
 - ARM: Originally ported and tested on the iPAQ running Linux (3950,
        with xscale PXA250 processor, though it should work on StrongARM).
-       Later development on Neo1973 (ARM920T core).  Little and Big Endian
-       machines are supported, soft/kernel FP emulation, and OABI or
-       EABI.
+       Later development on Neo1973 (ARM920T core), and Beagle Board
+       (Cortex A8).  Little and Big Endian machines are supported,
+       soft/kernel FP emulation, and OABI or EABI.
 
-- AMD64: built and tested on AMD Athlon, Phenom, Pentium 4 and Core 2
-         Duo (using EM64T).
+- AMD64: built and tested on AMD Athlon 64, Phenom, Phenom II, Pentium 4
+         and Core 2 Duo (using EM64T).
 
 - MIPS: built and tested on mipsel using the O32 ABI.  The system
         was an embedded wireless router.
@@ -56,15 +56,16 @@ Mac OS X/Darwin
            executable is built by default.
 
 - i386: JamVM has been built and tested on the Apple MacBook Pro
-        (Intel Core Duo and Core 2 Duo).
+        (Intel Core Duo and Core 2 Duo), running Mac OS X 10.4 and
+        10.5.
 
 - ARM: iPhone (jailbroken)
 
 BSD Variants
 ------------
-
+  
+FreeBSD  : i386, powerpc, ARM, AMD64 (x86_64), Sparc.
 OpenBSD  : i386, powerpc, ARM, AMD64 (x86_64).
-FreeBSD  : i386, powerpc, ARM, AMD64 (x86_64).
 KFreeBSD : i386
 
 Solaris/OpenSolaris
@@ -158,10 +159,11 @@ particular order, is given below.
 
 - Execution engine supports many levels of optimisation (see
   configure --help) from basic switched interpreter to inline-threaded
-  interpreter with stack-caching (equivalent performance to a simple
-  JIT).
+  interpreter with stack-caching (aka code-copying JIT, equivalent
+  performance to a simple JIT).
 
-- Stop-the-world mark and sweep garbage collector
+- Stop-the-world garbage collector, with separate mark/sweep
+  and mark/compact phases to minimise heap fragmentation
 
 - Thread suspension uses signals to reduce supend latency and improve
   performance (no suspension checks during normal execution)
@@ -174,8 +176,6 @@ particular order, is given below.
 
 - Full GC support for class and class-loader unloading (including
   associated shared libraries)
-
-- GC utilitises a mark/sweep collector with compaction
 
 - Garbage collector can run synchronously or asynchronously within its
   own thread
@@ -196,4 +196,4 @@ particular order, is given below.
 That's it!
 
 Robert Lougher <rob@lougher.org.uk>
-15th July 2009.
+31st December 2009.

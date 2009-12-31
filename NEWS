@@ -1,5 +1,94 @@
-JamVM 1.5.4 released on 15th July 2009
-======================================
+JamVM 1.5.4 released on 31st December 2009
+==========================================
+
+A summary of changes since 1.5.3:
+
+- GC changes:
+
+  - Mark phase rewritten to use an explicit fixed-size mark stack,
+    with a moving heap scan pointer.  The previous recursive marking
+    could lead to stack overflow when marking complex, deeply-linked
+    structures.  If the explicit mark stack overflows, a slower,
+    fallback mechanism is used of scanning the heap.  The new mark
+    phase is upto 50% faster than the old recursive marking.
+
+  - bug fix for unallocated blocks within the heap of >= 1 GB.
+
+- JNI changes:
+
+  - Updated to JNI version 1.6.  This adds the function
+    GetObjectRefType().
+
+  - Fully implemented JNI weak global references (NewWeakGlobalRef
+    and DeleteWeakGloablRef).  Note, these are different to Java
+    Soft/Weak/Phantom References which have been supported since
+    JamVM 1.4.0.
+
+  - verbose:jni now shows details of the opening of native libraries.
+    If a library fails to open a diagnostic message is shown (if
+    available).  This is intended to help debug common library
+    problems.
+
+  - bug fix for ToReflected[Method|Field] and GetSuperClass.  A
+    local reference must be created for the return value.
+
+- Platform changes:
+
+  - Extensive changes to support 64-bit Big Endian systems.  These
+    were previously supported, but support was completely broken
+    with the introduction of the new object layout in JamVM 1.5.2.
+
+  - Initial port to Sparc/FreeBSD.  Interpreter inlining (aka
+    code-copying JIT) is currently not supported due to missing
+    architecture dependent code for flushing the instruction/data
+    caches.
+
+  - Changes to x86 and x86_64 across all platforms to zero/sign
+    extend return values from native methods whose size is less
+    than an int (i.e. boolean, byte, char and short).  This is
+    necessary due to changes in code produced by gcc >= 4.3.
+
+  - Rare race-condition in thin-locking code on x86 and x86_64
+    architectures, leading to deadlock.  On modern x86 CPUs, an
+    extra memory barrier is required.  Seen intermittently while
+    running a thread intensive benchmark using at least 4 cores.
+
+  - Interpreter inlining (aka code-copying JIT) now enabled by
+    default on ARM systems.  Testing on Cortex-A8 indicates
+    82% speed improvement on integer benchmarks, and 55% on
+    floating-point.
+
+  - If cross-compiling, and interpreter inlining is enabled, runtime
+    relocation checks will be enabled (relocation information is
+    normally generated at compile time; as this can't be done
+    when cross-compiling it must be done at runtime, but it
+    increases the size of the executable by ~30%).
+
+- Miscellaneous fixes:
+
+  - Interpreter inlining bug fix: reference to memory after it
+    had been freed
+
+  - java.lang.reflect.VMField getAnnotation() implemented.  This
+    has been missing since the reflection rework in JamVM 1.5.2.
+
+  - ThreadMXBean: fixes for getThreadInfoForId (VMThreadMXBeanImpl).
+    
+    - Did not correctly report lock or lock owner, when the thread was
+      blocked on an object which was thin-locked by another thread
+
+    - It was using a constructor which has since been removed
+
+  - Fixes for NULL handling in findClassFromSignature() and
+    utf8CharLen()
+
+  - Fixed memory leak in bytecode rewriting.  Due to missing
+    parantheses, old bytecode stream was not being freed (for
+    example, this leaks 47K when running "Hello, World")
+
+  - Bug-fix for theoretical race-condition in thread deletion when
+    notifying joining threads after thread ID has been reused.
+
 
 JamVM 1.5.3 released on 14th April 2009
 =======================================
