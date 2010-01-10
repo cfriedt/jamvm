@@ -46,7 +46,7 @@ extern JavaVM invokeIntf;
 
 #define HASHTABSZE 1<<4
 static HashTable hash_table;
-void *lookupLoadedDlls(MethodBlock *mb);
+NativeMethod lookupLoadedDlls(MethodBlock *mb);
 #endif
 
 /* Trace library loading and method lookup */
@@ -151,7 +151,7 @@ char *mangleSignature(MethodBlock *mb) {
     return mangled;
 }
 
-void *lookupInternal(MethodBlock *mb) {
+NativeMethod lookupInternal(MethodBlock *mb) {
     ClassBlock *cb = CLASS_CB(mb->class);
     int i;
 
@@ -180,8 +180,8 @@ void *lookupInternal(MethodBlock *mb) {
     return NULL;
 }
 
-void *resolveNativeMethod(MethodBlock *mb) {
-    void *func;
+NativeMethod resolveNativeMethod(MethodBlock *mb) {
+    NativeMethod method;
 
     if(verbose) {
         char *classname = slash2dots(CLASS_CB(mb->class)->name);
@@ -191,31 +191,30 @@ void *resolveNativeMethod(MethodBlock *mb) {
     }
 
     /* First see if it's an internal native method */
-    func = lookupInternal(mb);
+    method = lookupInternal(mb);
 
 #ifndef NO_JNI
-    if(func == NULL)
-        func = lookupLoadedDlls(mb);
+    if(method == NULL)
+        method = lookupLoadedDlls(mb);
 #endif
 
     if(verbose)
         jam_printf("]\n");
 
-    return func;
+    return method;
 }
 
 uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb,
                                 uintptr_t *ostack) {
 
-    void *func = resolveNativeMethod(mb);
+    NativeMethod method = resolveNativeMethod(mb);
 
-    if(func == NULL) {
+    if(method == NULL) {
         signalException(java_lang_UnsatisfiedLinkError, mb->name);
         return ostack;
     }
 
-    return (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))func)
-           (class, mb, ostack);
+    return (*method)(class, mb, ostack);
 }
 
 void initialiseDll(InitArgs *args) {
@@ -436,12 +435,10 @@ uintptr_t *callJNIWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack) {
                          mb->args_count);
 }
 
-void *lookupLoadedDlls(MethodBlock *mb) {
+NativeMethod lookupLoadedDlls(MethodBlock *mb) {
     Object *loader = (CLASS_CB(mb->class))->class_loader;
     char *mangled = mangleClassAndMethodName(mb);
-    void *func;
-
-    func = lookupLoadedDlls0(mangled, loader);
+    void *func = lookupLoadedDlls0(mangled, loader);
 
     if(func == NULL) {
         char *mangledSig = mangleSignature(mb);
