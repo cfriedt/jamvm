@@ -961,7 +961,6 @@ extern void initialiseUtf8();
 
 /* Dll */
 
-extern void *resolveNativeMethod(MethodBlock *mb);
 extern int resolveDll(char *name, Object *loader);
 extern char *getDllPath();
 extern char *getBootDllPath();
