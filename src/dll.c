@@ -277,7 +277,8 @@ int resolveDll(char *name, Object *loader) {
             initJNILrefs();
             ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 
-            if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4) {
+            if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4
+                                      && ver != JNI_VERSION_1_6) {
                 if(verbose)
                     jam_printf("[%s: JNI_OnLoad returned unsupported version"
                                " number %d.\n>", name, ver);
