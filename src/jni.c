@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -875,6 +875,26 @@ void Jam_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index,
 
 jint Jam_RegisterNatives(JNIEnv *env, jclass clazz,
                          const JNINativeMethod *methods, jint nMethods) {
+
+    int i;
+    Class *class = REF_TO_OBJ(clazz);
+
+    for(i = 0; i < nMethods; i++) {
+        MethodBlock *mb = NULL;
+        char *method_name = findUtf8(methods[i].name);
+        char *method_sig = findUtf8(methods[i].signature);
+
+        if(method_name != NULL && method_sig != NULL)
+            mb = findMethod(class, method_name, method_sig);
+
+        if(mb == NULL || !(mb->access_flags & ACC_NATIVE)) {
+            signalException(java_lang_NoSuchMethodError, methods[i].name);
+            return JNI_ERR;
+        }
+
+        setJNIMethod(mb, methods[i].fnPtr);
+    }
+
     return JNI_OK;
 }
 

@@ -435,6 +435,12 @@ uintptr_t *callJNIWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack) {
                          mb->args_count);
 }
 
+NativeMethod setJNIMethod(MethodBlock *mb, void *func) {
+    mb->code = (unsigned char *)func;
+    mb->native_extra_arg = nativeExtraArg(mb);
+    return mb->native_invoker = &callJNIWrapper;
+}
+
 NativeMethod lookupLoadedDlls(MethodBlock *mb) {
     Object *loader = (CLASS_CB(mb->class))->class_loader;
     char *mangled = mangleClassAndMethodName(mb);
@@ -457,9 +463,7 @@ NativeMethod lookupLoadedDlls(MethodBlock *mb) {
         if(verbose)
             jam_printf("JNI");
 
-        mb->code = (unsigned char *) func;
-        mb->native_extra_arg = nativeExtraArg(mb);
-        return mb->native_invoker = &callJNIWrapper;
+        return setJNIMethod(mb, func);
     }
 
     return NULL;

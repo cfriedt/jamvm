@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -971,6 +971,7 @@ extern uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb,
 extern void unloaderUnloadDll(uintptr_t entry);
 extern void unloadClassLoaderDlls(Object *loader);
 extern void threadLiveClassLoaderDlls();
+extern NativeMethod setJNIMethod(MethodBlock *mb, void *func);
 
 /* OS */
 
