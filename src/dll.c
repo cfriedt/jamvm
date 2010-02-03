@@ -32,17 +32,20 @@
 #include "natives.h"
 #include "symbol.h"
 #include "excep.h"
+#include "jni-stubs.h"
 
 /* Set by call to initialise -- if true, prints out
     results of dynamic method resolution */
 static int verbose;
 
+static FILE *sig_trace_fd;
+
 extern int nativeExtraArg(MethodBlock *mb);
 extern uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int extra,
                                 uintptr_t *ostack, unsigned char *native_func,
                                 int args);
-extern struct _JNINativeInterface Jam_JNINativeInterface;
-extern JavaVM invokeIntf; 
+extern void *jni_env;
+extern JavaVM jni_invoke_intf; 
 
 #define HASHTABSZE 1<<4
 static HashTable hash_table;
@@ -221,8 +224,21 @@ void initialiseDll(InitArgs *args) {
 #ifndef NO_JNI
     /* Init hash table, and create lock */
     initHashTable(hash_table, HASHTABSZE, TRUE);
+
+    if(args->trace_jni_sigs) {
+        sig_trace_fd = fopen("jni-signatures", "w");
+        if(sig_trace_fd == NULL) {
+            perror("Couldn't open signatures file for writing");
+            exit(1);
+        }
+    }
 #endif
     verbose = args->verbosedll;
+}
+
+void shutdownDll() {
+    if(sig_trace_fd != NULL)
+        fclose(sig_trace_fd);
 }
 
 #ifndef NO_JNI
@@ -274,7 +290,7 @@ int resolveDll(char *name, Object *loader) {
             int ver;
 
             initJNILrefs();
-            ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
+            ver = (*(jint (*)(JavaVM*, void*))onload)(&jni_invoke_intf, NULL);
 
             if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4
                                       && ver != JNI_VERSION_1_6) {
@@ -362,7 +378,7 @@ void unloadDll(DllEntry *dll, int unloader) {
 
         if(on_unload != NULL) {
             initJNILrefs();
-            (*(void (*)(JavaVM*, void*))on_unload)(&invokeIntf, NULL);
+            (*(void (*)(JavaVM*, void*))on_unload)(&jni_invoke_intf, NULL);
         }
 
         nativeLibClose(dll->handle);
@@ -421,8 +437,6 @@ void unloadClassLoaderDlls(Object *loader) {
     }
 }
 
-static void *env = &Jam_JNINativeInterface;
-
 uintptr_t *callJNIWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     TRACE("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name,
           mb->name, mb->type);
@@ -430,15 +444,48 @@ uintptr_t *callJNIWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(!initJNILrefs())
         return NULL;
 
-    return callJNIMethod(&env, (mb->access_flags & ACC_STATIC) ? class : NULL,
-                         mb->type, mb->native_extra_arg, ostack, mb->code,
-                         mb->args_count);
+    return callJNIMethod(&jni_env,
+                         (mb->access_flags & ACC_STATIC) ? class : NULL,
+                         mb->simple_sig, mb->native_extra_arg, ostack,
+                         mb->code, mb->args_count);
+}
+
+NativeMethod findJNIStub(char *sig, JNIStub *stubs) {
+    int i;
+
+    for(i = 0; stubs[i].signature != NULL &&
+               strcmp(sig, stubs[i].signature) != 0; i++);
+
+    if(stubs[i].signature == NULL)
+        return NULL;
+
+    return stubs[i].func;
 }
 
 NativeMethod setJNIMethod(MethodBlock *mb, void *func) {
-    mb->code = (unsigned char *)func;
-    mb->native_extra_arg = nativeExtraArg(mb);
-    return mb->native_invoker = &callJNIWrapper;
+    char *simple = convertSig2Simple(mb->type);
+    NativeMethod invoker;
+
+    if(mb->access_flags & ACC_STATIC)
+        invoker = findJNIStub(simple, jni_static_stubs);
+    else
+        invoker = findJNIStub(simple, jni_stubs);
+
+    if(invoker == NULL) {
+        if(sig_trace_fd != NULL)
+            fprintf(sig_trace_fd, "%s%s\n", mb->access_flags & ACC_STATIC ?
+                                            "static " : "", mb->type);
+
+        mb->native_extra_arg = nativeExtraArg(mb);
+        invoker = &callJNIWrapper;
+
+        if((mb->simple_sig = newUtf8(simple)) != simple)
+            sysFree(simple);
+    } else
+        sysFree(simple);
+
+    mb->code = func;
+    return mb->native_invoker = invoker;
 }
 
 NativeMethod lookupLoadedDlls(MethodBlock *mb) {
