@@ -913,10 +913,10 @@ jint Jam_MonitorExit(JNIEnv *env, jobject obj) {
 }
 
 struct _JNIInvokeInterface Jam_JNIInvokeInterface;
-JavaVM invokeIntf = &Jam_JNIInvokeInterface; 
+JavaVM jni_invoke_intf = &Jam_JNIInvokeInterface; 
 
 jint Jam_GetJavaVM(JNIEnv *env, JavaVM **vm) {
-    *vm = &invokeIntf;
+    *vm = &jni_invoke_intf;
     return JNI_OK;
 }
 
@@ -1493,7 +1493,8 @@ jint Jam_DestroyJavaVM(JavaVM *vm) {
     return JNI_OK;
 }
 
-static void *env = &Jam_JNINativeInterface;
+/* Common definition of env */
+void *jni_env = &Jam_JNINativeInterface;
 
 static jint attachCurrentThread(void **penv, void *args, int is_daemon) {
     if(threadSelf() == NULL) {
@@ -1517,7 +1518,7 @@ static jint attachCurrentThread(void **penv, void *args, int is_daemon) {
         initJNILrefs();
     }
 
-    *penv = &env;
+    *penv = &jni_env;
     return JNI_OK;
 }
 
@@ -1551,7 +1552,7 @@ jint Jam_GetEnv(JavaVM *vm, void **penv, jint version) {
         return JNI_EDETACHED;
     }
 
-    *penv = &env;
+    *penv = &jni_env;
     return JNI_OK;
 }
 
@@ -1723,15 +1724,15 @@ jint JNI_CreateJavaVM(JavaVM **pvm, void **penv, void *args) {
     initVM(&init_args);
     initJNILrefs();
 
-    *penv = &env;
-    *pvm = &invokeIntf;
+    *penv = &jni_env;
+    *pvm = &jni_invoke_intf;
 
     return JNI_OK;
 }
 
 jint JNI_GetCreatedJavaVMs(JavaVM **buff, jsize buff_len, jsize *num) {
     if(buff_len > 0) {
-        *buff = &invokeIntf;
+        *buff = &jni_invoke_intf;
         *num = 1;
         return JNI_OK;
     }
