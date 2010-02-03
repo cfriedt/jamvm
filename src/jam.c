@@ -280,6 +280,9 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
 
         } else if(strcmp(argv[i], "-Xcompactalways") == 0) {
             args->compact_specified = args->do_compact = TRUE;
+
+        } else if(strcmp(argv[i], "-Xtracejnisigs") == 0) {
+            args->trace_jni_sigs = TRUE;
 #ifdef INLINING
         } else if(strcmp(argv[i], "-Xnoinlining") == 0) {
             /* Turning inlining off is equivalent to setting

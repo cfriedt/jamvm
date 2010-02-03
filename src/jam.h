@@ -496,8 +496,7 @@ typedef struct method_annotation_data {
 } MethodAnnotationData;
 
 typedef struct methodblock MethodBlock;
-
-typedef uintptr_t *(*NativeMethod)(Class*, struct methodblock*, uintptr_t*);
+typedef uintptr_t *(*NativeMethod)(Class*, MethodBlock*, uintptr_t*);
 
 struct methodblock {
    Class *class;
@@ -509,15 +508,22 @@ struct methodblock {
    u2 max_locals;
    u2 args_count;
    u2 throw_table_size;
-   u2 exception_table_size;
-   u2 line_no_table_size;
-   int native_extra_arg;
-   NativeMethod native_invoker;
+   u2 *throw_table;
    void *code;
    int code_size;
-   u2 *throw_table;
-   ExceptionTableEntry *exception_table;
-   LineNoTableEntry *line_no_table;
+   union {
+       struct {
+           u2 exception_table_size;
+           u2 line_no_table_size;
+           ExceptionTableEntry *exception_table;
+           LineNoTableEntry *line_no_table;
+       };
+       struct {
+           char *simple_sig;
+           int native_extra_arg;
+           NativeMethod native_invoker;
+       };
+   };
    int method_table_index;
    MethodAnnotationData *annotations;
 #ifdef INLINING
@@ -636,6 +642,8 @@ typedef struct InitArgs {
     int compact_specified; /* Whether compaction has been given on the
                               command line, and the value if it has */
     int do_compact;
+
+    int trace_jni_sigs;
 
     char *classpath;
     char *bootpath;
@@ -972,6 +980,7 @@ extern void unloaderUnloadDll(uintptr_t entry);
 extern void unloadClassLoaderDlls(Object *loader);
 extern void threadLiveClassLoaderDlls();
 extern NativeMethod setJNIMethod(MethodBlock *mb, void *func);
+extern void shutdownDll();
 
 /* OS */
 
@@ -983,6 +992,8 @@ extern char *nativeLibMapName(char *name);
 extern void *nativeLibSym(void *handle, char *symbol);
 extern void *nativeStackBase();
 extern int nativeAvailableProcessors();
+
+extern char *convertSig2Simple(char *sig);
 
 /* Threading */
 

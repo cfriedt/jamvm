@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2008, 2010 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -22,6 +22,8 @@
 
 void shutdownVM(int status) {
     shutdownInterpreter();
+    shutdownDll();
+
     jamvm_exit(status);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -38,6 +38,7 @@ void setDefaultInitArgs(InitArgs *args) {
     args->verbosedll   = FALSE;
     args->verboseclass = FALSE;
 
+    args->trace_jni_sigs = FALSE;
     args->compact_specified = FALSE;
 
     args->classpath = NULL;
@@ -77,9 +78,9 @@ void initVM(InitArgs *args) {
     initialiseHooks(args);
     initialiseProperties(args);
     initialiseAlloc(args);
-    initialiseDll(args);
-    initialiseUtf8();
     initialiseThreadStage1(args);
+    initialiseUtf8();
+    initialiseDll(args);
     initialiseSymbol();
     initialiseClass(args);
     initialiseMonitor();
