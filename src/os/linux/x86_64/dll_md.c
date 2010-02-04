@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2008, 2010 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -18,7 +18,7 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "../../../jam.h"
+#include "jam.h"
 
 #ifndef USE_FFI
 #include <stdio.h>

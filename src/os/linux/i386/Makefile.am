@@ -22,4 +22,4 @@
 noinst_LTLIBRARIES = libnative.la
 libnative_la_SOURCES = init.c dll_md.c stubs_md.c jni-stubs.c
 
-AM_CPPFLAGS = -I$(top_builddir)/src
+AM_CPPFLAGS = -I$(top_builddir)/src -I$(top_srcdir)/src
