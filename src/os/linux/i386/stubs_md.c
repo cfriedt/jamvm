@@ -25,6 +25,47 @@
 #endif
 
 char *convertSig2Simple(char *sig) {
-    return strcpy(sysMalloc(strlen(sig) + 1), sig);
+    char *simple_sig = sysMalloc(strlen(sig) * 2);
+    char *simple_pntr = simple_sig;
+    char *sig_pntr = sig;
+
+    *simple_pntr++ = '(';
+    while(*++sig_pntr != ')') {
+        *simple_pntr++ = 'I';
+
+        if(*sig_pntr == 'J' || *sig_pntr == 'D')
+            *simple_pntr++ = 'I';
+        else {
+            if(*sig_pntr == '[')
+                while(*++sig_pntr == '[');
+            if(*sig_pntr == 'L')
+                while(*++sig_pntr != ';');
+        }
+    }
+
+    *simple_pntr++ = ')';
+
+    switch(*++sig_pntr) {
+        case 'B':
+        case 'Z':
+            *simple_pntr++ = 'B';
+            break;
+
+        case 'C':
+        case 'S':
+        case 'J':
+        case 'D':
+        case 'F':
+        case 'V':
+            *simple_pntr++ = *sig_pntr;
+            break;
+
+        default:
+            *simple_pntr++ = 'I';
+            break;
+    }
+
+    *simple_pntr++ = '\0';
+    return sysRealloc(simple_sig, simple_pntr - simple_sig);
 }
 
