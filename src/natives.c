@@ -880,7 +880,7 @@ uintptr_t *methodParameterAnnotations(Class *class, MethodBlock *mb2,
 uintptr_t *constructorParameterAnnotations(Class *class, MethodBlock *mb2,
                                            uintptr_t *ostack) {
 
-    MethodBlock *mb = getMethodMethodBlock((Object*)ostack[0]);
+    MethodBlock *mb = getConsMethodBlock((Object*)ostack[0]);
     *ostack++ = (uintptr_t)getMethodParameterAnnotations(mb);
     return ostack;
 }
