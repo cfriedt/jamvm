@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2009, 2010 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -25,27 +25,17 @@
 
 #define getPrimTypeIndex(cb) (cb->state - CLASS_PRIM)
 
-#define getConsParamTypes(vm_cons_obj) \
-    INST_DATA(vm_cons_obj, Object*, vm_cons_param_offset)
+extern Object *getVMConsParamTypes(Object *vm_cons_obj);
+extern Object *getVMMethodParamTypes(Object *vm_method_obj);
+extern Class *getVMMethodReturnType(Object *vm_method_obj);
+extern Class *getVMFieldType(Object *vm_field_obj);
 
-#define getMethodParamTypes(vm_method_obj) \
-    INST_DATA(vm_method_obj, Object*, vm_mthd_param_offset)
-
-#define getMethodReturnType(vm_method_obj) \
-    INST_DATA(vm_method_obj, Class*, vm_mthd_ret_offset)
-
-#define getFieldType(vm_field_obj) \
-    INST_DATA(vm_field_obj, Class*, vm_fld_type_offset)
-
-extern MethodBlock *getConsMethodBlock(Object *cons_ref_obj);
-extern int getConsAccessFlag(Object *cons_ref_obj);
-extern MethodBlock *getMethodMethodBlock(Object *mthd_ref_obj);
-extern int getMethodAccessFlag(Object *mthd_ref_obj);
-extern FieldBlock *getFieldFieldBlock(Object *fld_ref_obj);
-extern int getFieldAccessFlag(Object *fld_ref_obj);
-
-extern int vm_cons_param_offset, vm_mthd_param_offset, vm_mthd_ret_offset;
-extern int vm_fld_type_offset;
+extern MethodBlock *getVMConsMethodBlock(Object *cons_ref_obj);
+extern int getVMConsAccessFlag(Object *cons_ref_obj);
+extern MethodBlock *getVMMethodMethodBlock(Object *mthd_ref_obj);
+extern int getVMMethodAccessFlag(Object *mthd_ref_obj);
+extern FieldBlock *getVMFieldFieldBlock(Object *fld_ref_obj);
+extern int getVMFieldAccessFlag(Object *fld_ref_obj);
 
 extern Object *getClassConstructors(Class *class, int public);
 extern Object *getClassMethods(Class *class, int public);
@@ -61,7 +51,10 @@ extern Object *getFieldAnnotations(FieldBlock *fb);
 extern Object *getMethodAnnotations(MethodBlock *mb);
 extern Object *getMethodParameterAnnotations(MethodBlock *mb);
 extern Object *getMethodDefaultValue(MethodBlock *mb);
-extern Object *getExceptionTypes(MethodBlock *mb);
+extern Object *getMethodExceptionTypes(MethodBlock *mb);
+extern Object *getMethodParameterTypes(MethodBlock *mb);
+extern Class *getMethodReturnType(MethodBlock *mb);
+extern Class *getFieldType(FieldBlock *fb);
 
 extern Object *getReflectReturnObject(Class *type, void *pntr, int flags);
 extern int widenPrimitiveValue(int src_idx, int dest_idx, void *src,
