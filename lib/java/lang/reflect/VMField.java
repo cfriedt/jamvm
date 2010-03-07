@@ -60,12 +60,17 @@ final class VMField
    */
   native int getModifiersInternal();
 
+  private native Class getTypeNative();
+
   /**
    * Gets the type of this field.
    * @return the type of this field
    */
   public Class getType()
   {
+    if(type == null)
+        type = getTypeNative();
+
     return type;
   }
 
