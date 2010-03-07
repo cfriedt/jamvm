@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -211,7 +211,49 @@ Object *convertSig2ClassArray(char **sig_pntr, Class *declaring_class) {
     return array;
 }
 
-Object *getExceptionTypes(MethodBlock *mb) {
+Class *findClassFromSignature(char *type_name, Class *class) {
+    switch(type_name[0]) {
+        case 'L': {
+            int len = strlen(type_name);
+            char name[len - 1];
+
+            memcpy(name, type_name + 1, len - 2);
+            name[len - 2] = '\0';
+
+            return findClassFromClass(name, class);
+        }
+
+        case '[':
+            return findArrayClassFromClass(type_name, class);
+
+        default:
+            return findPrimitiveClass(type_name[0]);
+    }
+}
+
+Class *getFieldType(FieldBlock *fb) {
+    return findClassFromSignature(fb->type, fb->class);
+}
+
+Object *getMethodParameterTypes(MethodBlock *mb) {
+    char *signature, *sig;
+    Object *classes;
+
+    signature = sig = sysMalloc(strlen(mb->type) + 1);
+    strcpy(sig, mb->type);
+
+    classes = convertSig2ClassArray(&sig, mb->class);
+    sysFree(signature);
+
+    return classes;
+}
+
+Class *getMethodReturnType(MethodBlock *mb) {
+    char *ret = strchr(mb->type, ')') + 1;
+    return findClassFromSignature(ret, mb->class);
+}
+
+Object *getMethodExceptionTypes(MethodBlock *mb) {
     int i;
     Object *array;
     Class **excps;
@@ -229,8 +271,7 @@ Object *getExceptionTypes(MethodBlock *mb) {
 }
 
 Object *createConstructorObject(MethodBlock *mb) {
-    Object *reflect_ob, *vm_reflect_ob, *classes;
-    char *signature, *sig;
+    Object *reflect_ob, *vm_reflect_ob;
 
     if((reflect_ob = allocObject(cons_reflect_class)) == NULL)
         return NULL;
@@ -238,17 +279,7 @@ Object *createConstructorObject(MethodBlock *mb) {
     if((vm_reflect_ob = allocObject(vmcons_reflect_class)) == NULL)
         return NULL;
 
-    signature = sig = sysMalloc(strlen(mb->type) + 1);
-    strcpy(sig, mb->type);
-
-    classes = convertSig2ClassArray(&sig, mb->class);
-    sysFree(signature);
-
-    if(classes == NULL)
-        return NULL;
-
     INST_DATA(vm_reflect_ob, Class*, vm_cons_class_offset) = mb->class;
-    INST_DATA(vm_reflect_ob, Object*, vm_cons_param_offset) = classes;
     INST_DATA(vm_reflect_ob, int, vm_cons_slot_offset) =
                                      mb - CLASS_CB(mb->class)->methods;
 
@@ -294,9 +325,7 @@ Object *getClassConstructors(Class *class, int public) {
 }
 
 Object *createMethodObject(MethodBlock *mb) {
-    Object *reflect_ob, *vm_reflect_ob, *classes;
-    char *signature, *sig;
-    Class *ret;
+    Object *reflect_ob, *vm_reflect_ob;
 
     if((reflect_ob = allocObject(method_reflect_class)) == NULL)
         return NULL;
@@ -304,21 +333,7 @@ Object *createMethodObject(MethodBlock *mb) {
     if((vm_reflect_ob = allocObject(vmmethod_reflect_class)) == NULL)
         return NULL;
 
-    signature = sig = sysMalloc(strlen(mb->type) + 1);
-    strcpy(sig, mb->type);
-
-    classes = convertSig2ClassArray(&sig, mb->class);
-
-    sig++;
-    ret = convertSigElement2Class(&sig, mb->class);
-    sysFree(signature);
-
-    if(classes == NULL || ret == NULL)
-        return NULL;
-
     INST_DATA(vm_reflect_ob, Class*, vm_mthd_class_offset) = mb->class;
-    INST_DATA(vm_reflect_ob, Object*, vm_mthd_param_offset) = classes;
-    INST_DATA(vm_reflect_ob, Class*, vm_mthd_ret_offset) = ret;
     INST_DATA(vm_reflect_ob, int, vm_mthd_slot_offset) =
                                      mb - CLASS_CB(mb->class)->methods;
 
@@ -366,7 +381,6 @@ Object *getClassMethods(Class *class, int public) {
 Object *createFieldObject(FieldBlock *fb) {
     Object *reflect_ob, *vm_reflect_ob;
     char *signature, *sig;
-    Class *type;
 
     if((reflect_ob = allocObject(field_reflect_class)) == NULL)
         return NULL;
@@ -374,17 +388,7 @@ Object *createFieldObject(FieldBlock *fb) {
     if((vm_reflect_ob = allocObject(vmfield_reflect_class)) == NULL)
         return NULL;
 
-    signature = sig = sysMalloc(strlen(fb->type) + 1);
-    strcpy(signature, fb->type);
-
-    type = convertSigElement2Class(&sig, fb->class);
-    sysFree(signature);
-
-    if(type == NULL)
-        return NULL;
-
     INST_DATA(vm_reflect_ob, Class*, vm_fld_class_offset) = fb->class;
-    INST_DATA(vm_reflect_ob, Class*, vm_fld_type_offset) = type;
     INST_DATA(vm_reflect_ob, int, vm_fld_slot_offset) =
                                      fb - CLASS_CB(fb->class)->fields;
 
@@ -591,19 +595,6 @@ static int initAnnotation() {
     registerStaticClassRefLocked(&dbl_anno_array_class, dbl_anno_ary_cls);
 
     return anno_inited = TRUE;
-}
-
-Class *findClassFromSignature(char *type_name, Class *class) {
-    Class *type_class;
-    char *name, *pntr;
-
-    name = pntr = sysMalloc(strlen(type_name) + 1);
-    strcpy(name, type_name);
-
-    type_class = convertSigElement2Class(&pntr, class);
-    sysFree(name);
-
-    return type_class;
 }
 
 /* Forward declarations */
@@ -1118,40 +1109,92 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
 
 /* Functions to get values from the VM-level reflection objects */
 
-MethodBlock *getConsMethodBlock(Object *vm_cons_obj) {
+MethodBlock *getVMConsMethodBlock(Object *vm_cons_obj) {
     Class *decl_class = INST_DATA(vm_cons_obj, Class*, vm_cons_class_offset);
     int slot = INST_DATA(vm_cons_obj, int, vm_cons_slot_offset);
 
     return &CLASS_CB(decl_class)->methods[slot];
 }
 
-int getConsAccessFlag(Object *vm_cons_obj) {
+int getVMConsAccessFlag(Object *vm_cons_obj) {
     Object *cons_obj = INST_DATA(vm_cons_obj, Object*, vm_cons_cons_offset);
     return INST_DATA(cons_obj, int, acc_flag_offset);
 }
 
-int getMethodAccessFlag(Object *vm_mthd_obj) {
+int getVMMethodAccessFlag(Object *vm_mthd_obj) {
     Object *mthd_obj = INST_DATA(vm_mthd_obj, Object*, vm_mthd_m_offset);
     return INST_DATA(mthd_obj, int, acc_flag_offset);
 }
 
-MethodBlock *getMethodMethodBlock(Object *vm_mthd_obj) {
+MethodBlock *getVMMethodMethodBlock(Object *vm_mthd_obj) {
     Class *decl_class = INST_DATA(vm_mthd_obj, Class*, vm_mthd_class_offset);
     int slot = INST_DATA(vm_mthd_obj, int, vm_mthd_slot_offset);
 
     return &CLASS_CB(decl_class)->methods[slot];
 }
 
-FieldBlock *getFieldFieldBlock(Object *vm_fld_obj) {
+FieldBlock *getVMFieldFieldBlock(Object *vm_fld_obj) {
     Class *decl_class = INST_DATA(vm_fld_obj, Class*, vm_fld_class_offset);
     int slot = INST_DATA(vm_fld_obj, int, vm_fld_slot_offset);
 
     return &(CLASS_CB(decl_class)->fields[slot]);
 }
 
-int getFieldAccessFlag(Object *vm_fld_obj) {
+int getVMFieldAccessFlag(Object *vm_fld_obj) {
     Object *fld_obj = INST_DATA(vm_fld_obj, Object*, vm_fld_f_offset);
     return INST_DATA(fld_obj, int, acc_flag_offset);
+}
+
+Object *getVMConsParamTypes(Object *vm_cons_obj) {
+    Object *params = INST_DATA(vm_cons_obj, Object*, vm_cons_param_offset);
+
+    if(params == NULL) {
+        MethodBlock *mb = getVMConsMethodBlock(vm_cons_obj);
+
+        params = getMethodParameterTypes(mb);
+        INST_DATA(vm_cons_obj, Object*, vm_cons_param_offset) = params;
+    }
+
+    return params;
+}
+
+Object *getVMMethodParamTypes(Object *vm_mthd_obj) {
+    Object *params = INST_DATA(vm_mthd_obj, Object*, vm_mthd_param_offset);
+
+    if(params == NULL) {
+        MethodBlock *mb = getVMMethodMethodBlock(vm_mthd_obj);
+
+        params = getMethodParameterTypes(mb);
+        INST_DATA(vm_mthd_obj, Object*, vm_mthd_param_offset) = params;
+    }
+
+    return params;
+}
+
+Class *getVMMethodReturnType(Object *vm_mthd_obj) {
+    Class *ret = INST_DATA(vm_mthd_obj, Class*, vm_mthd_ret_offset);
+
+    if(ret == NULL) {
+        MethodBlock *mb = getVMMethodMethodBlock(vm_mthd_obj);
+
+        ret = getMethodReturnType(mb);
+        INST_DATA(vm_mthd_obj, Class*, vm_mthd_ret_offset) = ret;
+    }
+
+    return ret;
+}
+
+Class *getVMFieldType(Object *vm_field_obj) {
+    Class *type = INST_DATA(vm_field_obj, Class*, vm_fld_type_offset);
+
+    if(type == NULL) {
+        FieldBlock *fb = getVMFieldFieldBlock(vm_field_obj);
+
+        type = getFieldType(fb);
+        INST_DATA(vm_field_obj, Class*, vm_fld_type_offset) = type;
+    }
+
+    return type;
 }
 
 /* Reflection access from JNI */
@@ -1182,10 +1225,10 @@ MethodBlock *mbFromReflectObject(Object *reflect_ob) {
 
     if(reflect_ob->class == cons_reflect_class) {
         Object *vm_cons_obj = INST_DATA(reflect_ob, Object*, cons_cons_offset);
-        mb = getConsMethodBlock(vm_cons_obj);
+        mb = getVMConsMethodBlock(vm_cons_obj);
     } else {
         Object *vm_mthd_obj = INST_DATA(reflect_ob, Object*, mthd_m_offset);
-        mb = getMethodMethodBlock(vm_mthd_obj);
+        mb = getVMMethodMethodBlock(vm_mthd_obj);
     }
 
     return mb;
@@ -1193,7 +1236,7 @@ MethodBlock *mbFromReflectObject(Object *reflect_ob) {
 
 FieldBlock *fbFromReflectObject(Object *reflect_ob) {
     Object *vm_fld_obj = INST_DATA(reflect_ob, Object*, fld_f_offset);
-    return getFieldFieldBlock(vm_fld_obj);
+    return getVMFieldFieldBlock(vm_fld_obj);
 }
 
 /* Needed for stack walking */
