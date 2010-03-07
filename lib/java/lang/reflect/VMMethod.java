@@ -62,14 +62,21 @@ final class VMMethod
    */
   native int getModifiersInternal();
 
+  private native Class getReturnTypeNative();
+
   /**
    * Gets the return type of this method.
    * @return the type of this method
    */
   public Class getReturnType()
   {
+    if(returnType == null)
+        returnType = getReturnTypeNative();
+
     return returnType;
   }
+
+  private native Class[] getParameterTypesNative();
 
   /**
    * Get the parameter list for this method, in declaration order. If the
@@ -79,6 +86,9 @@ final class VMMethod
    */
   public Class[] getParameterTypes()
   {
+    if(parameterTypes == null)
+        parameterTypes = getParameterTypesNative();
+
     return parameterTypes;
   }
 
