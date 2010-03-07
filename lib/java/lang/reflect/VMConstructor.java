@@ -60,6 +60,8 @@ final class VMConstructor
    */
   native int getModifiersInternal();
 
+  private native Class[] getParameterTypesNative();
+
   /**
    * Get the parameter list for this constructor, in declaration order. If the
    * constructor takes no parameters, returns a 0-length array (not null).
@@ -68,6 +70,9 @@ final class VMConstructor
    */
   Class[] getParameterTypes()
   {
+    if(parameterTypes == null)
+        parameterTypes = getParameterTypesNative();
+
     return parameterTypes;
   }
 
