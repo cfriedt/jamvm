@@ -22,6 +22,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
+
 #include "jam.h"
 #include "frame.h"
 #include "lock.h"
@@ -185,11 +190,8 @@ Class *convertSigElement2Class(char **sig_pntr, Class *declaring_class) {
     return class;
 }
 
-Object *convertSig2ClassArray(char **sig_pntr, Class *declaring_class) {
-    char *sig = *sig_pntr;
-    int no_params, i = 0;
-    Class **params;
-    Object *array;
+int numElementsInSig(char *sig) {
+    int no_params;
 
     for(no_params = 0; *++sig != ')'; no_params++) {
         if(*sig == '[')
@@ -197,6 +199,15 @@ Object *convertSig2ClassArray(char **sig_pntr, Class *declaring_class) {
         if(*sig == 'L')
             while(*++sig != ';');
     }
+
+    return no_params;
+}
+
+Object *convertSig2ClassArray(char **sig_pntr, Class *declaring_class) {
+    int no_params = numElementsInSig(*sig_pntr);
+    Class **params;
+    Object *array;
+    int i = 0;
 
     if((array = allocArray(class_array_class, no_params, sizeof(Class*))) == NULL)
         return NULL;
@@ -258,13 +269,15 @@ Object *getMethodExceptionTypes(MethodBlock *mb) {
     Object *array;
     Class **excps;
 
-    if((array = allocArray(class_array_class, mb->throw_table_size, sizeof(Class*))) == NULL)
+    if((array = allocArray(class_array_class, mb->throw_table_size,
+                           sizeof(Class*))) == NULL)
         return NULL;
 
     excps = ARRAY_DATA(array, Class*);
 
     for(i = 0; i < mb->throw_table_size; i++)
-        if((excps[i] = resolveClass(mb->class, mb->throw_table[i], FALSE)) == NULL)
+        if((excps[i] = resolveClass(mb->class, mb->throw_table[i],
+                                    FALSE)) == NULL)
             return NULL;
 
     return array;
@@ -695,13 +708,15 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
             int i, num_values;
 
             READ_U2(num_values, *data_ptr, *data_len);
-            if((array = allocArray(obj_array_class, num_values, sizeof(Object*))) == NULL)
+            if((array = allocArray(obj_array_class, num_values,
+                                   sizeof(Object*))) == NULL)
                 return NULL;
 
             array_data = ARRAY_DATA(array, Object*);
 
             for(i = 0; i < num_values; i++)
-                if((array_data[i] = parseElementValue(class, data_ptr, data_len)) == NULL)
+                if((array_data[i] = parseElementValue(class, data_ptr,
+                                                      data_len)) == NULL)
                     return NULL;
 
             return array;
@@ -726,7 +741,8 @@ Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len) {
         return NULL;
 
     READ_TYPE_INDEX(type_idx, cp, CONSTANT_Utf8, *data_ptr, *data_len);
-    if((type_class = findClassFromSignature(CP_UTF8(cp, type_idx), class)) == NULL)
+    if((type_class = findClassFromSignature(CP_UTF8(cp, type_idx),
+                                            class)) == NULL)
         return NULL;
 
     READ_U2(no_value_pairs, *data_ptr, *data_len);
@@ -735,7 +751,8 @@ Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len) {
         Object *element_name, *element_value;
         int element_name_idx;
 
-        READ_TYPE_INDEX(element_name_idx, cp, CONSTANT_Utf8, *data_ptr, *data_len);
+        READ_TYPE_INDEX(element_name_idx, cp, CONSTANT_Utf8, *data_ptr,
+                        *data_len);
 
         element_name = createString(CP_UTF8(cp, element_name_idx));
         element_value = parseElementValue(class, data_ptr, data_len);
@@ -747,7 +764,8 @@ Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len) {
             return NULL;
     }
 
-    anno = *(Object**)executeStaticMethod(anno_inv_class, anno_create_mb, type_class, map);
+    anno = *(Object**)executeStaticMethod(anno_inv_class, anno_create_mb,
+                                          type_class, map);
     if(exceptionOccurred())
         return NULL;
 
@@ -769,13 +787,15 @@ Object *parseAnnotations(Class *class, AnnotationData *annotations) {
         int i;
 
         READ_U2(no_annos, data_ptr, data_len);
-        if((array = allocArray(anno_array_class, no_annos, sizeof(Object*))) == NULL)
+        if((array = allocArray(anno_array_class, no_annos,
+                               sizeof(Object*))) == NULL)
             return NULL;
 
         array_data = ARRAY_DATA(array, Object*);
 
         for(i = 0; i < no_annos; i++)
-            if((array_data[i] = parseAnnotation(class, &data_ptr, &data_len)) == NULL)
+            if((array_data[i] = parseAnnotation(class, &data_ptr,
+                                                &data_len)) == NULL)
                 return NULL;
 
         return array;
@@ -796,43 +816,53 @@ Object *getMethodAnnotations(MethodBlock *mb) {
 }
 
 Object *getMethodParameterAnnotations(MethodBlock *mb) {
+    Object **outer_array_data;
+    Object *outer_array;
+    int no_params, i;
+    u1 *data_ptr;
+    int data_len;
+
     if(!anno_inited && !initAnnotation())
         return NULL;
 
-    if(mb->annotations == NULL || mb->annotations->parameters == NULL)
-        return allocArray(dbl_anno_array_class, 0, sizeof(Object*));
-    else {
-        u1 *data_ptr = mb->annotations->parameters->data;
-        int data_len = mb->annotations->parameters->len;
-        Object **outer_array_data;
-        Object *outer_array;
-        int no_params, i;
+    if(mb->annotations == NULL || mb->annotations->parameters == NULL) {
+        no_params = numElementsInSig(mb->type);
+        data_len = no_params * 2 + 1;
+        data_ptr = alloca(data_len);
+        memset(data_ptr, 0, data_len);
+        data_ptr[0] = no_params;
+    } else {
+        data_ptr = mb->annotations->parameters->data;
+        data_len = mb->annotations->parameters->len;
+    }
 
-        READ_U1(no_params, data_ptr, data_len);
-        if((outer_array = allocArray(dbl_anno_array_class, no_params, sizeof(Object*))) == NULL)
+    READ_U1(no_params, data_ptr, data_len);
+    if((outer_array = allocArray(dbl_anno_array_class, no_params,
+                                 sizeof(Object*))) == NULL)
+        return NULL;
+
+    outer_array_data = ARRAY_DATA(outer_array, Object*);
+
+    for(i = 0; i < no_params; i++) {
+        Object **inner_array_data;
+        Object *inner_array;
+        int no_annos, j;
+
+        READ_U2(no_annos, data_ptr, data_len);
+        if((inner_array = allocArray(anno_array_class, no_annos,
+                                     sizeof(Object*))) == NULL)
             return NULL;
 
-        outer_array_data = ARRAY_DATA(outer_array, Object*);
+        inner_array_data = ARRAY_DATA(inner_array, Object*);
 
-        for(i = 0; i < no_params; i++) {
-            Object **inner_array_data;
-            Object *inner_array;
-            int no_annos, j;
-
-            READ_U2(no_annos, data_ptr, data_len);
-            if((inner_array = allocArray(anno_array_class, no_annos, sizeof(Object*))) == NULL)
+        for(j = 0; j < no_annos; j++)
+            if((inner_array_data[j] = parseAnnotation(mb->class, &data_ptr,
+                                                      &data_len)) == NULL)
                 return NULL;
 
-            inner_array_data = ARRAY_DATA(inner_array, Object*);
-
-            for(j = 0; j < no_annos; j++)
-                if((inner_array_data[j] = parseAnnotation(mb->class, &data_ptr, &data_len)) == NULL)
-                    return NULL;
-
-            outer_array_data[i] = inner_array;
-        }
-        return outer_array;
+        outer_array_data[i] = inner_array;
     }
+    return outer_array;
 }
 
 Object *getMethodDefaultValue(MethodBlock *mb) {
