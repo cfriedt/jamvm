@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -57,14 +57,19 @@
 
 #define SLOTS(type) (sizeof(type) + 3)/4
 
-#define STACK_POP(type) ({       \
-    ostack -= SLOTS(type);       \
-    STACK(type, 0);              \
+#define STACK_POP(type) ({        \
+    ostack -= SLOTS(type);        \
+    STACK(type, 0);               \
 })
 
-#define STACK_PUSH(type, val) {  \
-    STACK(type, 0) = val;        \
-    ostack += SLOTS(type);       \
+/* In the macro below we assign 'value' to a temporary
+   to ensure any modification of ostack within value
+   is done before pushing */
+
+#define STACK_PUSH(type, value) { \
+    type val = value;             \
+    STACK(type, 0) = val;         \
+    ostack += SLOTS(type);        \
 }
 
 /* Include the interpreter variant header */
