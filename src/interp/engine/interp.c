@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -1000,16 +1000,21 @@ uintptr_t *executeJava() {
     STACK(TYPE, -1) = -STACK(TYPE, -1); \
     DISPATCH(0, 1);
 
-    DEF_OPC_210(OPC_LNEG,
-        UNARY_MINUS(int64_t);
-    )
-
     DEF_OPC_FLOAT(OPC_FNEG,
         UNARY_MINUS(float);
     )
 
     DEF_OPC_FLOAT(OPC_DNEG,
         UNARY_MINUS(double);
+    )
+
+    DEF_OPC_012(OPC_LNEG,
+#ifdef USE_CACHE
+        cache.l = -cache.l;
+        DISPATCH(2, 1);
+#else
+        UNARY_MINUS(int64_t);
+#endif
     )
 
     DEF_OPC_012(OPC_L2I, {
