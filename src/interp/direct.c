@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -147,7 +147,7 @@ retry:
 #endif
 
     for(pass = 0; pass < 2; pass++) {
-        int block_quickened = FALSE;
+            int block_quickened = FALSE;
 #ifdef INLINING
         int block_start = 0;
 #endif
@@ -324,7 +324,7 @@ retry:
                 case OPC_LREM: case OPC_LAND: case OPC_LOR:
                 case OPC_LXOR: case OPC_LSHL: case OPC_LSHR:
                 case OPC_LUSHR: case OPC_F2L: case OPC_D2L:
-                case OPC_I2L:
+                case OPC_LNEG: case OPC_I2L:
 #ifdef USE_CACHE
                     cache = 2;
                     pc += 1;
@@ -341,9 +341,9 @@ retry:
                 case OPC_FDIV: case OPC_DDIV: case OPC_I2F:
                 case OPC_I2D: case OPC_L2F: case OPC_L2D:
                 case OPC_F2D: case OPC_D2F: case OPC_FREM:
-                case OPC_DREM: case OPC_LNEG: case OPC_FNEG:
-                case OPC_DNEG: case OPC_MONITORENTER:
-                case OPC_MONITOREXIT: case OPC_ABSTRACT_METHOD_ERROR:
+                case OPC_DREM: case OPC_FNEG: case OPC_DNEG:
+                case OPC_MONITORENTER: case OPC_MONITOREXIT:
+                case OPC_ABSTRACT_METHOD_ERROR:
 #ifdef USE_CACHE
                     cache = 0;
                     pc += 1;
