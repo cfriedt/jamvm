@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -32,8 +32,6 @@
 #define SCAVENGE(ptr) FALSE
 #define FOUND(ptr1, ptr2) ptr2
 
-static HashTable hash_table;
-
 #define GET_UTF8_CHAR(ptr, c)                         \
 {                                                     \
     int x = *ptr++;                                   \
@@ -46,6 +44,13 @@ static HashTable hash_table;
             c = ((x&0x1f)<<6)+(y&0x3f);               \
     } else                                            \
         c = x;                                        \
+}
+
+static HashTable hash_table;
+
+void initialiseUtf8() {
+    /* Init hash table, and create lock */
+    initHashTable(hash_table, HASHTABSZE, TRUE);
 }
 
 int utf8Len(char *utf8) {
@@ -110,21 +115,40 @@ char *copyUtf8(char *string) {
     return found;
 }
 
-char *slash2dots(char *utf8) {
-    int len = strlen(utf8);
-    char *conv = sysMalloc(len+1);
-    int i;
+char *dots2Slash(char *utf8) {
+    char *pntr;
 
-    for(i = 0; i <= len; i++)
-        if(utf8[i] == '/')
-            conv[i] = '.';
-        else
-            conv[i] = utf8[i];
+    for(pntr = utf8; *pntr != '\0'; pntr++)
+        if(*pntr == '.')
+            *pntr = '/';
 
-    return conv;
+    return utf8;
 }
 
-char *slash2dots2buff(char *utf8, char *buff, int buff_len) {
+char *slash2Dots(char *utf8) {
+    char *pntr;
+
+    for(pntr = utf8; *pntr != '\0'; pntr++)
+        if(*pntr == '/')
+            *pntr = '.';
+
+    return utf8;
+}
+
+char *slash2DotsDup(char *utf8) {
+    int len = strlen(utf8);
+    char *buff = sysMalloc(len + 1);
+    int i;
+
+    for(i = 0; i <= len; i++) {
+        char c = utf8[i];
+        buff[i] = c == '/' ? '.' : c;
+    }
+
+    return buff;
+}
+
+char *slash2DotsBuff(char *utf8, char *buff, int buff_len) {
     char *pntr = buff;
 
     while(*utf8 != '\0' && --buff_len) {
@@ -135,14 +159,6 @@ char *slash2dots2buff(char *utf8, char *buff, int buff_len) {
     *pntr = '\0';
     return buff;
 }
-
-void initialiseUtf8() {
-    /* Init hash table, and create lock */
-    initHashTable(hash_table, HASHTABSZE, TRUE);
-}
-
-#ifndef NO_JNI
-/* Functions used by JNI */
 
 int utf8CharLen(unsigned short *unicode, int len) {
     int count = 0;
@@ -174,4 +190,4 @@ char *unicode2Utf8(unsigned short *unicode, int len, char *utf8) {
     *ptr = '\0';
     return utf8;
 }
-#endif
+

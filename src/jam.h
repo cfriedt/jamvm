@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -30,6 +30,9 @@
 
 /* Architecture dependent definitions */
 #include "arch.h"
+
+/* Classlib definitions */
+#include "classlib-defs.h"
 
 #ifndef TRUE
 #define         TRUE    1
@@ -307,6 +310,7 @@
 #define ACC_ANNOTATION          0x2000
 #define ACC_ENUM                0x4000
 #define ACC_MIRANDA             0x0800
+#define ACC_REFLECT_MASK        0xffff
 
 #define T_BOOLEAN               4
 #define T_CHAR                  5       
@@ -350,9 +354,7 @@
 #define FINALIZED              32 
 #define CLASS_LOADER           64 
 #define CLASS_CLASH           128
-#define VMTHROWABLE           256 
-#define ANONYMOUS             512
-#define VMTHREAD             1024
+#define ANONYMOUS             256
 
 typedef unsigned char           u1;
 typedef unsigned short          u2;
@@ -562,10 +564,8 @@ typedef struct refs_offsets_entry {
     int end;
 } RefsOffsetsEntry;
 
-#define CLASS_PAD_SIZE 4
-
 typedef struct classblock {
-   uintptr_t pad[CLASS_PAD_SIZE];
+   uintptr_t pad[CLASSLIB_CLASS_PAD_SIZE];
    char *name;
    char *signature;
    char *super_name;
@@ -600,6 +600,7 @@ typedef struct classblock {
    u2 enclosing_class;
    u2 enclosing_method;
    AnnotationData *annotations;
+   CLASSLIB_CLASS_EXTRA_FIELDS
 } ClassBlock;
 
 typedef struct frame {
@@ -702,11 +703,11 @@ typedef struct InitArgs {
 #define IS_CLASS_LOADER(cb)          (cb->flags & CLASS_LOADER)
 #define IS_CLASS_DUP(cb)             (cb->flags & CLASS_CLASH)
 #define IS_CLASS_CLASS(cb)           (cb->flags & CLASS_CLASS)
-#define IS_VMTHROWABLE(cb)           (cb->flags & VMTHROWABLE)
-#define IS_VMTHREAD(cb)              (cb->flags & VMTHREAD)
 #define IS_ANONYMOUS(cb)             (cb->flags & ANONYMOUS)
-#define IS_SPECIAL(cb)               (cb->flags & (REFERENCE | CLASS_LOADER | \
-                                                  VMTHREAD))
+#define IS_SPECIAL(cb)               (cb->flags & (CLASSLIB_CLASS_SPECIAL | \
+                                                   CLASS_CLASS | REFERENCE | \
+                                                   CLASS_LOADER))
+#define IS_CLASSLIB_SPECIAL(cb)      (cb->flags & CLASSLIB_CLASS_SPECIAL)
 #define IS_MEMBER(cb)                cb->declaring_class
 #define IS_LOCAL(cb)                 (cb->enclosing_method && !IS_ANONYMOUS(cb))
 
@@ -727,7 +728,7 @@ typedef struct InitArgs {
 #define CP_UTF8(cp,i)                   (char *)(cp->info[i])
 
 #define CP_INTEGER(cp,i)                (int)(cp->info[i])      
-#define CP_FLOAT(cp,i)                  *(float *)&(cp->info[i])
+#define CP_FLOAT(cp,i)                  *((float *)&(cp->info[i]) + IS_BE64)
 #define CP_LONG(cp,i)                   *(long long *)&(cp->info[i])
 #define CP_DOUBLE(cp,i)                 *(double *)&(cp->info[i])
 
@@ -768,6 +769,7 @@ extern void initialiseGC(InitArgs *args);
 extern Class *allocClass();
 extern Object *allocObject(Class *class);
 extern Object *allocTypeArray(int type, int size);
+extern Object *allocObjectArray(Class *element_class, int size);
 extern Object *allocArray(Class *class, int size, int el_size);
 extern Object *allocMultiArray(Class *array_class, int dim, intptr_t *count);
 extern Object *cloneObject(Object *ob);
@@ -823,11 +825,13 @@ extern Class *loadSystemClass(char *);
 
 extern Class *findHashedClass(char *, Object *);
 extern Class *findPrimitiveClass(char);
+extern Class *findPrimitiveClassByName(char *);
 extern Class *findArrayClassFromClassLoader(char *, Object *);
 
 extern Object *getSystemClassLoader();
 
 extern int bootClassPathSize();
+extern char *getBootClassPathEntry(int index);
 extern Object *bootClassPathResource(char *filename, int index);
 
 #define findArrayClassFromClass(name, class) \
@@ -843,6 +847,7 @@ extern void freeClassLoaderData(Object *class_loader);
 
 extern char *getClassPath();
 extern char *getBootClassPath();
+extern char *getEndorsedDirs();
 
 extern void markBootClasses();
 extern void markLoaderClasses(Object *loader, int mark);
@@ -854,6 +859,8 @@ extern void initialiseClass(InitArgs *args);
 extern Object *bootPackage(char *package_name);
 extern Object *bootPackages();
 
+extern int hideFieldFromGC(FieldBlock *hidden);
+
 /* resolve */
 
 extern FieldBlock *findField(Class *, char *, char *);
@@ -861,7 +868,7 @@ extern MethodBlock *findMethod(Class *class, char *methodname, char *type);
 extern FieldBlock *lookupField(Class *, char *, char *);
 extern MethodBlock *lookupMethod(Class *class, char *methodname, char *type);
 extern MethodBlock *lookupVirtualMethod(Object *ob, MethodBlock *mb);
-extern Class *resolveClass(Class *class, int index, int init);
+extern Class *resolveClass(Class *class, int index, int check_access, int init);
 extern MethodBlock *resolveMethod(Class *class, int index);
 extern MethodBlock *resolveInterfaceMethod(Class *class, int index);
 extern FieldBlock *resolveField(Class *class, int index);
@@ -901,11 +908,18 @@ extern void setException(Object *excep);
 extern void clearException();
 extern void printException();
 extern CodePntr findCatchBlock(Class *exception);
-extern Object *setStackTrace0(ExecEnv *ee, int max_depth);
-extern Object *convertStackTrace(Object *vmthrwble);
 extern int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr);
-extern void markVMThrowable(Object *vmthrwble, int mark);
+extern Object *stackTraceElements(Object *trace);
+extern Object *stackTrace(ExecEnv *ee, int max_depth);
+extern Object *stackTraceElement(MethodBlock *mb, CodePntr pc);
 extern void initialiseException();
+
+extern int countStackFrames(Frame *last, int max_depth);
+extern Object *convertTrace2Elements(void **trace, int len);
+extern void stackTrace2Buffer(Frame *last, void **data, int max_depth);
+
+extern Object *convertStackTrace(Object *vmthrwble);
+extern Object *setStackTrace0(ExecEnv *ee, int max_depth);
 
 #define exceptionOccurred0(ee) \
     ee->exception
@@ -957,8 +971,10 @@ extern char *findHashedUtf8(char *string, int add_if_absent);
 extern char *copyUtf8(char *string);
 extern int utf8CharLen(unsigned short *unicode, int len);
 extern char *unicode2Utf8(unsigned short *unicode, int len, char *utf8);
-extern char *slash2dots(char *utf8);
-extern char *slash2dots2buff(char *utf8, char *buff, int buff_len);
+extern char *dots2Slash(char *utf8);
+extern char *slash2Dots(char *utf8);
+extern char *slash2DotsDup(char *utf8);
+extern char *slash2DotsBuff(char *utf8, char *buff, int buff_len);
 extern void initialiseUtf8();
 
 #define findUtf8(string) \
@@ -982,6 +998,8 @@ extern void threadLiveClassLoaderDlls();
 extern NativeMethod setJNIMethod(MethodBlock *mb, void *func);
 extern void shutdownDll();
 
+extern void *lookupLoadedDlls0(char *name, Object *loader);
+
 /* OS */
 
 extern char *nativeLibPath();
@@ -991,6 +1009,7 @@ extern void nativeLibClose(void *handle);
 extern char *nativeLibMapName(char *name);
 extern void *nativeLibSym(void *handle, char *symbol);
 extern void *nativeStackBase();
+extern char *nativeJVMPath();
 extern int nativeAvailableProcessors();
 
 extern char *convertSig2Simple(char *sig);
@@ -1012,7 +1031,7 @@ extern void scanThreads();
 
 extern void initialiseMonitor();
 
-/* jni */
+/* JNI */
 
 extern int initJNILrefs();
 extern void initialiseJNI();
@@ -1020,13 +1039,19 @@ extern void *getJNIInterface();
 extern void markJNIGlobalRefs();
 extern void scanJNIWeakGlobalRefs();
 extern void markJNIClearedWeakRefs();
+extern Object *allocObjectClassCheck(Class *class);
+extern int isSupportedJNIVersion(int version);
+extern int isSupportedJNIVersion_1_1(int version);
 
 /* properties */
 
+extern void setProperty(Object *properties, char *key, char *value);
 extern void initialiseProperties(InitArgs *args);
 extern void addCommandLineProperties(Object *properties);
 extern void addDefaultProperties(Object *properties);
 extern char *getCommandLineProperty(char *key);
+extern char *getExecutionEngineName();
+extern char *getJavaHome();
 extern char *getCwd();
 
 /* access */
@@ -1037,12 +1062,39 @@ extern int checkFieldAccess(FieldBlock *fb, Class *class);
 
 /* frame */
 
-extern Frame *getCallerFrame(Frame *last);
-extern Class *getCallerCallerClass();
+extern void initialiseFrame();
+extern Object *getClassContext();
+extern Class *getCallerClass(int depth);
+extern Object *firstNonNullClassLoader();
 
 /* native */
 
 extern void initialiseNatives();
+extern void copyarray(Object *src, int start1, Object *dest,
+                      int start2, int length);
+
+extern uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *compareAndSwapInt(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *compareAndSwapLong(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack);
+extern uintptr_t *putOrderedInt(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *putOrderedLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *putIntVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *getIntVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *putLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *getLongVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *getLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *compareAndSwapObject(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack);
+extern uintptr_t *putOrderedObject(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *putObjectVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *getObjectVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *putObject(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *arrayBaseOffset(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *arrayIndexScale(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *unpark(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *park(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *vmSupportsCS8(Class *class, MethodBlock *mb, uintptr_t *ostack);
 
 /* init */
 

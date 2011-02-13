@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -33,6 +33,9 @@
 #include "lock.h"
 #include "symbol.h"
 #include "excep.h"
+#include "hash.h"
+#include "class.h"
+#include "classlib.h"
 
 /* Trace GC heap mark/sweep phases - useful for debugging heap
  * corruption */
@@ -200,7 +203,7 @@ extern int ref_referent_offset;
 extern int ref_queue_offset;
 extern int finalize_mtbl_idx;
 extern int enqueue_mtbl_idx;
-extern int ldr_vmdata_offset;
+//extern int ldr_vmdata_offset;
 
 /* Forward declarations */
 void handleUnmarkedSpecial(Object *ob);
@@ -471,6 +474,10 @@ void scanThread(Thread *thread) {
     }
 }
 
+#define MARK_CLASSBLOCK_FIELD(cb, field, mark)           \
+    if(cb->field != NULL && mark > IS_MARKED(cb->field)) \
+        MARK_AND_PUSH(cb->field, mark)
+
 void markClassData(Class *class, int mark) {
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
@@ -479,9 +486,11 @@ void markClassData(Class *class, int mark) {
 
     TRACE_GC("Marking class %s\n", cb->name);
 
-    /* Recursively mark the class's classloader */
-    if(cb->class_loader != NULL && mark > IS_MARKED(cb->class_loader))
-        MARK_AND_PUSH(cb->class_loader, mark);
+    /* Mark the class's classloader object */
+    MARK_CLASSBLOCK_FIELD(cb, class_loader, mark);
+
+    /* Mark the classlib specific object references */
+    CLASSLIB_CLASSBLOCK_REFS_DO(MARK_CLASSBLOCK_FIELD, cb, mark);
 
     TRACE_GC("Marking static fields for class %s\n", cb->name);
 
@@ -542,19 +551,16 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
     } else {
         int i;
 
-        if(IS_CLASS_CLASS(cb)) {
-            TRACE_GC("Found class object @%p name is %s\n", ob,
-                     CLASS_CB(ob)->name);
-            markClassData(ob, mark);
-        } else
-            if(IS_CLASS_LOADER(cb)) {
-                TRACE_GC("Mark found class loader object @%p class %s\n", ob,
-                         cb->name);
-                markLoaderClasses(ob, mark);
+        if(IS_SPECIAL(cb)) {
+            if(IS_CLASS_CLASS(cb)) {
+                TRACE_GC("Found class object @%p name is %s\n", ob,
+                         CLASS_CB(ob)->name);
+                markClassData(ob, mark);
             } else
-                if(IS_VMTHROWABLE(cb)) {
-                    TRACE_GC("Mark found VMThrowable object @%p\n", ob);
-                    markVMThrowable(ob, mark);
+                if(IS_CLASS_LOADER(cb)) {
+                    TRACE_GC("Mark found class loader object @%p class %s\n",
+                             ob, cb->name);
+                    markLoaderClasses(ob, mark);
                 } else
                     if(IS_REFERENCE(cb)) {
                         Object *referent = INST_DATA(ob, Object*,
@@ -562,7 +568,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
 
                         TRACE_GC("Mark found Reference object @%p class %s"
                                  " flags %d referent %p\n",
-                                 ob, cb->name, cb->flags, referent);
+                             ob, cb->name, cb->flags, referent);
 
                         if(!IS_WEAK_REFERENCE(cb) && referent != NULL) {
                             int ref_mark = IS_MARKED(referent);
@@ -583,7 +589,10 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
                                 MARK_AND_PUSH(referent, new_mark);
                             }
                         }
-                    }
+                    } else
+                        if(IS_CLASSLIB_SPECIAL(cb))
+                            classlibMarkSpecial(ob, mark);
+        }
 
         TRACE_GC("Scanning object @%p class is %s\n", ob, cb->name);
 
@@ -822,12 +831,8 @@ void handleUnmarkedSpecial(Object *ob) {
             unloadClassLoaderDlls(ob);
             freeClassLoaderData(ob);
         } else
-            if(IS_VMTHREAD(CLASS_CB(ob->class))) {
-                /* Free the native thread structure (see comment
-                   in detachThread (thread.c) */
-                TRACE_GC("FREE: Freeing native thread for VMThread object %p\n", ob);
-                gcPendingFree(vmThread2Thread(ob));
-            }
+            if(IS_CLASSLIB_SPECIAL(CLASS_CB(ob->class)))
+                classlibHandleUnmarkedSpecial(ob);
 }
 
 static uintptr_t doSweep(Thread *self) {
@@ -1148,6 +1153,10 @@ int compactSlideBlock(char *block_addr, char *new_addr) {
     return FALSE;
 }
 
+#define THREAD_CLASSBLOCK_FIELD(cb, field) \
+    if(cb->field != NULL)                  \
+        threadReference(&cb->field)
+
 void threadClassData(Class *class, Class *new_addr) {
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
@@ -1156,11 +1165,12 @@ void threadClassData(Class *class, Class *new_addr) {
 
     TRACE_COMPACT("Threading class %s @%p\n", cb->name, class);
 
-    if(cb->class_loader != NULL)
-        threadReference(&cb->class_loader);
+    /* Thread object references within the class data */
+    THREAD_CLASSBLOCK_FIELD(cb, super);
+    THREAD_CLASSBLOCK_FIELD(cb, class_loader);
 
-    if(cb->super != NULL)
-        threadReference(&cb->super);
+    /* Thread the classlib specific references */
+    CLASSLIB_CLASSBLOCK_REFS_DO(THREAD_CLASSBLOCK_FIELD, cb);
 
     for(i = 0; i < cb->interfaces_count; i++)
         if(cb->interfaces[i] != NULL)
@@ -2060,6 +2070,24 @@ Object *allocArray(Class *class, int size, int el_size) {
     return ob;
 }
 
+Object *allocObjectArray(Class *element_class, int length) {
+    char *element_name = CLASS_CB(element_class)->name;
+    char array_class_name[strlen(element_name) + 4];
+    Class *array_class;
+
+    if(element_name[0] == '[')
+        strcat(strcpy(array_class_name, "["), element_name);
+    else
+        strcat(strcat(strcpy(array_class_name, "[L"), element_name), ";");
+
+    array_class = findArrayClassFromClass(array_class_name, element_class);
+
+    if(array_class != NULL)
+        return allocArray(array_class, length, sizeof(Object*));
+
+    return NULL;
+}
+
 Object *allocTypeArray(int type, int size) {
     static char *array_names[] = {"[Z", "[C", "[F", "[D", "[B",
                                   "[S", "[I", "[J"};
@@ -2143,14 +2171,8 @@ Object *cloneObject(Object *ob) {
         if(IS_FINALIZED(CLASS_CB(clone->class)))
             ADD_FINALIZED_OBJECT(clone);
 
-        if(HDR_SPECIAL_OBJ(hdr)) {
+        if(HDR_SPECIAL_OBJ(hdr))
             SET_SPECIAL_OB(clone);
-
-            /* Safety.  If it's a classloader, clear native
-               pointer to class table */
-            if(IS_CLASS_LOADER(CLASS_CB(clone->class)))
-                INST_DATA(clone, Object*, ldr_vmdata_offset) = NULL;
-        }
 
         TRACE_ALLOC("<ALLOC: cloned object @%p clone @%p>\n", ob, clone);
     }

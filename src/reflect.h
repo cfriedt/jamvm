@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2009, 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -25,18 +25,6 @@
 
 #define getPrimTypeIndex(cb) (cb->state - CLASS_PRIM)
 
-extern Object *getVMConsParamTypes(Object *vm_cons_obj);
-extern Object *getVMMethodParamTypes(Object *vm_method_obj);
-extern Class *getVMMethodReturnType(Object *vm_method_obj);
-extern Class *getVMFieldType(Object *vm_field_obj);
-
-extern MethodBlock *getVMConsMethodBlock(Object *cons_ref_obj);
-extern int getVMConsAccessFlag(Object *cons_ref_obj);
-extern MethodBlock *getVMMethodMethodBlock(Object *mthd_ref_obj);
-extern int getVMMethodAccessFlag(Object *mthd_ref_obj);
-extern FieldBlock *getVMFieldFieldBlock(Object *fld_ref_obj);
-extern int getVMFieldAccessFlag(Object *fld_ref_obj);
-
 extern Object *getClassConstructors(Class *class, int public);
 extern Object *getClassMethods(Class *class, int public);
 extern Object *getClassFields(Class *class, int public);
@@ -46,23 +34,26 @@ extern Class *getDeclaringClass(Class *class);
 extern Class *getEnclosingClass(Class *class);
 extern Object *getEnclosingMethodObject(Class *class);
 extern Object *getEnclosingConstructorObject(Class *class);
-extern Object *getClassAnnotations(Class *class);
-extern Object *getFieldAnnotations(FieldBlock *fb);
-extern Object *getMethodAnnotations(MethodBlock *mb);
-extern Object *getMethodParameterAnnotations(MethodBlock *mb);
-extern Object *getMethodDefaultValue(MethodBlock *mb);
 extern Object *getMethodExceptionTypes(MethodBlock *mb);
 extern Object *getMethodParameterTypes(MethodBlock *mb);
 extern Class *getMethodReturnType(MethodBlock *mb);
 extern Class *getFieldType(FieldBlock *fb);
+
+extern Class *findClassFromSignature(char *type_name, Class *class);
 
 extern Object *getReflectReturnObject(Class *type, void *pntr, int flags);
 extern int widenPrimitiveValue(int src_idx, int dest_idx, void *src,
                                void *dest, int flags);
 extern int unwrapAndWidenObject(Class *type, Object *arg, void *pntr,
                                 int flags);
-extern Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
-                      Object *param_types);
+
+extern Object *constructorConstruct(MethodBlock *mb, Object *args_array,
+                                    Object *param_types, int no_access_check,
+                                    int depth);
+
+extern Object *methodInvoke(Object *ob, MethodBlock *mb, Object *args_array,
+                            Class *ret_type, Object *param_types,
+                            int no_access_check, int depth);
 
 extern MethodBlock *mbFromReflectObject(Object *reflect_ob);
 extern FieldBlock *fbFromReflectObject(Object *reflect_ob);
@@ -70,4 +61,4 @@ extern FieldBlock *fbFromReflectObject(Object *reflect_ob);
 extern Object *createReflectConstructorObject(MethodBlock *mb);
 extern Object *createReflectMethodObject(MethodBlock *mb);
 extern Object *createReflectFieldObject(FieldBlock *fb);
-extern Class *getReflectMethodClass();
+extern int checkObject(Object *ob, Class *type);

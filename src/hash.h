@@ -174,9 +174,8 @@ extern void unlockHashTable0(HashTable *table, Thread *self);
     }                                                                              \
 }
 
+#define freeHashTable(table)                                                       \
+    sysFree(table.hash_table);
+
 #define gcFreeHashTable(table)                                                     \
     gcMemFree(table.hash_table);
-
-#define freeHashTable(table)                                                       \
-    gcMemFree(table.hash_table);
-

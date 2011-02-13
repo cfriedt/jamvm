@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -37,6 +37,7 @@
 #include "interp.h"
 #include "symbol.h"
 #include "excep.h"
+#include "classlib.h"
 
 #define PREPARE(ptr) ptr
 #define SCAVENGE(ptr) FALSE
@@ -60,26 +61,9 @@ static int bcp_entries;
 int ref_referent_offset = -1;
 int ref_queue_offset;
 
-/* Cached offset of vmdata field in java.lang.ClassLoader objects */
-int ldr_vmdata_offset = -1;
-
-/* Helper method to create a Package Object representing a
-   package loaded by the boot loader */
-static MethodBlock *vm_loader_create_package = NULL;
-static Class *package_array_class;
-
 /* hash table containing packages loaded by the boot loader */
 #define PCKG_INITSZE 1<<6
 static HashTable boot_packages;
-
-/* Hashtable entry for each package defined by the boot loader */
-typedef struct package_entry {
-    int index;
-    char name[0];
-} PackageEntry;
-
-static MethodBlock *ldr_new_unloader = NULL;
-static int ldr_data_tbl_offset;
 
 /* Instance of java.lang.Class for java.lang.Class */
 Class *java_lang_Class = NULL;
@@ -119,29 +103,14 @@ static Class *addClassToHash(Class *class, Object *class_loader) {
     if(class_loader == NULL)
         table = &boot_classes;
     else {
-        Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
+        table = classlibLoaderTable(class_loader);
 
-        if(vmdata == NULL) {
-            objectLock(class_loader);
-            vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
+        if(table == NULL) {
+            table = classlibCreateLoaderTable(class_loader);
 
-            if(vmdata == NULL) {
-                if((vmdata = allocObject(ldr_new_unloader->class)) == NULL) {
-                    objectUnlock(class_loader);
-                    return NULL;
-                }
-
-                table = sysMalloc(sizeof(HashTable));
-                initHashTable((*table), CLASS_INITSZE, TRUE);
-
-                INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset) = table;
-                INST_DATA(class_loader, Object*, ldr_vmdata_offset) = vmdata;
-
-                objectUnlock(class_loader);
-            }
+            if(table == NULL)
+                return NULL;
         }
-
-        table = INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
     }
 
     /* Add if absent, no scavenge, locked */
@@ -302,7 +271,7 @@ Class *defineClass(char *classname, char *data, int offset, int len,
     for(i = 0; i < intf_count; i++) {
        u2 index;
        READ_TYPE_INDEX(index, constant_pool, CONSTANT_Class, ptr, len);
-       interfaces[i] = resolveClass(class, index, FALSE);
+       interfaces[i] = resolveClass(class, index, FALSE, FALSE);
        if(exceptionOccurred())
            return NULL; 
     }
@@ -549,7 +518,7 @@ Class *defineClass(char *classname, char *data, int offset, int len,
                                 ptr += attr_length;
     }
 
-    classblock->super = super_idx ? resolveClass(class, super_idx, FALSE) : NULL;
+    classblock->super = super_idx ? resolveClass(class, super_idx, FALSE, FALSE) : NULL;
 
     if(exceptionOccurred())
        return NULL;
@@ -819,27 +788,41 @@ void prepareFields(Class *class) {
    }
 }
 
-#define MRNDA_CACHE_SZE 10
+int hideFieldFromGC(FieldBlock *hidden) {
+    ClassBlock *cb = CLASS_CB(hidden->class);
+    FieldBlock *fb;
+    int i;
 
-#define resizeMTable(method_table, method_table_size, miranda, count)  \
-{                                                                      \
-    method_table = (MethodBlock**)sysRealloc(method_table,             \
-                  (method_table_size + count) * sizeof(MethodBlock*)); \
-                                                                       \
-    memcpy(&method_table[method_table_size], miranda,                  \
-                               count * sizeof(MethodBlock*));          \
-    method_table_size += count;                                        \
+    for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++)
+        if(fb->u.offset > hidden->u.offset)
+            fb->u.offset -= sizeof(Object*);
+
+    cb->refs_offsets_table[cb->refs_offsets_size-1].end -= sizeof(Object*);
+
+    return hidden->u.offset = cb->object_size - sizeof(Object*);
 }
 
-#define fillinMTable(method_table, methods, methods_count)             \
-{                                                                      \
-    int i;                                                             \
-    for(i = 0; i < methods_count; i++, methods++) {                    \
-        if((methods->access_flags & (ACC_STATIC | ACC_PRIVATE)) ||     \
-               (methods->name[0] == '<'))                              \
-            continue;                                                  \
-        method_table[methods->method_table_index] = methods;           \
-    }                                                                  \
+#define MRNDA_CACHE_SZE 10
+
+#define resizeMTable(method_table, method_table_size, miranda, count)   \
+{                                                                       \
+    method_table = sysRealloc(method_table, (method_table_size + count) \
+                                            * sizeof(MethodBlock*));    \
+                                                                        \
+    memcpy(&method_table[method_table_size], miranda,                   \
+                               count * sizeof(MethodBlock*));           \
+    method_table_size += count;                                         \
+}
+
+#define fillinMTable(method_table, methods, methods_count)              \
+{                                                                       \
+    int i;                                                              \
+    for(i = 0; i < methods_count; i++, methods++) {                     \
+        if((methods->access_flags & (ACC_STATIC | ACC_PRIVATE)) ||      \
+               (methods->name[0] == '<'))                               \
+            continue;                                                   \
+        method_table[methods->method_table_index] = methods;            \
+    }                                                                   \
 }
 
 void linkClass(Class *class) {
@@ -851,9 +834,7 @@ void linkClass(Class *class) {
    ITableEntry *spr_imthd_tbl = NULL;
    MethodBlock **method_table = NULL;
    MethodBlock **spr_mthd_tbl = NULL;
-   MethodBlock *finalizer;
    MethodBlock *mb;
-   FieldBlock *fb;
 
    int new_methods_count = 0;
    int spr_imthd_tbl_sze = 0;
@@ -888,10 +869,9 @@ void linkClass(Class *class) {
    }
 
    /* Calculate object layout */
-
    prepareFields(class);
 
-   /* prepare methods */
+   /* Prepare methods */
 
    for(mb = cb->methods, i = 0; i < cb->methods_count; i++,mb++) {
 
@@ -940,7 +920,8 @@ void linkClass(Class *class) {
        /* Static, private or init methods aren't dynamically invoked, so
          don't stick them in the table to save space */
 
-       if((mb->access_flags & (ACC_STATIC | ACC_PRIVATE)) || (mb->name[0] == '<'))
+       if((mb->access_flags & (ACC_STATIC | ACC_PRIVATE)) ||
+                              (mb->name[0] == '<'))
            continue;
 
        /* if it's overriding an inherited method, replace in method table */
@@ -965,7 +946,8 @@ void linkClass(Class *class) {
        method_table = sysMalloc(method_table_size * sizeof(MethodBlock*));
 
        /* Copy parents method table to the start */
-       memcpy(method_table, spr_mthd_tbl, spr_mthd_tbl_sze * sizeof(MethodBlock*));
+       memcpy(method_table, spr_mthd_tbl, spr_mthd_tbl_sze *
+                                          sizeof(MethodBlock*));
 
        /* fill in the additional methods -- we use a
           temporary because fillinMtable alters mb */
@@ -986,9 +968,11 @@ void linkClass(Class *class) {
    cb->imethod_table_size = spr_imthd_tbl_sze + new_itable_count;
    cb->imethod_table = sysMalloc(cb->imethod_table_size * sizeof(ITableEntry));
 
-   /* copy parent's interface table - the offsets into the method table won't change */
+   /* copy parent's interface table - the offsets into the method
+      table won't change */
 
-   memcpy(cb->imethod_table, spr_imthd_tbl, spr_imthd_tbl_sze * sizeof(ITableEntry));
+   memcpy(cb->imethod_table, spr_imthd_tbl, spr_imthd_tbl_sze *
+                                            sizeof(ITableEntry));
 
    /* now run through the extra interfaces implemented by this class,
     * fill in the interface part, and calculate the number of offsets
@@ -1034,9 +1018,10 @@ void linkClass(Class *class) {
                       (intf_mb->name[0] == '<'))
                    continue;
 
-               /* We scan backwards so that we find methods defined in sub-classes
-                  before super-classes.  This ensures we find non-overridden
-                  methods before the inherited non-accessible method */
+               /* We scan backwards so that we find methods defined in
+                  sub-classes before super-classes.  This ensures we find
+                  non-overridden methods before the inherited non-accessible
+                  method */
                for(mtbl_idx = method_table_size - 1; mtbl_idx >= 0; mtbl_idx--)
                    if(intf_mb->name == method_table[mtbl_idx]->name &&
                            intf_mb->type == method_table[mtbl_idx]->type) {
@@ -1060,7 +1045,8 @@ void linkClass(Class *class) {
 
                    if(k == miranda_count) {
                        if(miranda_count == MRNDA_CACHE_SZE) {
-                           resizeMTable(method_table, method_table_size, miranda, MRNDA_CACHE_SZE);
+                           resizeMTable(method_table, method_table_size,
+                                        miranda, MRNDA_CACHE_SZE);
                            miranda_count = 0;
                        }
                        miranda[miranda_count++] = intf_mb;
@@ -1070,17 +1056,18 @@ void linkClass(Class *class) {
        }
 
        if(miranda_count > 0)
-           resizeMTable(method_table, method_table_size, miranda, miranda_count);
+           resizeMTable(method_table, method_table_size, miranda,
+                        miranda_count);
 
        if(old_mtbl_size != method_table_size) {
            /* We've created some abstract methods */
            int num_mirandas = method_table_size - old_mtbl_size;
    
-           mb = (MethodBlock *) sysRealloc(cb->methods,
-                   (cb->methods_count + num_mirandas) * sizeof(MethodBlock));
+           mb = sysRealloc(cb->methods, (cb->methods_count + num_mirandas)
+                                        * sizeof(MethodBlock));
 
-           /* If the realloc of the method list gave us a new pointer, the pointers
-              to them in the method table are now wrong. */
+           /* If the realloc of the method list gave us a new pointer, the
+              pointers to them in the method table are now wrong. */
            if(mb != cb->methods) {
                /*  mb will be left pointing to the end of the methods */
                cb->methods = mb;
@@ -1113,8 +1100,11 @@ void linkClass(Class *class) {
       should always have a valid finalizer -- but check just in case */
 
    if(cb->super == NULL) {
-       finalizer = findMethod(class, SYMBOL(finalize), SYMBOL(___V));
-       if(finalizer && !(finalizer->access_flags & (ACC_STATIC | ACC_PRIVATE))) {
+       MethodBlock *finalizer = findMethod(class, SYMBOL(finalize),
+                                                  SYMBOL(___V));
+
+       if(finalizer != NULL && !(finalizer->access_flags &
+                                 (ACC_STATIC | ACC_PRIVATE))) {
            finalize_mtbl_idx = finalizer->method_table_index;
            obj_fnlzr_mthd = finalizer;
        }
@@ -1122,32 +1112,32 @@ void linkClass(Class *class) {
 
    cb->flags |= spr_flags;
 
-   /* Store the finalizer only if it's overridden Object's.  We don't
-      want to finalize every object, and Object's imp is empty */
+   /* Mark as finalized only if it's overridden Object's finalizer.
+      We don't want to finalize every object, and Object's imp is empty */
 
-   if(super && obj_fnlzr_mthd && (finalizer =
-               method_table[obj_fnlzr_mthd->method_table_index]) != obj_fnlzr_mthd)
+   if(super != NULL && obj_fnlzr_mthd != NULL &&
+          method_table[finalize_mtbl_idx] != obj_fnlzr_mthd)
        cb->flags |= FINALIZED;
 
    /* Handle reference classes */
 
-   if(ref_referent_offset == -1 && cb->name == SYMBOL(java_lang_ref_Reference)) {
-       FieldBlock *ref_fb = findField(class, SYMBOL(referent), SYMBOL(sig_java_lang_Object));
-       FieldBlock *queue_fb = findField(class, SYMBOL(queue), SYMBOL(sig_java_lang_ref_ReferenceQueue));
-       MethodBlock *enqueue_mb = findMethod(class, SYMBOL(enqueue), SYMBOL(___Z));
+   if(ref_referent_offset == -1 &&
+               cb->name == SYMBOL(java_lang_ref_Reference)) {
+
+       FieldBlock *ref_fb = findField(class, SYMBOL(referent),
+                                             SYMBOL(sig_java_lang_Object));
+       FieldBlock *queue_fb = findField(class, SYMBOL(queue),
+                                     SYMBOL(sig_java_lang_ref_ReferenceQueue));
+       MethodBlock *enqueue_mb = findMethod(class, SYMBOL(enqueue),
+                                                   SYMBOL(___Z));
 
        if(ref_fb == NULL || queue_fb == NULL || enqueue_mb == NULL) {
-           jam_fprintf(stderr, "Expected fields/methods missing in java.lang.ref.Reference\n");
+           jam_fprintf(stderr, "Expected fields/methods missing in"
+                               " java.lang.ref.Reference\n");
            exitVM(1);
        }
 
-       for(fb = cb->fields, i = 0; i < cb->fields_count; i++,fb++)
-           if(fb->u.offset > ref_fb->u.offset)
-               fb->u.offset -= sizeof(Object*);
-
-       ref_referent_offset = ref_fb->u.offset = cb->object_size - sizeof(Object*);
-       cb->refs_offsets_table[cb->refs_offsets_size-1].end -= sizeof(Object*);
-
+       ref_referent_offset = hideFieldFromGC(ref_fb);
        enqueue_mtbl_idx = enqueue_mb->method_table_index;
        ref_queue_offset = queue_fb->u.offset;
 
@@ -1167,15 +1157,8 @@ void linkClass(Class *class) {
 
    /* Handle class loader classes */
 
-   if(ldr_vmdata_offset == -1 && cb->name == SYMBOL(java_lang_ClassLoader)) {
-       FieldBlock *ldr_fb = findField(class, SYMBOL(vmdata), SYMBOL(sig_java_lang_Object));
-
-       if(ldr_fb == NULL) {
-           jam_fprintf(stderr, "Expected vmdata field missing in java.lang.ClassLoader\n");
-           exitVM(1);
-       }
-
-       ldr_vmdata_offset = ldr_fb->u.offset;
+   if(cb->name == SYMBOL(java_lang_ClassLoader)) {
+       classlibCacheClassLoaderFields(class);
        cb->flags |= CLASS_LOADER;
    }
 
@@ -1318,7 +1301,7 @@ void defineBootPackage(char *classname, int index) {
         PackageEntry *hashed;
         
         package->index = index;
-        slash2dots2buff(classname, package->name, len);
+        slash2DotsBuff(classname, package->name, len);
 
 #undef HASH
 #undef COMPARE
@@ -1354,10 +1337,12 @@ Class *loadSystemClass(char *classname) {
                                  filename), &file_len);
 
     if(data == NULL) {
-        signalException(java_lang_NoClassDefFoundError, classname);
+        signalException(java_lang_ClassNotFoundException, classname);
         return NULL;
     }
 
+    /* If this class belongs to a package not yet seen add it
+       to the list of bootloader packages */
     defineBootPackage(classname, i - 1);
 
     class = defineClass(classname, data, 0, file_len, NULL);
@@ -1390,14 +1375,9 @@ Class *findHashedClass(char *classname, Object *class_loader) {
 
     if(class_loader == NULL)
         table = &boot_classes;
-    else {
-        Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
-
-        if(vmdata == NULL)
+    else
+        if((table = classlibLoaderTable(class_loader)) == NULL)
             return NULL;
-
-        table = INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
-    }
 
 #undef HASH
 #undef COMPARE
@@ -1435,11 +1415,48 @@ Class *findSystemClass(char *classname) {
 Class *findArrayClassFromClassLoader(char *classname, Object *class_loader) {
    Class *class = findHashedClass(classname, class_loader);
 
-   if(class == NULL) {
+   if(class == NULL)
        if((class = createArrayClass(classname, class_loader)) != NULL)
            addInitiatingLoaderToClass(class_loader, class);
-   }
+
    return class;
+}
+
+Class *findPrimitiveClassByName(char *classname) {
+   int index;
+   Class *prim;
+   char *prim_name;
+
+    if((prim_name = findUtf8(classname)) == NULL)
+        goto error;
+
+    if(prim_name == SYMBOL(boolean))
+       index = PRIM_IDX_BOOLEAN;
+    else if(prim_name == SYMBOL(byte))
+       index = PRIM_IDX_BYTE;
+    else if(prim_name == SYMBOL(char))
+       index = PRIM_IDX_CHAR;
+    else if(prim_name == SYMBOL(short))
+        index = PRIM_IDX_SHORT;
+    else if(prim_name == SYMBOL(int))
+        index = PRIM_IDX_INT;
+    else if(prim_name == SYMBOL(float))
+        index = PRIM_IDX_FLOAT;
+    else if(prim_name == SYMBOL(long))
+        index = PRIM_IDX_LONG;
+    else if(prim_name == SYMBOL(double))
+        index = PRIM_IDX_DOUBLE;
+    else if(prim_name == SYMBOL(void))
+        index = PRIM_IDX_VOID;
+    else
+        goto error;
+
+    prim = prim_classes[index];
+    return prim ? prim : createPrimClass(prim_name, index);
+
+error:
+    signalException(java_lang_NoClassDefFoundError, NULL);
+    return NULL;
 }
 
 Class *findPrimitiveClass(char prim_type) {
@@ -1487,7 +1504,6 @@ Class *findPrimitiveClass(char prim_type) {
       default:
           signalException(java_lang_NoClassDefFoundError, NULL);
           return NULL;
-          break;
    }
 
    prim = prim_classes[index];
@@ -1498,7 +1514,7 @@ Class *findNonArrayClassFromClassLoader(char *classname, Object *loader) {
     Class *class = findHashedClass(classname, loader);
 
     if(class == NULL) {
-        char *dot_name = slash2dots(classname);
+        char *dot_name = slash2DotsDup(classname);
         Object *string = createString(dot_name);
         Object *excep;
 
@@ -1563,22 +1579,6 @@ Object *getSystemClassLoader() {
     return NULL;
 }
 
-Object *createBootPackage(PackageEntry *package_entry) {
-    Object *name = createString(package_entry->name);
-
-    if(name != NULL) {
-        Object *package = *(Object**)executeStaticMethod(
-                                            vm_loader_create_package->class,
-                                            vm_loader_create_package, name,
-                                            package_entry->index);
-
-        if(!exceptionOccurred()) 
-            return package;
-    }
-
-    return NULL;
-}
-
 Object *bootPackage(char *package_name) {
     PackageEntry *hashed;
 
@@ -1592,25 +1592,26 @@ Object *bootPackage(char *package_name) {
     findHashEntry(boot_packages, package_name, hashed, FALSE, FALSE, TRUE);
 
     if(hashed != NULL)
-        return createBootPackage(hashed);
+        return classlibBootPackage(hashed);
 
     return NULL;
 }
 
-#define ITERATE(ptr)                                       \
-    if((data[--count] = createBootPackage(ptr)) == NULL) { \
-        array = NULL;                                      \
-        goto error;                                        \
+#define ITERATE(ptr)                                          \
+    if((data[--count] = classlibBootPackages(ptr)) == NULL) { \
+        array = NULL;                                         \
+        goto error;                                           \
     }
 
 Object *bootPackages() {
+    Class *array_class = classlibBootPackagesArrayClass();
     Object **data, *array;
     int count;
 
     lockHashTable(boot_packages);
 
     count = hashTableCount(boot_packages);
-    if((array = allocArray(package_array_class, count, sizeof(Object*))) == NULL)
+    if((array = allocArray(array_class, count, sizeof(Object*))) == NULL)
         goto error;
 
     data = ARRAY_DATA(array, Object*);
@@ -1655,10 +1656,9 @@ void threadBootClasses() {
         markObject(ptr, mark)
 
 void markLoaderClasses(Object *class_loader, int mark) {
-    Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
+    HashTable *table = classlibLoaderTable(class_loader);
 
-    if(vmdata != NULL) {
-        HashTable *table = INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
+    if(table != NULL) {
         hashIterate((*table));
     }
 }
@@ -1667,10 +1667,9 @@ void markLoaderClasses(Object *class_loader, int mark) {
 #define ITERATE(ptr) threadReference((Object**)ptr)
 
 void threadLoaderClasses(Object *class_loader) {
-    Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
+    HashTable *table = classlibLoaderTable(class_loader);
 
-    if(vmdata != NULL) {
-        HashTable *table = INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
+    if(table != NULL) {
         hashIterateP((*table));
     }
 }
@@ -1767,24 +1766,12 @@ void freeClassData(Class *class) {
 }
 
 void freeClassLoaderData(Object *class_loader) {
-    Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
+    HashTable *table = classlibLoaderTable(class_loader);
 
-    if(vmdata != NULL) {
-        HashTable *table = INST_DATA(vmdata, HashTable*, ldr_data_tbl_offset);
+    if(table != NULL) {
         gcFreeHashTable((*table));
         gcPendingFree(table);
     }
-}
-
-/* Add a library unloader object to the class loader for the
-   library contained within entry.  The library has an unload
-   function, which will be called from the unloader finalizer
-   when the class loader is garbage collected */
-void newLibraryUnloader(Object *class_loader, void *entry) {
-    Object *vmdata = INST_DATA(class_loader, Object*, ldr_vmdata_offset);
-    
-    if(vmdata != NULL)
-        executeMethod(vmdata, ldr_new_unloader, (long long)(uintptr_t)entry);
 }
 
 int parseBootClassPath(char *cp_var) {
@@ -1901,52 +1888,40 @@ void scanDirsForJars(char *directories) {
     sysFree(dirs);
 }
 
+char *getEndorsedDirs() {
+    char *endorsed_dirs = getCommandLineProperty("java.endorsed.dirs");
+    if(endorsed_dirs == NULL)
+        endorsed_dirs = classlibDefaultEndorsedDirs();
+
+    return endorsed_dirs;
+}
+
 char *setBootClassPath(char *cmdlne_bcp, char bootpathopt) {
-    char *endorsed_dirs;
-
-    if(cmdlne_bcp)
-        switch(bootpathopt) {
-            case 'a':
-            case 'p':
-                bootpath = sysMalloc(strlen(DFLT_BCP) + strlen(cmdlne_bcp) + 2);
-                if(bootpathopt == 'a')
-                    strcat(strcat(strcpy(bootpath, DFLT_BCP), ":"), cmdlne_bcp);
-                else
-                    strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), DFLT_BCP);
-                break;
-
-            case 'c':
-                bootpath = sysMalloc(strlen(JAMVM_CLASSES) + strlen(cmdlne_bcp) + 2);
-                strcat(strcat(strcpy(bootpath, JAMVM_CLASSES), ":"), cmdlne_bcp);
-                break;
-
-            case 'v':
-                bootpath = sysMalloc(strlen(CLASSPATH_CLASSES) + strlen(cmdlne_bcp) + 2);
-                strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), CLASSPATH_CLASSES);
-                break;
-
-            default:
-                bootpath = sysMalloc(strlen(cmdlne_bcp) + 1);
-                strcpy(bootpath, cmdlne_bcp);
-        }           
+    if(cmdlne_bcp != NULL)
+        bootpath = classlibBootClassPathOpt(cmdlne_bcp, bootpathopt);
     else {
-        char *env = getenv("BOOTCLASSPATH");
-        char *path = env ? env : DFLT_BCP;
+        char *path = getCommandLineProperty("sun.boot.class.path");
+        if(path == NULL)
+            path = getCommandLineProperty("java.boot.class.path");
+        if(path == NULL)
+            path = getenv("BOOTCLASSPATH");
+        if(path == NULL)
+            path = classlibDefaultBootClassPath();
+
         bootpath = sysMalloc(strlen(path) + 1);
         strcpy(bootpath, path);
     }
 
-    endorsed_dirs = getCommandLineProperty("java.endorsed.dirs");
-    if(endorsed_dirs == NULL)
-        endorsed_dirs = INSTALL_DIR"/share/jamvm/endorsed";
-
-    scanDirsForJars(endorsed_dirs);
-
+    scanDirsForJars(getEndorsedDirs());
     return bootpath;
 }
 
 char *getBootClassPath() {
     return bootpath;
+}
+
+char *getBootClassPathEntry(int index) {
+    return bootclasspath[index].path;
 }
 
 int bootClassPathSize() {
@@ -1998,9 +1973,6 @@ out:
 
 void initialiseClass(InitArgs *args) {
     char *bcp = setBootClassPath(args->bootpath, args->bootpathopt);
-    FieldBlock *hashtable = NULL;
-    Class *loader_data_class;
-    Class *vm_loader_class;
 
     if(!(bcp && parseBootClassPath(bcp))) {
         jam_fprintf(stderr, "bootclasspath is empty!\n");
@@ -2010,44 +1982,16 @@ void initialiseClass(InitArgs *args) {
     verbose = args->verboseclass;
     setClassPath(args->classpath);
 
-    /* Init hash table, and create lock */
+    /* Init hash table, and create lock for the bootclassloader classes */
     initHashTable(boot_classes, CLASS_INITSZE, TRUE);
 
+    /* Init hash table, and create lock for the bootclassloader packages */
     initHashTable(boot_packages, PCKG_INITSZE, TRUE);
-
-    loader_data_class = findSystemClass0(SYMBOL(jamvm_java_lang_VMClassLoaderData));
-    if(loader_data_class != NULL) {
-        ldr_new_unloader = findMethod(loader_data_class, SYMBOL(newLibraryUnloader),
-                                                         SYMBOL(_J__V));
-        hashtable = findField(loader_data_class, SYMBOL(hashtable), SYMBOL(J));
-    }
-
-    if(hashtable == NULL || ldr_new_unloader == NULL) {
-        jam_fprintf(stderr, "Fatal error: Bad VMClassLoaderData (missing or corrupt)\n");
-        exitVM(1);
-    }
-    ldr_data_tbl_offset = hashtable->u.offset;
-
-    vm_loader_class = findSystemClass0(SYMBOL(java_lang_VMClassLoader));
-    if(vm_loader_class != NULL)
-       vm_loader_create_package =
-                  findMethod(vm_loader_class, SYMBOL(createBootPackage),
-                             SYMBOL(_java_lang_String_I__java_lang_Package));
-
-    if(vm_loader_create_package == NULL) {
-        jam_fprintf(stderr, "Fatal error: Bad java.lang.VMClassLoader (missing or corrupt)\n");
-        exitVM(1);
-    }
-
-    package_array_class = findArrayClass(SYMBOL(array_java_lang_Package));
-    registerStaticClassRef(&package_array_class);
-
-    if(package_array_class == NULL) {
-        jam_fprintf(stderr, "Fatal error: missing java.lang.Package\n");
-        exitVM(1);
-    }
 
     /* Register the address of where the java.lang.Class ref _will_ be */
     registerStaticClassRef(&java_lang_Class);
+
+    /* Do classlib specific class initialisation */
+    classlibInitialiseClass();
 }
 

@@ -28,17 +28,21 @@
 
 #ifndef NO_JNI
 #include "hash.h"
-#include "jni.h"
 #include "natives.h"
 #include "symbol.h"
 #include "excep.h"
+#include "jni.h"
 #include "jni-stubs.h"
+#include "class.h"
+#include "thread.h"
+#include "classlib.h"
 
 /* Set by call to initialise -- if true, prints out
     results of dynamic method resolution */
 static int verbose;
 
 static FILE *sig_trace_fd;
+static char *boot_dll_path;
 
 extern int nativeExtraArg(MethodBlock *mb);
 extern uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int extra,
@@ -169,7 +173,9 @@ NativeMethod lookupInternal(MethodBlock *mb) {
 
         /* Found the class -- now try to locate the method */
         for(i = 0; methods[i].methodname &&
-            (strcmp(mb->name, methods[i].methodname) != 0); i++);
+            ((strcmp(mb->name, methods[i].methodname) != 0) ||
+               (methods[i].methodtype &&
+               (strcmp(mb->type, methods[i].methodtype) != 0))); i++);
 
         if(methods[i].methodname) {
             if(verbose)
@@ -187,7 +193,7 @@ NativeMethod resolveNativeMethod(MethodBlock *mb) {
     NativeMethod method;
 
     if(verbose) {
-        char *classname = slash2dots(CLASS_CB(mb->class)->name);
+        char *classname = slash2DotsDup(CLASS_CB(mb->class)->name);
         jam_printf("[Dynamic-linking native method %s.%s ... ",
                    classname, mb->name);
         sysFree(classname);
@@ -233,6 +239,20 @@ void initialiseDll(InitArgs *args) {
         }
     }
 #endif
+
+    /* Set the boot path */
+
+    boot_dll_path = getCommandLineProperty("gnu.classpath.boot.library.path");
+
+    if(boot_dll_path == NULL)
+        boot_dll_path = getCommandLineProperty("sun.boot.library.path");
+
+    if(boot_dll_path == NULL)
+        boot_dll_path = classlibDefaultBootDllPath();
+
+    /* classlib specific initialisation */
+    classlibInitialiseDll();
+
     verbose = args->verbosedll;
 }
 
@@ -292,12 +312,10 @@ int resolveDll(char *name, Object *loader) {
             initJNILrefs();
             ver = (*(jint (*)(JavaVM*, void*))onload)(&jni_invoke_intf, NULL);
 
-            if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4
-                                      && ver != JNI_VERSION_1_6) {
+            if(!isSupportedJNIVersion(ver)) {
                 if(verbose)
                     jam_printf("[%s: JNI_OnLoad returned unsupported version"
-                               " number %d.\n>", name, ver);
-
+                               " number %d.\n]", name, ver);
                 return FALSE;
             }
         }
@@ -328,7 +346,7 @@ int resolveDll(char *name, Object *loader) {
            therefore libraries loaded by it will never be
            unloaded */
         if(loader != NULL && nativeLibSym(dll->handle, "JNI_OnUnload") != NULL)
-            newLibraryUnloader(loader, dll);
+            classlibNewLibraryUnloader(loader, dll);
 
     } else
         if(dll->loader != loader) {
@@ -346,7 +364,7 @@ char *getDllPath() {
 }
 
 char *getBootDllPath() {
-    return CLASSPATH_INSTALL_DIR"/lib/classpath";
+    return boot_dll_path;
 }
 
 char *getDllName(char *name) {
@@ -489,16 +507,16 @@ NativeMethod setJNIMethod(MethodBlock *mb, void *func) {
 }
 
 NativeMethod lookupLoadedDlls(MethodBlock *mb) {
-    Object *loader = (CLASS_CB(mb->class))->class_loader;
     char *mangled = mangleClassAndMethodName(mb);
-    void *func = lookupLoadedDlls0(mangled, loader);
+    Object *loader = (CLASS_CB(mb->class))->class_loader;
+    void *func = classlibLookupLoadedDlls(mangled, loader);
 
     if(func == NULL) {
         char *mangledSig = mangleSignature(mb);
         char *fullyMangled = sysMalloc(strlen(mangled)+strlen(mangledSig)+3);
 
         sprintf(fullyMangled, "%s__%s", mangled, mangledSig);
-        func = lookupLoadedDlls0(fullyMangled, loader);
+        func = classlibLookupLoadedDlls(fullyMangled, loader);
 
         sysFree(fullyMangled);
         sysFree(mangledSig);

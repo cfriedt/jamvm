@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011
 ## Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -19,8 +19,8 @@
 ## Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 ##
 
-SUBDIRS = os interp
-DIST_SUBDIRS = os arch interp
+SUBDIRS = os interp classlib
+DIST_SUBDIRS = os arch interp classlib
 
 bin_PROGRAMS = jamvm
 include_HEADERS = jni.h
@@ -41,8 +41,9 @@ libjvm_la_SOURCES =
 
 jamvm_LDADD = libcore.la
 libjvm_la_LIBADD = libcore.la
-libcore_la_LIBADD = interp/libinterp.la os/@os@/@arch@/libnative.la os/@os@/libos.la
+libcore_la_LIBADD = interp/libinterp.la os/@os@/@arch@/libnative.la \
+                    os/@os@/libos.la classlib/@classlib@/libclasslib.la
 
 AM_CPPFLAGS = -I$(top_srcdir)/src/interp/engine
 
-DISTCLEANFILES = arch.h
+DISTCLEANFILES = arch.h classlib.h classlib-defs.h classlib-symbol.h

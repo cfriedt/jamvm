@@ -21,6 +21,7 @@
 
 typedef struct vm_method {
     char *methodname;
+    char *methodtype;
     NativeMethod method;
 } VMMethod;
 

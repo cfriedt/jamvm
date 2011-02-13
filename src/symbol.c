@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2008, 2010 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -25,6 +25,7 @@
 
 #define SYMBOL_VALUE(name, value) value
 char *symbol_values[] = {
+    CLASSLIB_SYMBOLS_DO(SYMBOL_VALUE),
     SYMBOLS_DO(SYMBOL_VALUE)
 };
 

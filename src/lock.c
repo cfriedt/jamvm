@@ -33,6 +33,8 @@
 #include "lock.h"
 #include "symbol.h"
 #include "excep.h"
+#include "class.h"
+#include "classlib.h"
 
 /* Trace lock operations and inflation/deflation */
 #ifdef TRACELOCK
@@ -140,11 +142,11 @@ void monitorLock(Monitor *mon, Thread *self) {
 
             self->blocked_mon = mon;
             self->blocked_count++;
-            self->state = BLOCKED;
+            classlibSetThreadState(self, BLOCKED);
 
             pthread_mutex_lock(&mon->lock);
 
-            self->state = RUNNING;
+            classlibSetThreadState(self, RUNNING);
             self->blocked_mon = NULL;
 
             enableSuspend(self);
@@ -202,9 +204,9 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
 
     if(timed) {
        getTimeoutRelative(&ts, ms, ns);
-       self->state = TIMED_WAITING;
+       classlibSetThreadState(self, TIMED_WAITING);
     } else
-       self->state = blocked ? BLOCKED : WAITING;
+       classlibSetThreadState(self, blocked ? BLOCKED : WAITING);
 
     if(interruptible && self->interrupted)
         interrupted = TRUE;
@@ -250,15 +252,15 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
         else {
             /* Notify lost.  Signal another thread only if it
                was on the wait set at the time of the notify */
-            if(mon->wait_set != NULL && mon->wait_set->wait_id <
-                                                self->notify_id) {
+            if(mon->wait_set != NULL &&
+                            mon->wait_set->wait_id < self->notify_id) {
                 Thread *thread = waitSetSignalNext(mon);
                 thread->notify_id = self->notify_id;
             }
         }
     }
 
-    self->state = RUNNING;
+    classlibSetThreadState(self, RUNNING);
     self->wait_mon = NULL;
 
     if(blocked)

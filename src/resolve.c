@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -88,7 +88,7 @@ FieldBlock *lookupField(Class *class, char *fieldname, char *fieldtype) {
     return NULL;
 }
 
-Class *resolveClass(Class *class, int cp_index, int init) {
+Class *resolveClass(Class *class, int cp_index, int check_access, int init) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
     Class *resolved_class = NULL;
 
@@ -125,7 +125,7 @@ retry:
             if(CLASS_CB(resolved_class)->state < CLASS_LINKED)
                 linkClass(resolved_class);
 
-            if(!checkClassAccess(resolved_class, class)) {
+            if(check_access && !checkClassAccess(resolved_class, class)) {
                 signalException(java_lang_IllegalAccessError,
                                 "class is not accessible");
                 return NULL;
@@ -173,7 +173,7 @@ retry:
             methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
 
             methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
-            resolved_class = resolveClass(class, cl_idx, FALSE);
+            resolved_class = resolveClass(class, cl_idx, TRUE, FALSE);
             resolved_cb = CLASS_CB(resolved_class);
 
             if(exceptionOccurred())
@@ -241,7 +241,7 @@ retry:
 
             methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
             methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
-            resolved_class = resolveClass(class, cl_idx, FALSE);
+            resolved_class = resolveClass(class, cl_idx, TRUE, FALSE);
 
             if(exceptionOccurred())
                 return NULL;
@@ -302,7 +302,7 @@ retry:
 
             fieldname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
             fieldtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
-            resolved_class = resolveClass(class, cl_idx, FALSE);
+            resolved_class = resolveClass(class, cl_idx, TRUE, FALSE);
 
             if(exceptionOccurred())
                 return NULL;
@@ -343,7 +343,7 @@ retry:
             goto retry;
 
         case CONSTANT_Class:
-            resolveClass(class, cp_index, FALSE);
+            resolveClass(class, cp_index, TRUE, FALSE);
             break;
 
         case CONSTANT_String: {

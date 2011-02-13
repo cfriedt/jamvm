@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -20,6 +20,10 @@
  */
 
 #include "jam.h"
+#include "hash.h"
+#include "class.h"
+#include "thread.h"
+#include "classlib.h"
 
 static int isSameRuntimePackage(Class *class1, Class *class2) {
     if(class1 != class2) {
@@ -77,6 +81,9 @@ int checkClassAccess(Class *class1, Class *class2) {
     if(cb1->access_flags & ACC_PUBLIC)
         return TRUE;
 
+    if(classlibAccessCheck(class1, class2))
+        return TRUE;
+
     /* Or if they're members of the same runtime package */
     return isSameRuntimePackage(class1, class2);
 }
@@ -86,6 +93,9 @@ static int checkMethodOrFieldAccess(int access_flags, Class *decl_class,
 
     /* Public methods and fields are always accessible */
     if(access_flags & ACC_PUBLIC)
+        return TRUE;
+
+    if(classlibAccessCheck(decl_class, class))
         return TRUE;
 
     /* If the method or field is private, it must be declared in

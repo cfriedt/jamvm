@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -87,6 +87,7 @@ void initVM(InitArgs *args) {
     initialiseString();
     initialiseException();
     initialiseNatives();
+    initialiseFrame();
     initialiseJNI();
     initialiseInterpreter(args);
     initialiseThreadStage2(args);

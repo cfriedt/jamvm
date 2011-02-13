@@ -24,11 +24,14 @@
 #include <stdlib.h>
 #include "jni.h"
 #include "jam.h"
+#include "hash.h"
 #include "thread.h"
+#include "class.h"
 #include "lock.h"
 #include "symbol.h"
 #include "excep.h"
 #include "reflect.h"
+#include "classlib.h"
 #include "jni-internal.h"
 #include "alloc.h"
 
@@ -56,51 +59,11 @@ void Jam_DeleteGlobalRef(JNIEnv *env, jobject obj);
 JNIFrame *ensureJNILrefCapacity(int cap);
 static void initJNIGrefs();
 
-/* Cached values initialised on startup for JNI 1.4 NIO support */
-static int buffCap_offset, buffAddr_offset, rawdata_offset;
-static Class *buffImpl_class, *rawdata_class;
-static MethodBlock *buffImpl_init_mb;
-static char nio_init_OK = FALSE;
-
 void initialiseJNI() {
-    FieldBlock *buffCap_fb, *buffAddr_fb, *rawdata_fb;
-    Class *buffer_class;
-
     /* Initialise the global reference tables */
     initJNIGrefs();
 
-    /* Cache class and method/fields for JNI 1.4 NIO support */
-
-    buffer_class = findSystemClass0(SYMBOL(java_nio_Buffer));
-    buffImpl_class = findSystemClass0(
-                         SYMBOL(java_nio_DirectByteBufferImpl_ReadWrite));
-    rawdata_class = findSystemClass0(sizeof(uintptr_t) == 4
-                                            ? SYMBOL(gnu_classpath_Pointer32)
-                                            : SYMBOL(gnu_classpath_Pointer64));
-
-    if(buffer_class == NULL || buffImpl_class == NULL || rawdata_class == NULL)
-        return;
-
-    buffImpl_init_mb = findMethod(buffImpl_class, SYMBOL(object_init),
-                      SYMBOL(_java_lang_Object_gnu_classpath_Pointer_III__V));
-
-    buffCap_fb = findField(buffer_class, SYMBOL(cap), SYMBOL(I));
-    rawdata_fb = findField(rawdata_class, SYMBOL(data),
-                           sizeof(uintptr_t) == 4 ? SYMBOL(I) : SYMBOL(J));
-    buffAddr_fb = findField(buffer_class, SYMBOL(address),
-                            SYMBOL(sig_gnu_classpath_Pointer));
-
-    if(buffImpl_init_mb == NULL || buffCap_fb == NULL || rawdata_fb == NULL
-                                || buffAddr_fb == NULL)
-        return;
-
-    registerStaticClassRef(&buffImpl_class);
-    registerStaticClassRef(&rawdata_class);
-
-    buffCap_offset = buffCap_fb->u.offset;
-    buffAddr_offset = buffAddr_fb->u.offset;
-    rawdata_offset = rawdata_fb->u.offset;
-    nio_init_OK = TRUE;
+    classlibInitialiseJNI();
 }
 
 /* ---------- Local reference support functions ---------- */
@@ -368,50 +331,18 @@ jobjectRefType Jam_GetObjectRefType(JNIEnv *env, jobject obj) {
 /* Extensions added to JNI in JDK 1.4 */
 
 jobject Jam_NewDirectByteBuffer(JNIEnv *env, void *addr, jlong capacity) {
-    Object *buff, *rawdata;
-
-    if(!nio_init_OK)
-        return NULL;
-
-    if((buff = allocObject(buffImpl_class)) != NULL &&
-            (rawdata = allocObject(rawdata_class)) != NULL) {
-
-        INST_DATA(rawdata, void*, rawdata_offset) = addr;
-        executeMethod(buff, buffImpl_init_mb, NULL, rawdata, (int)capacity,
-                      (int)capacity, 0);
-    }
-
+    Object *buff = classlibNewDirectByteBuffer(addr, capacity);
     return addJNILref(buff);
 }
 
 static void *Jam_GetDirectBufferAddress(JNIEnv *env, jobject buffer) {
     Object *buff = REF_TO_OBJ(buffer);
-
-    if(!nio_init_OK)
-        return NULL;
-
-    if(buff != NULL) {
-        Object *rawdata = INST_DATA(buff, Object*, buffAddr_offset);
-        if(rawdata != NULL)
-            return INST_DATA(rawdata, void*, rawdata_offset);
-    }
-
-    return NULL;
+    return classlibGetDirectBufferAddress(buff);
 }
 
 jlong Jam_GetDirectBufferCapacity(JNIEnv *env, jobject buffer) {
     Object *buff = REF_TO_OBJ(buffer);
-
-    if(!nio_init_OK)
-        return -1;
-
-    if(buff != NULL) {
-        Object *rawdata = INST_DATA(buff, Object*, buffAddr_offset);
-        if(rawdata != NULL)
-            return INST_DATA(buff, jlong, buffCap_offset);
-    }
-
-    return -1;
+    return classlibGetDirectBufferCapacity(buff);
 }
 
 /* Extensions added to JNI in JDK 1.2 */
@@ -545,6 +476,9 @@ jclass Jam_DefineClass(JNIEnv *env, const char *name, jobject loader,
     Class *class = defineClass((char*)name, (char *)buf, 0,
                                (int)bufLen, REF_TO_OBJ(loader));
 
+    if(class != NULL)
+        linkClass(class);
+
     return addJNILref(class);
 }
 
@@ -556,13 +490,12 @@ jclass Jam_FindClass(JNIEnv *env, const char *name) {
     Object *loader;
     Class *class;
 
-    if(last->prev) {
-        ClassBlock *cb = CLASS_CB(last->mb->class);
-        loader = cb->class_loader;
+    if(last->prev != NULL) {
+        loader = CLASS_CB(last->mb->class)->class_loader;
 
         /* Ensure correct context if called from JNI_OnLoad */
-        if(loader == NULL && cb->name == SYMBOL(java_lang_VMRuntime))
-            loader = (Object*)last->lvars[1];
+        if(loader == NULL)
+            loader = classlibCheckIfOnLoad(last);
     } else
         loader = getSystemClassLoader();
 
@@ -766,6 +699,8 @@ void Jam_ReleaseStringChars(JNIEnv *env, jstring string, const jchar *chars) {
 }
 
 jstring Jam_NewStringUTF(JNIEnv *env, const char *bytes) {
+    if(bytes == NULL)
+        return NULL;
     return addJNILref(createString((char*)bytes));
 }
 
@@ -831,36 +766,25 @@ jobject Jam_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
 jarray Jam_NewObjectArray(JNIEnv *env, jsize length, jclass elementClass_ref,
                           jobject initialElement_ref) {
 
-    Object *initialElement = REF_TO_OBJ(initialElement_ref);
-    Class *elementClass = REF_TO_OBJ(elementClass_ref);
-    char *element_name = CLASS_CB(elementClass)->name;
-    char ac_name[strlen(element_name) + 4];
-    Class *array_class;
+    Object *initial_element = REF_TO_OBJ(initialElement_ref);
+    Class *element_class = REF_TO_OBJ(elementClass_ref);
+    Object *array;
 
     if(length < 0) {
         signalException(java_lang_NegativeArraySizeException, NULL);
         return NULL;
     }
 
-    if(element_name[0] == '[')
-        strcat(strcpy(ac_name, "["), element_name);
-    else
-        strcat(strcat(strcpy(ac_name, "[L"), element_name), ";");
+    array = allocObjectArray(element_class, length);
 
-    array_class = findArrayClassFromClass(ac_name, elementClass);
-    if(array_class != NULL) {
-        Object *array = allocArray(array_class, length, sizeof(Object*));
-        if(array != NULL) {
-            if(initialElement != NULL) {
-                Object **data = ARRAY_DATA(array, Object*);
+    if(array != NULL && initial_element != NULL) {
+        Object **data = ARRAY_DATA(array, Object*);
 
-                while(length--)
-                   *data++ = initialElement;
-            }
-            return addJNILref(array);
-        }
+        while(length--)
+           *data++ = initial_element;
     }
-    return NULL;
+
+    return addJNILref(array);
 }
 
 jarray Jam_GetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index) {
@@ -1496,6 +1420,17 @@ jint Jam_DestroyJavaVM(JavaVM *vm) {
 /* Common definition of env */
 void *jni_env = &Jam_JNINativeInterface;
 
+int isSupportedJNIVersion(int version) {
+    return version == JNI_VERSION_1_6 ||
+           version == JNI_VERSION_1_4 ||
+           version == JNI_VERSION_1_2;
+}
+
+int isSupportedJNIVersion_1_1(int version) {
+    return version == JNI_VERSION_1_1 ||
+           isSupportedJNIVersion(version);
+} 
+
 static jint attachCurrentThread(void **penv, void *args, int is_daemon) {
     if(threadSelf() == NULL) {
         char *name = NULL;
@@ -1503,9 +1438,8 @@ static jint attachCurrentThread(void **penv, void *args, int is_daemon) {
 
         if(args != NULL) {
             JavaVMAttachArgs *attach_args = (JavaVMAttachArgs*)args;
-            if(attach_args->version != JNI_VERSION_1_6 &&
-               attach_args->version != JNI_VERSION_1_4 &&
-               attach_args->version != JNI_VERSION_1_2)
+
+            if(!isSupportedJNIVersion(attach_args->version))
                 return JNI_EVERSION;
 
             name = attach_args->name;
@@ -1541,8 +1475,7 @@ jint Jam_DetachCurrentThread(JavaVM *vm) {
 }
 
 jint Jam_GetEnv(JavaVM *vm, void **penv, jint version) {
-    if((version != JNI_VERSION_1_6) && (version != JNI_VERSION_1_4) &&
-       (version != JNI_VERSION_1_2) && (version != JNI_VERSION_1_1)) {
+    if(!isSupportedJNIVersion_1_1(version)) {
         *penv = NULL;
         return JNI_EVERSION;
     }
@@ -1570,9 +1503,7 @@ struct _JNIInvokeInterface Jam_JNIInvokeInterface = {
 jint JNI_GetDefaultJavaVMInitArgs(void *args) {
     JavaVMInitArgs *vm_args = (JavaVMInitArgs*) args;
 
-    if(vm_args->version != JNI_VERSION_1_6 &&
-       vm_args->version != JNI_VERSION_1_4 &&
-       vm_args->version != JNI_VERSION_1_2)
+    if(!isSupportedJNIVersion(vm_args->version))
         return JNI_EVERSION;
 
     return JNI_OK;
@@ -1664,6 +1595,9 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
 
         } else if(strcmp(string, "-Xcompactalways") == 0) {
             args->compact_specified = args->do_compact = TRUE;
+
+        } else if(strcmp(string, "-Xtracejnisigs") == 0) {
+            args->trace_jni_sigs = TRUE;
 #ifdef INLINING
         } else if(strcmp(string, "-Xnoinlining") == 0) {
             /* Turning inlining off is equivalent to setting
@@ -1710,9 +1644,7 @@ jint JNI_CreateJavaVM(JavaVM **pvm, void **penv, void *args) {
     JavaVMInitArgs *vm_args = (JavaVMInitArgs*) args;
     InitArgs init_args;
 
-    if(vm_args->version != JNI_VERSION_1_6 &&
-       vm_args->version != JNI_VERSION_1_4 &&
-       vm_args->version != JNI_VERSION_1_2)
+    if(!isSupportedJNIVersion(vm_args->version))
         return JNI_EVERSION;
 
     setDefaultInitArgs(&init_args);

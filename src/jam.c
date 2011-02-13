@@ -25,9 +25,12 @@
 #include <stdarg.h>
 
 #include "jam.h"
+#include "hash.h"
 #include "class.h"
 #include "symbol.h"
 #include "excep.h"
+#include "thread.h"
+#include "classlib.h"
 
 #ifdef USE_ZIP
 #define BCP_MESSAGE "<jar/zip files and directories separated by :>"
@@ -102,33 +105,15 @@ void showVersionAndCopyright() {
     printf("but WITHOUT ANY WARRANTY; without even the implied warranty of\n");
     printf("MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n");
     printf("GNU General Public License for more details.\n");
-
-    printf("\nBuild information:\n\nExecution Engine: ");
-
-#ifdef THREADED
-#ifdef DIRECT
-#ifdef INLINING
-    printf("inline-");
-#else /* INLINING */
-    printf("direct-");
-#endif /* INLINING */
-#endif /* DIRECT */
-    printf("threaded interpreter");
-#ifdef USE_CACHE
-    printf(" with stack-caching\n");
-#else /* USE_CACHE*/
-    printf("\n");
-#endif /* USE_CACHE */
-#else /* THREADED */
-    printf("switch-based interpreter\n");
-#endif /*THREADED */
+    printf("\nBuild information:\n\nExecution Engine: %s\n",
+           getExecutionEngineName());
 
 #if defined(__GNUC__) && defined(__VERSION__)
     printf("Compiled with: gcc %s\n", __VERSION__);
 #endif
 
-    printf("\nBoot Library Path: %s\n", getBootDllPath());
-    printf("Boot Class Path: %s\n", DFLT_BCP);
+    printf("\nBoot Library Path: %s\n", classlibDefaultBootDllPath());
+    printf("Boot Class Path: %s\n", classlibDefaultBootClassPath());
 }
 
 void showFullVersion() {

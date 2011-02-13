@@ -30,13 +30,14 @@
 
 /* Thread states */
 
-#define CREATING      0
-#define STARTED       1
-#define RUNNING       2
-#define WAITING       3
-#define TIMED_WAITING 4
-#define BLOCKED       5
-#define SUSPENDED     6
+#define CREATING       0
+#define RUNNING        1
+#define WAITING        2
+#define PARKED         3
+#define TIMED_WAITING  4
+#define TIMED_PARKED   5
+#define BLOCKED        6
+#define TERMINATED     7
 
 /* thread priorities */
 
@@ -44,16 +45,18 @@
 #define NORM_PRIORITY  5
 #define MAX_PRIORITY  10
 
-/* Enable/Disable suspend modes */
+/* Suspend states */
 
-#define SUSP_BLOCKING 1
-#define SUSP_CRITICAL 2
+#define SUSP_NONE      0
+#define SUSP_BLOCKING  1
+#define SUSP_CRITICAL  2
+#define SUSP_SUSPENDED 3
 
 /* Park states */
 
-#define PARK_BLOCKED 0
-#define PARK_RUNNING 1
-#define PARK_PERMIT  2
+#define PARK_BLOCKED   0
+#define PARK_RUNNING   1
+#define PARK_PERMIT    2
 
 typedef struct thread Thread;
 
@@ -72,12 +75,6 @@ typedef struct monitor {
 struct thread {
     int id;
     pthread_t tid;
-    char state;
-    char suspend;
-    char blocking;
-    char park_state;
-    char interrupted;
-    char interrupting;
     ExecEnv *ee;
     void *stack_top;
     void *stack_base;
@@ -93,12 +90,17 @@ struct thread {
     Thread *prev, *next;
     unsigned int wait_id;
     unsigned int notify_id;
+    char suspend;
+    char park_state;
+    char interrupted;
+    char interrupting;
+    char suspend_state;
+    CLASSLIB_THREAD_EXTRA_FIELDS
 };
 
 extern Thread *threadSelf();
-extern Thread *jThread2Thread(Object *jThread);
-extern Thread *vmThread2Thread(Object *vmThread);
 extern long long javaThreadId(Thread *thread);
+extern Thread *jThread2Thread(Object *jThread);
 
 extern void *getStackTop(Thread *thread);
 extern void *getStackBase(Thread *thread);
@@ -136,21 +138,24 @@ extern char *getThreadStateString(Thread *thread);
 
 extern Thread *findThreadById(long long id);
 extern Thread *findRunningThreadByTid(int tid);
-extern void suspendThread(Thread *thread);
+extern int suspendThread(Thread *thread);
 extern void resumeThread(Thread *thread);
+extern Object *runningThreadStackTrace(Thread *thread, int max_depth,
+                                       int *in_native);
+extern Object *runningThreadObjects();
 
-#define disableSuspend(thread)          \
-{                                       \
-    sigjmp_buf *env;                    \
-    env = alloca(sizeof(sigjmp_buf));   \
-    sigsetjmp(*env, FALSE);             \
-    disableSuspend0(thread, (void*)env);\
+#define disableSuspend(thread)             \
+{                                          \
+    sigjmp_buf *env;                       \
+    env = alloca(sizeof(sigjmp_buf));      \
+    sigsetjmp(*env, FALSE);                \
+    disableSuspend0(thread, (void*)env);   \
 }
 
-#define fastDisableSuspend(thread)      \
-{                                       \
-    thread->blocking = SUSP_CRITICAL;   \
-    MBARRIER();                         \
+#define fastDisableSuspend(thread)         \
+{                                          \
+    thread->suspend_state = SUSP_CRITICAL; \
+    MBARRIER();                            \
 }
 
 typedef struct {
@@ -166,10 +171,10 @@ typedef pthread_mutex_t VMLock;
     pthread_cond_init(&wait_lock.cv, NULL);    \
 }
 
-#define lockVMLock(lock, self) { \
-    self->state = BLOCKED;       \
-    pthread_mutex_lock(&lock);   \
-    self->state = RUNNING;       \
+#define lockVMLock(lock, self) {                \
+    classlibSetThreadState(self, BLOCKED);      \
+    pthread_mutex_lock(&lock);                  \
+    classlibSetThreadState(self, RUNNING);      \
 }
 
 #define tryLockVMLock(lock, self) \
@@ -181,9 +186,9 @@ typedef pthread_mutex_t VMLock;
 #define unlockVMWaitLock(wait_lock, self) unlockVMLock(wait_lock.lock, self)
 
 #define waitVMWaitLock(wait_lock, self) {                        \
-    self->state = WAITING;                                       \
+    classlibSetThreadState(self, WAITING);                       \
     pthread_cond_wait(&wait_lock.cv, &wait_lock.lock);           \
-    self->state = RUNNING;                                       \
+    classlibSetThreadState(self, RUNNING);                       \
 }
 
 #define timedWaitVMWaitLock(wait_lock, self, ms) {               \
@@ -196,9 +201,9 @@ typedef pthread_mutex_t VMLock;
         ts.tv_sec++;                                             \
         ts.tv_nsec -= 1000000000L;                               \
     }                                                            \
-    self->state = TIMED_WAITING;                                 \
+    classlibSetThreadState(self, TIMED_WAITING);                 \
     pthread_cond_timedwait(&wait_lock.cv, &wait_lock.lock, &ts); \
-    self->state = RUNNING;                                       \
+    classlibSetThreadState(self, RUNNING);                       \
 }
 
 #define notifyVMWaitLock(wait_lock, self) pthread_cond_signal(&wait_lock.cv)

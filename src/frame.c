@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -19,49 +19,74 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <stddef.h>
-
 #include "jam.h"
-#include "reflect.h"
+#include "hash.h"
+#include "class.h"
+#include "thread.h"
+#include "classlib.h"
 
-/* The function getCallerFrame() is used in the code that does
-   security related stack-walking.  It guards against invocation
-   via reflection.  These frames must be skipped, else it will
-   appear that the caller was loaded by the boot loader. */
-
-Frame *getCallerFrame(Frame *last) {
-
-loop:
-    /* Skip the top frame, and check if the
-       previous is a dummy frame */
-    if((last = last->prev)->mb == NULL) {
-
-        /* Skip the dummy frame, and check if
-         * we're at the top of the stack */
-        if((last = last->prev)->prev == NULL)
-            return NULL;
-
-        /* Check if we were invoked via reflection */
-        if(last->mb->class == getReflectMethodClass()) {
-
-            /* There will be two frames for invoke.  Skip
-               the first, and jump back.  This also handles
-               recursive invocation via reflection. */
-
-            last = last->prev;
-            goto loop;
-        }
+void initialiseFrame() {
+    if(!classlibInitialiseFrame()) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseFrame)\n");
+        exitVM(1);
     }
-    return last;
 }
 
-Class *getCallerCallerClass() {
-    Frame *last = getExecEnv()->last_frame->prev;
+Class *getCallerClass(int depth) {
+    Frame *last = getExecEnv()->last_frame;
 
-    if((last->mb == NULL && (last = last->prev)->prev == NULL) ||
-             (last = getCallerFrame(last)) == NULL)
+    if(last->prev == NULL)
+        return NULL;
+
+    if((last = classlibGetCallerFrame(last, depth)) == NULL)
         return NULL;
 
     return last->mb->class;
+}
+
+Object *getClassContext() {
+    Class *class_class = findArrayClass("[Ljava/lang/Class;");
+    Frame *last = getExecEnv()->last_frame;
+    Frame *bottom = last;
+    Object *array;
+    int depth = 0;
+
+    if(class_class == NULL)
+        return NULL;
+
+    if(last->prev == NULL)
+        return allocArray(class_class, 0, sizeof(Class*));
+
+    for(; last != NULL; last = classlibGetCallerFrame(last, 1))
+        if(!(last->mb->access_flags & ACC_NATIVE))
+            depth++;
+
+    array = allocArray(class_class, depth, sizeof(Class*));
+
+    if(array != NULL) {
+        Class **data = ARRAY_DATA(array, Class*);
+
+        for(; bottom != NULL; bottom = classlibGetCallerFrame(bottom, 1))
+            if(!(bottom->mb->access_flags & ACC_NATIVE))
+                *data++ = bottom->mb->class;
+    }
+
+    return array;
+}
+
+Object *firstNonNullClassLoader() {
+    Frame *last = getExecEnv()->last_frame;
+
+    if(last->prev != NULL)
+        do {
+            for(; last->mb != NULL; last = last->prev)
+                if(!classlibIsSkippedReflectFrame(last)) {
+                    Object *loader = CLASS_CB(last->mb->class)->class_loader;
+                    if(loader != NULL)
+                        return loader;
+                }
+        } while((last = last->prev)->prev != NULL);
+
+    return NULL;
 }
 

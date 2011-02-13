@@ -21,8 +21,11 @@
 
 #include <string.h>
 #include <stdlib.h>
+
 #include "jam.h"
 #include "hash.h"
+#include "class.h"
+#include "classlib.h"
 
 void lockHashTable0(HashTable *table, Thread *self) {
     if(!tryLockVMLock(table->lock, self)) {
