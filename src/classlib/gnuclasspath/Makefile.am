@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+## Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
 ##
@@ -17,6 +17,8 @@
 ## along with this program; if not, write to the Free Software
 ## Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 ##
+
+SUBDIRS = lib
 
 noinst_LTLIBRARIES = libclasslib.la
 libclasslib_la_SOURCES = thread.c class.c natives.c excep.c reflect.c \
