@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -22,10 +22,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <dlfcn.h>
 #include <sys/sysinfo.h>
 
 #define __USE_GNU
+#include <dlfcn.h>
 #include <pthread.h>
 
 #include "../../jam.h"
@@ -79,3 +79,19 @@ char *nativeLibMapName(char *name) {
    sprintf(buff, "lib%s.so", name);
    return buff;
 }
+
+char *nativeJVMPath() {
+    Dl_info info;
+    char *path;
+
+    if(dladdr(nativeJVMPath, &info) == 0) {
+        printf("Error: dladdr failed.  Aborting VM\n");
+        exitVM(1);
+    }
+
+    path = sysMalloc(strlen(info.dli_fname) + 1);
+    strcpy(path, info.dli_fname);
+
+    return path;
+}
+
