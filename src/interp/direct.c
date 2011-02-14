@@ -31,8 +31,11 @@
 #include "interp.h"
 #include "symbol.h"
 #include "inlining.h"
-
 #include "shared.h"
+
+#include "hash.h"
+#include "class.h"
+#include "classlib.h"
 
 #ifdef TRACEDIRECT
 #define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
