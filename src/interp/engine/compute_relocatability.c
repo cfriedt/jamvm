@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -107,7 +107,7 @@ Class *findArrayClassFromClassLoader(char *name, Object *loader) {
     return NULL;
 }
 
-Class *resolveClass(Class *class, int index, int init) {
+Class *resolveClass(Class *class, int index, int check_access, int init) {
     return NULL;
 }
 
