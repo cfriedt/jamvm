@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
 ## Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -21,10 +21,11 @@
 
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.5.5-devel)
+AC_INIT(jamvm, 1.5.5-openjdk)
+AC_CONFIG_SRCDIR(src/jam.c)
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
+AM_INIT_AUTOMAKE()
 
 AC_CANONICAL_HOST
 
@@ -197,6 +198,17 @@ AC_ARG_ENABLE(ffi,
         enable_ffi=no
      fi])
 
+AC_ARG_WITH(java-runtime-library,
+    [AS_HELP_STRING(--with-java-runtime-library=[[[gnuclasspath|openjdk]]],which Java runtime
+                    library interface to use (default gnuclasspath))],
+    [if test "$withval" != gnuclasspath -a "$withval" != openjdk; then
+        AC_MSG_ERROR($withval Java runtime library is not supported)
+     fi],
+    [with_java_runtime_library=gnuclasspath])
+
+classlib="$with_java_runtime_library"
+AC_SUBST(classlib)
+
 AC_ARG_WITH(classpath-install-dir,
     [AS_HELP_STRING(--with-classpath-install-dir=<dir>,installation directory of GNU classpath
                    (default /usr/local/classpath))],,
@@ -236,6 +248,8 @@ dnl Prefer libthr to libpthread (for FreeBSD)
 AC_CHECK_LIB(thr,pthread_self,,[
   AC_CHECK_LIB(pthread,pthread_self,,AC_MSG_ERROR(libpthread is missing))
 ])
+
+AC_CHECK_LIB(rt,clock_gettime,,)
 
 AC_CHECK_LIB(m,fmod,,AC_MSG_ERROR(libm is missing))
 
@@ -308,9 +322,25 @@ if test "$enable_tls" != no; then
         [AC_MSG_RESULT([no])])
 fi
 
+dnl split version into separate numbers
+major=`echo "$VERSION" | $SED 's/^\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*.*$/\1/'`
+minor=`echo "$VERSION" | $SED 's/^[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*.*$/\1/'`
+micro=`echo "$VERSION" | $SED 's/^[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\).*$/\1/'`
+
+if test "$major" = "$VERSION"; then
+    AC_MSG_ERROR(Version string is malformed)
+fi
+
+AC_DEFINE_UNQUOTED([VERSION_MAJOR], $major, [major version number])
+AC_DEFINE_UNQUOTED([VERSION_MINOR], $minor, [minor version number])
+AC_DEFINE_UNQUOTED([VERSION_MICRO], $micro, [micro version number])
+
 AM_MAINTAINER_MODE
 
-AC_CONFIG_LINKS(src/arch.h:src/arch/$arch.h)
+AC_CONFIG_LINKS(src/arch.h:src/arch/$arch.h
+                src/classlib.h:src/classlib/$classlib/classlib.h
+                src/classlib-defs.h:src/classlib/$classlib/classlib-defs.h
+                src/classlib-symbol.h:src/classlib/$classlib/classlib-symbol.h)
 
 AC_CONFIG_FILES(
     Makefile \
@@ -338,6 +368,9 @@ AC_CONFIG_FILES(
     src/os/bsd/i386/Makefile \
     src/os/bsd/x86_64/Makefile \
     src/os/bsd/sparc/Makefile \
+    src/classlib/Makefile \
+    src/classlib/gnuclasspath/Makefile \
+    src/classlib/openjdk/Makefile \
     lib/Makefile \
     lib/java/Makefile \
     lib/java/lang/Makefile \
