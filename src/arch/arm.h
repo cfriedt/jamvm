@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -51,6 +51,36 @@
 /* Needed for i386 -- empty here */
 #define FPU_HACK
 
+#ifdef __ARM_ARCH_7A__
+#define COMPARE_AND_SWAP_32(addr, old_val, new_val)       \
+({                                                        \
+    int result, read_val;                                 \
+    __asm__ __volatile__ ("                               \
+        1:      mov %0, #0;                               \
+                ldrex %1, [%2];                           \
+                cmp %3, %1;                               \
+                bne 2f;                                   \
+                strex %0, %4, [%2];                       \
+                cmp %0, #1;                               \
+                beq 1b;                                   \
+                mov %0, #1;                               \
+        2:"                                               \
+    : "=&r" (result), "=&r" (read_val)                    \
+    : "r" (addr), "r" (old_val), "r" (new_val)            \
+    : "cc", "memory");                                    \
+    result;                                               \
+})
+
+#define COMPARE_AND_SWAP(addr, old_val, new_val)          \
+        COMPARE_AND_SWAP_32(addr, old_val, new_val)
+
+#define LOCKWORD_READ(addr) *addr
+#define LOCKWORD_WRITE(addr, value) *addr = value
+#define LOCKWORD_COMPARE_AND_SWAP(addr, old_val, new_val) \
+        COMPARE_AND_SWAP(addr, old_val, new_val)
+
+#else
+
 #define LOCKWORD_COMPARE_AND_SWAP(addr, old_val, new_val) \
 ({                                                        \
     int result, read_val;                                 \
@@ -94,7 +124,7 @@ do {                                                      \
     : "r" (addr), "r" (new_val)                           \
     : "cc", "memory");                                    \
 } while(0)
-
+#endif
 
 #ifdef __ARM_EABI__
 #define FLUSH_CACHE(addr, length)                         \
@@ -143,7 +173,12 @@ do {                                                      \
     patched;                                              \
 })
 
+#ifdef __ARM_ARCH_7A__
+#define MBARRIER() __asm__ __volatile__ ("dmb" ::: "memory")
+#define JMM_LOCK_MBARRIER() __asm__ __volatile__ ("dmb" ::: "memory")
+#define JMM_UNLOCK_MBARRIER() __asm__ __volatile__ ("dmb" ::: "memory")
+#else
 #define MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define JMM_LOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
 #define JMM_UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
-
+#endif
