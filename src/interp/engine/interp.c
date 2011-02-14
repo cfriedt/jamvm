@@ -1485,7 +1485,7 @@ uintptr_t *executeJava() {
         int cache = pc->operand.uui.i;
 
         frame->last_pc = pc;
-        resolveClass(mb->class, idx, FALSE);
+        resolveClass(mb->class, idx, TRUE, FALSE);
 
         if(exceptionOccurred0(ee))
             goto throwException;
@@ -1501,7 +1501,7 @@ uintptr_t *executeJava() {
         Class *class;
 
         frame->last_pc = pc;
-        class = resolveClass(mb->class, idx, opcode == OPC_NEW);
+        class = resolveClass(mb->class, idx, TRUE, opcode == OPC_NEW);
 
         if(exceptionOccurred0(ee))
             goto throwException;
@@ -1830,7 +1830,7 @@ uintptr_t *executeJava() {
 #define REWRITE_RESOLVE_CLASS(opcode)                                     \
     DEF_OPC_210(opcode, {                                                 \
         frame->last_pc = pc;                                              \
-        resolveClass(mb->class, DOUBLE_INDEX(pc), FALSE);                 \
+        resolveClass(mb->class, DOUBLE_INDEX(pc), TRUE, FALSE);           \
                                                                           \
         if(exceptionOccurred0(ee))                                        \
             goto throwException;                                          \
@@ -1849,7 +1849,7 @@ uintptr_t *executeJava() {
         ClassBlock *cb;
 
         frame->last_pc = pc;
-        class = resolveClass(mb->class, DOUBLE_INDEX(pc), TRUE);
+        class = resolveClass(mb->class, DOUBLE_INDEX(pc), TRUE, TRUE);
 
         if(exceptionOccurred0(ee))
             goto throwException;
