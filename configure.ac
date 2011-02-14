@@ -369,21 +369,21 @@ AC_CONFIG_FILES(
     src/os/bsd/x86_64/Makefile \
     src/os/bsd/sparc/Makefile \
     src/classlib/Makefile \
-    src/classlib/gnuclasspath/Makefile \
     src/classlib/openjdk/Makefile \
-    lib/Makefile \
-    lib/java/Makefile \
-    lib/java/lang/Makefile \
-    lib/jamvm/Makefile \
-    lib/jamvm/java/Makefile \
-    lib/jamvm/java/lang/Makefile \
-    lib/java/lang/reflect/Makefile \
-    lib/java/security/Makefile \
-    lib/gnu/Makefile \
-    lib/sun/reflect/annotation/Makefile \
-    lib/sun/reflect/Makefile \
-    lib/sun/Makefile \
-    lib/gnu/classpath/Makefile)
+    src/classlib/gnuclasspath/Makefile \
+    src/classlib/gnuclasspath/lib/Makefile \
+    src/classlib/gnuclasspath/lib/java/Makefile \
+    src/classlib/gnuclasspath/lib/java/lang/Makefile \
+    src/classlib/gnuclasspath/lib/jamvm/Makefile \
+    src/classlib/gnuclasspath/lib/jamvm/java/Makefile \
+    src/classlib/gnuclasspath/lib/jamvm/java/lang/Makefile \
+    src/classlib/gnuclasspath/lib/java/lang/reflect/Makefile \
+    src/classlib/gnuclasspath/lib/java/security/Makefile \
+    src/classlib/gnuclasspath/lib/gnu/Makefile \
+    src/classlib/gnuclasspath/lib/sun/reflect/annotation/Makefile \
+    src/classlib/gnuclasspath/lib/sun/reflect/Makefile \
+    src/classlib/gnuclasspath/lib/sun/Makefile \
+    src/classlib/gnuclasspath/lib/gnu/classpath/Makefile)
 
 AC_OUTPUT
 
