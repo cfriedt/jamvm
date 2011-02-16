@@ -21,7 +21,7 @@
 
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT(jamvm, 1.5.5-openjdk)
+AC_INIT(jamvm, 1.6.0-devel)
 AC_CONFIG_SRCDIR(src/jam.c)
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
