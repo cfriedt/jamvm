@@ -26,7 +26,10 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
 #include "hash.h"
+#include "class.h"
+#include "classlib.h"
 #include "inlining.h"
 
 /* To do inlining, we must know which handlers are relocatable.  This
