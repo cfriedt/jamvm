@@ -40,30 +40,25 @@ void classlibCacheClassLoaderFields(Class *loader_class) {
         exitVM(1);
     }
 
+    hideFieldFromGC(ldr_fb);
+
     ldr_classes_offset = ldr_fb->u.offset;
 }
 
 HashTable *classlibLoaderTable(Object *class_loader) {
-    Object *vmdata = INST_DATA(class_loader, Object*, ldr_classes_offset);
+    void *pntr = INST_DATA(class_loader, void*, ldr_classes_offset);
 
-    if(vmdata == NULL || CLASS_CB(vmdata->class)->name != SYMBOL(array_J))
+    if(isObject(pntr))
         return NULL;
 
-    return ARRAY_DATA(vmdata, HashTable*)[0];
+    return pntr;
 }
 
 HashTable *classlibCreateLoaderTable(Object *class_loader) {
-    Object *vmdata = allocTypeArray(T_LONG, 1);
-    HashTable *table;
+    HashTable *table = sysMalloc(sizeof(HashTable));
 
-    if(vmdata == NULL)
-        return NULL;
-
-    table = sysMalloc(sizeof(HashTable));
     initHashTable((*table), CLASS_INITSZE, TRUE);
-
-    ARRAY_DATA(vmdata, HashTable*)[0] = table;
-    INST_DATA(class_loader, Object*, ldr_classes_offset) = vmdata;
+    INST_DATA(class_loader, HashTable*, ldr_classes_offset) = table;
 
     return table;
 }

@@ -808,6 +808,7 @@ extern void markObject(Object *ob, int mark);
 extern void markJNIClearedWeakRef(Object *ob);
 extern void markJNIGlobalRef(Object *ob);
 extern int isMarkedJNIWeakGlobalRef(Object *ob);
+extern int isObject(void *pntr);
 extern int isMarked(Object *ob);
 extern void threadReference(Object **ref);
 

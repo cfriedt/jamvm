@@ -338,6 +338,10 @@ void initialiseAlloc(InitArgs *args) {
     }                                                \
 }
 
+int isObject(void *pntr) {
+    return IS_OBJECT(pntr);
+}
+
 int isMarked(Object *object) {
     return object != NULL && IS_MARKED(object);
 }
@@ -567,7 +571,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
                                                      ref_referent_offset);
 
                         TRACE_GC("Mark found Reference object @%p class %s"
-                                 " flags %d referent %p\n",
+                                 " flags %d referent @%p\n",
                              ob, cb->name, cb->flags, referent);
 
                         if(!IS_WEAK_REFERENCE(cb) && referent != NULL) {
@@ -787,7 +791,7 @@ int handleMarkedSpecial(Object *ob) {
             int ref_mark = IS_MARKED(referent);
 
             TRACE_GC("FREE: found Reference Object @%p class %s"
-                     " flags %d referent %x mark %d\n",
+                     " flags %d referent @%p mark %d\n",
                       ob, cb->name, cb->flags, referent, ref_mark);
 
             if(IS_PHANTOM_REFERENCE(cb)) {
