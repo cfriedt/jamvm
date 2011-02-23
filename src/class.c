@@ -586,7 +586,7 @@ Class *createArrayClass(char *classname, Object *class_loader) {
         if(classblock->element_class == NULL)
             goto error;
 
-         classblock->dim = 1;
+        classblock->dim = 1;
     }
 
     elem_cb = CLASS_CB(classblock->element_class);
