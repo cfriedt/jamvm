@@ -29,10 +29,12 @@
     action(classes, "classes"), \
     action(dispatch, "dispatch"), \
     action(capacity, "capacity"), \
+    action(shutdown, "shutdown"), \
     action(findNative, "findNative"), \
     action(threadStatus, "threadStatus"), \
     action(constantPoolOop, "constantPoolOop"), \
     action(sun_misc_Signal, "sun/misc/Signal"), \
+    action(java_lang_Shutdown, "java/lang/Shutdown"), \
     action(___java_lang_Object, "()Ljava/lang/Object;"), \
     action(java_lang_Exception, "java/lang/Exception"), \
     action(uncaughtExceptionHandler, "uncaughtExceptionHandler"), \

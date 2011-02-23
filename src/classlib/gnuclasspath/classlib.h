@@ -126,6 +126,10 @@ extern void classlibInitialiseException(Class *throw_class);
 
 extern Frame *classlibGetCallerFrame(Frame *last, int depth);
 
+/* Shutdown */
+
+#define classlibVMShutdown() exitVM(0)
+
 /* Alloc */
 
 extern void classlibMarkSpecial(Object *ob, int mark);

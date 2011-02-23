@@ -119,6 +119,10 @@ extern int classlibInitialiseFrame();
 extern Frame *classlibGetCallerFrame(Frame *last, int depth);
 extern int classlibIsSkippedReflectFrame(Frame *frame);
 
+/* Shutdown */
+
+extern void classlibVMShutdown();
+
 /* Alloc */
 
 #define classlibMarkSpecial(ob, mark) \
@@ -126,3 +130,4 @@ extern int classlibIsSkippedReflectFrame(Frame *frame);
 
 #define classlibHandleUnmarkedSpecial(ob) \
     /* NOTHING TO DO */
+

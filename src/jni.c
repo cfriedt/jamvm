@@ -1412,7 +1412,7 @@ struct _JNINativeInterface Jam_JNINativeInterface = {
 
 jint Jam_DestroyJavaVM(JavaVM *vm) {
     mainThreadWaitToExitVM();
-    exitVM(0);
+    classlibVMShutdown();
 
     return JNI_OK;
 }
