@@ -1509,6 +1509,14 @@ jint JNI_GetDefaultJavaVMInitArgs(void *args) {
     return JNI_OK;
 }
 
+void optError(InitArgs *args, const char *fmt, ...) {
+    va_list ap;
+
+    va_start(ap, fmt);
+    (*args->vfprintf)(stderr, fmt, ap);
+    va_end(ap);
+}
+
 jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
     Property props[vm_args->nOptions];
     int props_count = 0;
@@ -1551,28 +1559,35 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
 
         else if(strncmp(string, "-Xms", 4) == 0) {
             args->min_heap = parseMemValue(string + 4);
-            if(args->min_heap < MIN_HEAP)
+            if(args->min_heap < MIN_HEAP) {
+                optError(args, "Invalid minimum heap size: %s (min %dK)\n",
+                               string, MIN_HEAP/KB);
                 goto error;
+            }
 
         } else if(strncmp(string, "-Xmx", 4) == 0) {
             args->max_heap = parseMemValue(string + 4);
-            if(args->max_heap < MIN_HEAP)
+            if(args->max_heap < MIN_HEAP) {
+                optError(args, "Invalid maximum heap size: %s (min is %dK)\n",
+                               string, MIN_HEAP/KB);
                 goto error;
+            }
 
         } else if(strncmp(string, "-Xss", 4) == 0) {
             args->java_stack = parseMemValue(string + 4);
-            if(args->java_stack < MIN_STACK)
+            if(args->java_stack < MIN_STACK) {
+                optError(args, "Invalid Java stack size: %s (min is %dK)\n",
+                               string, MIN_STACK/KB);
                 goto error;
+            }
 
         } else if(strncmp(string, "-D", 2) == 0) {
-            char *pntr;
             char *key = strcpy(sysMalloc(strlen(string+2) + 1), string+2);
+            char *pntr;
 
             for(pntr = key; *pntr && (*pntr != '='); pntr++);
-            if(pntr == key)
-                goto error;
-
-            *pntr++ = '\0';
+            if(*pntr)
+                *pntr++ = '\0';
             props[props_count].key = key;
             props[props_count++].value = pntr;
 
@@ -1621,12 +1636,20 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
             args->codemem = strncmp(pntr, "unlimited", 10) == 0 ?
                 INT_MAX : parseMemValue(pntr);
 #endif
-        } else if(!vm_args->ignoreUnrecognized)
+        /* Compatibility options */
+        } else if(strncmp(string, "-XX:PermSize=", 13) == 0 ||
+                  strncmp(string, "-XX:MaxPermSize=", 16) == 0) {
+            /* Ignore */
+        } else if(!vm_args->ignoreUnrecognized) {
+            optError(args, "Unrecognised option: %s\n", string);
             goto error;
+        }
     }
 
-    if(args->min_heap > args->max_heap)
+    if(args->min_heap > args->max_heap) {
+        optError(args, "Minimum heap size greater than max!\n");
         goto error;
+    }
 
     if((args->props_count = props_count)) {
         args->commandline_props = sysMalloc(props_count * sizeof(Property));
