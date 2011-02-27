@@ -1911,9 +1911,12 @@ jobject JVM_NewMultiArray(JNIEnv *env, jclass eltClass, jintArray dim) {
         signalException(java_lang_NullPointerException, NULL);
         return NULL;
     } else {
-        char *elem_name;
-        Object *dimensions = dim;
-        int len = ARRAY_LEN(dimensions);
+        int i;
+        char *array_name;
+        intptr_t *dim_ptr;
+        Object *array_class;
+        int len = ARRAY_LEN((Class*)dim);
+        int *dim_data = ARRAY_DATA((Class*)dim, int);
         ClassBlock *cb = CLASS_CB((Class*)eltClass);
 
         if(IS_PRIMITIVE(cb)) {
@@ -1921,8 +1924,8 @@ jobject JVM_NewMultiArray(JNIEnv *env, jclass eltClass, jintArray dim) {
                need to convert from primitive class name
                to primitive char (e.g. "int" -> "I") */
 
-            static char *type_name[] = {"Z", "B", "C", "S",
-                                        "I", "F", "L", "D"};
+            static char type_name[] = {'Z', 'B', 'C', 'S',
+                                       'I', 'F', 'L', 'D'};
             int type = getPrimTypeIndex(cb);
         
             if(type == PRIM_IDX_VOID) {
@@ -1931,43 +1934,47 @@ jobject JVM_NewMultiArray(JNIEnv *env, jclass eltClass, jintArray dim) {
                 return NULL;
             }
 
-            elem_name = type_name[type - 1];
-        } else
-            elem_name = cb->name;
-
-        {
-            char array_name[strlen(elem_name) + len + 1];
-            int *dim_data = ARRAY_DATA(dimensions, int);
-            Object *array_class;
-            intptr_t *dim_ptr;
-            int i;
-
-            /* Construct outer array name */
-
-            for(i = 0; i < len; i++)
-                array_name[i] = '[';
-
-            strcpy(&array_name[len], elem_name);
-
-            /* allocMultiArray expects dimensions to be an
-               array of intptr_t.  If int is the same size
-               as a pointer, we can use the int array data
-               "as is" otherwise we need to convert */
-
-            if(sizeof(int) != sizeof(intptr_t)) {
-                dim_ptr = alloca(sizeof(intptr_t) * len);
-
-                for(i = 0; i < len; i++)
-                    dim_ptr[i] = dim_data[i];
-            } else
-                dim_ptr = (intptr_t*)dim_data;
-
-            array_class = findArrayClass(array_name);
-            if(array_class == NULL)
-                return NULL;
-
-            return allocMultiArray(array_class, len, dim_ptr);
+            /* Construct primitive array name, e.g. "[[I" */
+            array_name = alloca(len + 2);
+            array_name[len] = type_name[type - 1];
+            array_name[len + 1] = '\0';
+        } else {
+            /* Construct object array name, e.g. "[[Ljava/lang/String;" */
+            int name_len = strlen(cb->name);
+            array_name = alloca(len + name_len + 3);
+            array_name[len] = 'L';
+            memcpy(array_name + len + 1, cb->name, name_len);
+            array_name[len + name_len + 1] = ';';
+            array_name[len + name_len + 2] = '\0';
         }
+
+        /* Add a [ for each dimension */
+        memset(array_name, '[', len);
+
+        /* allocMultiArray expects dimensions to be an array
+           of intptr_t.  If int is the same size as a pointer,
+           we can use the int array data "as is" otherwise we
+           need to convert */
+
+        if(sizeof(int) != sizeof(intptr_t))
+            dim_ptr = alloca(sizeof(intptr_t) * len);
+        else
+            dim_ptr = (intptr_t*)dim_data;
+
+        for(i = 0; i < len; i++) {
+            if(dim_data[i] < 0) {
+                signalException(java_lang_NegativeArraySizeException, NULL);
+                return NULL;
+            }
+            /* Trivially optimised out if dim_pntr == dim_data */
+            dim_ptr[i] = dim_data[i];
+        }
+
+        array_class = findArrayClassFromClass(array_name, (Class*)eltClass);
+        if(array_class == NULL)
+            return NULL;
+
+        return allocMultiArray(array_class, len, dim_ptr);
     }
 }
 
