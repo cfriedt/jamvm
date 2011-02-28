@@ -1638,7 +1638,8 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
 #endif
         /* Compatibility options */
         } else if(strncmp(string, "-XX:PermSize=", 13) == 0 ||
-                  strncmp(string, "-XX:MaxPermSize=", 16) == 0) {
+                  strncmp(string, "-XX:MaxPermSize=", 16) == 0 ||
+                  strncmp(string, "-XX:ThreadStackSize=", 20) == 0) {
             /* Ignore */
         } else if(!vm_args->ignoreUnrecognized) {
             optError(args, "Unrecognised option: %s\n", string);
