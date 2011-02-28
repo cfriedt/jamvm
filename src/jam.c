@@ -318,7 +318,8 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
         } else if(strcmp(argv[i], "-client") == 0 ||
                   strcmp(argv[i], "-server") == 0 ||
                   strncmp(argv[i], "-XX:PermSize=", 13) == 0 ||
-                  strncmp(argv[i], "-XX:MaxPermSize=", 16) == 0) {
+                  strncmp(argv[i], "-XX:MaxPermSize=", 16) == 0 ||
+                  strncmp(argv[i], "-XX:ThreadStackSize=", 20) == 0) {
             /* Ignore */
         } else {
             printf("Unrecognised command line option: %s\n", argv[i]);
