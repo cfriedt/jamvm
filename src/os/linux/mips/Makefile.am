@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007
+## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2011
 ## Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -20,7 +20,7 @@
 ##
 
 noinst_LTLIBRARIES = libnative.la
-libnative_la_SOURCES = init.c dll_md.c callNative.S
+libnative_la_SOURCES = init.c dll_md.c callNative.S stubs_md.c jni-stubs.c
 
 AM_CPPFLAGS = -I$(top_builddir)/src
 AM_CCASFLAGS = -I$(top_builddir)/src
