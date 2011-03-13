@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -95,8 +95,12 @@ done:
         ldmfd   sp!, {r2, r3}
 
         /* Call the function */
+#if defined(__ARM_ARCH_4__) || defined(__ARM_ARCH_4T__)
         mov     lr, pc
         bx      ip
+#else
+        blx     ip
+#endif
 
         subs    r4, r4, #8              /* Pop argument area */
                                         /* (minus 8 for r2/r3) */
