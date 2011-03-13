@@ -39,7 +39,7 @@ i386-*-freebsd*) host_os=bsd libdl_needed=no ;;
 i386-*-solaris*) host_cpu=x86 host_os=solaris ;;
 x86_64-*-linux*) host_os=linux ;;
 hppa*-*-linux*) host_cpu=parisc host_os=linux ;;
-mipsel-*-linux*) host_cpu=mips host_os=linux ;;
+mips*-*-linux*) host_cpu=mips host_os=linux ;;
 x86_64-*-openbsd*) host_os=bsd libdl_needed=no ;;
 x86_64-*-freebsd*) host_os=bsd libdl_needed=no ;;
 arm*-*-linux*) host_cpu=arm host_os=linux ;;
@@ -153,9 +153,10 @@ AC_ARG_ENABLE(runtime-reloc-checks,
 
 AC_ARG_ENABLE(int-inlining,
     [AS_HELP_STRING(--enable-int-inlining,enable inline threaded version of the interpreter
-                   (by default enabled on x86_64, i386, powerpc and arm, disabled otherwise))],,
+                   (by default enabled on x86_64, i386, powerpc, mips and arm, 
+                    disabled otherwise))],,
     [if test "$host_cpu" = x86_64 -o "$host_cpu" = i386 -o "$host_cpu" = x86 -o \
-             "$host_cpu" = powerpc -o "$host_cpu" = arm; then
+             "$host_cpu" = powerpc -o "$host_cpu" = arm -o "$host_cpu" = mips; then
          enable_int_inlining=yes
        else
          enable_int_inlining=no
