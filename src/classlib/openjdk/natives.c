@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -38,9 +38,11 @@ int classlibInitialiseNatives() {
     Class *field_accessor;
     FieldBlock *base_fb = NULL;
     char *dll_path = getBootDllPath();
-    char path[strlen(dll_path) + sizeof("/libjava.so")];
+    char *dll_name = getDllName("java");
+    char path[strlen(dll_path) + strlen(dll_name) + 2];
 
-    strcat(strcpy(path, dll_path), "/libjava.so");
+    strcat(strcat(strcpy(path, dll_path), "/"), dll_name);
+    sysFree(dll_name);
 
     if(!resolveDll(path, NULL)) {
         printf("Error initialising natives: couldn't open libjava.so: "
