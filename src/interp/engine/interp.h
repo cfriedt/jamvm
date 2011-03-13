@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -71,6 +71,20 @@
     STACK(type, 0) = val;         \
     ostack += SLOTS(type);        \
 }
+
+#ifdef CHECK_INTDIV_OVERFLOW
+#define INTDIV_OVERFLOW(dividend, divisor) \
+    (dividend == INT_MIN && divisor == -1)
+#else
+#define INTDIV_OVERFLOW(dividend, divisor) FALSE
+#endif
+
+#ifdef CHECK_LONGDIV_OVERFLOW
+#define LONGDIV_OVERFLOW(dividend, divisor) \
+    (dividend == LLONG_MIN && divisor == -1)
+#else
+#define LONGDIV_OVERFLOW(dividend, divisor) FALSE
+#endif
 
 /* Include the interpreter variant header */
 

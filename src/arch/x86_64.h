@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -26,6 +26,14 @@
    calling a method through FFI, we need to do the extension.  This
    is unnecessary on most architectures */
 #define FFI_RET_EXTEND
+
+/* The idivl instruction generates an exception on integer divide
+   overflow (INT_MIN/-1 can't be represented as a positive number) */
+#define CHECK_INTDIV_OVERFLOW
+
+/* Similarly, the idivq instruction generates an exception on long
+   divide overflow (LLONG_MIN/-1) */
+#define CHECK_LONGDIV_OVERFLOW
 
 #define HANDLER_TABLE_T static const void
 #define DOUBLE_1_BITS 0x3ff0000000000000LL
