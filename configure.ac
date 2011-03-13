@@ -42,7 +42,7 @@ hppa*-*-linux*) host_cpu=parisc host_os=linux ;;
 mips*-*-linux*) host_cpu=mips host_os=linux ;;
 x86_64-*-openbsd*) host_os=bsd libdl_needed=no ;;
 x86_64-*-freebsd*) host_os=bsd libdl_needed=no ;;
-arm*-*-linux*) host_cpu=arm host_os=linux ;;
+arm*-*-linux*) host_cpu=arm host_os=linux interp_cflags=-marm ;;
 arm*-*-openbsd*) host_cpu=arm host_os=bsd libdl_needed=no ;;
 arm*-*-freebsd*) host_cpu=arm host_os=bsd libdl_needed=no ;;
 powerpc*-*-linux*) host_cpu=powerpc host_os=linux ;;
@@ -178,7 +178,7 @@ if test "$enable_int_threading" != no; then
 
         if test "$enable_int_inlining" != no; then
             AC_DEFINE([INLINING],1,[interpreter inlining])
-            interp_cflags=-fno-reorder-blocks 
+            interp_cflags="$interp_cflags -fno-reorder-blocks"
 
             if test "$enable_runtime_reloc_checks" != no; then
                 AC_DEFINE([RUNTIME_RELOC_CHECKS],1,[compute relocatability at runtime])
