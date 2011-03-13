@@ -42,7 +42,7 @@ void unlockHashTable0(HashTable *table, Thread *self) {
 }
 
 void resizeHash(HashTable *table, int new_size) {
-    HashEntry *new_table = (HashEntry*)gcMemMalloc(sizeof(HashEntry)*new_size);
+    HashEntry *new_table = gcMemMalloc(sizeof(HashEntry)*new_size);
     int i;
 
     memset(new_table, 0, sizeof(HashEntry)*new_size);
