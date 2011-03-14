@@ -210,12 +210,12 @@ uintptr_t *executeJava() {
                                                            \
     DEF_OPC(OPC_IDIV, level,                               \
         ZERO_DIVISOR_CHECK_##level;                        \
-        INTDIV_OP_##level(/, TRUE);                        \
+        INTDIV_OP_##level(/);                              \
     )                                                      \
                                                            \
     DEF_OPC(OPC_IREM, level,                               \
         ZERO_DIVISOR_CHECK_##level;                        \
-        INTDIV_OP_##level(%, FALSE);                       \
+        INTDIV_OP_##level(%);                              \
     )                                                      \
                                                            \
     DEF_OPC(OPC_IAND, level,                               \
@@ -467,22 +467,21 @@ uintptr_t *executeJava() {
 #define BINARY_OP_2(OP)                                    \
     PUSH_0((int)cache.i.v1 OP (int)cache.i.v2, 1);
 
-#define INTDIV(OP, v1, v2, is_div)                         \
+#define INTDIV(OP, dividend, divisor)                      \
 {                                                          \
-    int result = INTDIV_OVERFLOW(v1, v2) ? v1 * is_div     \
-                                         : v1 OP v2;       \
-    PUSH_0(result, 1);                                     \
+    int v1 = dividend; int v2 = divisor;                   \
+    PUSH_0(v1 OP (INTDIV_OVERFLOW(v1, v2) ? 1 : v2), 1);   \
 }
 
-#define INTDIV_OP_0(OP, is_div)                            \
+#define INTDIV_OP_0(OP)                                    \
     ostack -= 2;                                           \
-    INTDIV(OP, (int)ostack[0], (int)ostack[1], is_div);
+    INTDIV(OP, ostack[0], ostack[1]);
 
 #define INTDIV_OP_1(OP)                                    \
-    INTDIV(OP, (int)*--ostack, (int)cache.i.v1, is_div);
+    INTDIV(OP, *--ostack, cache.i.v1);
 
 #define INTDIV_OP_2(OP)                                    \
-    INTDIV(OP, (int)cache.i.v1, (int)cache.i.v2, is_div);
+    INTDIV(OP, cache.i.v1, cache.i.v2);
 
 #define SHIFT_OP_0(TYPE, OP)                               \
     ostack -= 2;                                           \
@@ -954,23 +953,23 @@ uintptr_t *executeJava() {
     )
 
 #ifdef USE_CACHE
-#define INTDIV_OP_long(OP, is_div)                 \
+#define INTDIV_OP_long(OP)                         \
 {                                                  \
     int64_t v1 = STACK_POP(int64_t);               \
-    cache.l = LONGDIV_OVERFLOW(v1, cache.l) ?      \
-                 v1 * is_div : v1 OP cache.l;      \
+    cache.l = v1 OP (LONGDIV_OVERFLOW(v1, cache.l) \
+                              ? 1 : cache.l);      \
     DISPATCH(2, 1);                                \
 }
 
 #define ZERO_DIVISOR_CHECK_long                    \
     ZERO_DIVISOR_CHECK(cache.l);
 #else
-#define INTDIV_OP_long(OP, is_div)                 \
+#define INTDIV_OP_long(OP)                         \
 {                                                  \
     int64_t v1 = STACK(int64_t, -2);               \
     int64_t v2 = STACK(int64_t, -1);               \
-    STACK(int64_t,-2) = LONGDIV_OVERFLOW(v1, v2) ? \
-                           v1 * is_div : v1 OP v2; \
+    STACK(int64_t, -2) = v1 OP                     \
+              (LONGDIV_OVERFLOW(v1, v2) ? 1 : v2); \
     ostack -= SLOTS(int64_t);                      \
     DISPATCH(0, 1);                                \
 }
@@ -981,12 +980,12 @@ uintptr_t *executeJava() {
 
     DEF_OPC_012(OPC_LDIV,
         ZERO_DIVISOR_CHECK_long;
-        INTDIV_OP_long(/, TRUE);
+        INTDIV_OP_long(/);
     )
 
     DEF_OPC_012(OPC_LREM,
         ZERO_DIVISOR_CHECK_long;
-        INTDIV_OP_long(%, FALSE);
+        INTDIV_OP_long(%);
     )
 
 #ifdef USE_CACHE
