@@ -1449,11 +1449,21 @@ jboolean JVM_IsSameClassPackage(JNIEnv *env, jclass class1, jclass class2) {
 /* JVM_Open */
 
 #define JVM_EEXIST       -100
+#define O_DELETE      0x10000
 
-jint JVM_Open(const char* fname, jint flags, jint mode) {
-    int result = open(fname, flags, mode);
+jint JVM_Open(const char *fname, jint flags, jint mode) {
+    int result;
 
     TRACE("JVM_Open(fname=%s, flags=%d, mode=%d)", fname, flags, mode);
+
+    /* O_DELETE is a special classlib flag which indicates that
+       the file should be deleted after opening.  As it is not a
+       standard flag we must remove it (it also conflicts with
+       Linux's non-standard O_DIRECTORY, causing open to fail)
+   */
+    result = open(fname, flags & ~O_DELETE, mode);
+    if(flags & O_DELETE)
+        unlink(fname);
 
     if(result >= 0)
         return result;
