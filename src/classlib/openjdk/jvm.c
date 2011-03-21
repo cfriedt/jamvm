@@ -1831,7 +1831,19 @@ jclass JVM_LoadClass0(JNIEnv *env, jobject receiver, jclass currClass,
 jint JVM_GetArrayLength(JNIEnv *env, jobject arr) {
     TRACE("JVM_GetArrayLength(arr=%p)", arr);
 
-    return ARRAY_LEN((Object *)arr);
+    if(arr == NULL) {
+        signalException(java_lang_NullPointerException, NULL);
+        return 0;
+    } else {
+        ClassBlock *cb = CLASS_CB(((Object*)arr)->class);
+
+        if(!IS_ARRAY(cb)) {
+            signalException(java_lang_IllegalArgumentException, NULL);
+            return 0;
+        }
+
+        return ARRAY_LEN((Object *)arr);
+    }
 }
 
 
@@ -1840,7 +1852,36 @@ jint JVM_GetArrayLength(JNIEnv *env, jobject arr) {
 jobject JVM_GetArrayElement(JNIEnv *env, jobject arr, jint index) {
     TRACE("JVM_GetArrayElement(env=%p, arr=%p, index=%d)", env, arr, index);
 
-    return ARRAY_DATA((Object*)arr, Object*)[index];
+    if(arr == NULL) {
+        signalException(java_lang_NullPointerException, NULL);
+        return NULL;
+    } else {
+        ClassBlock *cb = CLASS_CB(((Object*)arr)->class);
+
+        if(!IS_ARRAY(cb)) {
+            signalException(java_lang_IllegalArgumentException, NULL);
+            return NULL;
+        }
+
+        if(index > ARRAY_LEN((Object *)arr)) {
+            signalException(java_lang_ArrayIndexOutOfBoundsException, NULL);
+            return NULL;
+        } else {
+            u4 widened;
+            int size = sigElement2Size(cb->name[1]);
+            void *addr = &ARRAY_DATA((Object*)arr, char)[index * size];
+            Class *type = cb->dim > 1 ? cb->super : cb->element_class;
+
+            if(size < sizeof(u4)) {
+                widened = size == 1 ? *(signed char*)addr : 
+                                  cb->name[1] == 'S' ? *(signed short*)addr
+                                                     : *(unsigned short*)addr;
+                addr = &widened;
+            }
+
+            return getReflectReturnObject(type, addr, REF_SRC_FIELD);
+        }
+    }
 }
 
 
