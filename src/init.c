@@ -23,15 +23,25 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 #include "jam.h"
 
 static int VM_initing = TRUE;
 extern void initialisePlatform();
 
+long getPhysicalMemory() {
+    long num_pages = sysconf(_SC_PHYS_PAGES);
+    long page_size = sysconf(_SC_PAGESIZE);
+
+    return num_pages * page_size;
+}
+
 /* Setup default values for command line args */
 
 void setDefaultInitArgs(InitArgs *args) {
+    long phys_mem = getPhysicalMemory();
+
     args->asyncgc = FALSE;
 
     args->verbosegc    = FALSE;
@@ -45,8 +55,10 @@ void setDefaultInitArgs(InitArgs *args) {
     args->bootpath  = NULL;
 
     args->java_stack = DEFAULT_STACK;
-    args->min_heap   = DEFAULT_MIN_HEAP;
-    args->max_heap   = DEFAULT_MAX_HEAP;
+
+    args->min_heap   = MAX(phys_mem/64, DEFAULT_MIN_HEAP);
+    args->max_heap   = MIN(phys_mem/4,  DEFAULT_MAX_HEAP);
+    args->max_heap   = MAX(args->max_heap, args->min_heap);
 
     args->props_count = 0;
 
@@ -62,7 +74,7 @@ void setDefaultInitArgs(InitArgs *args) {
     args->print_codestats       = FALSE;
     args->join_blocks           = TRUE;
     args->profiling             = TRUE;
-    args->codemem               = args->max_heap / 4;
+    args->codemem               = args->max_heap/4;
 #endif
 }
 

@@ -748,7 +748,7 @@ typedef struct InitArgs {
 
 /* default maximum size of object heap */
 #ifndef DEFAULT_MAX_HEAP
-#define DEFAULT_MAX_HEAP 128*MB
+#define DEFAULT_MAX_HEAP 1024*MB
 #endif
 
 /* default size of the Java stack */
@@ -759,6 +759,14 @@ typedef struct InitArgs {
 #define STACK_RED_ZONE_SIZE 1*KB
 
 #define JAVA_COMPAT_VERSION "1.5.0"
+
+#ifndef MIN
+#define MIN(a, b) (a) < (b) ? (a) : (b)
+#endif
+
+#ifndef MAX
+#define MAX(a, b) (a) > (b) ? (a) : (b)
+#endif
 
 /* --------------------- Function prototypes  --------------------------- */
 

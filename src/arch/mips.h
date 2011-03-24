@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009, 2010, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -31,9 +31,10 @@
 #define OS_ARCH "mips"
 #endif
 
-/* Override default min and max heap sizes.  MIPS machines are
-   usually embedded, and the standard defaults are too large. */
-#define DEFAULT_MAX_HEAP 8*MB
+/* Override default min heap size.  The initial heap size is a ratio
+   of the physical memory, but it must be at least the default min
+   size.  The normal setting is too large for MIPS machines as they
+   are usually embedded. */
 #define DEFAULT_MIN_HEAP 1*MB
 
 #define HANDLER_TABLE_T static const void
