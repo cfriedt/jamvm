@@ -30,17 +30,26 @@
 static int VM_initing = TRUE;
 extern void initialisePlatform();
 
-long getPhysicalMemory() {
-    long num_pages = sysconf(_SC_PHYS_PAGES);
-    long page_size = sysconf(_SC_PAGESIZE);
+
+long long getPhysicalMemory() {
+    /* Long longs are used here because with PAE, a 32-bit
+       machine can have more than 4GB of physical memory */
+
+    long long num_pages = sysconf(_SC_PHYS_PAGES);
+    long long page_size = sysconf(_SC_PAGESIZE);
 
     return num_pages * page_size;
+}
+
+unsigned long clampHeapLimit(long long limit) {
+    long long int clamp = MAX(limit, DEFAULT_MIN_HEAP);
+    return (unsigned long)MIN(clamp, DEFAULT_MAX_HEAP);
 }
 
 /* Setup default values for command line args */
 
 void setDefaultInitArgs(InitArgs *args) {
-    long phys_mem = getPhysicalMemory();
+    long long phys_mem = getPhysicalMemory();
 
     args->asyncgc = FALSE;
 
@@ -55,10 +64,8 @@ void setDefaultInitArgs(InitArgs *args) {
     args->bootpath  = NULL;
 
     args->java_stack = DEFAULT_STACK;
-
-    args->min_heap   = MAX(phys_mem/64, DEFAULT_MIN_HEAP);
-    args->max_heap   = MIN(phys_mem/4,  DEFAULT_MAX_HEAP);
-    args->max_heap   = MAX(args->max_heap, args->min_heap);
+    args->max_heap   = clampHeapLimit(phys_mem/4);
+    args->min_heap   = clampHeapLimit(phys_mem/64);
 
     args->props_count = 0;
 
