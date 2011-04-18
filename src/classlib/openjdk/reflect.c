@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -196,26 +196,6 @@ Object *classlibCreateFieldObject(FieldBlock *fb) {
     return reflect_ob;
 }
 
-/* Reflection access from JNI */
-
-MethodBlock *classlibMbFromReflectObject(Object *reflect_ob) {
-    int is_cons = reflect_ob->class == cons_reflect_class;
-    int slot_offset = is_cons ? cons_slot_offset : mthd_slot_offset;
-    int class_offset = is_cons ? cons_class_offset : mthd_class_offset;
-
-    Class *decl_class = INST_DATA(reflect_ob, Class*, class_offset);
-    int slot = INST_DATA(reflect_ob, int, slot_offset);
-
-    return &(CLASS_CB(decl_class)->methods[slot]);
-}
-
-FieldBlock *classlibFbFromReflectObject(Object *reflect_ob) {
-    Class *decl_class = INST_DATA(reflect_ob, Class*, fld_class_offset);
-    int slot = INST_DATA(reflect_ob, int, fld_slot_offset);
-
-    return &(CLASS_CB(decl_class)->fields[slot]);
-}
-
 Object *enclosingMethodInfo(Class *class) {
     ClassBlock *cb = CLASS_CB(class);
 
@@ -270,5 +250,74 @@ Object *invokeMethod(Object *reflect_ob, Object *ob, Object *args_array) {
     MethodBlock *mb = &(CLASS_CB(decl_class)->methods[slot]);
 
     return methodInvoke(ob, mb, args_array, ret, params, TRUE, 0);
+}
+
+int typeNo2PrimTypeIndex(int type_no) {
+    static char type_map[] = {PRIM_IDX_BOOLEAN, PRIM_IDX_CHAR,
+                              PRIM_IDX_FLOAT, PRIM_IDX_DOUBLE,
+                              PRIM_IDX_BYTE, PRIM_IDX_SHORT,
+                              PRIM_IDX_INT, PRIM_IDX_LONG};
+
+    return type_map[type_no - T_BOOLEAN];
+}
+
+int primTypeIndex2Size(int prim_idx) {
+    return prim_idx < PRIM_IDX_INT ? prim_idx < PRIM_IDX_CHAR ? 1 : 2
+                                   : prim_idx < PRIM_IDX_LONG ? 4 : 8;
+}
+
+int widenPrimitiveElement(int src_idx, int dst_idx, void *src_addr,
+                          void *dst_addr) {
+    u4 widened;
+
+    if(src_idx < PRIM_IDX_INT) {
+        if(dst_idx < PRIM_IDX_INT) {
+            if(src_idx != dst_idx) {
+                if(src_idx != PRIM_IDX_BYTE || dst_idx != PRIM_IDX_SHORT)
+                    goto error;
+                *(signed short*)dst_addr = *(signed char*)src_addr;
+                return TRUE;
+            }
+            
+            if(src_idx < PRIM_IDX_CHAR)
+                *(char*)dst_addr = *(char*)src_addr;
+            else
+                *(short*)dst_addr = *(short*)src_addr;
+            return TRUE;
+        }
+
+        widened = src_idx < PRIM_IDX_CHAR ? *(signed char*)src_addr : 
+                   src_idx == PRIM_IDX_SHORT ? *(signed short*)src_addr
+                                             : *(unsigned short*)src_addr;
+        src_addr = &widened;
+    }
+
+    if(widenPrimitiveValue(src_idx, dst_idx, src_addr, dst_addr,
+                           REF_SRC_FIELD | REF_DST_FIELD))
+        return TRUE;
+
+error:
+    signalException(java_lang_IllegalArgumentException, "can't widen");
+    return FALSE;
+}
+
+/* Reflection access from JNI */
+
+MethodBlock *classlibMbFromReflectObject(Object *reflect_ob) {
+    int is_cons = reflect_ob->class == cons_reflect_class;
+    int slot_offset = is_cons ? cons_slot_offset : mthd_slot_offset;
+    int class_offset = is_cons ? cons_class_offset : mthd_class_offset;
+
+    Class *decl_class = INST_DATA(reflect_ob, Class*, class_offset);
+    int slot = INST_DATA(reflect_ob, int, slot_offset);
+
+    return &(CLASS_CB(decl_class)->methods[slot]);
+}
+
+FieldBlock *classlibFbFromReflectObject(Object *reflect_ob) {
+    Class *decl_class = INST_DATA(reflect_ob, Class*, fld_class_offset);
+    int slot = INST_DATA(reflect_ob, int, fld_slot_offset);
+
+    return &(CLASS_CB(decl_class)->fields[slot]);
 }
 

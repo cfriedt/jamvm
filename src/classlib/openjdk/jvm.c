@@ -1829,7 +1829,7 @@ jclass JVM_LoadClass0(JNIEnv *env, jobject receiver, jclass currClass,
 /* JVM_GetArrayLength */
 
 jint JVM_GetArrayLength(JNIEnv *env, jobject arr) {
-    TRACE("JVM_GetArrayLength(arr=%p)", arr);
+    TRACE("JVM_GetArrayLength(env=%p, arr=%p)", env, arr);
 
     if(arr == NULL) {
         signalException(java_lang_NullPointerException, NULL);
@@ -1890,10 +1890,35 @@ jobject JVM_GetArrayElement(JNIEnv *env, jobject arr, jint index) {
 jvalue JVM_GetPrimitiveArrayElement(JNIEnv *env, jobject arr, jint index,
                                     jint wCode) {
     jvalue jv;
+    
+    TRACE("JVM_GetPrimitiveArrayElement(env=%p, arr=%p, index=%d, wCode=%d)",
+    	  env, arr, index, wCode);
 
-    UNIMPLEMENTED("JVM_GetPrimitiveArrayElement");
+    if(arr == NULL)
+        signalException(java_lang_NullPointerException, NULL);
+    else {
+        ClassBlock *cb = CLASS_CB(((Object*)arr)->class);
 
-    jv.l = NULL;
+        if(!IS_ARRAY(cb))
+            signalException(java_lang_IllegalArgumentException, NULL);
+        else {
+            if(index > ARRAY_LEN((Object *)arr))
+                signalException(java_lang_ArrayIndexOutOfBoundsException, NULL);
+            else {
+                ClassBlock *elem_cb = CLASS_CB(cb->element_class);
+                if(!IS_PRIMITIVE(elem_cb) || cb->dim > 1)
+                    signalException(java_lang_IllegalArgumentException, NULL);
+                else {
+                    int src_idx = getPrimTypeIndex(elem_cb);
+                    int size = primTypeIndex2Size(src_idx);
+                    int dst_idx = typeNo2PrimTypeIndex(wCode);
+                    void *addr = &ARRAY_DATA((Object*)arr, char)[index * size];
+
+                    widenPrimitiveElement(src_idx, dst_idx, addr, &jv);
+                }
+            }
+        }
+    }
     return jv;
 }
 
@@ -1904,15 +1929,101 @@ void JVM_SetArrayElement(JNIEnv *env, jobject arr, jint index, jobject val) {
     TRACE("JVM_SetArrayElement(env=%p, arr=%p, index=%d, val=%p)", env, arr,
           index, val);
 
-    ARRAY_DATA((Object*)arr, Object*)[index] = val;
+    if(arr == NULL)
+        signalException(java_lang_NullPointerException, NULL);
+    else {
+        ClassBlock *cb = CLASS_CB(((Object*)arr)->class);
+
+        if(!IS_ARRAY(cb))
+            goto illegal_arg;
+
+        if(index > ARRAY_LEN((Object *)arr))
+            signalException(java_lang_ArrayIndexOutOfBoundsException, NULL);
+        else {
+            ClassBlock *elem_cb = CLASS_CB(cb->element_class);
+
+            if(!IS_PRIMITIVE(elem_cb) || cb->dim > 1) {
+                if(val != NULL && !arrayStoreCheck(((Object*)arr)->class,
+                                                   ((Object*)val)->class))
+                    goto illegal_arg;
+
+                ARRAY_DATA((Object*)arr, Object*)[index] = val;
+            } else {
+                int src_idx = getWrapperPrimTypeIndex(val);
+
+                if(src_idx == PRIM_IDX_VOID)
+                    goto illegal_arg;
+                else {
+                    int dst_idx = getPrimTypeIndex(elem_cb);
+                    void *src_addr = INST_BASE((Object*)val, void);
+                    int size = primTypeIndex2Size(dst_idx);
+                    void *dst_addr = &ARRAY_DATA((Object*)arr, char)
+                                                [index * size];
+
+                    if(dst_idx < PRIM_IDX_INT) {
+                        u4 value = *(u4*)src_addr;
+
+                        if(src_idx != dst_idx) {
+                            if(src_idx != PRIM_IDX_BYTE ||
+                               dst_idx != PRIM_IDX_SHORT)
+                                goto illegal_arg;
+                            *(signed short*)dst_addr = (signed char)value;
+                        } else {
+                            if(src_idx < PRIM_IDX_CHAR)
+                                *(char*)dst_addr = (char)value;
+                            else
+                                *(short*)dst_addr = (short)value;
+                        }
+                    } else
+                        if(!widenPrimitiveValue(src_idx, dst_idx, src_addr,
+                                                dst_addr, REF_SRC_FIELD |
+                                                          REF_DST_FIELD))
+                            goto illegal_arg;
+                }
+            }
+        }
+    }
+
+    return;
+
+illegal_arg:
+    signalException(java_lang_IllegalArgumentException, NULL);
 }
 
 
 /* JVM_SetPrimitiveArrayElement */
 
 void JVM_SetPrimitiveArrayElement(JNIEnv *env, jobject arr, jint index,
-                                  jvalue v, unsigned char vCode) {
-    UNIMPLEMENTED("JVM_SetPrimitiveArrayElement");
+                                  jvalue val, unsigned char vCode) {
+
+    TRACE("JVM_SetPrimitiveArrayElement(env=%p, arr=%p, index=%d, val=%lld,"
+    	  "vCode=%d)", env, arr, index, val.j, vCode);
+
+    if(arr == NULL)
+        signalException(java_lang_NullPointerException, NULL);
+    else {
+        ClassBlock *cb = CLASS_CB(((Object*)arr)->class);
+
+        if(!IS_ARRAY(cb))
+            signalException(java_lang_IllegalArgumentException, NULL);
+        else {
+            if(index > ARRAY_LEN((Object *)arr))
+                signalException(java_lang_ArrayIndexOutOfBoundsException, NULL);
+            else {
+                ClassBlock *elem_cb = CLASS_CB(cb->element_class);
+                if(!IS_PRIMITIVE(elem_cb) || cb->dim > 1)
+                    signalException(java_lang_IllegalArgumentException, NULL);
+                else {
+                    int dst_idx = getPrimTypeIndex(elem_cb);
+                    int size = primTypeIndex2Size(dst_idx);
+                    int src_idx = typeNo2PrimTypeIndex(vCode);
+                    void *addr = &ARRAY_DATA((Object*)arr, char)[index * size];
+
+                    widenPrimitiveElement(src_idx, dst_idx, &val, addr);
+                }
+            }
+        }
+    }
 }
 
 
@@ -1934,8 +2045,8 @@ jobject JVM_NewArray(JNIEnv *env, jclass eltClass, jint length) {
         ClassBlock *cb = CLASS_CB((Class*)eltClass);
 
         if(IS_PRIMITIVE(cb)) {
-            static int type_map[] = {T_BOOLEAN, T_BYTE, T_CHAR, T_SHORT,
-                                     T_INT, T_FLOAT, T_LONG, T_DOUBLE};
+            static char type_map[] = {T_BOOLEAN, T_BYTE, T_CHAR, T_SHORT,
+                                      T_INT, T_FLOAT, T_LONG, T_DOUBLE};
             int type = getPrimTypeIndex(cb);
         
             if(type == PRIM_IDX_VOID) {
