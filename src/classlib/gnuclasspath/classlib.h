@@ -21,26 +21,26 @@
 
 /* Thread */
 
-extern char classLibInitJavaThread(Thread *thread, Object *jlthread,
+extern char classlibInitJavaThread(Thread *thread, Object *jlthread,
                                    Object *name, Object *group,
                                    char is_daemon, int priority);
 
-extern Object *classLibThreadPreInit(Class *thread_class,
+extern Object *classlibThreadPreInit(Class *thread_class,
                                      Class *thrdGrp_class);
 
-extern char classLibCreateJavaThread(Thread *thread, Object *jThread);
-extern void classLibMarkThreadTerminated(Object *jThread);
+extern char classlibCreateJavaThread(Thread *thread, Object *jThread);
+extern void classlibMarkThreadTerminated(Object *jThread);
 
-extern Thread *classLibJThread2Thread(Object *jThread);
+extern Thread *classlibJThread2Thread(Object *jThread);
 
-#define classLibThreadPostInit() \
+#define classlibThreadPostInit() \
     /* NOTHING TO DO */ TRUE
 
-#define classLibThreadIdName() SYMBOL(threadId)
-#define classLibAddThreadName() SYMBOL(addThread)
-#define classLibRemoveThreadName() SYMBOL(removeThread)
-#define classLibThreadNameType() SYMBOL(sig_java_lang_String)
-#define classLibExceptionHandlerName() SYMBOL(exceptionHandler)
+#define classlibThreadIdName() SYMBOL(threadId)
+#define classlibAddThreadName() SYMBOL(addThread)
+#define classlibRemoveThreadName() SYMBOL(removeThread)
+#define classlibThreadNameType() SYMBOL(sig_java_lang_String)
+#define classlibExceptionHandlerName() SYMBOL(exceptionHandler)
 
 #define classlibGetThreadState(thread) \
     (thread)->state

@@ -37,7 +37,7 @@ extern int name_offset;
 extern int group_offset;
 extern MethodBlock *addThread_mb;
 
-char classLibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
+char classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
                             Object *group, char is_daemon, int priority) {
 
     Object *vmthread;
@@ -63,7 +63,7 @@ char classLibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
     return TRUE;
 }
 
-char classLibCreateJavaThread(Thread *thread, Object *jThread) {
+char classlibCreateJavaThread(Thread *thread, Object *jThread) {
     Object *vmthread = allocObject(vmthread_class);
 
     if(vmthread == NULL)
@@ -76,13 +76,13 @@ char classLibCreateJavaThread(Thread *thread, Object *jThread) {
     return TRUE;
 }
 
-void classLibMarkThreadTerminated(Object *jThread) {
+void classlibMarkThreadTerminated(Object *jThread) {
     /* set VMThread ref in Thread object to null - operations after this
        point will result in an IllegalThreadStateException */
     INST_DATA(jThread, Object*, vmthread_offset) = NULL;
 }
 
-Object *classLibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
+Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
     FieldBlock *vmData;
     FieldBlock *vmThread;
     FieldBlock *root, *thread;
@@ -124,7 +124,7 @@ Thread *vmThread2Thread(Object *vmThread) {
     return INST_DATA(vmThread, Thread*, vmData_offset);
 }
 
-Thread *classLibJThread2Thread(Object *jThread) {
+Thread *classlibJThread2Thread(Object *jThread) {
     Object *vmthread = INST_DATA(jThread, Object*, vmthread_offset);
 
     return vmthread == NULL ? NULL : vmThread2Thread(vmthread);

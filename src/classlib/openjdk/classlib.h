@@ -21,24 +21,24 @@
 
 /* Thread */
 
-extern char classLibInitJavaThread(Thread *thread, Object *jlthread,
+extern char classlibInitJavaThread(Thread *thread, Object *jlthread,
                                    Object *name, Object *group,
                                    char is_daemon, int priority);
 
-extern Object *classLibThreadPreInit(Class *thread_class,
+extern Object *classlibThreadPreInit(Class *thread_class,
                                      Class *thrdGrp_class);
 
-extern char classLibCreateJavaThread(Thread *thread, Object *jThread);
-extern Thread *classLibJThread2Thread(Object *jThread);
+extern char classlibCreateJavaThread(Thread *thread, Object *jThread);
+extern Thread *classlibJThread2Thread(Object *jThread);
 
-#define classLibMarkThreadTerminated(jThread) \
+#define classlibMarkThreadTerminated(jThread) \
     /* NOTHING TO DO */
 
-#define classLibThreadIdName() SYMBOL(tid)
-#define classLibAddThreadName() SYMBOL(add)
-#define classLibThreadNameType() SYMBOL(array_C)
-#define classLibRemoveThreadName() SYMBOL(remove)
-#define classLibExceptionHandlerName() SYMBOL(uncaughtExceptionHandler)
+#define classlibThreadIdName() SYMBOL(tid)
+#define classlibAddThreadName() SYMBOL(add)
+#define classlibThreadNameType() SYMBOL(array_C)
+#define classlibRemoveThreadName() SYMBOL(remove)
+#define classlibExceptionHandlerName() SYMBOL(uncaughtExceptionHandler)
 
 extern int classlibGetThreadState(Thread *thread);
 extern void classlibSetThreadState(Thread *thread, int state);

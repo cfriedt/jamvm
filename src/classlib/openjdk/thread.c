@@ -35,7 +35,7 @@ static int thread_status_offset = -1;
 static MethodBlock *init_mb_no_name;
 static MethodBlock *init_mb_with_name;
 
-char classLibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
+char classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
                             Object *group, char is_daemon, int priority) {
 
     INST_DATA(jlthread, Thread*, eetop_offset) = thread;
@@ -50,12 +50,12 @@ char classLibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
     return !exceptionOccurred();
 }
 
-char classLibCreateJavaThread(Thread *thread, Object *jThread) {
+char classlibCreateJavaThread(Thread *thread, Object *jThread) {
     INST_DATA(jThread, Thread*, eetop_offset) = thread;
     return TRUE;
 }
 
-Object *classLibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
+Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
     MethodBlock *system_init_mb, *main_init_mb;
     FieldBlock *thread_status_fb, *eetop_fb;
     Object *system, *main, *main_name;
@@ -103,7 +103,7 @@ Object *classLibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
     return main;
 }
 
-int classLibThreadPostInit() {
+int classlibThreadPostInit() {
     Class *system = findSystemClass(SYMBOL(java_lang_System));
 
     if(system != NULL) {
@@ -118,7 +118,7 @@ int classLibThreadPostInit() {
     return FALSE;
 }
 
-Thread *classLibJThread2Thread(Object *jThread) {
+Thread *classlibJThread2Thread(Object *jThread) {
     return INST_DATA(jThread, Thread*, eetop_offset);
 }
 

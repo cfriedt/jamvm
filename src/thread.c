@@ -356,7 +356,7 @@ long long javaThreadId(Thread *thread) {
 }
 
 Thread *jThread2Thread(Object *jThread) {
-    return classLibJThread2Thread(jThread);
+    return classlibJThread2Thread(jThread);
 }
 
 Thread *threadSelf() {
@@ -459,7 +459,7 @@ Object *initJavaThread(Thread *thread, char is_daemon, char *name,
     if(name != NULL && (thread_name = Cstr2String(name)) == NULL)
         return NULL;
 
-    if(!classLibInitJavaThread(thread, jlthread, thread_name, group,
+    if(!classlibInitJavaThread(thread, jlthread, thread_name, group,
                                is_daemon, NORM_PRIORITY))
         return NULL;
 
@@ -576,7 +576,7 @@ void uncaughtException() {
     Object *excep = exceptionOccurred();
     Object *group = INST_DATA(jThread, Object*, group_offset);
     FieldBlock *fb = findField(thread_class,
-                        classLibExceptionHandlerName(),
+                        classlibExceptionHandlerName(),
                         SYMBOL(sig_java_lang_Thread_UncaughtExceptionHandler));
     Object *thread_handler = fb == NULL ? NULL :
                                   INST_DATA(jThread, Object*, fb->u.offset);
@@ -627,7 +627,7 @@ void detachThread(Thread *thread) {
        determining if the thread is alive and so must be
        done before notifying joining threads */
     classlibSetThreadState(thread, TERMINATED);
-    classLibMarkThreadTerminated(jThread);
+    classlibMarkThreadTerminated(jThread);
 
     /* Notify any threads waiting on the thread object -
         these are joining this thread */
@@ -726,7 +726,7 @@ void createJavaThread(Object *jThread, long long stack_size) {
     ee->thread = jThread;
     ee->stack_size = stack_size;
 
-    if(!classLibCreateJavaThread(thread, jThread)) {
+    if(!classlibCreateJavaThread(thread, jThread)) {
         sysFree(thread);
         sysFree(ee);
         return;
@@ -735,7 +735,7 @@ void createJavaThread(Object *jThread, long long stack_size) {
     disableSuspend(self);
 
     if(pthread_create(&thread->tid, &attributes, threadStart, thread)) {
-        classLibMarkThreadTerminated(jThread);
+        classlibMarkThreadTerminated(jThread);
         sysFree(ee);
         enableSuspend(self);
         signalException(java_lang_OutOfMemoryError, "can't create thread");
@@ -1314,12 +1314,12 @@ void initialiseThreadStage2(InitArgs *args) {
 
     registerStaticClassRef(&thread_class);
 
-    name = findField(thread_class, SYMBOL(name), classLibThreadNameType());
+    name = findField(thread_class, SYMBOL(name), classlibThreadNameType());
     daemon = findField(thread_class, SYMBOL(daemon), SYMBOL(Z));
     group = findField(thread_class, SYMBOL(group),
                                     SYMBOL(sig_java_lang_ThreadGroup));
     priority = findField(thread_class, SYMBOL(priority), SYMBOL(I));
-    threadId = findField(thread_class, classLibThreadIdName(), SYMBOL(J));
+    threadId = findField(thread_class, classlibThreadIdName(), SYMBOL(J));
 
     run = findMethod(thread_class, SYMBOL(run), SYMBOL(___V));
 
@@ -1341,10 +1341,10 @@ void initialiseThreadStage2(InitArgs *args) {
     if(exceptionOccurred())
         goto error;
 
-    addThread_mb = findMethod(thrdGrp_class, classLibAddThreadName(),
+    addThread_mb = findMethod(thrdGrp_class, classlibAddThreadName(),
                                              SYMBOL(_java_lang_Thread__V));
 
-    remove_thread = findMethod(thrdGrp_class, classLibRemoveThreadName(),
+    remove_thread = findMethod(thrdGrp_class, classlibRemoveThreadName(),
                                               SYMBOL(_java_lang_Thread__V));
 
     /* findField and findMethod do not throw an exception... */
@@ -1355,7 +1355,7 @@ void initialiseThreadStage2(InitArgs *args) {
 
     /* Classlib specific initialisation prior to main thread being
        setup */
-    main_group = classLibThreadPreInit(thread_class, thrdGrp_class);
+    main_group = classlibThreadPreInit(thread_class, thrdGrp_class);
     if(main_group == NULL)
         goto error;
 
@@ -1373,7 +1373,7 @@ void initialiseThreadStage2(InitArgs *args) {
 
     /* Classlib specific initialisation once main thread has been
        setup */
-    if(!classLibThreadPostInit())
+    if(!classlibThreadPostInit())
         goto error;
 
     /* Create the signal handler thread.  It is responsible for
