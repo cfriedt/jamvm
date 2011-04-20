@@ -19,7 +19,9 @@
  */
 
 #include "jam.h"
+#include "thread.h"
 #include "reflect.h"
+#include "gnuclasspath.h"
 
 /* The function classlibGetCallerFrame() is used in code that does
    security related stack-walking.  It guards against invocation
