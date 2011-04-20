@@ -618,15 +618,21 @@ void detachThread(Thread *thread) {
     executeMethod(group, (CLASS_CB(group->class))->
                                      method_table[rmveThrd_mtbl_idx], jThread);
 
-    classLibMarkThreadTerminated(jThread);
-
     /* Remove thread from the ID map hash table */
     deleteThreadFromHash(thread);
 
-    /* notify any threads waiting on the thread object -
-       these are joining this thread */
     objectLock(jThread);
+
+    /* Mark the thread as terminated.  This state is used in
+       determining if the thread is alive and so must be
+       done before notifying joining threads */
+    classlibSetThreadState(thread, TERMINATED);
+    classLibMarkThreadTerminated(jThread);
+
+    /* Notify any threads waiting on the thread object -
+        these are joining this thread */
     objectNotifyAll(jThread);
+
     objectUnlock(jThread);
 
     /* Thread's about to die, so no need to save registers for
@@ -636,8 +642,6 @@ void detachThread(Thread *thread) {
     /* Grab global lock, and update thread structures protected by
        it (thread list, thread ID and number of daemon threads) */
     pthread_mutex_lock(&lock);
-
-    classlibSetThreadState(thread, TERMINATED);
 
     /* remove from thread list... */
     if((thread->prev->next = thread->next))
@@ -658,9 +662,9 @@ void detachThread(Thread *thread) {
     /* It is safe to free the thread's ExecEnv and stack now as these are
        only used within the thread.  It is _not_ safe to free the native
        thread structure as another thread may be concurrently accessing it.
-       However, they must have a reference to the VMThread -- therefore, it
-       is safe to free during GC when the VMThread is determined to be no
-       longer reachable. */
+       However, they must have a reference to the java level thread --
+       therefore, it is safe to free during GC when the thread is determined
+       to be no longer reachable. */
     sysFree(ee->stack);
     sysFree(ee);
 
@@ -1383,7 +1387,7 @@ void initialiseThreadStage2(InitArgs *args) {
 
 error:
     jam_fprintf(stderr, "Error initialising VM (initialiseMainThread)\nCheck "
-                        "the README for compatible versions of GNU Classpath\n");
+                        "the README for compatible class-libraries/versions\n");
     printException();
     exitVM(1);
 }

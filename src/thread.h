@@ -101,6 +101,7 @@ struct thread {
 extern Thread *threadSelf();
 extern long long javaThreadId(Thread *thread);
 extern Thread *jThread2Thread(Object *jThread);
+extern long long jThread2ThreadId(Object *jthread);
 
 extern void *getStackTop(Thread *thread);
 extern void *getStackBase(Thread *thread);

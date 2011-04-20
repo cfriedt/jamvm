@@ -26,6 +26,7 @@
     action(remove, "remove"), \
     action(invoke, "invoke"), \
     action(array_J, "[J"), \
+    action(eetop, "eetop"), \
     action(classes, "classes"), \
     action(dispatch, "dispatch"), \
     action(capacity, "capacity"), \

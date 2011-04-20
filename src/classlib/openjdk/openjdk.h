@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -29,4 +29,10 @@ extern int initialiseJVMInterface();
 extern Object *enclosingMethodInfo(Class *class);
 extern Object *getAnnotationsAsArray(AnnotationData *annotations);
 
+extern int typeNo2PrimTypeIndex(int type_no);
+extern int primTypeIndex2Size(int prim_idx);
+extern int widenPrimitiveElement(int src_idx, int dst_idx,
+	                         void *src_addr, void *dst_addr);
+
+extern int jThreadIsAlive(Object *jthread);
 extern void *getJMMInterface(int version);

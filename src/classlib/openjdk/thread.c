@@ -29,6 +29,7 @@ extern int name_offset;
 extern int daemon_offset;
 extern int priority_offset;
 
+static int eetop_offset;
 static int thread_status_offset = -1;
 
 static MethodBlock *init_mb_no_name;
@@ -37,6 +38,7 @@ static MethodBlock *init_mb_with_name;
 char classLibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
                             Object *group, char is_daemon, int priority) {
 
+    INST_DATA(jlthread, Thread*, eetop_offset) = thread;
     INST_DATA(jlthread, int, daemon_offset) = is_daemon;
     INST_DATA(jlthread, int, priority_offset) = priority;
 
@@ -48,10 +50,15 @@ char classLibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
     return !exceptionOccurred();
 }
 
+char classLibCreateJavaThread(Thread *thread, Object *jThread) {
+    INST_DATA(jThread, Thread*, eetop_offset) = thread;
+    return TRUE;
+}
+
 Object *classLibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
     MethodBlock *system_init_mb, *main_init_mb;
+    FieldBlock *thread_status_fb, *eetop_fb;
     Object *system, *main, *main_name;
-    FieldBlock *thread_status_fb;
 
     init_mb_with_name = findMethod(thread_class, SYMBOL(object_init),
                            SYMBOL(_java_lang_ThreadGroup_java_lang_String__V));
@@ -62,6 +69,8 @@ Object *classLibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
     thread_status_fb = findField(thread_class, SYMBOL(threadStatus),
                                                SYMBOL(I));
 
+    eetop_fb = findField(thread_class, SYMBOL(eetop), SYMBOL(J));
+
     system_init_mb = findMethod(thrdGrp_class, SYMBOL(object_init),
                                                SYMBOL(___V));
 
@@ -70,10 +79,11 @@ Object *classLibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
 
     if(init_mb_with_name   == NULL || init_mb_no_name == NULL ||
           system_init_mb   == NULL || main_init_mb    == NULL ||
-          thread_status_fb == NULL)
+          thread_status_fb == NULL || eetop_fb        == NULL)
         return NULL;
 
     thread_status_offset = thread_status_fb->u.offset;
+    eetop_offset = eetop_fb->u.offset;
 
     if((system = allocObject(thrdGrp_class)) == NULL)
         return NULL;
@@ -106,6 +116,15 @@ int classLibThreadPostInit() {
     }
 
     return FALSE;
+}
+
+Thread *classLibJThread2Thread(Object *jThread) {
+    return INST_DATA(jThread, Thread*, eetop_offset);
+}
+
+int jThreadIsAlive(Object *jThread) {
+    int state = INST_DATA(jThread, int, thread_status_offset);
+    return state != CREATING && state != TERMINATED;
 }
 
 int classlibGetThreadState(Thread *thread) {

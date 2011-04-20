@@ -28,8 +28,8 @@ extern char classLibInitJavaThread(Thread *thread, Object *jlthread,
 extern Object *classLibThreadPreInit(Class *thread_class,
                                      Class *thrdGrp_class);
 
-#define classLibCreateJavaThread(thread, jThread) \
-    /* NOTHING TO DO */ TRUE
+extern char classLibCreateJavaThread(Thread *thread, Object *jThread);
+extern Thread *classLibJThread2Thread(Object *jThread);
 
 #define classLibMarkThreadTerminated(jThread) \
     /* NOTHING TO DO */
@@ -39,9 +39,6 @@ extern Object *classLibThreadPreInit(Class *thread_class,
 #define classLibThreadNameType() SYMBOL(array_C)
 #define classLibRemoveThreadName() SYMBOL(remove)
 #define classLibExceptionHandlerName() SYMBOL(uncaughtExceptionHandler)
-
-#define classLibJThread2Thread(jThread) \
-    findThreadById(jThread2ThreadId(jThread))
 
 extern int classlibGetThreadState(Thread *thread);
 extern void classlibSetThreadState(Thread *thread, int state);

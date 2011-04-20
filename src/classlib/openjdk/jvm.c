@@ -1597,7 +1597,7 @@ void JVM_StopThread(JNIEnv* env, jobject jthread, jobject throwable) {
 jboolean JVM_IsThreadAlive(JNIEnv* env, jobject jthread) {
     TRACE("JVM_IsThreadAlive(env=%p, jthread=%p)", env, jthread);
 
-    return jThread2Thread(jthread) != NULL;
+    return jThreadIsAlive(jthread);
 }
 
 

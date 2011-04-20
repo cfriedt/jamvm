@@ -30,7 +30,6 @@
 static int VM_initing = TRUE;
 extern void initialisePlatform();
 
-
 long long getPhysicalMemory() {
     /* Long longs are used here because with PAE, a 32-bit
        machine can have more than 4GB of physical memory */
