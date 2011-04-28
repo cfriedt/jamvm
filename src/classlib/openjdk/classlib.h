@@ -125,6 +125,4 @@ extern void classlibVMShutdown();
 #define classlibMarkSpecial(ob, mark) \
     /* NOTHING TO DO */
 
-#define classlibHandleUnmarkedSpecial(ob) \
-    /* NOTHING TO DO */
-
+extern void classlibHandleUnmarkedSpecial(Object *ob);

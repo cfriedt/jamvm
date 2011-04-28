@@ -82,6 +82,8 @@ Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
           thread_status_fb == NULL || eetop_fb        == NULL)
         return NULL;
 
+    CLASS_CB(thread_class)->flags |= JTHREAD;
+
     thread_status_offset = thread_status_fb->u.offset;
     eetop_offset = eetop_fb->u.offset;
 

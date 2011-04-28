@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+## Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
 ##
@@ -23,6 +23,6 @@ libclasslib_la_SOURCES = thread.c class.c natives.c excep.c reflect.c \
                          dll.c jni.c jvm.c properties.c openjdk.h \
                          trace.h management.c jmm.h access.c frame.c \
                          classlib.h classlib-symbol.h classlib-defs.h \
-                         shutdown.c
+                         shutdown.c alloc.c
 
 AM_CPPFLAGS = -I$(top_builddir)/src -I$(top_srcdir)/src

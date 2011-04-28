@@ -18,6 +18,8 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#define IS_JTHREAD(cb) (cb->flags & JTHREAD)
+
 extern void fillInStackTrace(Object *);
 extern Object *consNewInstance(Object *reflect_ob, Object *args_array);
 extern Object *invokeMethod(Object *reflect_ob, Object *ob, Object *args_array);

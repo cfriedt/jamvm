@@ -18,18 +18,22 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#define JTHREAD                 512
-#define CLASSLIB_CLASS_SPECIAL  JTHREAD
+#include "jam.h"
+#include "thread.h"
+#include "openjdk.h"
 
-#define CLASSLIB_CLASS_PAD_SIZE 19
+#ifdef TRACEGC
+#define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
+#else
+#define TRACE(fmt, ...)
+#endif
 
-#define CLASSLIB_CLASS_EXTRA_FIELDS  \
-   Object *protection_domain;        \
-   Object *signers;
+void classlibHandleUnmarkedSpecial(Object *ob) {
+    if(IS_JTHREAD(CLASS_CB(ob->class))) {
+        /* Free the native thread structure (see comment
+           in detachThread (thread.c) */
+        TRACE("FREE: Freeing native thread for java thread object %p\n", ob);
+        gcPendingFree(jThread2Thread(ob));
+    }
+}
 
-#define CLASSLIB_THREAD_EXTRA_FIELDS \
-    /* NONE */
-
-#define CLASSLIB_CLASSBLOCK_REFS_DO(action, cb, ...) \
-    action(cb, protection_domain, ## __VA_ARGS__);   \
-    action(cb, signers, ## __VA_ARGS__)
