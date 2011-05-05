@@ -1061,7 +1061,6 @@ void printThreadsDump(Thread *self) {
     char buffer[256];
     Thread *thread;
 
-    printf("PTD\n");fflush(stdout);
     suspendAllThreads(self);
     jam_printf("\n------ JamVM version %s Full Thread Dump -------\n",
                VERSION);
