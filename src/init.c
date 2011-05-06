@@ -138,3 +138,139 @@ unsigned long parseMemValue(char *str) {
 
     return n;
 }
+
+void optError(InitArgs *args, const char *fmt, ...) {
+    va_list ap;
+
+    va_start(ap, fmt);
+    (*args->vfprintf)(stderr, fmt, ap);
+    va_end(ap);
+}
+
+int parseCommonOpts(char *string, InitArgs *args, int is_jni) {
+    int status = OPT_OK;
+
+    if(strcmp(string, "-Xasyncgc") == 0)
+        args->asyncgc = TRUE;
+
+    else if(strncmp(string, "-Xms", 4) == 0 ||
+            (!is_jni && strncmp(string, "-ms", 3) == 0)) {
+
+        char *value = string + (string[1] == 'm' ? 3 : 4);
+        args->min_heap = parseMemValue(value);
+
+        if(args->min_heap < MIN_HEAP) {
+            optError(args, "Invalid minimum heap size: %s (min %dK)\n",
+                     string, MIN_HEAP/KB);
+            status = OPT_ERROR;
+        }
+
+    } else if(strncmp(string, "-Xmx", 4) == 0 ||
+              (!is_jni && strncmp(string, "-mx", 3) == 0)) {
+
+        char *value = string + (string[1] == 'm' ? 3 : 4);
+        args->max_heap = parseMemValue(value);
+
+        if(args->max_heap < MIN_HEAP) {
+            optError(args, "Invalid maximum heap size: %s (min is %dK)\n",
+                     string, MIN_HEAP/KB);
+            status = OPT_ERROR;
+        }
+
+    } else if(strncmp(string, "-Xss", 4) == 0 ||
+              (!is_jni && strncmp(string, "-ss", 3) == 0)) {
+
+        char *value = string + (string[1] == 'm' ? 3 : 4);
+        args->java_stack = parseMemValue(value);
+
+        if(args->java_stack < MIN_STACK) {
+            optError(args, "Invalid Java stack size: %s (min is %dK)\n",
+                     string, MIN_STACK/KB);
+            status = OPT_ERROR;
+        }
+
+    } else if(strncmp(string, "-D", 2) == 0) {
+        char *key = strcpy(sysMalloc(strlen(string + 2) + 1), string + 2);
+        char *pntr;
+
+        for(pntr = key; *pntr && (*pntr != '='); pntr++);
+        if(*pntr)
+            *pntr++ = '\0';
+        args->commandline_props[args->props_count].key = key;
+        args->commandline_props[args->props_count++].value = pntr;
+
+    } else if(strncmp(string, "-Xbootclasspath:", 16) == 0) {
+
+        args->bootpathopt = '\0';
+        args->bootpath = string + 16;
+
+    } else if(strncmp(string, "-Xbootclasspath/a:", 18) == 0 ||
+              strncmp(string, "-Xbootclasspath/p:", 18) == 0 ||
+              strncmp(string, "-Xbootclasspath/c:", 18) == 0 ||
+              strncmp(string, "-Xbootclasspath/v:", 18) == 0) {
+
+        args->bootpathopt = string[16];
+        args->bootpath = string + 18;
+
+    } else if(strcmp(string, "-Xnocompact") == 0) {
+        args->compact_specified = TRUE;
+        args->do_compact = FALSE;
+
+    } else if(strcmp(string, "-Xcompactalways") == 0) {
+        args->compact_specified = args->do_compact = TRUE;
+
+    } else if(strcmp(string, "-Xtracejnisigs") == 0) {
+        args->trace_jni_sigs = TRUE;
+#ifdef INLINING
+    } else if(strcmp(string, "-Xnoinlining") == 0) {
+        /* Turning inlining off is equivalent to setting
+           code memory to zero */
+        args->codemem = 0;
+
+    } else if(strcmp(string, "-Xnoprofiling") == 0) {
+        args->profiling = FALSE;
+
+    } else if(strcmp(string, "-Xnopatching") == 0) {
+        args->branch_patching = FALSE;
+
+    } else if(strcmp(string, "-Xnopatchingdup") == 0) {
+        args->branch_patching_dup = FALSE;
+
+    } else if(strcmp(string, "-Xnojoinblocks") == 0) {
+        args->join_blocks = FALSE;
+
+    } else if(strcmp(string, "-Xcodestats") == 0) {
+        args->print_codestats = TRUE;
+
+    } else if(strncmp(string, "-Xprofiling:", 12) == 0) {
+        args->profile_threshold = strtol(string + 12, NULL, 0);
+
+    } else if(strncmp(string, "-Xreplication:", 14) == 0) {
+        char *pntr = string + 14;
+
+        if(strcmp(pntr, "none") == 0)
+            args->replication_threshold = INT_MAX;
+        else
+            if(strcmp(pntr, "always") == 0)
+                args->replication_threshold = 0;
+            else
+                args->replication_threshold = strtol(pntr, NULL, 0);
+
+    } else if(strncmp(string, "-Xcodemem:", 10) == 0) {
+        char *pntr = string + 10;
+
+        args->codemem = strncmp(pntr, "unlimited", 10) == 0 ?
+            INT_MAX : parseMemValue(pntr);
+
+    } else if(strcmp(string, "-Xshowreloc") == 0) {
+        showRelocatability();
+#endif
+    /* Compatibility options */
+    } else if(strncmp(string, "-XX:", 4) == 0) {
+        /* Ignore */
+    } else
+        status = OPT_UNREC;
+
+    return status;
+}
+

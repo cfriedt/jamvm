@@ -123,24 +123,25 @@ void showFullVersion() {
 }
 
 int parseCommandLine(int argc, char *argv[], InitArgs *args) {
+    Property props[argc-1];
     int is_jar = FALSE;
-    int status = 1;
+    int status = 0;
     int i;
 
-    Property props[argc-1];
-    int props_count = 0;
+    args->commandline_props = &props[0];
 
     for(i = 1; i < argc; i++) {
         if(*argv[i] != '-') {
             if(args->min_heap > args->max_heap) {
                 printf("Minimum heap size greater than max!\n");
+                status = 1;
                 goto exit;
             }
 
-            if((args->props_count = props_count)) {
-                args->commandline_props = sysMalloc(props_count *
+            if(args->props_count) {
+                args->commandline_props = sysMalloc(args->props_count *
                                                     sizeof(Property));
-                memcpy(args->commandline_props, &props[0], props_count *
+                memcpy(args->commandline_props, &props[0], args->props_count *
                                                            sizeof(Property));
             }
 
@@ -152,183 +153,63 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
             return i;
         }
 
-        if(strcmp(argv[i], "-?") == 0 ||
-           strcmp(argv[i], "-help") == 0) {
-            status = 0;
-            break;
+        switch(parseCommonOpts(argv[i], args, FALSE)) {
+            case OPT_OK:
+                break;
+        	
+            case OPT_ERROR:
+        	status = 1;
+        	goto exit;
+        	
+            case OPT_UNREC:
+            default:
+                if(strcmp(argv[i], "-?") == 0 ||
+                   strcmp(argv[i], "-help") == 0) {
+                    goto usage;
 
-        } else if(strcmp(argv[i], "-X") == 0) {
-            showNonStandardOptions();
-            status = 0;
-            goto exit;
+                } else if(strcmp(argv[i], "-X") == 0) {
+                    showNonStandardOptions();
+                    goto exit;
 
-        } else if(strcmp(argv[i], "-version") == 0) {
-            showVersionAndCopyright();
-            status = 0;
-            goto exit;
+                } else if(strcmp(argv[i], "-version") == 0) {
+                    showVersionAndCopyright();
+                    goto exit;
 
-        } else if(strcmp(argv[i], "-showversion") == 0) {
-            showVersionAndCopyright();
+                } else if(strcmp(argv[i], "-showversion") == 0) {
+                    showVersionAndCopyright();
+        
+                } else if(strcmp(argv[i], "-fullversion") == 0) {
+                    showFullVersion();
+                    goto exit;
 
-        } else if(strcmp(argv[i], "-fullversion") == 0) {
-            showFullVersion();
-            status = 0;
-            goto exit;
+                } else if(strncmp(argv[i], "-verbose", 8) == 0) {
+                    char *type = &argv[i][8];
 
-        } else if(strncmp(argv[i], "-verbose", 8) == 0) {
-            char *type = &argv[i][8];
+                    if(*type == '\0' || strcmp(type, ":class") == 0)
+                        args->verboseclass = TRUE;
 
-            if(*type == '\0' || strcmp(type, ":class") == 0)
-                args->verboseclass = TRUE;
+                    else if(strcmp(type, ":gc") == 0 || strcmp(type, "gc") == 0)
+                        args->verbosegc = TRUE;
 
-            else if(strcmp(type, ":gc") == 0 || strcmp(type, "gc") == 0)
-                args->verbosegc = TRUE;
+                    else if(strcmp(type, ":jni") == 0)
+                        args->verbosedll = TRUE;
 
-            else if(strcmp(type, ":jni") == 0)
-                args->verbosedll = TRUE;
+                } else if(strcmp(argv[i], "-jar") == 0) {
+                    is_jar = TRUE;
 
-        } else if(strcmp(argv[i], "-Xasyncgc") == 0)
-            args->asyncgc = TRUE;
-
-        else if(strncmp(argv[i], "-ms", 3) == 0 ||
-                strncmp(argv[i], "-Xms", 4) == 0) {
-
-            char *value = argv[i] + (argv[i][1] == 'm' ? 3 : 4);
-            args->min_heap = parseMemValue(value);
-
-            if(args->min_heap < MIN_HEAP) {
-                printf("Invalid minimum heap size: %s (min %dK)\n", argv[i],
-                       MIN_HEAP/KB);
-                goto exit;
-            }
-
-        } else if(strncmp(argv[i], "-mx", 3) == 0 ||
-                  strncmp(argv[i], "-Xmx", 4) == 0) {
-
-            char *value = argv[i] + (argv[i][1] == 'm' ? 3 : 4);
-            args->max_heap = parseMemValue(value);
-
-            if(args->max_heap < MIN_HEAP) {
-                printf("Invalid maximum heap size: %s (min is %dK)\n", argv[i],
-                       MIN_HEAP/KB);
-                goto exit;
-            }
-
-        } else if(strncmp(argv[i], "-ss", 3) == 0 ||
-                  strncmp(argv[i], "-Xss", 4) == 0) {
-
-            char *value = argv[i] + (argv[i][1] == 'm' ? 3 : 4);
-            args->java_stack = parseMemValue(value);
-
-            if(args->java_stack < MIN_STACK) {
-                printf("Invalid Java stack size: %s (min is %dK)\n", argv[i],
-                       MIN_STACK/KB);
-                goto exit;
-            }
-
-        } else if(strncmp(argv[i], "-D", 2) == 0) {
-            char *key = strcpy(sysMalloc(strlen(argv[i] + 2) + 1), argv[i] + 2);
-            char *pntr;
-
-            for(pntr = key; *pntr && (*pntr != '='); pntr++);
-            if(*pntr)
-                *pntr++ = '\0';
-            props[props_count].key = key;
-            props[props_count++].value = pntr;
-
-        } else if(strcmp(argv[i], "-classpath") == 0 ||
-                  strcmp(argv[i], "-cp") == 0) {
-
-            if(i == argc - 1) {
-                printf("%s : missing path list\n", argv[i]);
-                goto exit;
-            }
-            args->classpath = argv[++i];
-
-        } else if(strncmp(argv[i], "-Xbootclasspath:", 16) == 0) {
-
-            args->bootpathopt = '\0';
-            args->bootpath = argv[i] + 16;
-
-        } else if(strncmp(argv[i], "-Xbootclasspath/a:", 18) == 0 ||
-                  strncmp(argv[i], "-Xbootclasspath/p:", 18) == 0 ||
-                  strncmp(argv[i], "-Xbootclasspath/c:", 18) == 0 ||
-                  strncmp(argv[i], "-Xbootclasspath/v:", 18) == 0) {
-
-            args->bootpathopt = argv[i][16];
-            args->bootpath = argv[i] + 18;
-
-        } else if(strcmp(argv[i], "-jar") == 0) {
-            is_jar = TRUE;
-
-        } else if(strcmp(argv[i], "-Xnocompact") == 0) {
-            args->compact_specified = TRUE;
-            args->do_compact = FALSE;
-
-        } else if(strcmp(argv[i], "-Xcompactalways") == 0) {
-            args->compact_specified = args->do_compact = TRUE;
-
-        } else if(strcmp(argv[i], "-Xtracejnisigs") == 0) {
-            args->trace_jni_sigs = TRUE;
-#ifdef INLINING
-        } else if(strcmp(argv[i], "-Xnoinlining") == 0) {
-            /* Turning inlining off is equivalent to setting
-               code memory to zero */
-            args->codemem = 0;
-
-        } else if(strcmp(argv[i], "-Xnoprofiling") == 0) {
-            args->profiling = FALSE;
-
-        } else if(strcmp(argv[i], "-Xnopatching") == 0) {
-            args->branch_patching = FALSE;
-
-        } else if(strcmp(argv[i], "-Xnopatchingdup") == 0) {
-            args->branch_patching_dup = FALSE;
-
-        } else if(strcmp(argv[i], "-Xnojoinblocks") == 0) {
-            args->join_blocks = FALSE;
-
-        } else if(strcmp(argv[i], "-Xcodestats") == 0) {
-            args->print_codestats = TRUE;
-
-        } else if(strncmp(argv[i], "-Xprofiling:", 12) == 0) {
-            args->profile_threshold = strtol(argv[i] + 12, NULL, 0);
-
-        } else if(strncmp(argv[i], "-Xreplication:", 14) == 0) {
-            char *pntr = argv[i] + 14;
-
-            if(strcmp(pntr, "none") == 0)
-                args->replication_threshold = INT_MAX;
-            else
-                if(strcmp(pntr, "always") == 0)
-                    args->replication_threshold = 0;
-                else
-                    args->replication_threshold = strtol(pntr, NULL, 0);
-
-        } else if(strncmp(argv[i], "-Xcodemem:", 10) == 0) {
-            char *pntr = argv[i] + 10;
-
-            args->codemem = strncmp(pntr, "unlimited", 10) == 0 ?
-                INT_MAX : parseMemValue(pntr);
-
-        } else if(strcmp(argv[i], "-Xshowreloc") == 0) {
-            showRelocatability();
-            status = 0;
-            goto exit;
-#endif
-        /* Compatibility options */
-        } else if(strcmp(argv[i], "-client") == 0 ||
-                  strcmp(argv[i], "-server") == 0 ||
-                  strncmp(argv[i], "-XX:PermSize=", 13) == 0 ||
-                  strncmp(argv[i], "-XX:MaxPermSize=", 16) == 0 ||
-                  strncmp(argv[i], "-XX:ThreadStackSize=", 20) == 0) {
-            /* Ignore */
-        } else {
-            printf("Unrecognised command line option: %s\n", argv[i]);
-            break;
+                /* Compatibility options */
+                } else if(strcmp(argv[i], "-client") == 0 ||
+                          strcmp(argv[i], "-server") == 0) {
+                    /* Ignore */
+                } else {
+                    printf("Unrecognised command line option: %s\n", argv[i]);
+                    status = 1;
+                    goto usage;
+                }
         }
     }
 
+usage:
     showUsage(argv[0]);
 
 exit:

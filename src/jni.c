@@ -1509,141 +1509,57 @@ jint JNI_GetDefaultJavaVMInitArgs(void *args) {
     return JNI_OK;
 }
 
-void optError(InitArgs *args, const char *fmt, ...) {
-    va_list ap;
-
-    va_start(ap, fmt);
-    (*args->vfprintf)(stderr, fmt, ap);
-    va_end(ap);
-}
-
 jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
     Property props[vm_args->nOptions];
-    int props_count = 0;
     int i;
+
+    args->commandline_props = &props[0];
 
     for(i = 0; i < vm_args->nOptions; i++) {
         char *string = vm_args->options[i].optionString;
 
-        if(strcmp(string, "vfprintf") == 0)
-            args->vfprintf = vm_args->options[i].extraInfo;
+        switch(parseCommonOpts(string, args, TRUE)) {
+            case OPT_OK:
+                break;
 
-        else if(strcmp(string, "exit") == 0)
-            args->exit = vm_args->options[i].extraInfo;
+            case OPT_ERROR:
+                goto error;
 
-        else if(strcmp(string, "abort") == 0)
-            args->abort = vm_args->options[i].extraInfo;
+            case OPT_UNREC:
+            default:
+                if(strcmp(string, "vfprintf") == 0)
+                    args->vfprintf = vm_args->options[i].extraInfo;
 
-        else if(strncmp(string, "-verbose:", 9) == 0) {
-            char *type = &string[8];
+                else if(strcmp(string, "exit") == 0)
+                    args->exit = vm_args->options[i].extraInfo;
 
-            do {
-                type++;
+                else if(strcmp(string, "abort") == 0)
+                    args->abort = vm_args->options[i].extraInfo;
 
-                if(strncmp(type, "class", 5) == 0) {
-                    args->verboseclass = TRUE;
-                    type += 5;
-                 }
-                else if(strncmp(type, "gc", 2) == 0) {
-                    args->verbosegc = TRUE;
-                    type += 2;
+                else if(strncmp(string, "-verbose:", 9) == 0) {
+                    char *type = &string[8];
+
+                    do {
+                        type++;
+
+                        if(strncmp(type, "class", 5) == 0) {
+                            args->verboseclass = TRUE;
+                            type += 5;
+                         }
+                        else if(strncmp(type, "gc", 2) == 0) {
+                            args->verbosegc = TRUE;
+                            type += 2;
+                        }
+                        else if(strncmp(type, "jni", 3) == 0) {
+                            args->verbosedll = TRUE;
+                            type += 3;
+                        }
+                    } while(*type == ',');
+
+                } else if(!vm_args->ignoreUnrecognized) {
+                    optError(args, "Unrecognised option: %s\n", string);
+                    goto error;
                 }
-                else if(strncmp(type, "jni", 3) == 0) {
-                    args->verbosedll = TRUE;
-                    type += 3;
-                }
-            } while(*type == ',');
-
-        } else if(strcmp(string, "-Xasyncgc") == 0)
-            args->asyncgc = TRUE;
-
-        else if(strncmp(string, "-Xms", 4) == 0) {
-            args->min_heap = parseMemValue(string + 4);
-            if(args->min_heap < MIN_HEAP) {
-                optError(args, "Invalid minimum heap size: %s (min %dK)\n",
-                               string, MIN_HEAP/KB);
-                goto error;
-            }
-
-        } else if(strncmp(string, "-Xmx", 4) == 0) {
-            args->max_heap = parseMemValue(string + 4);
-            if(args->max_heap < MIN_HEAP) {
-                optError(args, "Invalid maximum heap size: %s (min is %dK)\n",
-                               string, MIN_HEAP/KB);
-                goto error;
-            }
-
-        } else if(strncmp(string, "-Xss", 4) == 0) {
-            args->java_stack = parseMemValue(string + 4);
-            if(args->java_stack < MIN_STACK) {
-                optError(args, "Invalid Java stack size: %s (min is %dK)\n",
-                               string, MIN_STACK/KB);
-                goto error;
-            }
-
-        } else if(strncmp(string, "-D", 2) == 0) {
-            char *key = strcpy(sysMalloc(strlen(string+2) + 1), string+2);
-            char *pntr;
-
-            for(pntr = key; *pntr && (*pntr != '='); pntr++);
-            if(*pntr)
-                *pntr++ = '\0';
-            props[props_count].key = key;
-            props[props_count++].value = pntr;
-
-        } else if(strncmp(string, "-Xbootclasspath:", 16) == 0) {
-
-            args->bootpathopt = '\0';
-            args->bootpath = string + 16;
-
-        } else if(strncmp(string, "-Xbootclasspath/a:", 18) == 0 ||
-                  strncmp(string, "-Xbootclasspath/p:", 18) == 0 ||
-                  strncmp(string, "-Xbootclasspath/c:", 18) == 0 ||
-                  strncmp(string, "-Xbootclasspath/v:", 18) == 0) {
-
-            args->bootpathopt = string[16];
-            args->bootpath = string + 18;
-
-        } else if(strcmp(string, "-Xnocompact") == 0) {
-            args->compact_specified = TRUE;
-            args->do_compact = FALSE;
-
-        } else if(strcmp(string, "-Xcompactalways") == 0) {
-            args->compact_specified = args->do_compact = TRUE;
-
-        } else if(strcmp(string, "-Xtracejnisigs") == 0) {
-            args->trace_jni_sigs = TRUE;
-#ifdef INLINING
-        } else if(strcmp(string, "-Xnoinlining") == 0) {
-            /* Turning inlining off is equivalent to setting
-               code memory to zero */
-            args->codemem = 0;
-
-        } else if(strncmp(string, "-Xreplication:", 14) == 0) {
-            char *pntr = string + 14;
-
-            if(strcmp(pntr, "none") == 0)
-                args->replication_threshold = INT_MAX;
-            else
-                if(strcmp(pntr, "always") == 0)
-                    args->replication_threshold = 0;
-                else
-                    args->replication_threshold = strtol(pntr, NULL, 0);
-
-        } else if(strncmp(string, "-Xcodemem:", 10) == 0) {
-            char *pntr = string + 10;
-
-            args->codemem = strncmp(pntr, "unlimited", 10) == 0 ?
-                INT_MAX : parseMemValue(pntr);
-#endif
-        /* Compatibility options */
-        } else if(strncmp(string, "-XX:PermSize=", 13) == 0 ||
-                  strncmp(string, "-XX:MaxPermSize=", 16) == 0 ||
-                  strncmp(string, "-XX:ThreadStackSize=", 20) == 0) {
-            /* Ignore */
-        } else if(!vm_args->ignoreUnrecognized) {
-            optError(args, "Unrecognised option: %s\n", string);
-            goto error;
         }
     }
 
@@ -1652,9 +1568,10 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
         goto error;
     }
 
-    if((args->props_count = props_count)) {
-        args->commandline_props = sysMalloc(props_count * sizeof(Property));
-        memcpy(args->commandline_props, &props[0], props_count *
+    if(args->props_count) {
+        args->commandline_props = sysMalloc(args->props_count *
+                                            sizeof(Property));
+        memcpy(args->commandline_props, &props[0], args->props_count *
                                                    sizeof(Property));
     }
 

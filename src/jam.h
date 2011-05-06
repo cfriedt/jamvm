@@ -768,6 +768,10 @@ typedef struct InitArgs {
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
+#define OPT_OK    0
+#define OPT_ERROR 1
+#define OPT_UNREC 2
+
 /* --------------------- Function prototypes  --------------------------- */
 
 /* Alloc */
@@ -1107,6 +1111,8 @@ extern uintptr_t *vmSupportsCS8(Class *class, MethodBlock *mb, uintptr_t *ostack
 
 /* init */
 
+extern int parseCommonOpts(char *string, InitArgs *args, int is_jni);
+extern void optError(InitArgs *args, const char *fmt, ...);
 extern void setDefaultInitArgs(InitArgs *args);
 extern unsigned long parseMemValue(char *str);
 extern void initVM(InitArgs *args);
