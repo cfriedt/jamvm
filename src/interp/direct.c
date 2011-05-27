@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -428,8 +428,8 @@ retry:
                            from dest again, we will immediately get a conflict which will be
                            resolved by adding a NOP. */
                         memset(&cache_depth[dest + 1], DEPTH_UNKNOWN, pc - dest);
-                        ins_count = map[dest];
                         cache = cache_depth[dest];
+                        ins_count = map[dest] - 1;
                         pc = dest;
                     } else {
                         cache = 0;
@@ -487,8 +487,8 @@ retry:
                            from dest again, we will immediately get a conflict which will be
                            resolved by adding a NOP. */
                         memset(&cache_depth[dest + 1], DEPTH_UNKNOWN, pc - dest);
-                        ins_count = map[dest];
                         cache = cache_depth[dest];
+                        ins_count = map[dest] - 1;
                         pc = dest;
                     } else {
                         cache = 0;
@@ -696,7 +696,7 @@ retry:
 
                         memset(&cache_depth[dest + 1], DEPTH_UNKNOWN, pc - dest);
                         cache = cache_depth[dest];
-                        ins_count = map[dest];
+                        ins_count = map[dest] - 1;
                         pc = dest;
                     } else {
                         cache = 0;
