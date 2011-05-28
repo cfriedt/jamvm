@@ -150,7 +150,7 @@ retry:
 #endif
 
     for(pass = 0; pass < 2; pass++) {
-            int block_quickened = FALSE;
+        int block_quickened = FALSE;
 #ifdef INLINING
         int block_start = 0;
 #endif
