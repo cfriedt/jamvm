@@ -479,7 +479,7 @@ jclass JVM_GetCallerClass(JNIEnv* env, int depth) {
 /* JVM_FindPrimitiveClass */
 
 jclass JVM_FindPrimitiveClass(JNIEnv* env, const char *prim_name) {
-    TRACE("JVM_FindPrimitiveClass(env=%p, s=%s)", env, prim_name);
+    TRACE("JVM_FindPrimitiveClass(env=%p, name=%s)", env, prim_name);
 
     return findPrimitiveClassByName((char*)prim_name);
 }
@@ -492,6 +492,22 @@ void JVM_ResolveClass(JNIEnv* env, jclass cls) {
 }
 
 
+/* JVM_FindClassFromBootLoader */
+
+jclass JVM_FindClassFromBootLoader(JNIEnv *env, const char *name) {
+    Class *class;
+    
+    TRACE("JVM_FindClassFromBootLoader(env=%p, name=%s)", env, name);
+  
+    class = findClassFromClassLoader((char *)name, NULL);
+
+    if(class == NULL)
+        clearException();
+
+    return class;
+}
+
+
 /* JVM_FindClassFromClassLoader */
 
 jclass JVM_FindClassFromClassLoader(JNIEnv *env, const char *name,
@@ -499,8 +515,8 @@ jclass JVM_FindClassFromClassLoader(JNIEnv *env, const char *name,
                                     jboolean throwError) {
     Class *class;
 
-    TRACE("JVM_FindClassFromClassLoader(name=%s, init=%d, loader=%p,"
-          " throwError=%d)", name, init, loader, throwError);
+    TRACE("JVM_FindClassFromClassLoader(env=%p, name=%s, init=%d, loader=%p,"
+          " throwError=%d)", env, name, init, loader, throwError);
 
     /* As of now, OpenJDK does not call this function with throwError
        is true. */
