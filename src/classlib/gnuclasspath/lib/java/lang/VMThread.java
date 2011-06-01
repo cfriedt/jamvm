@@ -170,9 +170,11 @@ final class VMThread
      * @throws InterruptedException if the Thread is interrupted; it's
      *         <i>interrupted status</i> will be cleared
      */
-    synchronized void join(long ms, int ns) throws InterruptedException {
-        if(thread.isAlive())
-            wait(ms, ns);
+    void join(long ms, int ns) throws InterruptedException {
+        synchronized(thread) {
+            if(thread.isAlive())
+                thread.wait(ms, ns);
+        }
     }
 
     /**
