@@ -1120,7 +1120,7 @@ extern int VMInitialising();
 
 /* shutdown */
 
-extern void shutdownVM(int status);
+extern void shutdownVM();
 
 /* hooks */
 

@@ -217,7 +217,8 @@ void JVM_Exit(jint code) {
 void JVM_Halt(jint code) {
     TRACE("JVM_Halt(code=%d)", code);
 
-    shutdownVM(code);
+    shutdownVM();
+    jamvm_exit(code);
 }
 
 

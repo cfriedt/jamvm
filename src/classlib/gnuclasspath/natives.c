@@ -150,7 +150,10 @@ uintptr_t *runFinalization(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *exitInternal(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     int status = ostack[0];
-    shutdownVM(status);
+
+    shutdownVM();
+    jamvm_exit(status);
+
     /* keep compiler happy */
     return ostack;
 }

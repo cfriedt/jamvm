@@ -33,5 +33,7 @@ void classlibVMShutdown() {
             if(mb != NULL)
                 executeStaticMethod(class, mb);
         }
+
+        shutdownVM();
     }
 }

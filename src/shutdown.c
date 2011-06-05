@@ -20,10 +20,8 @@
 
 #include "jam.h"
 
-void shutdownVM(int status) {
+void shutdownVM() {
     shutdownInterpreter();
     shutdownDll();
-
-    jamvm_exit(status);
 }
 
