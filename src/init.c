@@ -266,7 +266,9 @@ int parseCommonOpts(char *string, InitArgs *args, int is_jni) {
         showRelocatability();
 #endif
     /* Compatibility options */
-    } else if(strncmp(string, "-XX:", 4) == 0) {
+    } else if(strcmp(string,  "-Xcomp")  == 0 ||
+              strcmp(string,  "-Xbatch") == 0 ||
+              strncmp(string, "-XX:", 4) == 0) {
         /* Ignore */
     } else
         status = OPT_UNREC;
