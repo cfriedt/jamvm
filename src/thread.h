@@ -144,6 +144,7 @@ extern void resumeThread(Thread *thread);
 extern Object *runningThreadStackTrace(Thread *thread, int max_depth,
                                        int *in_native);
 extern Object *runningThreadObjects();
+extern void printThreadsDump(Thread *self);
 
 #define disableSuspend(thread)             \
 {                                          \

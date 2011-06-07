@@ -178,7 +178,7 @@ void classlibSignalThread(Thread *self) {
         pending_signals[sig] = FALSE;
 
         if(sig == SIGQUIT)
-            printThreadsDump();
+            printThreadsDump(self);
         else {
             enableSuspend(self);
 

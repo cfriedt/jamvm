@@ -152,7 +152,7 @@ void classlibSignalThread(Thread *self) {
             exitVM(0);
 
         /* It must be a SIGQUIT.  Do a thread dump */
-        printThreadsDump();
+        printThreadsDump(self);
     }
 }
 
