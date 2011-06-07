@@ -62,3 +62,4 @@ extern Object *createReflectConstructorObject(MethodBlock *mb);
 extern Object *createReflectMethodObject(MethodBlock *mb);
 extern Object *createReflectFieldObject(FieldBlock *fb);
 extern int checkObject(Object *ob, Class *type);
+extern int getWrapperPrimTypeIndex(Object *arg);

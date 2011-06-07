@@ -36,6 +36,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <netdb.h>
+#include <fcntl.h>
+#include <math.h>
 
 #include "jam.h"
 #include "jni.h"

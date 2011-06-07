@@ -890,6 +890,7 @@ extern int peekIsFieldLong(Class *class, int index);
 
 /* cast */
 
+extern char implements(Class *class, Class *test);
 extern char isSubClassOf(Class *class, Class *test);
 extern char isInstanceOf(Class *class, Class *test);
 extern char arrayStoreCheck(Class *class, Class *test);

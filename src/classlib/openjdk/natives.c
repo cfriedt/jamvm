@@ -328,7 +328,8 @@ uintptr_t *throwException(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *allocateInstance(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    *ostack++ = (uintptr_t) allocObjectClassCheck((Class *)ostack[1]);
+    Object *obj = allocObjectClassCheck((Class *)ostack[1]);
+    *ostack++ = (uintptr_t)obj;
     return ostack;
 }
 
