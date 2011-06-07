@@ -176,8 +176,8 @@ uintptr_t *getObject(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *getInt(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    int64_t   offset = *(int64_t  *)&ostack[2];
-    uint32_t  *pntr  =  (uint32_t *)((char *)ostack[1] + offset);
+    int64_t  offset = *(int64_t  *)&ostack[2];
+    uint32_t *pntr  =  (uint32_t *)((char *)ostack[1] + offset);
 
     *ostack++ = *pntr;
     return ostack;
@@ -210,9 +210,15 @@ uintptr_t *setMemoryOpenJDK6(Class *class, MethodBlock *mb,
                              uintptr_t *ostack) {
 
     int64_t address = *(int64_t *)&ostack[1];
-    int64_t size    = *(int64_t *)&ostack[3];
+    int64_t bytes   = *(int64_t *)&ostack[3];
     int32_t value   = ostack[5];
     void    *pntr   = (void *)(uintptr_t)address;
+    size_t  size    = bytes;
+
+    if(bytes < 0 || bytes != size) {
+        signalException(java_lang_IllegalArgumentException, NULL);
+        return ostack;
+    }
 
     memset(pntr, value, size);
     return ostack;
@@ -223,9 +229,15 @@ uintptr_t *copyMemoryOpenJDK6(Class *class, MethodBlock *mb,
 
     int64_t src_addr  = *(int64_t *)&ostack[1];
     int64_t dst_addr  = *(int64_t *)&ostack[3];
-    int64_t size      = *(int64_t *)&ostack[5];
+    int64_t bytes     = *(int64_t *)&ostack[5];
     void    *src_pntr = (void *)(uintptr_t)src_addr;
     void    *dst_pntr = (void *)(uintptr_t)dst_addr;
+    size_t  size      = bytes;
+
+    if(bytes < 0 || bytes != size) {
+        signalException(java_lang_IllegalArgumentException, NULL);
+        return ostack;
+    }
 
     memcpy(dst_pntr, src_pntr, size);
     return ostack;
@@ -236,9 +248,15 @@ uintptr_t *setMemoryOpenJDK7(Class *class, MethodBlock *mb,
 
     Object *base    = (Object *)ostack[1];
     int64_t offset  = *(int64_t *)&ostack[2];
-    int64_t size    = *(int64_t *)&ostack[4];
+    int64_t bytes   = *(int64_t *)&ostack[4];
     int32_t value   = ostack[6];
     void   *pntr    = (char *)base + offset;
+    size_t  size    = bytes;
+
+    if(bytes < 0 || bytes != size) {
+        signalException(java_lang_IllegalArgumentException, NULL);
+        return ostack;
+    }
 
     memset(pntr, value, size);
     return ostack;
@@ -251,9 +269,15 @@ uintptr_t *copyMemoryOpenJDK7(Class *class, MethodBlock *mb,
     int64_t src_ofst  = *(int64_t *)&ostack[2];
     Object *dst_base  = (Object *)ostack[4];
     int64_t dst_ofst  = *(int64_t *)&ostack[5];
-    int64_t size      = *(int64_t *)&ostack[7];
+    int64_t bytes     = *(int64_t *)&ostack[7];
     void   *src_pntr  = (char *)src_base + src_ofst;
     void   *dst_pntr  = (char *)dst_base + dst_ofst;
+    size_t  size      = bytes;
+
+    if(bytes < 0 || bytes != size) {
+        signalException(java_lang_IllegalArgumentException, NULL);
+        return ostack;
+    }
 
     memcpy(dst_pntr, src_pntr, size);
     return ostack;
