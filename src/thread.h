@@ -139,7 +139,7 @@ extern char *getThreadStateString(Thread *thread);
 
 extern Thread *findThreadById(long long id);
 extern Thread *findRunningThreadByTid(int tid);
-extern int suspendThread(Thread *thread);
+extern void suspendThread(Thread *thread);
 extern void resumeThread(Thread *thread);
 extern Object *runningThreadStackTrace(Thread *thread, int max_depth,
                                        int *in_native);

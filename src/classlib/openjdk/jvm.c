@@ -998,6 +998,8 @@ jclass JVM_ConstantPoolGetClassAt(JNIEnv *env, jobject unused, jobject jcpool,
                                   jint index) {
     TBD("JVM_ConstantPoolGetClassAt(env=%p, jcpool=%p, index=%d)", env,
           jcpool, index);
+
+    return NULL;
 }
 
 
@@ -1007,6 +1009,8 @@ jclass JVM_ConstantPoolGetClassAtIfLoaded(JNIEnv *env, jobject unused,
                                           jobject jcpool, jint index) {
     TBD("JVM_ConstantPoolGetClassAtIfLoaded(env=%p, unused=%p, jcpool=%p,"
           " index=%d)", env, unused, jcpool, index);
+
+    return NULL;
 }
 
 
@@ -1015,6 +1019,8 @@ jclass JVM_ConstantPoolGetClassAtIfLoaded(JNIEnv *env, jobject unused,
 jobject JVM_ConstantPoolGetMethodAt(JNIEnv *env, jobject unused,
                                     jobject jcpool, jint index) {
     TBD("JVM_ConstantPoolGetMethodAt: jcpool=%p, index=%d", jcpool, index);
+
+    return NULL;
 }
 
 
@@ -1025,6 +1031,8 @@ jobject JVM_ConstantPoolGetMethodAtIfLoaded(JNIEnv *env, jobject unused,
 
     TBD("JVM_ConstantPoolGetMethodAtIfLoaded: jcpool=%p, index=%d",
           jcpool, index);
+
+    return NULL;
 }
 
 
@@ -1033,6 +1041,8 @@ jobject JVM_ConstantPoolGetMethodAtIfLoaded(JNIEnv *env, jobject unused,
 jobject JVM_ConstantPoolGetFieldAt(JNIEnv *env, jobject unused, jobject jcpool,
                                    jint index) {
     TBD("JVM_ConstantPoolGetFieldAt: jcpool=%p, index=%d", jcpool, index);
+
+    return NULL;
 }
 
 
@@ -1043,6 +1053,8 @@ jobject JVM_ConstantPoolGetFieldAtIfLoaded(JNIEnv *env, jobject unused,
 
     TBD("JVM_ConstantPoolGetFieldAtIfLoaded: jcpool=%p, index=%d",
           jcpool, index);
+
+    return NULL;
 }
 
 
@@ -1126,6 +1138,8 @@ jdouble JVM_ConstantPoolGetDoubleAt(JNIEnv *env, jobject unused,
 jstring JVM_ConstantPoolGetStringAt(JNIEnv *env, jobject unused,
                                     jobject jcpool, jint index) {
     TBD("JVM_ConstantPoolGetStringAt: jcpool=%p, index=%d", jcpool, index);
+
+    return NULL;
 }
 
 

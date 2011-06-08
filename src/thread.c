@@ -858,7 +858,7 @@ Object *runningThreadStackTrace(Thread *thread, int max_depth,
     return convertTrace2Elements(trace, depth * 2);
 }
 
-int suspendThread(Thread *thread) {
+void suspendThread(Thread *thread) {
     thread->suspend = TRUE;
     MBARRIER();
 
