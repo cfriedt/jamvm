@@ -98,9 +98,9 @@ void initVM(InitArgs *args) {
     initialiseAlloc(args);
     initialiseThreadStage1(args);
     initialiseUtf8();
-    initialiseDll(args);
     initialiseSymbol();
     initialiseClass(args);
+    initialiseDll(args);
     initialiseMonitor();
     initialiseString();
     initialiseException();

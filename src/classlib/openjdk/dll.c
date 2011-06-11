@@ -26,6 +26,17 @@
 static MethodBlock *findNative_mb;
 
 int classlibInitialiseDll() {
+    Class *ldr_class = findSystemClass0(SYMBOL(java_lang_ClassLoader));
+
+    if(ldr_class != NULL)
+        findNative_mb = findMethod(ldr_class, SYMBOL(findNative),
+                   SYMBOL(_java_lang_ClassLoader_java_lang_String__J));
+
+    if(findNative_mb == NULL)  {
+        jam_fprintf(stderr, "Expected \"findNative\" method missing "
+                            "in java.lang.ClassLoader\n");
+        exitVM(1);
+    }
 }
 
 char *classlibDefaultBootDllPath() {
@@ -43,20 +54,6 @@ void *classlibLookupLoadedDlls(char *name, Object *loader) {
 
         if(address != NULL)
             return address;
-    }
-
-    if(findNative_mb == NULL) {
-        Class *ldr_class = findSystemClass0(SYMBOL(java_lang_ClassLoader));
-
-        if(ldr_class != NULL)
-            findNative_mb = findMethod(ldr_class, SYMBOL(findNative),
-                       SYMBOL(_java_lang_ClassLoader_java_lang_String__J));
-
-        if(findNative_mb == NULL)  {
-            jam_fprintf(stderr, "Expected \"findNative\" method missing "
-                                "in java.lang.ClassLoader\n");
-            exitVM(1);
-        }
     }
 
     if((name_string = createString(name)) != NULL) {
