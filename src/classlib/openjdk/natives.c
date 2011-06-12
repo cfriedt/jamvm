@@ -203,6 +203,9 @@ uintptr_t *allocateMemory(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *freeMemory(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    int64_t address = *(int64_t *)&ostack[1];
+
+    free((void *)(uintptr_t)address);
     return ostack;
 }
 
