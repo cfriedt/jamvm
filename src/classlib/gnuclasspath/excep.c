@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -24,7 +24,7 @@
 static Class *vmthrow_class;
 static int backtrace_offset;
 
-void classlibInitialiseException(Class *throw_class) {
+int classlibInitialiseException(Class *throw_class) {
     FieldBlock *backtrace = NULL;
 
     vmthrow_class = findSystemClass0(SYMBOL(java_lang_VMThrowable));
@@ -33,14 +33,16 @@ void classlibInitialiseException(Class *throw_class) {
                                              SYMBOL(sig_java_lang_Object));
 
     if(backtrace == NULL) {
-        jam_fprintf(stderr, "Error initialising VM (initialiseException)\n");
-        exitVM(1);
+        jam_fprintf(stderr, "Expected \"backtrace\" field missing in "
+                            "java.lang.VMThrowable\n");
+        return FALSE;
     }
 
     CLASS_CB(vmthrow_class)->flags |= VMTHROWABLE;
     backtrace_offset = backtrace->u.offset;
 
     registerStaticClassRef(&vmthrow_class);
+    return TRUE;
 }
 
 Object *setStackTrace0(ExecEnv *ee, int max_depth) {

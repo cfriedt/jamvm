@@ -46,7 +46,8 @@ int classlibInitialiseNatives() {
                                SYMBOL(sig_java_security_ProtectionDomain));
 
     if(pd == NULL) {
-        jam_fprintf(stderr, "Error initialising VM (initialiseNatives)\n");
+        jam_fprintf(stderr, "Expected \"pd\" field missing in "
+                            "java.lang.Class\n");
         return FALSE;
     }
 

@@ -1993,6 +1993,9 @@ void initialiseClass(InitArgs *args) {
     registerStaticClassRef(&java_lang_Class);
 
     /* Do classlib specific class initialisation */
-    classlibInitialiseClass();
+    if(!classlibInitialiseClass()) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseClass)\n");
+        exitVM(1);
+    }
 }
 

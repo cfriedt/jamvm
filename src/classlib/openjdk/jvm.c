@@ -42,10 +42,13 @@
 #include "jam.h"
 #include "jni.h"
 #include "lock.h"
+#include "hash.h"
+#include "class.h"
 #include "excep.h"
 #include "symbol.h"
 #include "reflect.h"
 #include "openjdk.h"
+#include "classlib.h"
 #include "properties.h"
 #include "trace.h"
 
@@ -2180,6 +2183,7 @@ jint JVM_InitializeSocketLibrary() {
     TRACE("JVM_InitializeSocketLibrary()");
 
     /* Nothing to be done */
+    return JNI_TRUE;
 }
 
 
@@ -2208,6 +2212,7 @@ jint JVM_SocketShutdown(jint fd, jint howto) {
     TRACE("JVM_SocketShutdown(fd=%d, howto=%d)", fd, howto);
 
     /* Nothing to be done */
+    return JNI_TRUE;
 }
 
 
@@ -2945,10 +2950,10 @@ typedef struct signal {
 } Signal;
 
 static Signal signals[] = {
-    "HUP",  SIGHUP,
-    "INT",  SIGINT,
-    "TERM", SIGTERM,
-    NULL,   -1
+    {"HUP",  SIGHUP},
+    {"INT",  SIGINT},
+    {"TERM", SIGTERM},
+    {NULL,   -1}
 };
 
 jint JVM_FindSignal(const char *name) {

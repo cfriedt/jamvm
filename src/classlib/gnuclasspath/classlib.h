@@ -56,9 +56,10 @@ extern void classlibThreadName2Buff(Object *jThread, char *buffer,
 
 extern void classlibSignalThread(Thread *self);
 
+
 /* Class */
 
-extern void classlibInitialiseClass();
+extern int classlibInitialiseClass();
 extern void classlibCacheClassLoaderFields(Class *loader_class);
 extern HashTable *classlibLoaderTable(Object *class_loader);
 extern HashTable *classlibCreateLoaderTable(Object *class_loader);
@@ -85,7 +86,9 @@ extern FieldBlock *classlibFbFromReflectObject(Object *reflect_ob);
 
 /* DLL */
 
-extern int classlibInitialiseDll();
+#define classlibInitialiseDll() \
+    /* NOTHING TO DO */ TRUE
+
 extern char *classlibDefaultBootDllPath();
 extern void *classlibLookupLoadedDlls(char *name, Object *loader);
 
@@ -115,7 +118,7 @@ extern int classlibInitialiseNatives();
 
 /* Excep */
 
-extern void classlibInitialiseException(Class *throw_class);
+extern int classlibInitialiseException(Class *throw_class);
 
 /* Frame */
 

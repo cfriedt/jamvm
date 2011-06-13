@@ -63,7 +63,10 @@ void initialiseJNI() {
     /* Initialise the global reference tables */
     initJNIGrefs();
 
-    classlibInitialiseJNI();
+    if(!classlibInitialiseJNI()) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseJNI)\n");
+        exitVM(1);
+    }
 }
 
 /* ---------- Local reference support functions ---------- */

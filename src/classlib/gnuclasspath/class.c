@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -173,7 +173,7 @@ void classlibNewLibraryUnloader(Object *class_loader, void *entry) {
         executeMethod(vmdata, ldr_new_unloader, (long long)(uintptr_t)entry);
 }
 
-void classlibInitialiseClass() {
+int classlibInitialiseClass() {
     FieldBlock *hashtable = NULL;
     Class *loader_data_class;
     Class *vm_loader_class;
@@ -188,7 +188,7 @@ void classlibInitialiseClass() {
 
     if(hashtable == NULL || ldr_new_unloader == NULL) {
         jam_fprintf(stderr, "Fatal error: Bad VMClassLoaderData (missing or corrupt)\n");
-        exitVM(1);
+        return FALSE;
     }
     ldr_data_tbl_offset = hashtable->u.offset;
 
@@ -200,7 +200,7 @@ void classlibInitialiseClass() {
 
     if(vm_loader_create_package == NULL) {
         jam_fprintf(stderr, "Fatal error: Bad java.lang.VMClassLoader (missing or corrupt)\n");
-        exitVM(1);
+        return FALSE;
     }
 
     package_array_class = findArrayClass(SYMBOL(array_java_lang_Package));
@@ -208,7 +208,9 @@ void classlibInitialiseClass() {
 
     if(package_array_class == NULL) {
         jam_fprintf(stderr, "Fatal error: missing java.lang.Package\n");
-        exitVM(1);
+        return FALSE;
     }
+
+    return TRUE;
 }
 

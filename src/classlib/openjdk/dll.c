@@ -35,8 +35,10 @@ int classlibInitialiseDll() {
     if(findNative_mb == NULL)  {
         jam_fprintf(stderr, "Expected \"findNative\" method missing "
                             "in java.lang.ClassLoader\n");
-        exitVM(1);
+        return FALSE;
     }
+
+    return TRUE;
 }
 
 char *classlibDefaultBootDllPath() {

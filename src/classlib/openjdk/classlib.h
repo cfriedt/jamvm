@@ -48,9 +48,12 @@ extern void classlibThreadName2Buff(Object *jThread, char *buffer,
 extern int classlibInitialiseSignals();
 extern void classlibSignalThread(Thread *self);
 
+
 /* Class */
 
-extern void classlibInitialiseClass();
+#define classlibInitialiseClass() \
+    /* NOTHING TO DO */ TRUE
+
 extern void classlibCacheClassLoaderFields(Class *loader_class);
 extern HashTable *classlibLoaderTable(Object *class_loader);
 extern HashTable *classlibCreateLoaderTable(Object *class_loader);
@@ -108,7 +111,7 @@ extern int classlibInitialiseNatives();
 
 /* Excep */
 
-extern void classlibInitialiseException(Class *throw_class);
+extern int classlibInitialiseException(Class *throw_class);
 
 /* Frame */
 

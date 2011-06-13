@@ -396,6 +396,7 @@ char *getThreadStateString(Thread *thread) {
         case TERMINATED:
             return "TERMINATED";
     }
+    return "INVALID";
 }
 
 int getThreadsCount() {

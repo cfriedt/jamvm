@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -251,7 +251,10 @@ void initialiseDll(InitArgs *args) {
         boot_dll_path = classlibDefaultBootDllPath();
 
     /* classlib specific initialisation */
-    classlibInitialiseDll();
+    if(!classlibInitialiseDll()) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseDll)\n");
+        exitVM(1);
+    }
 
     verbose = args->verbosedll;
 }

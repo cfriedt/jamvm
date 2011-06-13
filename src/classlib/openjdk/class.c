@@ -159,7 +159,3 @@ char *classlibBootClassPathOpt(char *cmdlne_bcp, char bootpathopt) {
 
     return bootpath;
 }
-
-void classlibInitialiseClass() {
-}
-
