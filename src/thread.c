@@ -1252,7 +1252,7 @@ void mainThreadSetContextClassLoader(Object *loader) {
         INST_DATA(main_ee.thread, Object*, fb->u.offset) = loader;
 }
 
-void initialiseThreadStage1(InitArgs *args) {
+int initialiseThreadStage1(InitArgs *args) {
     size_t size;
 
     /* Set the default size of the Java stack for each _new_ thread */
@@ -1299,9 +1299,11 @@ void initialiseThreadStage1(InitArgs *args) {
     main_thread.park_state = PARK_RUNNING;
     pthread_cond_init(&main_thread.park_cv, NULL);
     pthread_mutex_init(&main_thread.park_lock, NULL);
+
+    return TRUE;
 }
 
-void initialiseThreadStage2(InitArgs *args) {
+int initialiseThreadStage2(InitArgs *args) {
     Class *thrdGrp_class;
     Object *main_group, *java_thread;
     FieldBlock *priority, *threadId;
@@ -1383,11 +1385,11 @@ void initialiseThreadStage2(InitArgs *args) {
        shutdown hooks in the event of user-termination */
     createVMThread("Signal Handler", classlibSignalThread);
 
-    return;
+    return TRUE;
 
 error:
     jam_fprintf(stderr, "Error initialising VM (initialiseMainThread)\nCheck "
                         "the README for compatible class-libraries/versions\n");
     printException();
-    exitVM(1);
+    return FALSE;
 }

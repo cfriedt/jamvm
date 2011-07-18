@@ -226,7 +226,7 @@ uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb,
     return (*method)(class, mb, ostack);
 }
 
-void initialiseDll(InitArgs *args) {
+int initialiseDll(InitArgs *args) {
 #ifndef NO_JNI
     /* Init hash table, and create lock */
     initHashTable(hash_table, HASHTABSZE, TRUE);
@@ -235,7 +235,7 @@ void initialiseDll(InitArgs *args) {
         sig_trace_fd = fopen("jni-signatures", "w");
         if(sig_trace_fd == NULL) {
             perror("Couldn't open signatures file for writing");
-            exit(1);
+            return FALSE;
         }
     }
 #endif
@@ -253,10 +253,11 @@ void initialiseDll(InitArgs *args) {
     /* classlib specific initialisation */
     if(!classlibInitialiseDll()) {
         jam_fprintf(stderr, "Error initialising VM (initialiseDll)\n");
-        exitVM(1);
+        return FALSE;
     }
 
     verbose = args->verbosedll;
+    return TRUE;
 }
 
 void shutdownDll() {

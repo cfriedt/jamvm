@@ -40,7 +40,7 @@ static int exception_symbols[] = {
     EXCEPTIONS_DO(SYMBOL_NAME_ENUM)
 };
 
-void initialiseException() {
+int initialiseException() {
     int i;
 
     ste_array_class = findArrayClass(SYMBOL(array_java_lang_StackTraceElement));
@@ -68,11 +68,11 @@ void initialiseException() {
     }
 
     if((inited = classlibInitialiseException(throw_class)))
-        return;
+        return TRUE;
 
 error:
     jam_fprintf(stderr, "Error initialising VM (initialiseException)\n");
-    exitVM(1);
+    return FALSE;
 }
 
 Object *exceptionOccurred() {

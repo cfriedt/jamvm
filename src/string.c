@@ -164,7 +164,7 @@ char *String2Cstr(Object *string) {
     return String2Buff0(string, buff, len);
 }
 
-void initialiseString() {
+int initialiseString() {
     FieldBlock *count = NULL, *value = NULL, *offset = NULL;
 
     string_class = findSystemClass0(SYMBOL(java_lang_String));
@@ -179,7 +179,7 @@ void initialiseString() {
     /* findField doesn't throw an exception... */
     if((count == NULL) || (value == NULL) || (offset == NULL)) {
         jam_fprintf(stderr, "Error initialising VM (initialiseString)\n");
-        exitVM(1);
+        return FALSE;
     }
 
     count_offset = count->u.offset;
@@ -188,6 +188,8 @@ void initialiseString() {
 
     /* Init hash table and create lock */
     initHashTable(hash_table, HASHTABSZE, TRUE);
+
+    return TRUE;
 }
 
 #ifndef NO_JNI

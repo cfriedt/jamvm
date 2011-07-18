@@ -25,11 +25,13 @@
 #include "thread.h"
 #include "classlib.h"
 
-void initialiseFrame() {
+int initialiseFrame() {
     if(!classlibInitialiseFrame()) {
         jam_fprintf(stderr, "Error initialising VM (initialiseFrame)\n");
-        exitVM(1);
+        return FALSE;
     }
+
+    return TRUE;
 }
 
 Class *getCallerClass(int depth) {

@@ -230,7 +230,11 @@ int main(int argc, char *argv[]) {
     class_arg = parseCommandLine(argc, argv, &args);
 
     args.main_stack_base = &array_class;
-    initVM(&args);
+
+    if(!initVM(&args)) {
+        printf("Could not initialise VM.  Aborting.\n");
+        exit(1);
+    }
 
    if((system_loader = getSystemClassLoader()) == NULL)
         goto error;

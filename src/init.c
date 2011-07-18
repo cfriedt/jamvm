@@ -88,30 +88,34 @@ int VMInitialising() {
     return VM_initing;
 }
 
-void initVM(InitArgs *args) {
+int initVM(InitArgs *args) {
+    int status;
+
     /* Perform platform dependent initialisation */
     initialisePlatform();
 
     /* Initialise the VM modules -- ordering is important! */
-    initialiseHooks(args);
-    initialiseProperties(args);
-    initialiseAlloc(args);
-    initialiseThreadStage1(args);
-    initialiseUtf8();
-    initialiseSymbol();
-    initialiseClass(args);
-    initialiseDll(args);
-    initialiseMonitor();
-    initialiseString();
-    initialiseException();
-    initialiseNatives();
-    initialiseFrame();
-    initialiseJNI();
-    initialiseInterpreter(args);
-    initialiseThreadStage2(args);
-    initialiseGC(args);
+
+    status = initialiseHooks(args) &&
+             initialiseProperties(args) &&
+             initialiseAlloc(args) &&
+             initialiseThreadStage1(args) &&
+             initialiseUtf8() &&
+             initialiseSymbol() &&
+             initialiseClass(args) &&
+             initialiseDll(args) &&
+             initialiseMonitor() &&
+             initialiseString() &&
+             initialiseException() &&
+             initialiseNatives() &&
+             initialiseFrame() &&
+             initialiseJNI() &&
+             initialiseInterpreter(args) &&
+             initialiseThreadStage2(args) &&
+             initialiseGC(args);
 
     VM_initing = FALSE;
+    return status;
 }
 
 unsigned long parseMemValue(char *str) {

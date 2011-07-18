@@ -37,8 +37,9 @@ void jamvm_exit(int status) {
     (*exit_hook)(status);
 }
 
-void initialiseHooks(InitArgs *args) {
+int initialiseHooks(InitArgs *args) {
     vfprintf_hook = args->vfprintf;
     exit_hook = args->exit;
+    return TRUE;
 }
 

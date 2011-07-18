@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -59,14 +59,16 @@ void Jam_DeleteGlobalRef(JNIEnv *env, jobject obj);
 JNIFrame *ensureJNILrefCapacity(int cap);
 static void initJNIGrefs();
 
-void initialiseJNI() {
+int initialiseJNI() {
     /* Initialise the global reference tables */
     initJNIGrefs();
 
     if(!classlibInitialiseJNI()) {
         jam_fprintf(stderr, "Error initialising VM (initialiseJNI)\n");
-        exitVM(1);
+        return FALSE;
     }
+
+    return TRUE;
 }
 
 /* ---------- Local reference support functions ---------- */
@@ -1452,7 +1454,8 @@ static jint attachCurrentThread(void **penv, void *args, int is_daemon) {
         if(attachJNIThread(name, is_daemon, group) == NULL)
             return JNI_ERR;
 
-        initJNILrefs();
+        if(!initJNILrefs())
+            return JNI_ERR;
     }
 
     *penv = &jni_env;
@@ -1597,8 +1600,12 @@ jint JNI_CreateJavaVM(JavaVM **pvm, void **penv, void *args) {
         return JNI_ERR;
 
     init_args.main_stack_base = nativeStackBase();
-    initVM(&init_args);
-    initJNILrefs();
+
+    if(!initVM(&init_args))
+        return JNI_ERR;
+
+    if(!initJNILrefs())
+        return JNI_ERR;
 
     *penv = &jni_env;
     *pvm = &jni_invoke_intf;

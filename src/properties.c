@@ -49,11 +49,12 @@ char *getCommandLineProperty(char *key) {
     return NULL;
 }
 
-void initialiseProperties(InitArgs *args) {
+int initialiseProperties(InitArgs *args) {
     commandline_props = args->commandline_props;
     commandline_props_count = args->props_count;
 
     java_home = classlibDefaultJavaHome();
+    return TRUE;
 }
 
 void setProperty(Object *properties, char *key, char *value) {

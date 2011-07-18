@@ -287,12 +287,12 @@ void clearMarkBits() {
     memset(markbits, 0, markbit_size * sizeof(*markbits));
 }
 
-void initialiseAlloc(InitArgs *args) {
+int initialiseAlloc(InitArgs *args) {
     char *mem = (char*)mmap(0, args->max_heap, PROT_READ|PROT_WRITE,
                                                MAP_PRIVATE|MAP_ANON, -1, 0);
     if(mem == MAP_FAILED) {
         perror("Couldn't allocate the heap; try reducing the max heap size (-Xmx)\n");
-        exitVM(1);
+        return FALSE;
     }
 
     /* Align heapbase so that start of heap + HEADER_SIZE is object aligned */
@@ -323,6 +323,7 @@ void initialiseAlloc(InitArgs *args) {
 
     /* Set verbose option from initialisation arguments */
     verbosegc = args->verbosegc;
+    return TRUE;
 }
 
 /* ------------------------- MARK PHASE ------------------------- */
@@ -1788,7 +1789,7 @@ void referenceHandlerThreadLoop(Thread *self) {
                         "<GC: enqueuing %d references>\n", self, &self);
 }
 
-void initialiseGC(InitArgs *args) {
+int initialiseGC(InitArgs *args) {
     /* Pre-allocate an OutOfMemoryError exception object - we throw it
      * when we're really low on heap space, and can create FA... */
 
@@ -1796,7 +1797,7 @@ void initialiseGC(InitArgs *args) {
     Class *oom_clazz = findSystemClass(SYMBOL(java_lang_OutOfMemoryError));
     if(exceptionOccurred()) {
         printException();
-        exitVM(1);
+        return FALSE;
     }
 
     /* Initialize it */
@@ -1819,6 +1820,8 @@ void initialiseGC(InitArgs *args) {
        can be changed via the command line */
     compact_override = args->compact_specified;
     compact_value = args->do_compact;
+
+    return TRUE;
 }
 
 

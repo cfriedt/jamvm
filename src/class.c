@@ -1972,12 +1972,12 @@ out:
     return res;
 }
 
-void initialiseClass(InitArgs *args) {
+int initialiseClass(InitArgs *args) {
     char *bcp = setBootClassPath(args->bootpath, args->bootpathopt);
 
     if(!(bcp && parseBootClassPath(bcp))) {
         jam_fprintf(stderr, "bootclasspath is empty!\n");
-        exitVM(1);
+        return FALSE;
     }
 
     verbose = args->verboseclass;
@@ -1995,7 +1995,9 @@ void initialiseClass(InitArgs *args) {
     /* Do classlib specific class initialisation */
     if(!classlibInitialiseClass()) {
         jam_fprintf(stderr, "Error initialising VM (initialiseClass)\n");
-        exitVM(1);
+        return FALSE;
     }
+
+    return TRUE;
 }
 

@@ -2342,10 +2342,11 @@ throwException:
 }
 
 #ifndef executeJava
-void initialiseInterpreter(InitArgs *args) {
+int initialiseInterpreter(InitArgs *args) {
 #ifdef DIRECT
     initialiseDirect(args);
 #endif
+    return TRUE;
 }
 
 void shutdownInterpreter() {
