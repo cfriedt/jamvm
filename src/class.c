@@ -1716,6 +1716,12 @@ void freeClassData(Class *class) {
             gcPendingFree(mb->code);
 #endif
 
+        /* Miranda methods are a shallow copy of an interface
+           method.  Apart from code, all values are shared, and
+           we must not free them. */
+        if(mb->access_flags & ACC_MIRANDA)
+            continue;
+
         gcPendingFree(mb->exception_table);
         gcPendingFree(mb->line_no_table);
         gcPendingFree(mb->throw_table);
@@ -1745,7 +1751,7 @@ void freeClassData(Class *class) {
         gcPendingFree(cb->annotations);
     }
 
-   if(cb->state >= CLASS_LINKED) {
+    if(cb->state >= CLASS_LINKED) {
         ClassBlock *super_cb = CLASS_CB(cb->super);
 
         /* interfaces do not have a method table, or 
