@@ -1722,8 +1722,10 @@ void freeClassData(Class *class) {
         if(mb->access_flags & ACC_MIRANDA)
             continue;
 
-        gcPendingFree(mb->exception_table);
-        gcPendingFree(mb->line_no_table);
+        if(!(mb->access_flags & ACC_NATIVE)) {
+            gcPendingFree(mb->exception_table);
+            gcPendingFree(mb->line_no_table);
+        }
         gcPendingFree(mb->throw_table);
 
         if(mb->annotations != NULL) {
