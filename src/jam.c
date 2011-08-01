@@ -197,6 +197,15 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
                 } else if(strcmp(argv[i], "-jar") == 0) {
                     is_jar = TRUE;
 
+                } else if(strcmp(argv[i], "-classpath") == 0 ||
+                          strcmp(argv[i], "-cp") == 0) {
+
+                    if(i == argc - 1) {
+                        printf("%s : missing path list\n", argv[i]);
+                        goto exit;
+                    }
+                    args->classpath = argv[++i];
+
                 /* Compatibility options */
                 } else if(strcmp(argv[i], "-client") == 0 ||
                           strcmp(argv[i], "-server") == 0) {
