@@ -692,6 +692,14 @@ void scanHeapAndMark(int mark_soft_refs) {
     } while(mark_stack_overflow);
 }
 
+#define RUN_MARK(element) {                 \
+    MARK_AND_PUSH(element, FINALIZER_MARK); \
+    markStack(mark_soft_refs);              \
+}
+
+#define CLEAR_UNMARKED(element) \
+    if(element && !IS_MARKED(element)) element = NULL
+
 static void doMark(Thread *self, int mark_soft_refs) {
     int i, j;
 
@@ -742,11 +750,6 @@ static void doMark(Thread *self, int mark_soft_refs) {
        to be garbage on a previous gc but we haven't got round to
        finalizing them yet. */
 
-#define RUN_MARK(element) {                 \
-    MARK_AND_PUSH(element, FINALIZER_MARK); \
-    markStack(mark_soft_refs);              \
-}
-
     ITERATE_OBJECT_LIST(run_finaliser, RUN_MARK);
 
     /* If the mark stack overflowed while marking the finalizers we
@@ -761,9 +764,6 @@ static void doMark(Thread *self, int mark_soft_refs) {
     /* There may be references still waiting to be enqueued by the
        reference handler (from a previous GC).  Remove them if
        they're now unreachable as they will be collected */
-
-#define CLEAR_UNMARKED(element) \
-    if(element && !IS_MARKED(element)) element = NULL
 
     ITERATE_OBJECT_LIST(reference, CLEAR_UNMARKED);
 
@@ -1002,15 +1002,19 @@ out_last_marked:
 
 /* ------------------------- COMPACT PHASE ------------------------- */
 
+#define THREAD_REFERENCE(ref) {                                      \
+    Object *_ob = *(ref);                                            \
+    uintptr_t *_hdr = HDR_ADDRESS(_ob);                              \
+                                                                     \
+    TRACE_COMPACT("Threading ref addr %p object ref %p link %p\n",   \
+                  ref, _ob, *_hdr);                                  \
+                                                                     \
+    *(ref) = (Object*)*_hdr;                                         \
+    *_hdr = ((uintptr_t)(ref) | FLC_BIT);                            \
+}
+
 void threadReference(Object **ref) {
-    Object *ob = *ref;
-    uintptr_t *hdr = HDR_ADDRESS(ob);
-
-    TRACE_COMPACT("Threading ref addr %p object ref %p link %p\n",
-                  ref, ob, *hdr);
-
-    *ref = (Object*)*hdr;
-    *hdr = ((uintptr_t)ref | FLC_BIT);
+    THREAD_REFERENCE(ref);
 }
 
 void unthreadHeader(uintptr_t *hdr_addr, Object *new_addr) {
@@ -1031,20 +1035,7 @@ void unthreadHeader(uintptr_t *hdr_addr, Object *new_addr) {
     *hdr_addr = hdr;
 }
 
-static void threadObjectLists() {
-    int i;
-
-    for(i = 0; i < has_finaliser_count; i++)
-        threadReference(&has_finaliser_list[i]);
-
-#define THREAD_REFS(element) \
-         if(element) threadReference(&element)
-
-    ITERATE_OBJECT_LIST(run_finaliser, THREAD_REFS);
-    ITERATE_OBJECT_LIST(reference, THREAD_REFS);
-}
-
-void addConservativeRoots2Hash() {
+static void addConservativeRoots2Hash() {
     int i;
 
     for(i = 1; i < conservative_root_count; i <<= 1);
@@ -1092,14 +1083,6 @@ void registerStaticObjectRef(Object **ref) {
     registered_refs[registered_refs_count++] = ref;
 }
 
-void threadRegisteredReferences() {
-    int i;
-
-    for(i = 0; i < registered_refs_count; i++)
-        if(*registered_refs[i] != NULL)
-            threadReference(registered_refs[i]);
-}
-
 #define IS_CONSERVATIVE_ROOT(ob)                                            \
 ({                                                                          \
     uintptr_t data = ((uintptr_t)ob) >> LOG_BYTESPERMARK;                   \
@@ -1127,7 +1110,7 @@ void threadRegisteredReferences() {
     heapfree += curr->header;                 \
 }
 
-int compactSlideBlock(char *block_addr, char *new_addr) {
+static int compactSlideBlock(char *block_addr, char *new_addr) {
     uintptr_t hdr = HEADER(block_addr);
     uintptr_t size = HDR_SIZE(hdr);
 
@@ -1160,9 +1143,9 @@ int compactSlideBlock(char *block_addr, char *new_addr) {
 
 #define THREAD_CLASSBLOCK_FIELD(cb, field) \
     if(cb->field != NULL)                  \
-        threadReference(&cb->field)
+        THREAD_REFERENCE(&cb->field)
 
-void threadClassData(Class *class, Class *new_addr) {
+static void threadClassData(Class *class, Class *new_addr) {
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
     FieldBlock *fb = cb->fields;
@@ -1179,13 +1162,13 @@ void threadClassData(Class *class, Class *new_addr) {
 
     for(i = 0; i < cb->interfaces_count; i++)
         if(cb->interfaces[i] != NULL)
-            threadReference(&cb->interfaces[i]);
+            THREAD_REFERENCE(&cb->interfaces[i]);
 
     if(IS_ARRAY(cb))
-        threadReference(&cb->element_class);
+        THREAD_REFERENCE(&cb->element_class);
 
     for(i = 0; i < cb->imethod_table_size; i++)
-        threadReference(&cb->imethod_table[i].interface);
+        THREAD_REFERENCE(&cb->imethod_table[i].interface);
 
     TRACE_COMPACT("Threading static fields for class %s\n", cb->name);
 
@@ -1200,7 +1183,7 @@ void threadClassData(Class *class, Class *new_addr) {
                 TRACE_COMPACT("Field %s %s object @%p\n", fb->name,
                               fb->type, *ob);
                 if(*ob != NULL)
-                    threadReference(ob);
+                    THREAD_REFERENCE(ob);
             }
 
     TRACE_COMPACT("Threading constant pool references for class %s\n",
@@ -1212,7 +1195,7 @@ void threadClassData(Class *class, Class *new_addr) {
 
             TRACE_COMPACT("Constant pool ref idx %d type %d object @%p\n",
                           i, CP_TYPE(cp, i), CP_INFO(cp, i));
-            threadReference((Object**)&(CP_INFO(cp, i)));
+            THREAD_REFERENCE((Object**)&(CP_INFO(cp, i)));
         }
 
     /* Don't bother threading the references to the class from within the
@@ -1246,7 +1229,7 @@ int threadChildren(Object *ob, Object *new_addr) {
                 TRACE_COMPACT("Object at index %d is @%p\n", i, *body);
 
                 if(*body != NULL)
-                    threadReference(body);
+                    THREAD_REFERENCE(body);
             }
         } else {
             TRACE_COMPACT("Array object @%p class is %s - not Scanning...\n",
@@ -1294,12 +1277,12 @@ int threadChildren(Object *ob, Object *new_addr) {
                         if(INST_DATA(ob, Object*, ref_queue_offset) != NULL) {
                             TRACE_GC("Adding to list for enqueuing.\n");
 
-                            ADD_TO_OBJECT_LIST(reference, new_addr);
+                            ADD_TO_OBJECT_LIST(reference, ob);
                             notify_reference_thread = TRUE;
                         }
 out:
                         if(!cleared)
-                            threadReference(referent);
+                            THREAD_REFERENCE(referent);
                     }
                 }
 
@@ -1318,21 +1301,25 @@ out:
                 TRACE_COMPACT("Offset %d reference @%p\n", offset, *ref);
 
                 if(*ref != NULL)
-                    threadReference(ref);
+                    THREAD_REFERENCE(ref);
             }
         }
     }
 
     /* Finally thread the object's class reference */
-    threadReference(&ob->class);
+    THREAD_REFERENCE(&ob->class);
 
     return cleared;
 }
+
+#define THREAD_REFS(element) \
+    if(element) THREAD_REFERENCE(&element)
 
 uintptr_t doCompact() {
     char *ptr, *new_addr;
     Chunk newlist;
     Chunk *last = &newlist;
+    int i;
 
     /* Will hold the size of the largest free chunk
        after scanning */
@@ -1351,12 +1338,25 @@ uintptr_t doCompact() {
     TRACE_COMPACT("COMPACT THREADING ROOTS\n");
 
     /* Thread object references from outside of the heap */
-    threadObjectLists();
-    threadRegisteredReferences();
     threadBootClasses();
     threadMonitorCache();
     threadInternedStrings();
     threadLiveClassLoaderDlls();
+
+    /* Thread internal GC lists */
+
+    /* References which have been registered with the GC */
+    for(i = 0; i < registered_refs_count; i++)
+        if(*registered_refs[i] != NULL)
+            THREAD_REFERENCE(registered_refs[i]);
+
+    /* References to objects with a finalizer */
+    for(i = 0; i < has_finaliser_count; i++)
+        THREAD_REFERENCE(&has_finaliser_list[i]);
+
+    /* References to objects which are waiting for the
+       finaliser to be ran */
+    ITERATE_OBJECT_LIST(run_finaliser, THREAD_REFS);
 
     TRACE_COMPACT("COMPACT PHASE ONE\n");
 
@@ -1417,6 +1417,14 @@ next:
         /* Skip to next block */
         ptr += size;
     }
+
+    /* Thread the reference list.  This will thread outstanding
+       references on the list and any references added during the
+       first compaction pass.  This is done because the new
+       references may have caused the list to expand.  If existing
+       refs were threaded before pass 1, their locations will have
+       now changed */
+    ITERATE_OBJECT_LIST(reference, THREAD_REFS);
 
     TRACE_COMPACT("COMPACT PHASE TWO\n");
 
