@@ -1337,7 +1337,7 @@ Class *loadSystemClass(char *classname) {
                                  filename), &file_len);
 
     if(data == NULL) {
-        signalException(java_lang_ClassNotFoundException, classname);
+        signalException(java_lang_NoClassDefFoundError, classname);
         return NULL;
     }
 
