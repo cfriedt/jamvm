@@ -518,23 +518,22 @@ jclass JVM_FindClassFromBootLoader(JNIEnv *env, const char *name) {
 
 jclass JVM_FindClassFromClassLoader(JNIEnv *env, const char *name,
                                     jboolean init, jobject loader,
-                                    jboolean throwError) {
+                                    jboolean throw_error) {
     Class *class;
 
     TRACE("JVM_FindClassFromClassLoader(env=%p, name=%s, init=%d, loader=%p,"
           " throwError=%d)", env, name, init, loader, throwError);
 
-    /* As of now, OpenJDK does not call this function with throwError
-       is true. */
-
     class = findClassFromClassLoader((char *)name, loader);
 
-    if(class == NULL) {
+    if(class == NULL && !throw_error) {
         Object *excep = exceptionOccurred();
+        char *dot_name = slash2DotsDup((char*)name);
 
         clearException();
         signalChainedException(java_lang_ClassNotFoundException,
-                               (char *)name, excep);
+                               dot_name, excep);
+        sysFree(dot_name);
     } else
         if(init)
             initClass(class);
