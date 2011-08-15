@@ -308,7 +308,10 @@ Object *stackTraceElement(MethodBlock *mb, CodePntr pc) {
     if(exceptionOccurred())
         return NULL;
 
-    executeMethod(ste, ste_init_mb, classname, methodname, filename,
+    executeMethod(ste, ste_init_mb,
+                  findInternedString(classname), 
+                  findInternedString(methodname), 
+                  findInternedString(filename),
                   is_native ? -2 : mapPC2LineNo(mb, pc));
 
     if(exceptionOccurred())
