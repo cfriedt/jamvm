@@ -197,40 +197,43 @@ Object *classlibCreateFieldObject(FieldBlock *fb) {
 }
 
 Object *enclosingMethodInfo(Class *class) {
-    ClassBlock *cb = CLASS_CB(class);
+   ClassBlock *cb = CLASS_CB(class);
+   Object *info = NULL;
 
-    if(cb->enclosing_class && cb->enclosing_method) {
-        Class *enc_class = resolveClass(class, cb->enclosing_class,
-                                        TRUE, FALSE);
+   if(cb->enclosing_class) {
+       Class *enc_class = resolveClass(class, cb->enclosing_class,
+                                       TRUE, FALSE);
 
-        if(enc_class != NULL) {
-            Class *ary_class = findArrayClass(SYMBOL(array_java_lang_Object));
+       if(enc_class != NULL) {
+           Class *ary_class = findArrayClass(SYMBOL(array_java_lang_Object));
 
-            if(ary_class != NULL) {
-                Object *array = allocArray(ary_class, 3, sizeof(Object*));
+           if(ary_class != NULL) {
+               info = allocArray(ary_class, 3, sizeof(Object*));
 
-                if(array != NULL) {
-                    ConstantPool *cp = &cb->constant_pool;
-                    char *methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp,
-                                                       cb->enclosing_method));
-                    char *methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp,
-                                                       cb->enclosing_method));
-                    Object *name = createString(methodname);
-                    Object *type = createString(methodtype);
+               if(info != NULL) {
+                   ARRAY_DATA(info, Object*)[0] = enc_class;
 
-                    if(name != NULL && type != NULL) {
-                        ARRAY_DATA(array, Object*)[0] = enc_class;
-                        ARRAY_DATA(array, Object*)[1] = name;
-                        ARRAY_DATA(array, Object*)[2] = type;
+                   if(cb->enclosing_method) {
+                       ConstantPool *cp = &cb->constant_pool;
+                       char *methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp,
+                                                      cb->enclosing_method));
+                       char *methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp,
+                                                      cb->enclosing_method));
+                       Object *name = createString(methodname);
+                       Object *type = createString(methodtype);
 
-                        return array;
-                    }
-                }
-            }
-        }
-    }
+                       if(name == NULL || type == NULL)
+                           return NULL;
 
-    return NULL;
+                       ARRAY_DATA(info, Object*)[1] = name;
+                       ARRAY_DATA(info, Object*)[2] = type;
+                   }
+               }
+           }
+       }
+   }
+
+   return info;
 }
 
 Object *consNewInstance(Object *reflect_ob, Object *args_array) {
