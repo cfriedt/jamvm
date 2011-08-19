@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -96,6 +96,9 @@ Object *createString(char *utf8) {
 
 Object *findInternedString(Object *string) {
     Object *interned;
+
+    if(string == NULL)
+        return NULL;
 
     /* Add if absent, no scavenge, locked */
     findHashEntry(hash_table, string, interned, TRUE, FALSE, TRUE);
