@@ -61,6 +61,10 @@ void setDefaultInitArgs(InitArgs *args) {
 
     args->classpath = NULL;
     args->bootpath  = NULL;
+    args->bootpath_p = NULL;
+    args->bootpath_a = NULL;
+    args->bootpath_c = NULL;
+    args->bootpath_v = NULL;
 
     args->java_stack = DEFAULT_STACK;
     args->max_heap   = clampHeapLimit(phys_mem/4);
@@ -204,17 +208,14 @@ int parseCommonOpts(char *string, InitArgs *args, int is_jni) {
         args->commandline_props[args->props_count++].value = pntr;
 
     } else if(strncmp(string, "-Xbootclasspath:", 16) == 0) {
-
-        args->bootpathopt = '\0';
         args->bootpath = string + 16;
+        args->bootpath_p = args->bootpath_a = NULL;
 
-    } else if(strncmp(string, "-Xbootclasspath/a:", 18) == 0 ||
-              strncmp(string, "-Xbootclasspath/p:", 18) == 0 ||
-              strncmp(string, "-Xbootclasspath/c:", 18) == 0 ||
-              strncmp(string, "-Xbootclasspath/v:", 18) == 0) {
+    } else if(strncmp(string, "-Xbootclasspath/a:", 18) == 0) {
+        args->bootpath_a = string + 18;
 
-        args->bootpathopt = string[16];
-        args->bootpath = string + 18;
+    } else if(strncmp(string, "-Xbootclasspath/p:", 18) == 0) {
+        args->bootpath_p = string + 18;
 
     } else if(strcmp(string, "-Xnocompact") == 0) {
         args->compact_specified = TRUE;

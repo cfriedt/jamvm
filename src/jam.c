@@ -206,6 +206,12 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
                     }
                     args->classpath = argv[++i];
 
+                } else if(strncmp(argv[i], "-Xbootclasspath/c:", 18) == 0) {
+                    args->bootpath_c = argv[i] + 18;
+
+                } else if(strncmp(argv[i], "-Xbootclasspath/v:", 18) == 0) {
+                    args->bootpath_v = argv[i] + 18;
+
                 /* Compatibility options */
                 } else if(strcmp(argv[i], "-client") == 0 ||
                           strcmp(argv[i], "-server") == 0) {

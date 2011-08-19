@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -134,28 +134,4 @@ char *classlibDefaultEndorsedDirs() {
                                     sizeof("/lib/endorsed"));
 
     return strcat(strcpy(endorsed_dirs, java_home), "/lib/endorsed");
-}
-
-char *classlibBootClassPathOpt(char *cmdlne_bcp, char bootpathopt) {
-    char *bootpath;
-
-    switch(bootpathopt) {
-        case 'a':
-        case 'p': {
-            char *default_bcp = classlibDefaultBootClassPath();
-
-            bootpath = sysMalloc(strlen(default_bcp) + strlen(cmdlne_bcp) + 2);
-            if(bootpathopt == 'a')
-                strcat(strcat(strcpy(bootpath, default_bcp), ":"), cmdlne_bcp);
-            else
-                strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), default_bcp);
-            break;
-        }
-
-        default:
-            bootpath = sysMalloc(strlen(cmdlne_bcp) + 1);
-            strcpy(bootpath, cmdlne_bcp);
-    }           
-
-    return bootpath;
 }

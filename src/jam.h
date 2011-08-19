@@ -650,8 +650,12 @@ typedef struct InitArgs {
     int trace_jni_sigs;
 
     char *classpath;
+
     char *bootpath;
-    char bootpathopt;
+    char *bootpath_a;
+    char *bootpath_p;
+    char *bootpath_c;
+    char *bootpath_v;
 
     int java_stack;
     unsigned long min_heap;

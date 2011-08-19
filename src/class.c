@@ -1782,13 +1782,13 @@ void freeClassLoaderData(Object *class_loader) {
     }
 }
 
-int parseBootClassPath(char *cp_var) {
+void parseBootClassPath() {
     char *cp, *pntr, *start;
     int i, j, len, max = 0;
     struct stat info;
 
-    cp = sysMalloc(strlen(cp_var)+1);
-    strcpy(cp, cp_var);
+    cp = sysMalloc(strlen(bootpath)+1);
+    strcpy(cp, bootpath);
 
     for(i = 0, start = pntr = cp; *pntr; pntr++) {
         if(*pntr == ':') {
@@ -1824,13 +1824,12 @@ int parseBootClassPath(char *cp_var) {
     }
 
     max_cp_element_len = max;
-
-    return bcp_entries = j;
+    bcp_entries = j;
 }
 
-void setClassPath(char *cmdlne_cp) {
+void setClassPath(InitArgs *args) {
     char *env;
-    classpath = cmdlne_cp ? cmdlne_cp : 
+    classpath = args->classpath ? args->classpath : 
                  ((env = getenv("CLASSPATH")) ? env : ".");
 }
 
@@ -1904,24 +1903,32 @@ char *getEndorsedDirs() {
     return endorsed_dirs;
 }
 
-char *setBootClassPath(char *cmdlne_bcp, char bootpathopt) {
-    if(cmdlne_bcp != NULL)
-        bootpath = classlibBootClassPathOpt(cmdlne_bcp, bootpathopt);
-    else {
-        char *path = getCommandLineProperty("sun.boot.class.path");
-        if(path == NULL)
-            path = getCommandLineProperty("java.boot.class.path");
-        if(path == NULL)
-            path = getenv("BOOTCLASSPATH");
-        if(path == NULL)
-            path = classlibDefaultBootClassPath();
+void setBootClassPath(InitArgs *args) {
+    char *path = args->bootpath;
 
-        bootpath = sysMalloc(strlen(path) + 1);
-        strcpy(bootpath, path);
-    }
+    if(path == NULL)
+        path = getCommandLineProperty("sun.boot.class.path");
+    if(path == NULL)
+        path = getCommandLineProperty("java.boot.class.path");
+    if(path == NULL)
+        path = getenv("BOOTCLASSPATH");
+    if(path == NULL)
+        path = classlibBootClassPathOpt(args);
+
+    if(args->bootpath_a != NULL) {
+        bootpath = sysMalloc(strlen(path) + strlen(args->bootpath_a) + 2);
+        strcat(strcat(strcpy(bootpath, path), ":"), args->bootpath_a);
+    } else
+        bootpath = strcpy(sysMalloc(strlen(path) + 1), path);
 
     scanDirsForJars(getEndorsedDirs());
-    return bootpath;
+
+    if(args->bootpath_p != NULL) {
+        path = sysMalloc(strlen(bootpath) + strlen(args->bootpath_p) + 2);
+        strcat(strcat(strcpy(path, args->bootpath_p), ":"), bootpath);
+        sysFree(bootpath);
+        bootpath = path;
+    }
 }
 
 char *getBootClassPath() {
@@ -1981,15 +1988,12 @@ out:
 }
 
 int initialiseClass(InitArgs *args) {
-    char *bcp = setBootClassPath(args->bootpath, args->bootpathopt);
-
-    if(!(bcp && parseBootClassPath(bcp))) {
-        jam_fprintf(stderr, "bootclasspath is empty!\n");
-        return FALSE;
-    }
-
     verbose = args->verboseclass;
-    setClassPath(args->classpath);
+
+    setClassPath(args);
+    setBootClassPath(args);
+
+    parseBootClassPath();
 
     /* Init hash table, and create lock for the bootclassloader classes */
     initHashTable(boot_classes, CLASS_INITSZE, TRUE);
