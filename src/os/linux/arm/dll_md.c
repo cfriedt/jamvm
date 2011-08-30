@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -31,6 +31,61 @@
  * out stack requirements and then to push arguments.  To
  * save the first scan at call time, the signature is pre-
  * scanned and stack requirement stored in the extra argument. */
+
+#ifdef __ARM_PCS_VFP
+int nativeExtraArg(MethodBlock *mb) {
+    char *sig = mb->type;
+    int fp_backfill = 0;
+    int stack_args = 0;
+    int int_args = 2;
+    int fp_args = 16;
+
+    while(*++sig != ')')
+        switch(*sig) {
+            case 'J':
+                if(int_args < 2)
+                    stack_args = (stack_args + 15) & ~7;
+                int_args = 0;
+                break;
+
+            case 'D':
+                fp_backfill |= fp_args & 1;
+                fp_args &= ~1;
+
+                if(fp_args == 0) {
+                    stack_args = (stack_args + 15) & ~7;
+                    fp_backfill = 0;
+                } else
+                    fp_args -= 2;
+                break;
+
+            case 'F':
+                if(fp_backfill)
+                    fp_backfill = 0;
+                else {
+                    if(fp_args == 0) 
+                        stack_args += 4;
+                    else
+                        fp_args--;
+                }
+                break;
+
+            default:
+                if(int_args == 0)
+                    stack_args += 4;
+                else
+                    int_args--;
+
+                if(*sig == '[')
+                    while(*++sig == '[');
+                if(*sig == 'L')
+                    while(*++sig != ';');
+                break;
+        }
+
+    return stack_args;
+}
+#else
 int nativeExtraArg(MethodBlock *mb) {
     char *sig = mb->type;
     int args = 0;
@@ -57,7 +112,7 @@ int nativeExtraArg(MethodBlock *mb) {
        native method, so minimum stack requirement is 8 bytes. */
     return args < 8 ? 8 : args;
 }
-
+#endif
 #else
 
 /* Under OABI, arguments can be copied onto the stack "as is"

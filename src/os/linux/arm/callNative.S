@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -23,7 +23,11 @@
 
 #ifndef USE_FFI
 #ifdef __ARM_EABI__
+#ifdef __ARM_PCS_VFP
+#include "callNativeEABIHard.S"
+#else
 #include "callNativeEABI.S"
+#endif
 #else
 #include "callNativeOABI.S"
 #endif

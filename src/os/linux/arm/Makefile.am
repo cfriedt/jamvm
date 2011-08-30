@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2010
+## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2010, 2011
 ## Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -19,7 +19,7 @@
 ## Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 ##
 
-EXTRA_DIST = callNativeOABI.S callNativeEABI.S
+EXTRA_DIST = callNativeOABI.S callNativeEABI.S callNativeEABIHard.S
 
 noinst_LTLIBRARIES = libnative.la
 libnative_la_SOURCES = init.c dll_md.c callNative.S stubs_md.c jni-stubs.c
