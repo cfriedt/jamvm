@@ -203,7 +203,6 @@ extern int ref_referent_offset;
 extern int ref_queue_offset;
 extern int finalize_mtbl_idx;
 extern int enqueue_mtbl_idx;
-//extern int ldr_vmdata_offset;
 
 /* Forward declarations */
 void handleUnmarkedSpecial(Object *ob);
