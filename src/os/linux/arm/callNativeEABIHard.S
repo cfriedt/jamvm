@@ -20,8 +20,8 @@
 
         .text
         .syntax unified
-	.arch armv7-a
-	.thumb
+        .arch armv7-a
+        .thumb
         .align  2
         .global callJNIMethod
         .type   callJNIMethod,function
