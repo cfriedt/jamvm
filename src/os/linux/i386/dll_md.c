@@ -65,7 +65,7 @@ u4 *callJNIMethod(void *env, Class *class, char *sig, int ret_type,
     u4 *sp;
     u4 method_args[args + (class ? 2 : 1)];
 
-    asm volatile ("movl %%esp,%0" : "=m" (sp) ::);
+    asm volatile ("movl %%esp,%0" : "=m" (sp) :);
 
     *sp++ = (u4)env;
 

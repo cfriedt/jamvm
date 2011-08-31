@@ -119,35 +119,15 @@ Class *classlibBootPackagesArrayClass() {
 
 #define DFLT_BCP JAMVM_CLASSES":"CLASSPATH_CLASSES
 
-char *classlibBootClassPathOpt(char *cmdlne_bcp, char bootpathopt) {
-    char *bootpath;
+char *classlibBootClassPathOpt(InitArgs *args) {
+    char *vm_path = args->bootpath_v != NULL ? args->bootpath_v
+                                             : JAMVM_CLASSES;
+    char *cp_path = args->bootpath_c != NULL ? args->bootpath_c
+                                             : CLASSPATH_CLASSES;
+        
+    char *bootpath = sysMalloc(strlen(vm_path) + strlen(cp_path) + 2);
 
-    switch(bootpathopt) {
-        case 'a':
-        case 'p':
-            bootpath = sysMalloc(strlen(DFLT_BCP) + strlen(cmdlne_bcp) + 2);
-            if(bootpathopt == 'a')
-                strcat(strcat(strcpy(bootpath, DFLT_BCP), ":"), cmdlne_bcp);
-            else
-                strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), DFLT_BCP);
-            break;
-
-        case 'c':
-            bootpath = sysMalloc(strlen(JAMVM_CLASSES) + strlen(cmdlne_bcp) + 2);
-            strcat(strcat(strcpy(bootpath, JAMVM_CLASSES), ":"), cmdlne_bcp);
-            break;
-
-        case 'v':
-            bootpath = sysMalloc(strlen(CLASSPATH_CLASSES) + strlen(cmdlne_bcp) + 2);
-            strcat(strcat(strcpy(bootpath, cmdlne_bcp), ":"), CLASSPATH_CLASSES);
-            break;
-
-        default:
-            bootpath = sysMalloc(strlen(cmdlne_bcp) + 1);
-            strcpy(bootpath, cmdlne_bcp);
-    }           
-
-    return bootpath;
+    return strcat(strcat(strcpy(bootpath, vm_path), ":"), cp_path);
 }
 
 char *classlibDefaultBootClassPath() {

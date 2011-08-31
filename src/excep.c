@@ -40,7 +40,7 @@ static int exception_symbols[] = {
     EXCEPTIONS_DO(SYMBOL_NAME_ENUM)
 };
 
-void initialiseException() {
+int initialiseException() {
     int i;
 
     ste_array_class = findArrayClass(SYMBOL(array_java_lang_StackTraceElement));
@@ -68,11 +68,11 @@ void initialiseException() {
     }
 
     if((inited = classlibInitialiseException(throw_class)))
-        return;
+        return TRUE;
 
 error:
     jam_fprintf(stderr, "Error initialising VM (initialiseException)\n");
-    exitVM(1);
+    return FALSE;
 }
 
 Object *exceptionOccurred() {
@@ -298,17 +298,25 @@ Object *stackTraceElement(MethodBlock *mb, CodePntr pc) {
     char *dot_name = slash2DotsDup(cb->name);
     int is_native = mb->access_flags & ACC_NATIVE;
 
-    Object *filename = is_native ? NULL : (cb->source_file_name == NULL ?
-                   NULL : createString(cb->source_file_name));
     Object *methodname = createString(mb->name);
     Object *classname = createString(dot_name);
     Object *ste = allocObject(ste_class);
-    sysFree(dot_name);
+    Object *filename = NULL;
 
-    if(exceptionOccurred())
+    sysFree(dot_name);
+    if(methodname == NULL || classname == NULL || ste == NULL)
         return NULL;
 
-    executeMethod(ste, ste_init_mb, classname, methodname, filename,
+    if(!is_native && cb->source_file_name != NULL) {
+        filename = createString(cb->source_file_name);
+        if(filename == NULL)
+            return NULL;
+    }
+
+    executeMethod(ste, ste_init_mb,
+                  findInternedString(classname), 
+                  findInternedString(methodname), 
+                  findInternedString(filename),
                   is_native ? -2 : mapPC2LineNo(mb, pc));
 
     if(exceptionOccurred())

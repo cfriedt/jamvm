@@ -29,11 +29,13 @@
 #include "reflect.h"
 #include "classlib.h"
 
-void initialiseNatives() {
+int initialiseNatives() {
     if(!classlibInitialiseNatives()) {
         jam_fprintf(stderr, "Error initialising VM (initialiseNatives)\n");
-        exitVM(1);
+        return FALSE;
     }
+
+    return TRUE;
 }
 
 void copyarray(Object *src, int start1, Object *dest, int start2, int length) {

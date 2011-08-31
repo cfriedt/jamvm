@@ -302,14 +302,17 @@
 #define ACC_SYNCHRONIZED        0x0020
 #define ACC_SUPER               0x0020
 #define ACC_VOLATILE            0x0040
+#define ACC_BRIDGE              0x0040
+#define ACC_VARARGS             0x0080
 #define ACC_TRANSIENT           0x0080
 #define ACC_NATIVE              0x0100
 #define ACC_INTERFACE           0x0200
 #define ACC_ABSTRACT            0x0400
+#define ACC_STRICT              0x0800
 #define ACC_SYNTHETIC           0x1000
 #define ACC_ANNOTATION          0x2000
 #define ACC_ENUM                0x4000
-#define ACC_MIRANDA             0x0800
+#define ACC_MIRANDA             0x8000
 #define ACC_REFLECT_MASK        0xffff
 
 #define T_BOOLEAN               4
@@ -647,8 +650,12 @@ typedef struct InitArgs {
     int trace_jni_sigs;
 
     char *classpath;
+
     char *bootpath;
-    char bootpathopt;
+    char *bootpath_a;
+    char *bootpath_p;
+    char *bootpath_c;
+    char *bootpath_v;
 
     int java_stack;
     unsigned long min_heap;
@@ -776,8 +783,8 @@ typedef struct InitArgs {
 
 /* Alloc */
 
-extern void initialiseAlloc(InitArgs *args);
-extern void initialiseGC(InitArgs *args);
+extern int initialiseAlloc(InitArgs *args);
+extern int initialiseGC(InitArgs *args);
 extern Class *allocClass();
 extern Object *allocObject(Class *class);
 extern Object *allocTypeArray(int type, int size);
@@ -867,7 +874,7 @@ extern void markLoaderClasses(Object *loader, int mark);
 extern void threadBootClasses();
 extern void threadLoaderClasses(Object *class_loader);
 extern void newLibraryUnloader(Object *class_loader, void *entry);
-extern void initialiseClass(InitArgs *args);
+extern int initialiseClass(InitArgs *args);
 
 extern Object *bootPackage(char *package_name);
 extern Object *bootPackages();
@@ -926,7 +933,7 @@ extern int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr);
 extern Object *stackTraceElements(Object *trace);
 extern Object *stackTrace(ExecEnv *ee, int max_depth);
 extern Object *stackTraceElement(MethodBlock *mb, CodePntr pc);
-extern void initialiseException();
+extern int initialiseException();
 
 extern int countStackFrames(Frame *last, int max_depth);
 extern Object *convertTrace2Elements(void **trace, int len);
@@ -954,7 +961,7 @@ extern Object *setStackTrace0(ExecEnv *ee, int max_depth);
 
 extern uintptr_t *executeJava();
 extern void shutdownInterpreter();
-extern void initialiseInterpreter(InitArgs *args);
+extern int initialiseInterpreter(InitArgs *args);
 
 /* String */
 
@@ -971,7 +978,7 @@ extern char *String2Utf8(Object *string);
 extern char *StringRegion2Utf8(Object *string, int start, int len, char *utf8);
 extern void freeInternedStrings();
 extern void threadInternedStrings();
-extern void initialiseString();
+extern int initialiseString();
 
 #define Cstr2String(cstr) createString(cstr)
 
@@ -989,7 +996,7 @@ extern char *dots2Slash(char *utf8);
 extern char *slash2Dots(char *utf8);
 extern char *slash2DotsDup(char *utf8);
 extern char *slash2DotsBuff(char *utf8, char *buff, int buff_len);
-extern void initialiseUtf8();
+extern int initialiseUtf8();
 
 #define findUtf8(string) \
     findHashedUtf8(string, FALSE)
@@ -1003,7 +1010,7 @@ extern int resolveDll(char *name, Object *loader);
 extern char *getDllPath();
 extern char *getBootDllPath();
 extern char *getDllName(char *name);
-extern void initialiseDll(InitArgs *args);
+extern int initialiseDll(InitArgs *args);
 extern uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb,
                                        uintptr_t *ostack);
 extern void unloaderUnloadDll(uintptr_t entry);
@@ -1030,8 +1037,8 @@ extern char *convertSig2Simple(char *sig);
 
 /* Threading */
 
-extern void initialiseThreadStage1(InitArgs *args);
-extern void initialiseThreadStage2(InitArgs *args);
+extern int initialiseThreadStage1(InitArgs *args);
+extern int initialiseThreadStage2(InitArgs *args);
 extern ExecEnv *getExecEnv();
 
 extern void createJavaThread(Object *jThread, long long stack_size);
@@ -1043,12 +1050,12 @@ extern void scanThreads();
 
 /* Monitors */
 
-extern void initialiseMonitor();
+extern int initialiseMonitor();
 
 /* JNI */
 
 extern int initJNILrefs();
-extern void initialiseJNI();
+extern int initialiseJNI();
 extern void *getJNIInterface();
 extern void markJNIGlobalRefs();
 extern void scanJNIWeakGlobalRefs();
@@ -1060,7 +1067,7 @@ extern int isSupportedJNIVersion_1_1(int version);
 /* properties */
 
 extern void setProperty(Object *properties, char *key, char *value);
-extern void initialiseProperties(InitArgs *args);
+extern int initialiseProperties(InitArgs *args);
 extern void addCommandLineProperties(Object *properties);
 extern void addDefaultProperties(Object *properties);
 extern char *getCommandLineProperty(char *key);
@@ -1076,14 +1083,14 @@ extern int checkFieldAccess(FieldBlock *fb, Class *class);
 
 /* frame */
 
-extern void initialiseFrame();
+extern int initialiseFrame();
 extern Object *getClassContext();
 extern Class *getCallerClass(int depth);
 extern Object *firstNonNullClassLoader();
 
 /* native */
 
-extern void initialiseNatives();
+extern int initialiseNatives();
 extern void copyarray(Object *src, int start1, Object *dest,
                       int start2, int length);
 
@@ -1116,7 +1123,7 @@ extern int parseCommonOpts(char *string, InitArgs *args, int is_jni);
 extern void optError(InitArgs *args, const char *fmt, ...);
 extern void setDefaultInitArgs(InitArgs *args);
 extern unsigned long parseMemValue(char *str);
-extern void initVM(InitArgs *args);
+extern int initVM(InitArgs *args);
 extern int VMInitialising();
 
 /* shutdown */
@@ -1125,7 +1132,7 @@ extern void shutdownVM();
 
 /* hooks */
 
-extern void initialiseHooks(InitArgs *args);
+extern int initialiseHooks(InitArgs *args);
 extern void jam_fprintf(FILE *stream, const char *fmt, ...);
 extern void jamvm_exit(int status);
 
@@ -1140,7 +1147,7 @@ extern void shutdownInlining();
 
 /* symbol */
 
-extern void initialiseSymbol();
+extern int initialiseSymbol();
 
 /* time */
 

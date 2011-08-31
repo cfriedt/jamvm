@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -97,6 +97,9 @@ Object *createString(char *utf8) {
 Object *findInternedString(Object *string) {
     Object *interned;
 
+    if(string == NULL)
+        return NULL;
+
     /* Add if absent, no scavenge, locked */
     findHashEntry(hash_table, string, interned, TRUE, FALSE, TRUE);
 
@@ -164,7 +167,7 @@ char *String2Cstr(Object *string) {
     return String2Buff0(string, buff, len);
 }
 
-void initialiseString() {
+int initialiseString() {
     FieldBlock *count = NULL, *value = NULL, *offset = NULL;
 
     string_class = findSystemClass0(SYMBOL(java_lang_String));
@@ -179,7 +182,7 @@ void initialiseString() {
     /* findField doesn't throw an exception... */
     if((count == NULL) || (value == NULL) || (offset == NULL)) {
         jam_fprintf(stderr, "Error initialising VM (initialiseString)\n");
-        exitVM(1);
+        return FALSE;
     }
 
     count_offset = count->u.offset;
@@ -188,6 +191,8 @@ void initialiseString() {
 
     /* Init hash table and create lock */
     initHashTable(hash_table, HASHTABSZE, TRUE);
+
+    return TRUE;
 }
 
 #ifndef NO_JNI

@@ -61,6 +61,10 @@ void setDefaultInitArgs(InitArgs *args) {
 
     args->classpath = NULL;
     args->bootpath  = NULL;
+    args->bootpath_p = NULL;
+    args->bootpath_a = NULL;
+    args->bootpath_c = NULL;
+    args->bootpath_v = NULL;
 
     args->java_stack = DEFAULT_STACK;
     args->max_heap   = clampHeapLimit(phys_mem/4);
@@ -88,30 +92,34 @@ int VMInitialising() {
     return VM_initing;
 }
 
-void initVM(InitArgs *args) {
+int initVM(InitArgs *args) {
+    int status;
+
     /* Perform platform dependent initialisation */
     initialisePlatform();
 
     /* Initialise the VM modules -- ordering is important! */
-    initialiseHooks(args);
-    initialiseProperties(args);
-    initialiseAlloc(args);
-    initialiseThreadStage1(args);
-    initialiseUtf8();
-    initialiseSymbol();
-    initialiseClass(args);
-    initialiseDll(args);
-    initialiseMonitor();
-    initialiseString();
-    initialiseException();
-    initialiseNatives();
-    initialiseFrame();
-    initialiseJNI();
-    initialiseInterpreter(args);
-    initialiseThreadStage2(args);
-    initialiseGC(args);
+
+    status = initialiseHooks(args) &&
+             initialiseProperties(args) &&
+             initialiseAlloc(args) &&
+             initialiseThreadStage1(args) &&
+             initialiseUtf8() &&
+             initialiseSymbol() &&
+             initialiseClass(args) &&
+             initialiseDll(args) &&
+             initialiseMonitor() &&
+             initialiseString() &&
+             initialiseException() &&
+             initialiseNatives() &&
+             initialiseFrame() &&
+             initialiseJNI() &&
+             initialiseInterpreter(args) &&
+             initialiseThreadStage2(args) &&
+             initialiseGC(args);
 
     VM_initing = FALSE;
+    return status;
 }
 
 unsigned long parseMemValue(char *str) {
@@ -200,17 +208,14 @@ int parseCommonOpts(char *string, InitArgs *args, int is_jni) {
         args->commandline_props[args->props_count++].value = pntr;
 
     } else if(strncmp(string, "-Xbootclasspath:", 16) == 0) {
-
-        args->bootpathopt = '\0';
         args->bootpath = string + 16;
+        args->bootpath_p = args->bootpath_a = NULL;
 
-    } else if(strncmp(string, "-Xbootclasspath/a:", 18) == 0 ||
-              strncmp(string, "-Xbootclasspath/p:", 18) == 0 ||
-              strncmp(string, "-Xbootclasspath/c:", 18) == 0 ||
-              strncmp(string, "-Xbootclasspath/v:", 18) == 0) {
+    } else if(strncmp(string, "-Xbootclasspath/a:", 18) == 0) {
+        args->bootpath_a = string + 18;
 
-        args->bootpathopt = string[16];
-        args->bootpath = string + 18;
+    } else if(strncmp(string, "-Xbootclasspath/p:", 18) == 0) {
+        args->bootpath_p = string + 18;
 
     } else if(strcmp(string, "-Xnocompact") == 0) {
         args->compact_specified = TRUE;

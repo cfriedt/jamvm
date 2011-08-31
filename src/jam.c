@@ -197,6 +197,21 @@ int parseCommandLine(int argc, char *argv[], InitArgs *args) {
                 } else if(strcmp(argv[i], "-jar") == 0) {
                     is_jar = TRUE;
 
+                } else if(strcmp(argv[i], "-classpath") == 0 ||
+                          strcmp(argv[i], "-cp") == 0) {
+
+                    if(i == argc - 1) {
+                        printf("%s : missing path list\n", argv[i]);
+                        goto exit;
+                    }
+                    args->classpath = argv[++i];
+
+                } else if(strncmp(argv[i], "-Xbootclasspath/c:", 18) == 0) {
+                    args->bootpath_c = argv[i] + 18;
+
+                } else if(strncmp(argv[i], "-Xbootclasspath/v:", 18) == 0) {
+                    args->bootpath_v = argv[i] + 18;
+
                 /* Compatibility options */
                 } else if(strcmp(argv[i], "-client") == 0 ||
                           strcmp(argv[i], "-server") == 0) {
@@ -230,7 +245,11 @@ int main(int argc, char *argv[]) {
     class_arg = parseCommandLine(argc, argv, &args);
 
     args.main_stack_base = &array_class;
-    initVM(&args);
+
+    if(!initVM(&args)) {
+        printf("Could not initialise VM.  Aborting.\n");
+        exit(1);
+    }
 
    if((system_loader = getSystemClassLoader()) == NULL)
         goto error;

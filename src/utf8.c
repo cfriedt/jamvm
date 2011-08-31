@@ -48,9 +48,11 @@
 
 static HashTable hash_table;
 
-void initialiseUtf8() {
+int initialiseUtf8() {
     /* Init hash table, and create lock */
     initHashTable(hash_table, HASHTABSZE, TRUE);
+
+    return TRUE;
 }
 
 int utf8Len(char *utf8) {

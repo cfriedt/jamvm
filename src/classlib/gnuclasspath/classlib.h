@@ -66,7 +66,7 @@ extern HashTable *classlibCreateLoaderTable(Object *class_loader);
 extern Object *classlibBootPackage(PackageEntry *entry);
 extern Object *classlibBootPackages(PackageEntry *entry);
 extern Class *classlibBootPackagesArrayClass();
-extern char *classlibBootClassPathOpt(char *cmdlne_bcp, char bootpathopt);
+extern char *classlibBootClassPathOpt(InitArgs *args);
 extern char *classlibDefaultBootClassPath();
 extern char *classlibDefaultEndorsedDirs();
 extern char *classlibDefaultExtDirs();

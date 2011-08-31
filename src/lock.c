@@ -554,9 +554,11 @@ Thread *objectLockedBy(Object *obj) {
     return owner;
 }
 
-void initialiseMonitor() {
+int initialiseMonitor() {
     /* Init hash table, create lock */
     initHashTable(mon_cache, HASHTABSZE, TRUE);
+
+    return TRUE;
 }
 
 /* Heap compaction support */
