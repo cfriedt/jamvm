@@ -83,7 +83,7 @@ int nativeExtraArg(MethodBlock *mb) {
                 break;
         }
 
-    return stack_args;
+    return (stack_args + 7) & ~7;
 }
 #else
 int nativeExtraArg(MethodBlock *mb) {
