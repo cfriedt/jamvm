@@ -199,6 +199,16 @@ AC_ARG_ENABLE(ffi,
         enable_ffi=no
      fi])
 
+AC_ARG_ENABLE(md-stubs,
+    [AS_HELP_STRING(--enable-md-stubs,use machine-dependent JNI stubs rather than generic 
+                                 (enabled by default on i386))],,
+    [if test "$host_cpu" != i386; then
+        enable_md_stubs=no
+     fi])
+
+AC_ARG_ENABLE(profile-stubs,
+    [AS_HELP_STRING(--enable-profile-stubs,JNI stubs support profiling)],,)
+
 AC_ARG_WITH(java-runtime-library,
     [AS_HELP_STRING(--with-java-runtime-library=[[[gnuclasspath|openjdk]]],which Java runtime
                     library interface to use (default gnuclasspath))],
@@ -292,6 +302,14 @@ AC_SUBST(use_zip_no)
 
 if test "$enable_ffi" != no; then
     AC_DEFINE([USE_FFI],1,[use FFI])
+fi
+
+if test "$enable_md_stubs" != no; then
+    AC_DEFINE([USE_MD_STUBS],1,[use machine-dependent JNI stubs])
+fi
+
+if test "$enable_profile_stubs" = yes; then
+    AC_DEFINE([HAVE_PROFILE_STUBS],1,[JNI stubs support profiling])
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.

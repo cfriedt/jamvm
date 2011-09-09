@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2011 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -18,18 +18,18 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <string.h>
-
 #ifndef GEN_STUBS_INC
 #include "jam.h"
 #endif
+
+#if defined(GEN_STUBS_INC) || !defined(USE_MD_STUBS)
+#include <string.h>
 
 static char mapSigElement2Simple(char element) {
     switch(element) {
         case 'J':
         case 'D':
         case 'F':
-        case 'V':
             return element;
 
         default:
@@ -39,20 +39,15 @@ static char mapSigElement2Simple(char element) {
 
 static char mapRet2Simple(char element) {
     switch(element) {
-        case 'B':
         case 'Z':
             return 'B';
 
-        case 'C':
-        case 'S':
-        case 'J':
-        case 'D':
-        case 'F':
-        case 'V':
-            return element;
+        case '[':
+        case 'L':
+            return 'I';
 
         default:
-            return 'I';
+            return element;
     }
 }
 
@@ -77,4 +72,5 @@ char *convertSig2Simple(char *sig) {
 
     return sysRealloc(simple_sig, simple_pntr - simple_sig);
 }
+#endif
 

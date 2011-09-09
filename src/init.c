@@ -86,6 +86,10 @@ void setDefaultInitArgs(InitArgs *args) {
     args->profiling             = TRUE;
     args->codemem               = args->max_heap/4;
 #endif
+
+#ifdef HAVE_PROFILE_STUBS
+    args->dump_stubs_profiles   = FALSE;
+#endif
 }
 
 int VMInitialising() {
@@ -269,6 +273,11 @@ int parseCommonOpts(char *string, InitArgs *args, int is_jni) {
 
     } else if(strcmp(string, "-Xshowreloc") == 0) {
         showRelocatability();
+#endif
+
+#ifdef HAVE_PROFILE_STUBS
+    } else if(strcmp(string, "-Xdumpstubsprofiles") == 0) {
+        args->dump_stubs_profiles = TRUE;
 #endif
     /* Compatibility options */
     } else if(strcmp(string,  "-Xcomp")  == 0 ||

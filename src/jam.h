@@ -682,6 +682,10 @@ typedef struct InitArgs {
     int join_blocks;
     int profiling;
 #endif
+
+#ifdef HAVE_PROFILE_STUBS
+    int dump_stubs_profiles;
+#endif
 } InitArgs;
 
 #define CLASS_CB(classRef)           ((ClassBlock*)(classRef+1))

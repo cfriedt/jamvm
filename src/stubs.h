@@ -18,13 +18,13 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <string.h>
-
-#ifndef GEN_STUBS_INC
-#include "jam.h"
+typedef struct jni_stub {
+    char *signature;
+    NativeMethod func;
+#ifdef HAVE_PROFILE_STUBS
+    unsigned int profile_count;
 #endif
+} JNIStub;
 
-char *convertSig2Simple(char *sig) {
-    return sig;
-}
-
+extern JNIStub jni_stubs[];
+extern JNIStub jni_static_stubs[];

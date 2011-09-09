@@ -32,7 +32,7 @@
 #include "symbol.h"
 #include "excep.h"
 #include "jni.h"
-#include "jni-stubs.h"
+#include "stubs.h"
 #include "class.h"
 #include "thread.h"
 #include "classlib.h"
@@ -61,6 +61,10 @@ NativeMethod lookupLoadedDlls(MethodBlock *mb);
 #define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
 #else
 #define TRACE(fmt, ...)
+#endif
+
+#ifdef HAVE_PROFILE_STUBS
+static int dump_stubs_profiles;
 #endif
 
 char *mangleString(char *utf8) {
@@ -257,12 +261,33 @@ int initialiseDll(InitArgs *args) {
     }
 
     verbose = args->verbosedll;
+#ifdef HAVE_PROFILE_STUBS
+    dump_stubs_profiles = args->dump_stubs_profiles;
+#endif
     return TRUE;
 }
+
+#ifdef HAVE_PROFILE_STUBS
+NativeMethod dumpJNIStubProfiles(JNIStub *stubs) {
+    char *static_str = stubs == jni_static_stubs ? "static " : "";
+    int i;
+
+    for(i = 0; stubs[i].signature != NULL ; i++)
+        printf("%7d %s%s\n", stubs[i].profile_count, static_str,
+                             stubs[i].signature);
+}
+#endif
 
 void shutdownDll() {
     if(sig_trace_fd != NULL)
         fclose(sig_trace_fd);
+
+#ifdef HAVE_PROFILE_STUBS
+    if(dump_stubs_profiles) {
+        dumpJNIStubProfiles(jni_stubs);
+        dumpJNIStubProfiles(jni_static_stubs);
+    }
+#endif
 }
 
 #ifndef NO_JNI

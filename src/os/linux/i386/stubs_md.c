@@ -18,11 +18,12 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <string.h>
-
 #ifndef GEN_STUBS_INC
 #include "jam.h"
 #endif
+
+#ifdef USE_MD_STUBS
+#include <string.h>
 
 char *convertSig2Simple(char *sig) {
     char *simple_sig = sysMalloc(strlen(sig) * 2);
@@ -68,4 +69,5 @@ char *convertSig2Simple(char *sig) {
     *simple_pntr++ = '\0';
     return sysRealloc(simple_sig, simple_pntr - simple_sig);
 }
+#endif
 

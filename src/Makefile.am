@@ -34,7 +34,8 @@ libcore_la_SOURCES = alloc.c alloc.h cast.c class.c dll.c excep.c execute.c \
                      thread.h utf8.c zip.c zip.h properties.c natives.h \
                      dll_ffi.c access.c frame.c init.c hooks.c class.h \
                      symbol.c symbol.h excep.h shutdown.c time.c reflect.h \
-                     jni-internal.h properties.h sig.c jni-stubs.h
+                     jni-internal.h properties.h sig.c stubs.h stubs.c \
+                     jni-stubs.c
 
 jamvm_SOURCES = jam.c
 libjvm_la_SOURCES =
