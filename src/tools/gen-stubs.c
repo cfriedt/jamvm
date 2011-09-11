@@ -23,11 +23,10 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include "../jam.h"
-
 #define GEN_STUBS_INC
 
-#include "../os/linux/x86_64/stubs_md.c"
+#include "../jam.h"
+#include "../stubs.c"
 
 typedef struct {
     char **list;
@@ -139,15 +138,27 @@ char *checkSigElement(char *sig, int ret_element) {
     }
 }
 
+char *skipSpace(char *pntr) {
+    while(isblank(*pntr))
+       pntr++;
+
+   return pntr;
+}
+
 void parseSignature(char *line) {
-    char *pntr, *sig_start = line;
+    char *pntr, *sig_start;
+
+    line = skipSpace(line);
 
     /* Ignore empty and comment lines */
     if(*line == '\0' || *line == '#')
         return;
 
-    if(strncmp(line, "static ", 7) == 0)
-        sig_start += 7;
+    if(strncmp(line, "static", 6) == 0)
+        sig_start = skipSpace(line + 6);
+    else
+        sig_start = line;
+
     pntr = sig_start;
 
     if(*pntr++ != '(')
@@ -163,7 +174,7 @@ void parseSignature(char *line) {
         goto error;
 
     /* Check for trailling characters */
-    if(*pntr != '\0')
+    if(*skipSpace(pntr) != '\0')
         goto error;
 
     pntr = convertSig2Simple(sig_start);
@@ -237,7 +248,7 @@ char *sigElement2StackCast(char element) {
         case 'D':
             return "*(double*)ostack = ";
         case 'F':
-            return "*(float*)ostack = ";
+            return "*((float*)ostack + IS_BE64) = ";
         case 'V':
             return "";
         default:
@@ -281,7 +292,8 @@ void writeStubs(FILE *fd, List *list, int profiling) {
         int is_static = list == &static_sigs;
         char *mangled = mangleSig(sig, is_static);
 
-        fprintf(fd, "uintptr_t *%s(Class *class, MethodBlock *mb, "
+        fprintf(fd, "/* %s */\n", sig);
+        fprintf(fd, "static uintptr_t *%s(Class *class, MethodBlock *mb, "
                     "uintptr_t *ostack) {\n", mangled);
 
         if(profiling)
@@ -307,7 +319,10 @@ void writeStubs(FILE *fd, List *list, int profiling) {
         }
  
         for(pntr = sig + 1; *pntr != ')'; pntr++) {
-            fprintf(fd, ",\n\t*(%s *)&ostack[%d]", sigElement2Type(*pntr), sp);
+            if(*pntr == 'F')
+                fprintf(fd, ",\n\t*((float *)&ostack[%d] + IS_BE64)", sp);
+            else
+                fprintf(fd, ",\n\t*(%s *)&ostack[%d]", sigElement2Type(*pntr), sp);
             sp += sigElement2Size(*pntr);
         }
 
@@ -348,6 +363,7 @@ void writeStubsFile(char *stubs_name, char *sigs_name, int profiling) {
 
     fprintf(fd, "#include \"jam.h\"\n");
     fprintf(fd, "#include \"stubs.h\"\n");
+    fprintf(fd, "#include \"properties.h\"\n");
     fprintf(fd, "\nextern void *jni_env;\n\n");
 
     fprintf(fd, "/* Static signatures */\n\n");
