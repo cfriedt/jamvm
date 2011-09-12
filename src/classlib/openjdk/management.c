@@ -113,11 +113,14 @@ jboolean jmm_GetBoolAttribute(JNIEnv *env, jmmBoolAttribute att) {
     switch (att) {
         case JMM_VERBOSE_GC:
         case JMM_VERBOSE_CLASS:
+            break;
 
         default:
             UNIMPLEMENTED("jmm_GetBoolAttribute: Unknown attribute %d", att);
-            return FALSE;
+            break;
     }
+
+    return FALSE;
 }
 
 jboolean jmm_SetBoolAttribute(JNIEnv *env, jmmBoolAttribute att,
@@ -128,39 +131,38 @@ jboolean jmm_SetBoolAttribute(JNIEnv *env, jmmBoolAttribute att,
     switch (att) {
         case JMM_VERBOSE_GC:
         case JMM_VERBOSE_CLASS:
+            break;
 
         default:
             UNIMPLEMENTED("jmm_SetBoolAttribute: Unknown attribute %d", att);
-            return FALSE;
+            break;
     }
 
-    return TRUE;
+    return FALSE;
 }
 
 jlong jmm_GetLongAttribute(JNIEnv *env, jobject obj, jmmLongAttribute att) {
-    jlong result;
-
     TRACE("jmm_GetLongAttribute(env=%p, obj=%p, att=%d)", env, obj, att);
 
     switch (att) {
-        case JMM_JVM_INIT_DONE_TIME_MS:
-            result = 0;
-            break;
+        case JMM_OS_PROCESS_ID:
+            return getpid();
 
+        case JMM_JVM_INIT_DONE_TIME_MS:
         case JMM_CLASS_LOADED_COUNT:
         case JMM_CLASS_UNLOADED_COUNT:
         case JMM_THREAD_TOTAL_COUNT:
         case JMM_THREAD_LIVE_COUNT:
         case JMM_THREAD_PEAK_COUNT:
         case JMM_THREAD_DAEMON_COUNT:
-        case JMM_OS_PROCESS_ID:
+            break;
 
         default:
             UNIMPLEMENTED("jmm_GetLongAttribute: Unknown attribute %d", att);
-            return -1;
+            break;
     }
 
-    return result;
+    return 0;
 }
 
 jint jmm_GetLongAttributes(JNIEnv *env, jobject obj, jmmLongAttribute *tts,
@@ -195,13 +197,14 @@ jboolean jmm_ResetStatistic(JNIEnv *env, jvalue obj, jmmStatisticType type) {
 
     switch(type) {
         case JMM_STAT_PEAK_THREAD_COUNT:
+            break;
 
         default:
             UNIMPLEMENTED("jmm_ResetStatistic: Unknown statistic type %d", type);
-            return FALSE;
+            break;
     }
 
-    return TRUE;
+    return FALSE;
 }
 
 jlong jmm_GetThreadCpuTime(JNIEnv *env, jlong thread_id) {
@@ -307,7 +310,7 @@ const struct jmmInterface_1_ jmm_interface = {
 
 void *getJMMInterface(int version) {
     if (version == JMM_VERSION_1_0)
-        return &jmm_interface;
+        return (void*)&jmm_interface;
 
     return NULL;
 }
