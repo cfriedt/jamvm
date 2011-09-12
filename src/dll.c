@@ -523,11 +523,11 @@ NativeMethod setJNIMethod(MethodBlock *mb, void *func) {
             fprintf(sig_trace_fd, "%s%s\n", mb->access_flags & ACC_STATIC ?
                                             "static " : "", mb->type);
 
-        mb->native_extra_arg = nativeExtraArg(mb);
-        invoker = &callJNIWrapper;
-
         if((mb->simple_sig = newUtf8(simple)) != simple)
             sysFree(simple);
+
+        mb->native_extra_arg = nativeExtraArg(mb);
+        invoker = &callJNIWrapper;
     } else
         sysFree(simple);
 
