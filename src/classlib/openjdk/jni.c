@@ -38,7 +38,7 @@ int classlibInitialiseJNI() {
         return FALSE;
 
     buffImpl_init_mb = findMethod(buffImpl_class, SYMBOL(object_init),
-                      SYMBOL(_JI__V));
+                                                  SYMBOL(_JI__V));
 
     buffCap_fb = findField(buffer_class, SYMBOL(capacity), SYMBOL(I));
     buffAddr_fb = findField(buffer_class, SYMBOL(address), SYMBOL(J));
