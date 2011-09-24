@@ -68,6 +68,7 @@ extern char *classlibDefaultExtDirs();
     classlibDefaultBootClassPath()
 
 extern void classlibNewLibraryUnloader(Object *class_loader, void *entry);
+extern Object *classlibSkipReflectionLoader(Object *loader);
 
 
 /* Reflection */

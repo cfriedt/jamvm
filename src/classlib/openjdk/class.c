@@ -27,22 +27,29 @@
 
 /* Cached offset of classes field in java.lang.ClassLoader objects */
 int ldr_classes_offset;
+int ldr_parent_offset;
+
+Class *delegating_ldr_class;
 
 #define CLASS_INITSZE 1<<8
 
 void classlibCacheClassLoaderFields(Class *loader_class) {
-    FieldBlock *ldr_fb = findField(loader_class, SYMBOL(classes),
-                                                 SYMBOL(sig_java_util_vector));
+    FieldBlock *classes_fb = findField(loader_class, SYMBOL(classes),
+                                       SYMBOL(sig_java_util_vector));
 
-    if(ldr_fb == NULL) {
-        jam_fprintf(stderr, "Expected \"classes\" field missing in "
-                            "java.lang.ClassLoader\n");
+    FieldBlock *parent_fb = findField(loader_class, SYMBOL(parent),
+                                      SYMBOL(sig_java_lang_ClassLoader));
+
+    if(classes_fb == NULL || parent_fb == NULL) {
+        jam_fprintf(stderr, "Expected \"classes\" and/or \"parent\" field "
+                            "missing in java.lang.ClassLoader\n");
         exitVM(1);
     }
 
-    hideFieldFromGC(ldr_fb);
+    hideFieldFromGC(classes_fb);
 
-    ldr_classes_offset = ldr_fb->u.offset;
+    ldr_classes_offset = classes_fb->u.offset;
+    ldr_parent_offset = parent_fb->u.offset;
 }
 
 HashTable *classlibLoaderTable(Object *class_loader) {
@@ -88,6 +95,25 @@ Class *classlibBootPackagesArrayClass() {
    function, which will be called from the unloader finalizer
    when the class loader is garbage collected */
 void classlibNewLibraryUnloader(Object *class_loader, void *entry) {
+}
+
+Object *classlibSkipReflectionLoader(Object *loader) {
+    if(loader != NULL) {
+        if(delegating_ldr_class == NULL) {
+            Class *class = findSystemClass0(SYMBOL(
+                                   sun_reflect_DelegatingClassLoader));
+
+            if(class == NULL)
+                return loader;
+
+            registerStaticClassRefLocked(&delegating_ldr_class, class);
+        }
+
+        if(isSubClassOf(delegating_ldr_class, loader->class))
+            return INST_DATA(loader, Object*, ldr_parent_offset);
+    }
+
+    return loader;
 }
 
 char *classlibDefaultBootClassPath() {

@@ -1553,6 +1553,8 @@ Class *findNonArrayClassFromClassLoader(char *classname, Object *loader) {
 }
 
 Class *findClassFromClassLoader(char *classname, Object *loader) {
+    loader = classlibSkipReflectionLoader(loader);
+
     if(*classname == '[')
         return findArrayClassFromClassLoader(classname, loader);
 

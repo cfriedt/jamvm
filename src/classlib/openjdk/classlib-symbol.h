@@ -27,6 +27,7 @@
     action(invoke, "invoke"), \
     action(array_J, "[J"), \
     action(eetop, "eetop"), \
+    action(parent, "parent"), \
     action(classes, "classes"), \
     action(dispatch, "dispatch"), \
     action(capacity, "capacity"), \
@@ -48,6 +49,8 @@
     action(java_nio_DirectByteBuffer, "java/nio/DirectByteBuffer"), \
     action(sun_reflect_MagicAccessorImpl, "sun/reflect/MagicAccessorImpl"), \
     action(sun_reflect_MethodAccessorImpl, "sun/reflect/MethodAccessorImpl"), \
+    action(sun_reflect_DelegatingClassLoader, \
+           "sun/reflect/DelegatingClassLoader"), \
     action(sun_reflect_ConstructorAccessorImpl, \
            "sun/reflect/ConstructorAccessorImpl"), \
     action(java_security_PrivilegedActionException, \
