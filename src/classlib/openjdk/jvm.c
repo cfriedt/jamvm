@@ -2525,7 +2525,7 @@ void JVM_VMBreakPoint(JNIEnv *env, jobject obj) {
 /* JVM_GetClassFields */
 
 jobjectArray JVM_GetClassFields(JNIEnv *env, jclass cls, jint which) {
-    UNIMPLEMENTED("JVM_GetClassFields");
+    UNUSED("JVM_GetClassFields");
 
     return NULL;
 }
@@ -2534,7 +2534,7 @@ jobjectArray JVM_GetClassFields(JNIEnv *env, jclass cls, jint which) {
 /* JVM_GetClassMethods */
 
 jobjectArray JVM_GetClassMethods(JNIEnv *env, jclass cls, jint which) {
-    UNIMPLEMENTED("JVM_GetClassMethods");
+    UNUSED("JVM_GetClassMethods");
 
     return NULL;
 }
@@ -2543,7 +2543,7 @@ jobjectArray JVM_GetClassMethods(JNIEnv *env, jclass cls, jint which) {
 /* JVM_GetClassConstructors */
 
 jobjectArray JVM_GetClassConstructors(JNIEnv *env, jclass cls, jint which) {
-    TBD("JVM_GetClassConstructors");
+    UNUSED("JVM_GetClassConstructors");
 
     return NULL;
 }
@@ -2552,7 +2552,7 @@ jobjectArray JVM_GetClassConstructors(JNIEnv *env, jclass cls, jint which) {
 /* JVM_GetClassField */
 
 jobject JVM_GetClassField(JNIEnv *env, jclass cls, jstring name, jint which) {
-    UNIMPLEMENTED("JVM_GetClassField");
+    UNUSED("JVM_GetClassField");
 
     return NULL;
 }
@@ -2562,7 +2562,7 @@ jobject JVM_GetClassField(JNIEnv *env, jclass cls, jstring name, jint which) {
 
 jobject JVM_GetClassMethod(JNIEnv *env, jclass cls, jstring name,
                            jobjectArray types, jint which) {
-    UNIMPLEMENTED("JVM_GetClassMethod");
+    UNUSED("JVM_GetClassMethod");
 
     return NULL;
 }
@@ -2572,7 +2572,7 @@ jobject JVM_GetClassMethod(JNIEnv *env, jclass cls, jstring name,
 
 jobject JVM_GetClassConstructor(JNIEnv *env, jclass cls, jobjectArray types,
                                 jint which) {
-    UNIMPLEMENTED("JVM_GetClassConstructor");
+    UNUSED("JVM_GetClassConstructor");
 
     return NULL;
 }
@@ -2581,7 +2581,7 @@ jobject JVM_GetClassConstructor(JNIEnv *env, jclass cls, jobjectArray types,
 /* JVM_NewInstance */
 
 jobject JVM_NewInstance(JNIEnv *env, jclass cls) {
-    UNIMPLEMENTED("JVM_NewInstance");
+    UNUSED("JVM_NewInstance");
 
     return NULL;
 }
@@ -2590,7 +2590,7 @@ jobject JVM_NewInstance(JNIEnv *env, jclass cls) {
 /* JVM_GetField */
 
 jobject JVM_GetField(JNIEnv *env, jobject field, jobject obj) {
-    UNIMPLEMENTED("JVM_GetField");
+    UNUSED("JVM_GetField");
 
     return NULL;
 }
@@ -2602,7 +2602,7 @@ jvalue JVM_GetPrimitiveField(JNIEnv *env, jobject field, jobject obj,
                              unsigned char wCode) {
     jvalue jv;
 
-    UNIMPLEMENTED("JVM_GetPrimitiveField");
+    UNUSED("JVM_GetPrimitiveField");
 
     jv.l = NULL;
     return jv;
@@ -2612,7 +2612,7 @@ jvalue JVM_GetPrimitiveField(JNIEnv *env, jobject field, jobject obj,
 /* JVM_SetField */
 
 void JVM_SetField(JNIEnv *env, jobject field, jobject obj, jobject val) {
-    UNIMPLEMENTED("JVM_SetField");
+    UNUSED("JVM_SetField");
 }
 
 
@@ -2620,7 +2620,7 @@ void JVM_SetField(JNIEnv *env, jobject field, jobject obj, jobject val) {
 
 void JVM_SetPrimitiveField(JNIEnv *env, jobject field, jobject obj, jvalue v,
                            unsigned char vCode) {
-    UNIMPLEMENTED("JVM_SetPrimitiveField");
+    UNUSED("JVM_SetPrimitiveField");
 }
 
 
