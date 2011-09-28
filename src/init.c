@@ -159,6 +159,28 @@ void optError(InitArgs *args, const char *fmt, ...) {
     va_end(ap);
 }
 
+typedef struct compat_options {
+    char *option;
+    int flags;
+} CompatOptions;
+
+#define OPT_ARG   1
+#define OPT_NOARG 2
+
+static CompatOptions compat[] = {
+    {"-XX",      OPT_ARG},
+    {"-Xverify", OPT_ARG},
+    {"-esa",     OPT_NOARG},
+    {"-dsa",     OPT_NOARG},
+    {"-Xint",    OPT_NOARG},
+    {"-Xcomp",   OPT_NOARG},
+    {"-Xbatch",  OPT_NOARG},
+    {"-Xmixed",  OPT_NOARG},
+    {"-ea",      OPT_NOARG | OPT_ARG},
+    {"-da",      OPT_NOARG | OPT_ARG},
+    {NULL, 0}
+};
+
 int parseCommonOpts(char *string, InitArgs *args, int is_jni) {
     int status = OPT_OK;
 
@@ -280,13 +302,21 @@ int parseCommonOpts(char *string, InitArgs *args, int is_jni) {
         args->dump_stubs_profiles = TRUE;
 #endif
     /* Compatibility options */
-    } else if(strcmp(string,  "-Xcomp")  == 0 ||
-              strcmp(string,  "-Xbatch") == 0 ||
-              strncmp(string, "-XX:", 4) == 0) {
-        /* Ignore */
-    } else
-        status = OPT_UNREC;
+    } else {
+        int i;
 
+        for(i = 0; compat[i].option != NULL; i++) {
+            int len = strlen(compat[i].option);
+
+            if(strncmp(string, compat[i].option, len) == 0 &&
+               (((compat[i].flags & OPT_ARG) && string[len] == ':') ||
+                ((compat[i].flags & OPT_NOARG) && string[len] == '\0')))
+                break;
+        }
+
+        if(compat[i].option == NULL)
+            status = OPT_UNREC;
+    }
+       
     return status;
 }
-
