@@ -134,15 +134,17 @@ unsigned long parseMemValue(char *str) {
         case '\0':
             break;
 
-        case 'M':
-        case 'm':
-            n *= MB;
-            break;
-
-        case 'K':
-        case 'k':
+        case 'G': case 'g':
             n *= KB;
-            break;
+
+        case 'M': case 'm':
+            n *= KB;
+
+        case 'K': case 'k':
+            n *= KB;
+
+            if(end[1] == '\0')
+                break;
 
         default:
              n = 0;
