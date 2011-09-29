@@ -49,6 +49,7 @@ powerpc*-*-linux*) host_cpu=powerpc host_os=linux ;;
 powerpc*-*-openbsd*) host_cpu=powerpc host_os=bsd libdl_needed=no ;;
 powerpc*-*-freebsd*) host_cpu=powerpc host_os=bsd libdl_needed=no ;;
 powerpc-*-darwin*) host_os=darwin ;;
+sparc*-*-openbsd*) host_cpu=sparc host_os=bsd libdl_needed=no ;;
 sparc*-*-freebsd*) host_cpu=sparc host_os=bsd libdl_needed=no ;;
 *) AC_MSG_ERROR($host not supported) ;;
 esac
