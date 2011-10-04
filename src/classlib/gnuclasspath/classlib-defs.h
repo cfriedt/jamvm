@@ -29,7 +29,7 @@
     /* NONE */
 
 #define CLASSLIB_THREAD_EXTRA_FIELDS \
-    char state;
+    unsigned short state;
 
 #define CLASSLIB_CLASSBLOCK_REFS_DO(action, cb, ...) \
     /* NONE */

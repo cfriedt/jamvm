@@ -359,7 +359,7 @@ void JVM_MonitorWait(JNIEnv* env, jobject handle, jlong ms) {
         return;
     }
 
-    objectWait(handle, ms, 0);
+    objectWait(handle, ms, 0, TRUE);
 }
 
 
@@ -2761,7 +2761,7 @@ jintArray JVM_GetThreadStateValues(JNIEnv* env, jint javaThreadState) {
     TRACE("JVM_GetThreadStateValues(env=%p, javaThreadState=%d)",
                                     env, javaThreadState);
 
-    int i, count = 0, states[2];
+    int i, count = 0, states[4];
     Object *array;
 
     switch(javaThreadState) {
@@ -2780,11 +2780,14 @@ jintArray JVM_GetThreadStateValues(JNIEnv* env, jint javaThreadState) {
         case JAVA_THREAD_STATE_WAITING:
             states[count++] = PARKED;
             states[count++] = WAITING;
+            states[count++] = OBJECT_WAIT;
             break;
 
         case JAVA_THREAD_STATE_TIMED_WAITING:
+            states[count++] = SLEEPING;
             states[count++] = TIMED_PARKED;
             states[count++] = TIMED_WAITING;
+            states[count++] = OBJECT_TIMED_WAIT;
             break;
 
         case JAVA_THREAD_STATE_TERMINATED:
@@ -2814,7 +2817,7 @@ jobjectArray JVM_GetThreadStateNames(JNIEnv* env, jint javaThreadState,
           env, javaThreadState, values);
 
     Class *array_class = findArrayClass(SYMBOL(array_java_lang_String));
-    char *state_names[2];
+    char *state_names[4];
     int i, count = 0;
     Object *array;
 
@@ -2833,11 +2836,14 @@ jobjectArray JVM_GetThreadStateNames(JNIEnv* env, jint javaThreadState,
 
         case JAVA_THREAD_STATE_WAITING:
             state_names[count++] = "WAITING.PARKED";
+            state_names[count++] = "WAITING.INTERNAL";
             state_names[count++] = "WAITING.OBJECT_WAIT";
             break;
 
         case JAVA_THREAD_STATE_TIMED_WAITING:
+            state_names[count++] = "TIMED_WAITING.SLEEPING";
             state_names[count++] = "TIMED_WAITING.PARKED";
+            state_names[count++] = "TIMED_WAITING.INTERNAL";
             state_names[count++] = "TIMED_WAITING.OBJECT_WAIT";
             break;
 

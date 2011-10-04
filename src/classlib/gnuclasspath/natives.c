@@ -75,7 +75,7 @@ uintptr_t *jamWait(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     long long ms = *((long long *)&ostack[1]);
     int ns = ostack[3];
 
-    objectWait(obj, ms, ns);
+    objectWait(obj, ms, ns, TRUE);
     return ostack;
 }
 

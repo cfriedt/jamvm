@@ -1191,7 +1191,7 @@ Class *initClass(Class *class) {
              An interrupt will appear as if the initialiser
              failed (below), and clearing will lose the
              interrupt status */
-          objectWait0(class, 0, 0, FALSE);
+          objectWait(class, 0, 0, FALSE);
       }
 
    if(cb->state >= CLASS_INITED) {

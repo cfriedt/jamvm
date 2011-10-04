@@ -177,41 +177,40 @@ void monitorUnlock(Monitor *mon, Thread *self) {
     }
 }
 
-int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
-                 int blocked, int interruptible) {
-    char timed = (ms != 0) || (ns != 0);
-    char interrupted = FALSE;
-    char timeout = FALSE;
-    struct timespec ts;
-    int old_count;
+int monitorWait(Monitor *mon, Thread *self, long long ms, int ns,
+                int is_wait, int interruptible) {
+    char interrupted = interruptible && self->interrupted;
 
     /* Check we own the monitor */
     if(mon->owner != self)
         return FALSE;
 
-    disableSuspend(self);
+    if(!interrupted) {
+        char timed = (ms != 0) || (ns != 0);
+        char timeout = FALSE;
+        struct timespec ts;
+        int old_count;
+        int state;
 
-    /* Unlock the monitor.  As it could be recursively
-       locked remember the recursion count */
-    old_count = mon->count;
-    mon->owner = NULL;
-    mon->count = 0;
+        disableSuspend(self);
 
-    /* Counter used in thin-lock deflation */
-    mon->in_wait++;
+        /* Unlock the monitor.  As it could be recursively
+           locked remember the recursion count */
+        old_count = mon->count;
+        mon->owner = NULL;
+        mon->count = 0;
 
-    self->wait_mon = mon;
+        /* Counter used in thin-lock deflation */
+        mon->in_wait++;
 
-    if(timed) {
-       getTimeoutRelative(&ts, ms, ns);
-       classlibSetThreadState(self, TIMED_WAITING);
-    } else
-       classlibSetThreadState(self, blocked ? BLOCKED : WAITING);
+        self->wait_mon = mon;
 
-    if(interruptible && self->interrupted)
-        interrupted = TRUE;
-    else {
-        if(blocked) {
+        state = timed ? (is_wait ? OBJECT_TIMED_WAIT : SLEEPING)
+                      : (is_wait ? OBJECT_WAIT : BLOCKED);
+
+        classlibSetThreadState(self, state);
+
+        if(state == BLOCKED) {
             self->blocked_mon = mon;
             self->blocked_count++;
         } else
@@ -221,6 +220,9 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
 
         /* Add the thread onto the end of the wait set */
         waitSetAppend(mon, self);
+
+        if(timed)
+            getTimeoutRelative(&ts, ms, ns);
 
         while(self->wait_next != NULL && !self->interrupting && !timeout)
             if(timed) {
@@ -236,42 +238,42 @@ int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
                 FPU_HACK;
             } else
                 pthread_cond_wait(&self->wait_cv, &mon->lock);
-    }
 
-    /* If we've been interrupted or timed-out, we will not have been
-       removed from the wait set.  If we have, we must have been
-       notified afterwards.  In this case, the notify has been lost,
-       and we must signal another thread */
+        /* If we've been interrupted or timed-out, we will not have been
+           removed from the wait set.  If we have, we must have been
+           notified afterwards.  In this case, the notify has been lost,
+           and we must signal another thread */
 
-    if(self->interrupting || timeout) {
-        /* An interrupt after a timeout remains pending */
-        interrupted = interruptible && !timeout;
+        if(self->interrupting || timeout) {
+            /* An interrupt after a timeout remains pending */
+            interrupted = interruptible && !timeout;
 
-        if(self->wait_next != NULL)
-            waitSetUnlinkThread(mon, self);
-        else {
-            /* Notify lost.  Signal another thread only if it
-               was on the wait set at the time of the notify */
-            if(mon->wait_set != NULL &&
-                            mon->wait_set->wait_id < self->notify_id) {
-                Thread *thread = waitSetSignalNext(mon);
-                thread->notify_id = self->notify_id;
+            if(self->wait_next != NULL)
+                waitSetUnlinkThread(mon, self);
+            else {
+                /* Notify lost.  Signal another thread only if it
+                   was on the wait set at the time of the notify */
+                if(mon->wait_set != NULL &&
+                                mon->wait_set->wait_id < self->notify_id) {
+                    Thread *thread = waitSetSignalNext(mon);
+                    thread->notify_id = self->notify_id;
+                }
             }
         }
+
+        classlibSetThreadState(self, RUNNING);
+        self->wait_mon = NULL;
+
+        if(state == BLOCKED)
+            self->blocked_mon = NULL;
+
+        /* Restore the monitor owner and recursion count */
+        mon->count = old_count;
+        mon->owner = self;
+        mon->in_wait--;
+
+        enableSuspend(self);
     }
-
-    classlibSetThreadState(self, RUNNING);
-    self->wait_mon = NULL;
-
-    if(blocked)
-        self->blocked_mon = NULL;
-
-   /* Restore the monitor owner and recursion count */
-    mon->count = old_count;
-    mon->owner = self;
-    mon->in_wait--;
-
-    enableSuspend(self);
 
     if(interrupted) {
         self->interrupted = FALSE;
@@ -398,7 +400,7 @@ try_again2:
         if(LOCKWORD_COMPARE_AND_SWAP(&obj->lock, 0, thin_locked))
             inflate(obj, mon, self);
         else
-            monitorWait0(mon, self, 0, 0, TRUE, FALSE);
+            monitorWait(mon, self, 0, 0, FALSE, FALSE);
     }
 }
 
@@ -457,7 +459,7 @@ retry:
     }
 }
 
-void objectWait0(Object *obj, long long ms, int ns, int interruptible) {
+void objectWait(Object *obj, long long ms, int ns, int interruptible) {
     uintptr_t lockword = LOCKWORD_READ(&obj->lock);
     Thread *self = threadSelf();
     Monitor *mon;
@@ -476,7 +478,7 @@ void objectWait0(Object *obj, long long ms, int ns, int interruptible) {
     } else
         mon = (Monitor*) (lockword & ~SHAPE_BIT);
 
-    if(monitorWait0(mon, self, ms, ns, FALSE, interruptible))
+    if(monitorWait(mon, self, ms, ns, TRUE, interruptible))
         return;
 
 not_owner:

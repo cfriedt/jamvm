@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -24,22 +24,16 @@
 extern void monitorInit(Monitor *mon);
 extern void monitorLock(Monitor *mon, Thread *self);
 extern void monitorUnlock(Monitor *mon, Thread *self);
-extern int monitorWait0(Monitor *mon, Thread *self, long long ms, int ns,
-                        int blocked, int interruptible);
+extern int monitorWait(Monitor *mon, Thread *self, long long ms, int ns,
+                       int is_wait, int interruptible);
 extern int monitorNotify(Monitor *mon, Thread *self);
 extern int monitorNotifyAll(Monitor *mon, Thread *self);
-
-#define monitorWait(mon, self, ms, ns) \
-    monitorWait0(mon, self, ms, ns, FALSE, TRUE)
 
 extern void objectLock(Object *ob);
 extern void objectUnlock(Object *ob);
 extern void objectNotify(Object *ob);
 extern void objectNotifyAll(Object *ob);
-extern void objectWait0(Object *ob, long long ms, int ns, int interruptible);
+extern void objectWait(Object *ob, long long ms, int ns, int interruptible);
 extern int objectLockedByCurrent(Object *ob);
 extern Thread *objectLockedBy(Object *ob);
 extern void threadMonitorCache();
-
-#define objectWait(ob, ms, ns) \
-    objectWait0(ob, ms, ns, TRUE)

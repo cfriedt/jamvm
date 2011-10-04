@@ -154,7 +154,7 @@ void threadSleep(Thread *self, long long ms, int ns) {
         ns = 1;
 
     monitorLock(&sleep_mon, self);
-    monitorWait(&sleep_mon, self, ms, ns);
+    monitorWait(&sleep_mon, self, ms, ns, FALSE, TRUE);
     monitorUnlock(&sleep_mon, self);
 }
 
@@ -387,9 +387,12 @@ char *getThreadStateString(Thread *thread) {
             return "RUNNABLE";
         case PARKED:
         case WAITING:
+        case OBJECT_WAIT:
             return "WAITING";
+        case SLEEPING:
         case TIMED_PARKED:
         case TIMED_WAITING:
+        case OBJECT_TIMED_WAIT:
             return "TIMED_WAITING";
         case BLOCKED:
             return "BLOCKED";
@@ -1078,7 +1081,7 @@ void printThreadsDump(Thread *self) {
         classlibThreadName2Buff(jThread, buffer, sizeof(buffer));
 
         jam_printf("\n\"%s\"%s %p priority: %d tid: %p id: %d state: "
-                   "%s (%d)\n", buffer, daemon ? " (daemon)" : "",
+                   "%s (0x%x)\n", buffer, daemon ? " (daemon)" : "",
                    thread, priority, thread->tid, thread->id,
                    getThreadStateString(thread),
                    classlibGetThreadState(thread));
@@ -1160,7 +1163,7 @@ int systemIdle(Thread *self) {
     Thread *thread;
 
     for(thread = &main_thread; thread != NULL; thread = thread->next)
-        if(thread != self && classlibGetThreadState(thread) < WAITING)
+        if(thread != self && classlibGetThreadState(thread) == RUNNING)
             return FALSE;
 
     return TRUE;
