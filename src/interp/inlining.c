@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007, 2008, 2009 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2007, 2008, 2009, 2011 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -1053,15 +1053,15 @@ void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
    rate decreases with table occupancy.
 */
 void *inlineProfiledBlock(Instruction *pc, MethodBlock *mb, int force_inlining) {
-    ProfileInfo *info, *last = NULL;
     Thread *self = threadSelf();
+    ProfileInfo *info;
     void *ret;
 
     rewriteLock(self);
 
     /* Search profile cache for block */
     for(info = mb->profile_info; info != NULL && info->block->start != pc;
-        last = info, info = info->next);
+        info = info->next);
 
     if(info != NULL && (force_inlining ||
                         info->profile_count++ >= profile_threshold)) {
