@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -73,8 +73,19 @@ void *classlibGetDirectBufferAddress(Object *buff) {
 }
 
 Object *classlibCheckIfOnLoad(Frame *last) {
-    // XXX: Implement!
+    Class *class = last->mb->class;
+
+    if(CLASS_CB(class)->name == SYMBOL(java_lang_ClassLoader_NativeLibrary)) {
+        MethodBlock *mb = findMethod(class, SYMBOL(getFromClass),
+                                            SYMBOL(___java_lang_Class));
+
+        if(mb != NULL) {
+            Class *result = *(Class**)executeStaticMethod(class, mb);           
+
+            if(!exceptionOccurred())
+                return CLASS_CB(result)->class_loader;
+        }
+    }
+
     return NULL;
 }
-
-

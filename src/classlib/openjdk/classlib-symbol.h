@@ -34,9 +34,11 @@
     action(shutdown, "shutdown"), \
     action(findNative, "findNative"), \
     action(threadStatus, "threadStatus"), \
+    action(getFromClass, "getFromClass"), \
     action(constantPoolOop, "constantPoolOop"), \
     action(sun_misc_Signal, "sun/misc/Signal"), \
     action(java_lang_Shutdown, "java/lang/Shutdown"), \
+    action(___java_lang_Class, "()Ljava/lang/Class;"), \
     action(___java_lang_Object, "()Ljava/lang/Object;"), \
     action(java_lang_Exception, "java/lang/Exception"), \
     action(uncaughtExceptionHandler, "uncaughtExceptionHandler"), \
@@ -53,6 +55,8 @@
            "sun/reflect/DelegatingClassLoader"), \
     action(sun_reflect_ConstructorAccessorImpl, \
            "sun/reflect/ConstructorAccessorImpl"), \
+    action(java_lang_ClassLoader_NativeLibrary, \
+           "java/lang/ClassLoader$NativeLibrary"), \
     action(java_security_PrivilegedActionException, \
            "java/security/PrivilegedActionException"), \
     action(sun_reflect_UnsafeStaticFieldAccessorImpl, \
