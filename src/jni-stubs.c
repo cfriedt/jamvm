@@ -5,6 +5,7 @@
 #ifndef USE_MD_STUBS
 #include "stubs.h"
 #include "properties.h"
+#include "jni-internal.h"
 
 extern void *jni_env;
 
@@ -32,6 +33,18 @@ static uintptr_t *static__J(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 	class);
 
     return ostack + 2;
+}
+
+/* ()L */
+static uintptr_t *static__L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*))mb->code) (
+	&jni_env,
+	class));
+
+    return ostack + 1;
 }
 
 /* ()V */
@@ -138,6 +151,19 @@ static uintptr_t *static_I_I(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack + 1;
 }
 
+/* (I)L */
+static uintptr_t *static_I_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, uintptr_t))mb->code) (
+	&jni_env,
+	class,
+	*(uintptr_t *)&ostack[0]));
+
+    return ostack + 1;
+}
+
 /* (II)I */
 static uintptr_t *static_II_I(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(!initJNILrefs())
@@ -148,6 +174,20 @@ static uintptr_t *static_II_I(Class *class, MethodBlock *mb, uintptr_t *ostack) 
 	class,
 	*(uintptr_t *)&ostack[0],
 	*(uintptr_t *)&ostack[1]);
+
+    return ostack + 1;
+}
+
+/* (II)L */
+static uintptr_t *static_II_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, uintptr_t, uintptr_t))mb->code) (
+	&jni_env,
+	class,
+	*(uintptr_t *)&ostack[0],
+	*(uintptr_t *)&ostack[1]));
 
     return ostack + 1;
 }
@@ -167,6 +207,21 @@ static uintptr_t *static_III_I(Class *class, MethodBlock *mb, uintptr_t *ostack)
     return ostack + 1;
 }
 
+/* (III)L */
+static uintptr_t *static_III_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, uintptr_t, uintptr_t, uintptr_t))mb->code) (
+	&jni_env,
+	class,
+	*(uintptr_t *)&ostack[0],
+	*(uintptr_t *)&ostack[1],
+	*(uintptr_t *)&ostack[2]));
+
+    return ostack + 1;
+}
+
 /* (IIII)I */
 static uintptr_t *static_IIII_I(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(!initJNILrefs())
@@ -179,6 +234,23 @@ static uintptr_t *static_IIII_I(Class *class, MethodBlock *mb, uintptr_t *ostack
 	*(uintptr_t *)&ostack[1],
 	*(uintptr_t *)&ostack[2],
 	*(uintptr_t *)&ostack[3]);
+
+    return ostack + 1;
+}
+
+/* (IIIII)L */
+static uintptr_t *static_IIIII_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t))mb->code) (
+	&jni_env,
+	class,
+	*(uintptr_t *)&ostack[0],
+	*(uintptr_t *)&ostack[1],
+	*(uintptr_t *)&ostack[2],
+	*(uintptr_t *)&ostack[3],
+	*(uintptr_t *)&ostack[4]));
 
     return ostack + 1;
 }
@@ -281,6 +353,19 @@ static uintptr_t *static_J_J(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 	*(int64_t *)&ostack[0]);
 
     return ostack + 2;
+}
+
+/* (J)L */
+static uintptr_t *static_J_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, int64_t))mb->code) (
+	&jni_env,
+	class,
+	*(int64_t *)&ostack[0]));
+
+    return ostack + 1;
 }
 
 /* (J)V */
@@ -415,6 +500,20 @@ static uintptr_t *static_JJ_J(Class *class, MethodBlock *mb, uintptr_t *ostack) 
     return ostack + 2;
 }
 
+/* (JJ)L */
+static uintptr_t *static_JJ_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, int64_t, int64_t))mb->code) (
+	&jni_env,
+	class,
+	*(int64_t *)&ostack[0],
+	*(int64_t *)&ostack[2]));
+
+    return ostack + 1;
+}
+
 /* (JJ)V */
 static uintptr_t *static_JJ_V(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(!initJNILrefs())
@@ -543,6 +642,18 @@ static uintptr_t *__J(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack + 2;
 }
 
+/* ()L */
+static uintptr_t *__L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*))mb->code) (
+	&jni_env,
+	(void*)ostack[0]));
+
+    return ostack + 1;
+}
+
 /* ()V */
 static uintptr_t *__V(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(!initJNILrefs())
@@ -608,6 +719,19 @@ static uintptr_t *_I_J(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack + 2;
 }
 
+/* (I)L */
+static uintptr_t *_I_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, uintptr_t))mb->code) (
+	&jni_env,
+	(void*)ostack[0],
+	*(uintptr_t *)&ostack[1]));
+
+    return ostack + 1;
+}
+
 /* (I)V */
 static uintptr_t *_I_V(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(!initJNILrefs())
@@ -631,6 +755,20 @@ static uintptr_t *_II_B(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 	(void*)ostack[0],
 	*(uintptr_t *)&ostack[1],
 	*(uintptr_t *)&ostack[2]);
+
+    return ostack + 1;
+}
+
+/* (II)L */
+static uintptr_t *_II_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, uintptr_t, uintptr_t))mb->code) (
+	&jni_env,
+	(void*)ostack[0],
+	*(uintptr_t *)&ostack[1],
+	*(uintptr_t *)&ostack[2]));
 
     return ostack + 1;
 }
@@ -709,6 +847,24 @@ static uintptr_t *_IIIIII_I(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 	*(uintptr_t *)&ostack[4],
 	*(uintptr_t *)&ostack[5],
 	*(uintptr_t *)&ostack[6]);
+
+    return ostack + 1;
+}
+
+/* (IIIIII)L */
+static uintptr_t *_IIIIII_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t))mb->code) (
+	&jni_env,
+	(void*)ostack[0],
+	*(uintptr_t *)&ostack[1],
+	*(uintptr_t *)&ostack[2],
+	*(uintptr_t *)&ostack[3],
+	*(uintptr_t *)&ostack[4],
+	*(uintptr_t *)&ostack[5],
+	*(uintptr_t *)&ostack[6]));
 
     return ostack + 1;
 }
@@ -842,6 +998,21 @@ static uintptr_t *_IJ_J(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack + 2;
 }
 
+/* (IJJ)L */
+static uintptr_t *_IJJ_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, uintptr_t, int64_t, int64_t))mb->code) (
+	&jni_env,
+	(void*)ostack[0],
+	*(uintptr_t *)&ostack[1],
+	*(int64_t *)&ostack[2],
+	*(int64_t *)&ostack[4]));
+
+    return ostack + 1;
+}
+
 /* (IJJI)J */
 static uintptr_t *_IJJI_J(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(!initJNILrefs())
@@ -869,6 +1040,19 @@ static uintptr_t *_J_J(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 	*(int64_t *)&ostack[1]);
 
     return ostack + 2;
+}
+
+/* (J)L */
+static uintptr_t *_J_L(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    if(!initJNILrefs())
+        return NULL;
+
+    *ostack = (uintptr_t)REF_TO_OBJ((*(uintptr_t (*)(void*, void*, int64_t))mb->code) (
+	&jni_env,
+	(void*)ostack[0],
+	*(int64_t *)&ostack[1]));
+
+    return ostack + 1;
 }
 
 /* (J)V */
@@ -960,6 +1144,7 @@ static uintptr_t *_JJJIIIIIII_V(Class *class, MethodBlock *mb, uintptr_t *ostack
 JNIStub jni_static_stubs[] = {
     {"()I", static__I},
     {"()J", static__J},
+    {"()L", static__L},
     {"()V", static__V},
     {"(D)D", static_D_D},
     {"(D)J", static_D_J},
@@ -968,15 +1153,20 @@ JNIStub jni_static_stubs[] = {
     {"(I)B", static_I_B},
     {"(I)F", static_I_F},
     {"(I)I", static_I_I},
+    {"(I)L", static_I_L},
     {"(II)I", static_II_I},
+    {"(II)L", static_II_L},
     {"(III)I", static_III_I},
+    {"(III)L", static_III_L},
     {"(IIII)I", static_IIII_I},
+    {"(IIIII)L", static_IIIII_L},
     {"(IIIII)V", static_IIIII_V},
     {"(IIIIIIIIIIIIIIIJJ)V", static_IIIIIIIIIIIIIIIJJ_V},
     {"(IJI)I", static_IJI_I},
     {"(J)D", static_J_D},
     {"(J)I", static_J_I},
     {"(J)J", static_J_J},
+    {"(J)L", static_J_L},
     {"(J)V", static_J_V},
     {"(JI)I", static_JI_I},
     {"(JI)J", static_JI_J},
@@ -986,6 +1176,7 @@ JNIStub jni_static_stubs[] = {
     {"(JIJJ)V", static_JIJJ_V},
     {"(JJ)B", static_JJ_B},
     {"(JJ)J", static_JJ_J},
+    {"(JJ)L", static_JJ_L},
     {"(JJ)V", static_JJ_V},
     {"(JJJIII)I", static_JJJIII_I},
     {"(JJJJ)V", static_JJJJ_V},
@@ -998,26 +1189,32 @@ JNIStub jni_stubs[] = {
     {"()B", __B},
     {"()I", __I},
     {"()J", __J},
+    {"()L", __L},
     {"()V", __V},
     {"(FF)V", _FF_V},
     {"(I)B", _I_B},
     {"(I)I", _I_I},
     {"(I)J", _I_J},
+    {"(I)L", _I_L},
     {"(I)V", _I_V},
     {"(II)B", _II_B},
+    {"(II)L", _II_L},
     {"(II)V", _II_V},
     {"(III)I", _III_I},
     {"(III)V", _III_V},
     {"(IIII)V", _IIII_V},
     {"(IIIIII)I", _IIIIII_I},
+    {"(IIIIII)L", _IIIIII_L},
     {"(IIIIII)V", _IIIIII_V},
     {"(IIIIIIII)V", _IIIIIIII_V},
     {"(IIIIIIIIII)V", _IIIIIIIIII_V},
     {"(IIIIIIIIIIIII)V", _IIIIIIIIIIIII_V},
     {"(IIIIIIIIIIIIIIIIII)V", _IIIIIIIIIIIIIIIIII_V},
     {"(IJ)J", _IJ_J},
+    {"(IJJ)L", _IJJ_L},
     {"(IJJI)J", _IJJI_J},
     {"(J)J", _J_J},
+    {"(J)L", _J_L},
     {"(J)V", _J_V},
     {"(JIII)I", _JIII_I},
     {"(JJII)V", _JJII_V},
