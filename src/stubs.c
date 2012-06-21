@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -43,8 +43,7 @@ static char mapRet2Simple(char element) {
             return 'B';
 
         case '[':
-        case 'L':
-            return 'I';
+            return 'L';
 
         default:
             return element;
