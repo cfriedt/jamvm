@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -36,6 +36,7 @@
 #include "class.h"
 #include "thread.h"
 #include "classlib.h"
+#include "jni-internal.h"
 
 /* Set by call to initialise -- if true, prints out
     results of dynamic method resolution */
@@ -497,6 +498,25 @@ uintptr_t *callJNIWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack) {
                          mb->code, mb->args_count);
 }
 
+uintptr_t *callJNIWrapperRefReturn(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack) {
+    uintptr_t *ret;
+
+    TRACE("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name,
+          mb->name, mb->type);
+
+    if(!initJNILrefs())
+        return NULL;
+
+    ret = callJNIMethod(&jni_env,
+                        (mb->access_flags & ACC_STATIC) ? class : NULL,
+                        mb->simple_sig, mb->native_extra_arg, ostack,
+                        mb->code, mb->args_count);
+
+    *ostack = (uintptr_t)REF_TO_OBJ(*ostack);
+    return ret;
+}
+
 NativeMethod findJNIStub(char *sig, JNIStub *stubs) {
     int i;
 
@@ -527,7 +547,11 @@ NativeMethod setJNIMethod(MethodBlock *mb, void *func) {
             sysFree(simple);
 
         mb->native_extra_arg = nativeExtraArg(mb);
-        invoker = &callJNIWrapper;
+
+        if(mb->simple_sig[strlen(mb->simple_sig)-1] == 'L')
+            invoker = &callJNIWrapperRefReturn;
+        else
+            invoker = &callJNIWrapper;
     } else
         sysFree(simple);
 

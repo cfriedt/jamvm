@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -799,7 +799,7 @@ jarray Jam_GetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index) {
 void Jam_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index,
                                jobject value) {
 
-    ARRAY_DATA(REF_TO_OBJ(array), Object*)[index] = value;
+    ARRAY_DATA(REF_TO_OBJ(array), Object*)[index] = REF_TO_OBJ(value);
 }
 
 jint Jam_RegisterNatives(JNIEnv *env, jclass clazz,
@@ -942,7 +942,7 @@ void Jam_SetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID,
     Object *ob = REF_TO_OBJ(obj);
     FieldBlock *fb = fieldID;
 
-    INST_DATA(ob, jobject, fb->u.offset) = value;
+    INST_DATA(ob, jobject, fb->u.offset) = REF_TO_OBJ(value);
 }
 
 jobject Jam_GetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID) {
