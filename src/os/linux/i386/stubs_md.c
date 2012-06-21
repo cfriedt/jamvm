@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2012 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -22,52 +22,42 @@
 #include "jam.h"
 #endif
 
-#ifdef USE_MD_STUBS
+#if defined(GEN_STUBS_INC) || defined(USE_MD_STUBS)
 #include <string.h>
+#include "sig.h"
 
 char *convertSig2Simple(char *sig) {
-    char *simple_sig = sysMalloc(strlen(sig) * 2);
-    char *simple_pntr = simple_sig;
-    char *sig_pntr = sig;
+    char *simple_sig, *simple_pntr;
+    int count = 0;
+    int i;
+
+    SCAN_SIG(sig, count+=2, count++);
+    simple_sig = simple_pntr = sysMalloc((count + 1)/2 + 4);
 
     *simple_pntr++ = '(';
-    while(*++sig_pntr != ')') {
+    for(i = 0; i < count/2; i++)
+        *simple_pntr++ = 'J';
+
+    if(count&0x1)
         *simple_pntr++ = 'I';
-
-        if(*sig_pntr == 'J' || *sig_pntr == 'D')
-            *simple_pntr++ = 'I';
-        else {
-            if(*sig_pntr == '[')
-                while(*++sig_pntr == '[');
-            if(*sig_pntr == 'L')
-                while(*++sig_pntr != ';');
-        }
-    }
-
     *simple_pntr++ = ')';
 
-    switch(*++sig_pntr) {
-        case 'B':
+    switch(*sig) {
         case 'Z':
             *simple_pntr++ = 'B';
             break;
 
-        case 'C':
-        case 'S':
-        case 'J':
-        case 'D':
-        case 'F':
-        case 'V':
-            *simple_pntr++ = *sig_pntr;
+        case '[':
+            *simple_pntr++ = 'L';
             break;
 
         default:
-            *simple_pntr++ = 'I';
+            *simple_pntr++ = *sig;
             break;
     }
 
-    *simple_pntr++ = '\0';
-    return sysRealloc(simple_sig, simple_pntr - simple_sig);
+    *simple_pntr = '\0';
+    return simple_sig;
 }
 #endif
 
