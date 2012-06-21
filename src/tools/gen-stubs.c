@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -304,6 +304,10 @@ void writeStubs(FILE *fd, List *list, int profiling) {
         fprintf(fd, "        return NULL;\n\n");
 
         fprintf(fd, "    %s", sigElement2StackCast(ret));
+
+        if(ret == 'L')
+            fprintf(fd, "(uintptr_t)REF_TO_OBJ(");
+
         fprintf(fd, "(*(%s (*)(void*, void*", sigElement2Type(ret));
 
         for(pntr = sig + 1; *pntr != ')'; pntr++)
@@ -325,6 +329,9 @@ void writeStubs(FILE *fd, List *list, int profiling) {
                 fprintf(fd, ",\n\t*(%s *)&ostack[%d]", sigElement2Type(*pntr), sp);
             sp += sigElement2Size(*pntr);
         }
+
+        if(ret == 'L')
+            fprintf(fd, ")");
 
         fprintf(fd, ");\n\n");
         fprintf(fd, "    return ostack + %d;\n", sigElement2Size(*++pntr));
@@ -364,6 +371,7 @@ void writeStubsFile(char *stubs_name, char *sigs_name, int profiling) {
     fprintf(fd, "#include \"jam.h\"\n");
     fprintf(fd, "#include \"stubs.h\"\n");
     fprintf(fd, "#include \"properties.h\"\n");
+    fprintf(fd, "#include \"jni-internal.h\"\n");
     fprintf(fd, "\nextern void *jni_env;\n\n");
 
     fprintf(fd, "/* Static signatures */\n\n");
