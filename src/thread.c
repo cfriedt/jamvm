@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -566,7 +566,7 @@ Thread *attachThread(char *name, char is_daemon, void *stack_base,
     signalThreadRunning(thread);
 
     /* We're now attached to the VM...*/
-    TRACE("Thread 0x%x id: %d attached\n", thread, thread->id);
+    TRACE("Thread %p id: %d attached\n", thread, thread->id);
     return thread;
 }
 
@@ -687,7 +687,7 @@ void detachThread(Thread *thread) {
     /* Finally, clear the thread local data */
     setThreadSelf(NULL);
 
-    TRACE("Thread 0x%x id: %d detached from VM\n", thread, thread->id);
+    TRACE("Thread %p id: %d detached from VM\n", thread, thread->id);
 }
 
 void *threadStart(void *arg) {
@@ -714,7 +714,7 @@ void *threadStart(void *arg) {
     /* Run has completed.  Detach the thread from the VM and exit */
     detachThread(thread);
 
-    TRACE("Thread 0x%x id: %d exited\n", thread, thread->id);
+    TRACE("Thread %p id: %d exited\n", thread, thread->id);
     return NULL;
 }
 
@@ -867,14 +867,14 @@ void suspendThread(Thread *thread) {
     MBARRIER();
 
     if(thread->suspend_state == SUSP_NONE) {
-        TRACE("Sending suspend signal to thread 0x%x id: %d\n",
+        TRACE("Sending suspend signal to thread %p id: %d\n",
               thread, thread->id);
         pthread_kill(thread->tid, SIGUSR1);
     }
 
     while(thread->suspend_state != SUSP_BLOCKING &&
           thread->suspend_state != SUSP_SUSPENDED) {
-        TRACE("Waiting for thread 0x%x id: %d to suspend\n",
+        TRACE("Waiting for thread %p id: %d to suspend\n",
               thread, thread->id);
         sched_yield();
     }
@@ -885,13 +885,13 @@ void resumeThread(Thread *thread) {
     MBARRIER();
 
     if(thread->suspend_state == SUSP_SUSPENDED) {
-        TRACE("Sending resume signal to thread 0x%x id: %d\n",
+        TRACE("Sending resume signal to thread %p id: %d\n",
               thread, thread->id);
         pthread_kill(thread->tid, SIGUSR1);
     }
 
     while(thread->suspend_state == SUSP_SUSPENDED) {
-        TRACE("Waiting for thread 0x%x id: %d to resume\n", thread,
+        TRACE("Waiting for thread %p id: %d to resume\n", thread,
               thread->id);
         sched_yield();
     }
@@ -900,7 +900,7 @@ void resumeThread(Thread *thread) {
 void suspendAllThreads(Thread *self) {
     Thread *thread;
 
-    TRACE("Thread 0x%x id: %d is suspending all threads\n", self, self->id);
+    TRACE("Thread %p id: %d is suspending all threads\n", self, self->id);
     pthread_mutex_lock(&lock);
 
     for(thread = &main_thread; thread != NULL; thread = thread->next) {
@@ -911,7 +911,7 @@ void suspendAllThreads(Thread *self) {
         MBARRIER();
 
         if(thread->suspend_state == SUSP_NONE) {
-            TRACE("Sending suspend signal to thread 0x%x id: %d\n",
+            TRACE("Sending suspend signal to thread %p id: %d\n",
                   thread, thread->id);
             pthread_kill(thread->tid, SIGUSR1);
         }
@@ -923,7 +923,7 @@ void suspendAllThreads(Thread *self) {
 
         while(thread->suspend_state != SUSP_BLOCKING &&
               thread->suspend_state != SUSP_SUSPENDED) {
-            TRACE("Waiting for thread 0x%x id: %d to suspend\n",
+            TRACE("Waiting for thread %p id: %d to suspend\n",
                   thread, thread->id);
             sched_yield();
         }
@@ -938,7 +938,7 @@ void suspendAllThreads(Thread *self) {
 void resumeAllThreads(Thread *self) {
     Thread *thread;
 
-    TRACE("Thread 0x%x id: %d is resuming all threads\n", self, self->id);
+    TRACE("Thread %p id: %d is resuming all threads\n", self, self->id);
     pthread_mutex_lock(&lock);
 
     for(thread = &main_thread; thread != NULL; thread = thread->next) {
@@ -949,7 +949,7 @@ void resumeAllThreads(Thread *self) {
         MBARRIER();
 
         if(thread->suspend_state == SUSP_SUSPENDED) {
-            TRACE("Sending resume signal to thread 0x%x id: %d\n",
+            TRACE("Sending resume signal to thread %p id: %d\n",
                   thread, thread->id);
             pthread_kill(thread->tid, SIGUSR1);
         }
@@ -957,7 +957,7 @@ void resumeAllThreads(Thread *self) {
 
     for(thread = &main_thread; thread != NULL; thread = thread->next) {
         while(thread->suspend_state == SUSP_SUSPENDED) {
-            TRACE("Waiting for thread 0x%x id: %d to resume\n",
+            TRACE("Waiting for thread %p id: %d to resume\n",
                   thread, thread->id);
             sched_yield();
         }
@@ -1022,9 +1022,9 @@ void enableSuspend(Thread *thread) {
     MBARRIER();
 
     if(thread->suspend) {
-        TRACE("Thread 0x%x id: %d is self suspending\n", thread, thread->id);
+        TRACE("Thread %p id: %d is self suspending\n", thread, thread->id);
         suspendLoop(thread);
-        TRACE("Thread 0x%x id: %d resumed\n", thread, thread->id);
+        TRACE("Thread %p id: %d resumed\n", thread, thread->id);
     }
 
     sigemptyset(&mask);
@@ -1050,12 +1050,12 @@ void fastEnableSuspend(Thread *thread) {
         sigaddset(&mask, SIGUSR1);
         pthread_sigmask(SIG_BLOCK, &mask, NULL);
 
-        TRACE("Thread 0x%x id: %d is fast self suspending\n",
+        TRACE("Thread %p id: %d is fast self suspending\n",
               thread, thread->id);
 
         suspendLoop(thread);
 
-        TRACE("Thread 0x%x id: %d resumed\n", thread, thread->id);
+        TRACE("Thread %p id: %d resumed\n", thread, thread->id);
 
         pthread_sigmask(SIG_UNBLOCK, &mask, NULL);
     }
