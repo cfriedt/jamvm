@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -170,16 +170,22 @@ typedef struct compat_options {
 #define OPT_NOARG 2
 
 static CompatOptions compat[] = {
-    {"-XX",      OPT_ARG},
-    {"-Xverify", OPT_ARG},
-    {"-esa",     OPT_NOARG},
-    {"-dsa",     OPT_NOARG},
-    {"-Xint",    OPT_NOARG},
-    {"-Xcomp",   OPT_NOARG},
-    {"-Xbatch",  OPT_NOARG},
-    {"-Xmixed",  OPT_NOARG},
-    {"-ea",      OPT_NOARG | OPT_ARG},
-    {"-da",      OPT_NOARG | OPT_ARG},
+    {"-XX",                      OPT_ARG},
+    {"-Xverify",                 OPT_ARG},
+    {"-esa",                     OPT_NOARG},
+    {"-dsa",                     OPT_NOARG},
+    {"-Xint",                    OPT_NOARG},
+    {"-Xcomp",                   OPT_NOARG},
+    {"-Xbatch",                  OPT_NOARG},
+    {"-Xmixed",                  OPT_NOARG},
+    {"-Xrs",                     OPT_NOARG},
+    {"-Xcheck:jni",              OPT_NOARG},
+    {"-enablesystemassertions",  OPT_NOARG},
+    {"-disablesystemassertions", OPT_NOARG},
+    {"-ea",                      OPT_NOARG | OPT_ARG},
+    {"-da",                      OPT_NOARG | OPT_ARG},
+    {"-enableassertions",        OPT_NOARG | OPT_ARG},
+    {"-disableassertions",       OPT_NOARG | OPT_ARG},
     {NULL, 0}
 };
 
