@@ -24,6 +24,7 @@
 #include <string.h>
 #include <signal.h>
 #include <sched.h>
+#include <errno.h>
 
 #include "jam.h"
 #include "thread.h"
@@ -913,7 +914,20 @@ void suspendAllThreads(Thread *self) {
         if(thread->suspend_state == SUSP_NONE) {
             TRACE("Sending suspend signal to thread %p id: %d\n",
                   thread, thread->id);
-            pthread_kill(thread->tid, SIGUSR1);
+            if(pthread_kill(thread->tid, SIGUSR1) == ESRCH) {
+                /* ESRCH indicates that the thread has died.  This can only
+                   occur when an external thread has been attached to the VM
+                   via JNI and it has exited without detaching.  Although it
+                   is a user error, it will deadlock the suspension code as it
+                   will hang waiting for the thread to suspend.  Set the state
+                   to BLOCKING, to ignore the thread. Note, no attempt is made
+                   to clean-up the error; the thread will still appear to be
+                   "live" (as with Hotspot).  We simply stop the thread from
+                   hanging the VM. */
+                TRACE("Setting thread %p id: %d state to BLOCKING "
+                      "as it has died\n", thread, thread->id);
+                thread->suspend_state = SUSP_BLOCKING;
+            }
         }
     }
 
