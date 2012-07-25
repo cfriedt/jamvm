@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -67,7 +67,7 @@ callJNIMethod:
 
         mov     r10, r3
         subs    sp, sp, r3              /* allocate room for stacked */
-        add     r8, r2, #1              /* init sig pntr -- skr5ping '(' */
+        add     r8, r2, #1              /* init sig pntr -- skipping '(' */
 
         mov     ip, sp                  /* init loop pntr */
 
