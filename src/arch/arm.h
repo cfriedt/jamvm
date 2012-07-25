@@ -52,7 +52,7 @@
 /* Needed for i386 -- empty here */
 #define FPU_HACK
 
-#ifdef __ARM_ARCH_7A__
+#if defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_7A__)
 #define COMPARE_AND_SWAP_32(addr, old_val, new_val)       \
 ({                                                        \
     int result, read_val;                                 \
