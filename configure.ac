@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
 ## Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -211,15 +211,24 @@ AC_ARG_ENABLE(profile-stubs,
     [AS_HELP_STRING(--enable-profile-stubs,JNI stubs support profiling)],,)
 
 AC_ARG_WITH(java-runtime-library,
-    [AS_HELP_STRING(--with-java-runtime-library=[[[gnuclasspath|openjdk]]],which Java runtime
+    [AS_HELP_STRING(--with-java-runtime-library=[[[gnuclasspath|openjdk6|openjdk7]]],which Java runtime
                     library interface to use (default gnuclasspath))],
-    [if test "$withval" != gnuclasspath -a "$withval" != openjdk; then
+    [if test "$withval" != gnuclasspath -a "$withval" != openjdk6 -a "$withval" != openjdk7; then
         AC_MSG_ERROR($withval Java runtime library is not supported)
      fi],
     [with_java_runtime_library=gnuclasspath])
 
-classlib="$with_java_runtime_library"
+if test "$with_java_runtime_library" != gnuclasspath; then
+    classlib=openjdk
+else
+    classlib=gnuclasspath
+fi
+
 AC_SUBST(classlib)
+
+if test "$with_java_runtime_library" != openjdk7; then
+    AC_DEFINE([SHARED_CHAR_BUFFERS],1,[java.lang.String uses shared char buffers])
+fi
 
 AC_ARG_WITH(classpath-install-dir,
     [AS_HELP_STRING(--with-classpath-install-dir=<dir>,installation directory of GNU classpath

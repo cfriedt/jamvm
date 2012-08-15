@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -1647,6 +1647,13 @@ void JVM_SuspendThread(JNIEnv* env, jobject jthread) {
 
 void JVM_ResumeThread(JNIEnv* env, jobject jthread) {
     UNIMPLEMENTED("JVM_ResumeThread(env=%p, jthread=%p)", env, jthread);
+}
+
+
+/* JVM_SetNativeThreadName */
+
+void JVM_SetNativeThreadName(JNIEnv *env, jclass cls, jobject name) {
+    UNIMPLEMENTED("JVM_SetNativeThreadName");
 }
 
 
