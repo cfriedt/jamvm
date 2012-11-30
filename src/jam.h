@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -276,6 +276,8 @@
 #define OPC_ABSTRACT_METHOD_ERROR       245
 #define OPC_INLINE_REWRITER             246
 #define OPC_PROFILE_REWRITER            247
+#define OPC_INVOKEEXACT_QUICK           248
+#define OPC_INVOKENONEXACT_QUICK        249
 
 #define CONSTANT_Utf8                   1
 #define CONSTANT_Integer                3
@@ -292,6 +294,7 @@
 #define CONSTANT_Resolved               20
 #define CONSTANT_ResolvedClass          25
 #define CONSTANT_ResolvedString         26
+#define CONSTANT_ResolvedPolyMethod     27
 #define CONSTANT_Locked                 21
 
 #define ACC_PUBLIC              0x0001
@@ -536,6 +539,15 @@ struct methodblock {
    ProfileInfo *profile_info;
 #endif
 };
+
+typedef struct polymethodblock  {
+    char *name;
+    Object *type;
+    u2 args_count;
+    u1 ret_slot_size;
+    MethodBlock *mb;
+    Object *appendix;
+} PolyMethodBlock;
 
 typedef struct fieldblock {
    Class *class;
@@ -839,6 +851,8 @@ extern void threadReference(Object **ref);
 
 extern Class *java_lang_Class;
 
+extern Class *parseClass(char *classname, char *data, int offset, int len,
+                          Object *class_loader);
 extern Class *defineClass(char *classname, char *data, int offset, int len,
                           Object *class_loader);
 extern void linkClass(Class *class);
@@ -891,6 +905,8 @@ extern FieldBlock *findField(Class *, char *, char *);
 extern MethodBlock *findMethod(Class *class, char *methodname, char *type);
 extern FieldBlock *lookupField(Class *, char *, char *);
 extern MethodBlock *lookupMethod(Class *class, char *methodname, char *type);
+extern MethodBlock *lookupInterfaceMethod(Class *class, char *methodname,
+                                          char *type);
 extern MethodBlock *lookupVirtualMethod(Object *ob, MethodBlock *mb);
 extern Class *resolveClass(Class *class, int index, int check_access, int init);
 extern MethodBlock *resolveMethod(Class *class, int index);
@@ -1163,4 +1179,4 @@ extern void getTimeoutRelative(struct timespec *ts, long long millis,
 /* sig */
 
 extern int sigElement2Size(char element);
-
+extern int sigArgsCount(char *sig);

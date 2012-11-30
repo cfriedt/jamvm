@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2009, 2010, 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -63,3 +63,7 @@ extern Object *createReflectMethodObject(MethodBlock *mb);
 extern Object *createReflectFieldObject(FieldBlock *fb);
 extern int checkObject(Object *ob, Class *type);
 extern int getWrapperPrimTypeIndex(Object *arg);
+
+extern Class *convertSigElement2Class(char **sig_pntr, Class *declaring_class);
+extern Object *convertSig2ClassArray(char **sig_pntr, Class *declaring_class);
+

@@ -132,3 +132,14 @@ extern void classlibVMShutdown();
     /* NOTHING TO DO */
 
 extern void classlibHandleUnmarkedSpecial(Object *ob);
+
+
+
+// TEMP
+
+
+extern int isPolymorphicRef(Class *class, int cp_index);
+extern PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index);
+
+MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
+                                     char *methodname, char *type);

@@ -132,7 +132,7 @@ static void prepareClass(Class *class) {
     }
 }
 
-Class *defineClass(char *classname, char *data, int offset, int len,
+Class *parseClass(char *classname, char *data, int offset, int len,
                    Object *class_loader) {
 
     u2 major_version, minor_version, this_idx, super_idx;
@@ -143,8 +143,8 @@ Class *defineClass(char *classname, char *data, int offset, int len,
 
     ConstantPool *constant_pool;
     ClassBlock *classblock;
-    Class *class, *found;
     Class **interfaces;
+    Class *class;
 
     READ_U4(magic, ptr, len);
 
@@ -243,6 +243,7 @@ Class *defineClass(char *classname, char *data, int offset, int len,
     classblock->name = CP_UTF8(constant_pool, CP_CLASS(constant_pool, this_idx));
 
     if(classname && strcmp(classblock->name, classname) != 0) {
+printf("**** %s\n", classblock->name);
         signalException(java_lang_NoClassDefFoundError,
                         "class file has wrong name");
         return NULL;
@@ -525,13 +526,25 @@ Class *defineClass(char *classname, char *data, int offset, int len,
 
     classblock->state = CLASS_LOADED;
 
-    if((found = addClassToHash(class, class_loader)) != class) {
-        classblock->flags = CLASS_CLASH;
-        if(class_loader != NULL) {
-            signalException(java_lang_LinkageError, "duplicate class definition");
-            return NULL;
+    return class;
+}
+
+Class *defineClass(char *classname, char *data, int offset, int len,
+                   Object *class_loader) {
+
+    Class *class = parseClass(classname, data, offset, len, class_loader);
+
+    if(class != NULL) {
+        Class *found = addClassToHash(class, class_loader);
+
+        if(found != class) {
+            CLASS_CB(class)->flags = CLASS_CLASH;
+            if(class_loader != NULL) {
+                signalException(java_lang_LinkageError, "duplicate class definition");
+                return NULL;
+            }
+            return found;
         }
-        return found;
     }
 
     return class;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -290,6 +290,7 @@ opc##x##_##y##_##z:
 #define RESOLVED_CONSTANT(pc)    CP_INFO(cp, SINGLE_INDEX(pc))
 #define RESOLVED_FIELD(pc)       ((FieldBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
 #define RESOLVED_METHOD(pc)      ((MethodBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
+#define RESOLVED_POLYMETHOD(pc)  ((PolyMethodBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
 #define RESOLVED_CLASS(pc)       ((Class *)CP_INFO(cp, DOUBLE_INDEX(pc)))
 
 /* Macros for checking for common exceptions */

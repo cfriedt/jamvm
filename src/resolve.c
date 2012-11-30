@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -24,6 +24,10 @@
 #include "jam.h"
 #include "symbol.h"
 #include "excep.h"
+#include "thread.h"
+#include "hash.h"
+#include "class.h"
+#include "classlib.h"
 
 MethodBlock *findMethod(Class *class, char *methodname, char *type) {
    ClassBlock *cb = CLASS_CB(class);
@@ -63,6 +67,24 @@ MethodBlock *lookupMethod(Class *class, char *methodname, char *type) {
         return lookupMethod(CLASS_CB(class)->super, methodname, type);
 
     return NULL;
+}
+
+MethodBlock *lookupInterfaceMethod(Class *class, char *methodname,
+                                   char *type) {
+
+    MethodBlock *mb = lookupMethod(class, methodname, type);
+
+    if(mb == NULL) {
+        ClassBlock *cb = CLASS_CB(class);
+        int i;
+
+        for(i = 0; mb == NULL && (i < cb->imethod_table_size); i++) {
+            Class *intf = cb->imethod_table[i].interface;
+            mb = findMethod(intf, methodname, type);
+        }
+    }
+
+    return mb;
 }
 
 FieldBlock *lookupField(Class *class, char *fieldname, char *fieldtype) {
@@ -186,7 +208,10 @@ retry:
             
             mb = lookupMethod(resolved_class, methodname, methodtype);
 
-            if(mb) {
+            if(mb == NULL)
+                mb = lookupPolymorphicMethod(resolved_class, class, methodname, methodtype);
+
+            if(mb != NULL) {
                 if((mb->access_flags & ACC_ABSTRACT) &&
                        !(resolved_cb->access_flags & ACC_ABSTRACT)) {
                     signalException(java_lang_AbstractMethodError, methodname);
@@ -251,18 +276,9 @@ retry:
                 return NULL;
             }
             
-            mb = lookupMethod(resolved_class, methodname, methodtype);
-            if(mb == NULL) {
-                ClassBlock *cb = CLASS_CB(resolved_class);
-                int i;
+            mb = lookupInterfaceMethod(resolved_class, methodname, methodtype);
 
-                for(i = 0; mb == NULL && (i < cb->imethod_table_size); i++) {
-                    Class *intf = cb->imethod_table[i].interface;
-                    mb = findMethod(intf, methodname, methodtype);
-                }
-            }
-
-            if(mb) {
+            if(mb != NULL) {
                 CP_TYPE(cp, cp_index) = CONSTANT_Locked;
                 MBARRIER();
                 CP_INFO(cp, cp_index) = (uintptr_t)mb;

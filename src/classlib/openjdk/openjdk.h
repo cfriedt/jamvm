@@ -33,6 +33,7 @@ extern Object *getAnnotationsAsArray(AnnotationData *annotations);
 
 extern int typeNo2PrimTypeIndex(int type_no);
 extern int primTypeIndex2Size(int prim_idx);
+extern char primClass2TypeChar(Class *prim);
 extern int widenPrimitiveElement(int src_idx, int dst_idx,
 	                         void *src_addr, void *dst_addr);
 

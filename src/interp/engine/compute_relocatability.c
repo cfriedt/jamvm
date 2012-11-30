@@ -83,6 +83,23 @@ int main() {
 
 /* Stubs for functions called from executeJava */
 
+char *symbol_values[] = {};
+
+void clearException() {
+}
+
+MethodBlock *exactMethodHandle2MB(Object *mh, PolyMethodBlock *pmb) {
+    return NULL;
+}
+
+int isPolymorphicRef(Class *class, int cp_index) {
+    return FALSE;
+}
+
+PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index) {
+    return NULL;
+}
+
 Object *allocObject(Class *class) {
     return NULL;
 }
@@ -177,5 +194,9 @@ void inlineProfiledBlock(Instruction *pc, MethodBlock *mb) {
 }
 
 void shutdownInlining() {
+}
+
+MethodBlock *invokeBasic(Object *o) {
+    return NULL;
 }
 

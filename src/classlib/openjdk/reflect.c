@@ -25,6 +25,8 @@
 #include "symbol.h"
 #include "reflect.h"
 
+#define static
+
 static Class *cons_reflect_class, *method_reflect_class;
 static Class *field_reflect_class;
 
@@ -34,6 +36,8 @@ static int cons_slot_offset, cons_class_offset, cons_param_offset;
 static int mthd_slot_offset, mthd_class_offset, mthd_ret_offset,
            mthd_param_offset;
 static int fld_slot_offset, fld_class_offset;
+
+#undef static
 
 /* Accessed from frame.c */
 MethodBlock *mthd_invoke_mb;
@@ -262,6 +266,12 @@ int typeNo2PrimTypeIndex(int type_no) {
                               PRIM_IDX_INT, PRIM_IDX_LONG};
 
     return type_map[type_no - T_BOOLEAN];
+}
+
+char primClass2TypeChar(Class *prim) {
+    static char type_char[] = {'V', 'Z', 'B', 'C', 'S',
+                               'I', 'F', 'J', 'D'};
+    return type_char[getPrimTypeIndex(CLASS_CB(prim))];
 }
 
 int primTypeIndex2Size(int prim_idx) {

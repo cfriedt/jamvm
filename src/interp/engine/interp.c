@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -34,6 +34,10 @@
 #include "frame.h"
 
 #include "interp.h"
+
+#include "hash.h"
+#include "class.h"
+#include "classlib.h"
 
 uintptr_t *executeJava() {
 
@@ -1432,16 +1436,32 @@ uintptr_t *executeJava() {
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, idx);
  
-        if(exceptionOccurred0(ee))
-            goto throwException;
+        if(new_mb == NULL || exceptionOccurred0(ee)) {
+            if(isPolymorphicRef(mb->class, idx)) {
+                PolyMethodBlock *pmb;
+                int new_opc;
 
-        if(new_mb->access_flags & ACC_PRIVATE) {
-            operand.pntr = new_mb;
-            OPCODE_REWRITE(OPC_INVOKENONVIRTUAL_QUICK, cache, operand);
+                clearException();
+                pmb = resolvePolyMethod(mb->class, idx);
+
+                if(pmb == NULL)
+                    goto throwException;
+
+                new_opc = OPC_INVOKEEXACT_QUICK;
+
+                operand.pntr = pmb;
+                OPCODE_REWRITE(new_opc, cache, operand);
+            } else
+                goto throwException;
         } else {
-            operand.uu.u1 = new_mb->args_count;
-            operand.uu.u2 = new_mb->method_table_index;
-            OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK, cache, operand);
+            if(new_mb->access_flags & ACC_PRIVATE) {
+                operand.pntr = new_mb;
+                OPCODE_REWRITE(OPC_INVOKENONVIRTUAL_QUICK, cache, operand);
+            } else {
+                operand.uu.u1 = new_mb->args_count;
+                operand.uu.u2 = new_mb->method_table_index;
+                OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK, cache, operand);
+            }
         }
 
         REDISPATCH
@@ -2066,6 +2086,17 @@ uintptr_t *executeJava() {
         goto invokeMethod;
     })
 
+    DEF_OPC_210(OPC_INVOKEEXACT_QUICK, {
+        PolyMethodBlock *pmb = RESOLVED_POLYMETHOD(pc);
+
+        if(pmb->appendix)
+            *ostack++ = pmb->appendix;
+        new_mb = pmb->mb;
+        arg1 = ostack - new_mb->args_count;
+        NULL_POINTER_CHECK(*arg1);
+        goto invokeMethod;
+    })
+
     DEF_OPC_210(OPC_NEW_QUICK, {
         Class *class = RESOLVED_CLASS(pc);
         Object *obj;
@@ -2253,7 +2284,6 @@ invokeMethod:
 
 methodReturn:
     /* Set interpreter state to previous frame */
-
     frame = frame->prev;
 
     if(frame->mb == NULL) {

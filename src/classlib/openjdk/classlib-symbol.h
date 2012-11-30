@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -22,18 +22,33 @@
     action(tid, "tid"), \
     action(add, "add"), \
     action(base, "base"), \
+    action(form, "form"), \
+    action(type, "type"), \
+    action(flags, "flags"), \
+    action(rtype, "rtype"), \
     action(_JI__V, "(JI)V"), \
+    action(ptypes, "ptypes"), \
     action(remove, "remove"), \
     action(invoke, "invoke"), \
     action(array_J, "[J"), \
     action(eetop, "eetop"), \
     action(parent, "parent"), \
+    action(vmentry, "vmentry"), \
+    action(vmindex, "jvmindex"), \
     action(classes, "classes"), \
+    action(vmtarget, "jvmtarget"), \
     action(dispatch, "dispatch"), \
     action(capacity, "capacity"), \
     action(shutdown, "shutdown"), \
     action(findNative, "findNative"), \
+    action(linkMethod, "linkMethod"), \
+    action(invokeExact, "invokeExact"), \
+    action(invokeBasic, "invokeBasic"), \
     action(threadStatus, "threadStatus"), \
+    action(linkToVirtual, "linkToVirtual"), \
+    action(linkToStatic, "linkToStatic"), \
+    action(linkToSpecial, "linkToSpecial"), \
+    action(linkToInterface, "linkToInterface"), \
     action(getFromClass, "getFromClass"), \
     action(constantPoolOop, "constantPoolOop"), \
     action(sun_misc_Signal, "sun/misc/Signal"), \
@@ -41,6 +56,7 @@
     action(___java_lang_Class, "()Ljava/lang/Class;"), \
     action(___java_lang_Object, "()Ljava/lang/Object;"), \
     action(java_lang_Exception, "java/lang/Exception"), \
+    action(findMethodHandleType, "findMethodHandleType"), \
     action(uncaughtExceptionHandler, "uncaughtExceptionHandler"), \
     action(java_lang_RuntimeException, "java/lang/RuntimeException"), \
     action(_java_lang_Exception__V, "(Ljava/lang/Exception;)V"), \
@@ -49,14 +65,22 @@
     action(initializeSystemClass, "initializeSystemClass"), \
     action(sun_reflect_ConstantPool, "sun/reflect/ConstantPool"), \
     action(java_nio_DirectByteBuffer, "java/nio/DirectByteBuffer"), \
+    action(java_lang_invoke_LambdaForm, "java/lang/invoke/LambdaForm"), \
+    action(java_lang_invoke_MemberName, "java/lang/invoke/MemberName"), \
+    action(java_lang_invoke_MethodType, "java/lang/invoke/MethodType"), \
+    action(java_lang_invoke_MethodHandle, "java/lang/invoke/MethodHandle"), \
     action(sun_reflect_MagicAccessorImpl, "sun/reflect/MagicAccessorImpl"), \
     action(sun_reflect_MethodAccessorImpl, "sun/reflect/MethodAccessorImpl"), \
+    action(sig_java_lang_invoke_LambdaForm, "Ljava/lang/invoke/LambdaForm;"), \
+    action(sig_java_lang_invoke_MemberName, "Ljava/lang/invoke/MemberName;"), \
     action(sun_reflect_DelegatingClassLoader, \
            "sun/reflect/DelegatingClassLoader"), \
     action(sun_reflect_ConstructorAccessorImpl, \
            "sun/reflect/ConstructorAccessorImpl"), \
     action(java_lang_ClassLoader_NativeLibrary, \
            "java/lang/ClassLoader$NativeLibrary"), \
+    action(java_lang_invoke_MethodHandleNatives, \
+           "java/lang/invoke/MethodHandleNatives"), \
     action(java_security_PrivilegedActionException, \
            "java/security/PrivilegedActionException"), \
     action(sun_reflect_UnsafeStaticFieldAccessorImpl, \
@@ -75,7 +99,13 @@
            "IILjava/lang/String;[B[B)V"), \
     action(java_lang_reflect_mthd_invoke_sig, \
            "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;"), \
+    action(java_lang_invoke_MHN_linkMethod_sig, \
+           "(Ljava/lang/Class;ILjava/lang/Class;Ljava/lang/String;" \
+           "Ljava/lang/Object;[Ljava/lang/Object;)" \
+           "Ljava/lang/invoke/MemberName;"), \
+    action(java_lang_invoke_findMethodType_sig, \
+           "(Ljava/lang/Class;[Ljava/lang/Class;)" \
+           "Ljava/lang/invoke/MethodType;"), \
     action(java_lang_reflect_mthd_init_sig, \
            "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;" \
            "Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V")
-
