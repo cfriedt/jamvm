@@ -1807,15 +1807,32 @@ uintptr_t *executeJava() {
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, idx);
  
-        if(exceptionOccurred0(ee))
-            goto throwException;
+        if(new_mb == NULL || exceptionOccurred0(ee)) {
+            if(isPolymorphicRef(mb->class, idx)) {
+                PolyMethodBlock *pmb;
 
-        if((new_mb->args_count < 256) && (new_mb->method_table_index < 256)) {
-            OPCODE_REWRITE_OPERAND2(OPC_INVOKEVIRTUAL_QUICK,
-                                    new_mb->method_table_index,
-                                    new_mb->args_count);
-        } else
-            OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK_W);
+                clearException();
+                pmb = resolvePolyMethod(mb->class, idx);
+
+                if(pmb == NULL)
+                    goto throwException;
+
+                OPCODE_REWRITE(OPC_INVOKEEXACT_QUICK);
+            } else
+                goto throwException;
+        } else {
+            if(new_mb->access_flags & ACC_PRIVATE)
+                OPCODE_REWRITE(OPC_INVOKENONVIRTUAL_QUICK);
+            else {
+                if((new_mb->args_count < 256) &&
+                           (new_mb->method_table_index < 256)) {
+                    OPCODE_REWRITE_OPERAND2(OPC_INVOKEVIRTUAL_QUICK,
+                                            new_mb->method_table_index,
+                                            new_mb->args_count);
+                } else
+                    OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK_W);
+            }
+        }
         DISPATCH(0, 0);
     })
 
