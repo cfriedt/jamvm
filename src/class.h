@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2010, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -39,3 +39,25 @@ typedef struct package_entry {
     char name[0];
 } PackageEntry;
 
+#define BOOTSTRAP_OFFSET(bootstrap_methods, idx)                         \
+    (((int*)bootstrap_methods)[idx])
+
+#define BOOTSTRAP_IDX_PNTR(bootstrap_methods, idx)                       \
+    ((u2*)(bootstrap_methods + BOOTSTRAP_OFFSET(bootstrap_methods, idx)))
+
+#define BOOTSTRAP_METHOD_REF(bootstrap_methods, idx)                     \
+    (BOOTSTRAP_IDX_PNTR(bootstrap_methods, idx)[0])
+
+#define BOOTSTRAP_METHOD_ARG(bootstrap_methods, idx, arg)                \
+    (BOOTSTRAP_IDX_PNTR(bootstrap_methods, idx)[arg+1])
+
+#define BOOTSTRAP_METHOD_ARG_COUNT(bootstrap_methods, idx)               \
+    ((BOOTSTRAP_OFFSET(bootstrap_methods, idx+1) -                       \
+      BOOTSTRAP_OFFSET(bootstrap_methods, idx))/sizeof(u2)-1)
+
+#define BOOTSTRAP_METHODS_COUNT(bootstrap_methods)                       \
+    (BOOTSTRAP_OFFSET(bootstrap_methods, 0)/sizeof(int)-1)
+
+#define BOOTSTRAP_DATA_LEN(bootstrap_methods)                            \
+    BOOTSTRAP_OFFSET(bootstrap_methods,                                  \
+                     BOOTSTRAP_METHODS_COUNT(bootstrap_methods))

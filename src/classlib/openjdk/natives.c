@@ -30,6 +30,7 @@
 #include "jam.h"
 #include "excep.h"
 #include "frame.h"
+#include "class.h"
 #include "symbol.h"
 #include "reflect.h"
 #include "natives.h"
@@ -393,7 +394,8 @@ uintptr_t *pageSize(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *defineAnonymousClass(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *defineAnonymousClass(Class *class, MethodBlock *mb, 
+	                        uintptr_t *ostack) {
     Class *host_class = (Class *)ostack[1];
     Object *data = (Object *)ostack[2];
     Object *cp_patches = (Object *)ostack[3];
@@ -431,7 +433,8 @@ uintptr_t *defineAnonymousClass(Class *class, MethodBlock *mb, uintptr_t *ostack
     return ostack;
 }
 
-uintptr_t *shouldBeInitialized(Class *clazz, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *shouldBeInitialized(Class *clazz, MethodBlock *mb,
+	                       uintptr_t *ostack) {
     Class *class = (Class *)ostack[1];
 
     *ostack++ = CLASS_CB(class)->state < CLASS_INITED;
@@ -554,9 +557,12 @@ static int mem_name_clazz_offset, mem_name_name_offset,
 static int mthd_type_ptypes_offset, mthd_type_rtype_offset;
 static int mthd_hndl_form_offset;
 static int lmda_form_vmentry_offset;
+static int call_site_target_offset;
 
 static MethodBlock *MHN_linkMethod_mb;
+static MethodBlock *MHN_linkCallSite_mb;
 static MethodBlock *MHN_findMethodType_mb;
+static MethodBlock *MHN_linkMethodHandleConstant_mb;
 
 uintptr_t *invokeRegisterNatives(Class *class, MethodBlock *mb,
                                  uintptr_t *ostack) {
@@ -570,6 +576,8 @@ uintptr_t *invokeRegisterNatives(Class *class, MethodBlock *mb,
     Class *lambda_form;
     FieldBlock *vmentry_fb;
     Class *mthd_hndl_natives;
+    Class *call_site;
+    FieldBlock *target_fb;
     
     TRACE("invokeRegisterNatives\n");
     
@@ -681,19 +689,47 @@ uintptr_t *invokeRegisterNatives(Class *class, MethodBlock *mb,
         exitVM(1);
     }
 
-    MHN_linkMethod_mb = findMethod(mthd_hndl_natives,
-                                   SYMBOL(linkMethod),
-                                   SYMBOL(java_lang_invoke_MHN_linkMethod_sig));
+    MHN_linkMethod_mb =
+         findMethod(mthd_hndl_natives, SYMBOL(linkMethod),
+                    SYMBOL(java_lang_invoke_MHN_linkMethod_sig));
 
-    MHN_findMethodType_mb = findMethod(mthd_hndl_natives,
-                                   SYMBOL(findMethodHandleType),
-                                   SYMBOL(java_lang_invoke_findMethodType_sig));
+    MHN_findMethodType_mb =
+         findMethod(mthd_hndl_natives, SYMBOL(findMethodHandleType),
+                    SYMBOL(java_lang_invoke_MHN_findMethodType_sig));
 
-    if(MHN_findMethodType_mb == NULL || MHN_linkMethod_mb == NULL) {
+    MHN_linkCallSite_mb =
+         findMethod(mthd_hndl_natives, SYMBOL(linkCallSite),
+                    SYMBOL(java_lang_invoke_MHN_linkCallSite_sig));
+
+    MHN_linkMethodHandleConstant_mb =
+         findMethod(mthd_hndl_natives, SYMBOL(linkMethodHandleConstant),
+                    SYMBOL(java_lang_invoke_MHN_linkMethodHandleConstant_sig));
+
+    if(MHN_linkMethod_mb == NULL || MHN_linkMethodHandleConstant_mb == NULL ||
+       MHN_linkCallSite_mb == NULL || MHN_findMethodType_mb == NULL) {
         jam_fprintf(stderr, "invokeRegisterNatives: Expected method missing"
                             " in java.lang.invoke.MethodHandleNatives\n");
         exitVM(1);
     }
+
+    call_site = findSystemClass0(SYMBOL(java_lang_invoke_CallSite));
+
+    if(call_site == NULL) {
+        jam_fprintf(stderr, "invokeRegisterNatives: can't find "
+                            "java.lang.invoke.CallSite\n");
+        exitVM(1);
+    }
+
+    target_fb = findField(call_site, SYMBOL(target),
+                           SYMBOL(sig_java_lang_invoke_MethodHandle));
+
+    if(target_fb == NULL) {
+        jam_fprintf(stderr, "invokeRegisterNatives: Expected fields missing"
+                            " in java.lang.invoke.CallSite\n");
+        exitVM(1);
+    }
+
+    call_site_target_offset = target_fb->u.offset;
 
     return ostack;
 }
@@ -804,7 +840,8 @@ uintptr_t *invokeBasic(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *method_handle = (Object*)ostack[0];
     Object *form = INST_DATA(method_handle, Object*, mthd_hndl_form_offset);
     Object *vmentry = INST_DATA(form, Object*, lmda_form_vmentry_offset);
-    MethodBlock *vmtarget = INST_DATA(vmentry, MethodBlock*, mem_name_vmtarget_offset);
+    MethodBlock *vmtarget = INST_DATA(vmentry, MethodBlock*, 
+    	                              mem_name_vmtarget_offset);
 
     executePolyMethod(NULL, vmtarget, ostack);
 
@@ -814,7 +851,8 @@ uintptr_t *invokeBasic(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 uintptr_t *linkToSpecial(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *mem_name = (Object*)ostack[mb->args_count-1];
-    MethodBlock *vmtarget = INST_DATA(mem_name, MethodBlock*, mem_name_vmtarget_offset);
+    MethodBlock *vmtarget = INST_DATA(mem_name, MethodBlock*,
+    	                              mem_name_vmtarget_offset);
 
     executePolyMethod(NULL, vmtarget, ostack);
 
@@ -825,7 +863,8 @@ uintptr_t *linkToSpecial(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 uintptr_t *linkToVirtual(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *this = (Object*)ostack[0];
     Object *mem_name = (Object*)ostack[mb->args_count-1];
-    MethodBlock *vmtarget = INST_DATA(mem_name, MethodBlock*, mem_name_vmtarget_offset);
+    MethodBlock *vmtarget = INST_DATA(mem_name, MethodBlock*,
+    	                              mem_name_vmtarget_offset);
 
     vmtarget = lookupVirtualMethod(this, vmtarget);
     if(vmtarget != NULL)
@@ -905,36 +944,47 @@ uintptr_t *MH_objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack
 
 uintptr_t *MH_staticFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
-    TRACE("MH_objectFieldOffset\n");
-    signalException(java_lang_InternalError, "getTarget: unimplemented");
+    TRACE("MH_staticFieldOffset\n");
+    signalException(java_lang_InternalError, "staticFieldOffset: unimplemented");
     return ostack;
 }
 
-uintptr_t *MH_staticFieldBase(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *MH_staticFieldBase(Class *class, MethodBlock *mb,
+	                      uintptr_t *ostack) {
 
-    TRACE("MH_objectFieldOffset\n");
-    signalException(java_lang_InternalError, "getTarget: unimplemented");
+    TRACE("MH_staticFieldBase\n");
+    signalException(java_lang_InternalError, "staticFieldBase: unimplemented");
     return ostack;
 }
 
 uintptr_t *getMemberVMInfo(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
-    TRACE("MH_objectFieldOffset\n");
-    signalException(java_lang_InternalError, "getTarget: unimplemented");
+    TRACE("getMemberVMInfo\n");
+    signalException(java_lang_InternalError, "getMemberVMInfo: unimplemented");
     return ostack;
 }
 
-uintptr_t *setCallSiteTargetNormal(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *setCallSiteTargetNormal(Class *class, MethodBlock *mb, 
+	                           uintptr_t *ostack) {
 
-    TRACE("MH_objectFieldOffset\n");
-    signalException(java_lang_InternalError, "getTarget: unimplemented");
+    Object *call_site = (Object *)ostack[0];
+    Object *target = (Object *)ostack[1];
+
+    TRACE("setCallSiteTargetNormal\n");
+
+    INST_DATA(call_site, Object*, call_site_target_offset) = target;
     return ostack;
 }
 
-uintptr_t *setCallSiteTargetVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *setCallSiteTargetVolatile(Class *class, MethodBlock *mb,
+	                             uintptr_t *ostack) {
 
-    TRACE("MH_objectFieldOffset\n");
-    signalException(java_lang_InternalError, "getTarget: unimplemented");
+    Object *call_site = (Object *)ostack[0];
+    Object *target = (Object *)ostack[1];
+
+    TRACE("setCallSiteTargetVolatile\n");
+
+    INST_DATA(call_site, Object*, call_site_target_offset) = target;
     return ostack;
 }
 
@@ -1236,35 +1286,183 @@ Object *findMethodHandleType(char *type, Class *accessing_class) {
     return method_type;
 }
 
+Object *findMethodHandleConstant(Class *class, int ref_kind,
+                                 Class *defining_class,
+                                 char *methodname, char *type) {
+
+    // XXX type could be a method or field signature
+    // this works for method sig, but not for field
+    Object *name_str = findInternedString(createString(methodname));
+    Object *method_type = findMethodHandleType(type, class);
+    Object *mh;
+
+    mh = *(Object**)executeStaticMethod(MHN_linkMethodHandleConstant_mb->class,
+                                        MHN_linkMethodHandleConstant_mb,
+                                        class, ref_kind, defining_class,
+                                        name_str, method_type);
+
+   return mh;
+}
+
+Object *resolveMethodHandle(Class *class, int cp_index) {
+    ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
+    Object *mh = NULL;
+
+retry:
+    switch(CP_TYPE(cp, cp_index)) {
+        case CONSTANT_Locked:
+            goto retry;
+
+        case CONSTANT_ResolvedMethodHandle:
+            mh = (Object *)CP_INFO(cp, cp_index);
+            break;
+
+        case CONSTANT_MethodHandle: {
+            Class *resolved_class;
+            int cl_idx, name_type_idx;
+            char *methodname, *methodtype;
+            int ref_idx = CP_METHOD_HANDLE_REF(cp, cp_index);
+            int ref_kind = CP_METHOD_HANDLE_KIND(cp, cp_index);
+
+            if(CP_TYPE(cp, cp_index) != CONSTANT_MethodHandle)
+                goto retry;
+
+            cl_idx = CP_METHOD_CLASS(cp, ref_idx);
+            name_type_idx = CP_METHOD_NAME_TYPE(cp, ref_idx);
+            methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
+            methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
+
+            resolved_class = resolveClass(class, cl_idx, TRUE, FALSE);
+
+            mh = findMethodHandleConstant(class, ref_kind, resolved_class,
+                                          methodname, methodtype);
+
+            CP_TYPE(cp, cp_index) = CONSTANT_Locked;
+            MBARRIER();
+            CP_INFO(cp, cp_index) = (uintptr_t)mh;
+            MBARRIER();
+            CP_TYPE(cp, cp_index) = CONSTANT_ResolvedMethodHandle;
+
+            break;
+        }
+    }
+
+    return mh;
+}
+
+MethodBlock *findInvokeDynamicInvoker(Class *class,
+                                     char *methodname, char *type,
+                                     int boot_mthd_idx, Object **appendix) {
+    Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
+    ClassBlock *cb = CLASS_CB(class);
+    Object **array_data;
+    Object *array;
+    Object *member_name;
+    Object *method_type;
+    Object *boot_mthd;
+    Object *name_str = findInternedString(createString(methodname));
+
+    int mthd_idx = BOOTSTRAP_METHOD_REF(cb->bootstrap_methods, boot_mthd_idx);
+    int args = BOOTSTRAP_METHOD_ARG_COUNT(cb->bootstrap_methods, boot_mthd_idx);
+
+    if(args != 0) {
+        signalException(java_lang_InternalError,
+                        "findInvokeDynamicInvoker: unimplemented");
+        return NULL;
+    }
+
+    boot_mthd = resolveMethodHandle(class, mthd_idx);
+
+    if((array = allocArray(obj_array_class, 1, sizeof(Object*))) == NULL)
+        return NULL;
+
+    array_data = ARRAY_DATA(array, Object*);
+
+    method_type = findMethodHandleType(type, class);
+
+    member_name = *(Object**)executeStaticMethod(MHN_linkCallSite_mb->class,
+                                             MHN_linkCallSite_mb,
+                                             class, boot_mthd, name_str, method_type,
+                                             NULL,
+                                             array);
+
+   // XXX Check for and intercept LinkageErrors
+
+   *appendix = array_data[0];
+   return INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
+}
+
+PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index) {
+    ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
+    PolyMethodBlock *pmb = NULL;
+
+retry:
+    switch(CP_TYPE(cp, cp_index)) {
+        case CONSTANT_Locked:
+            goto retry;
+
+        case CONSTANT_ResolvedInvokeDynamic:
+            pmb = (PolyMethodBlock *)CP_INFO(cp, cp_index);
+            break;
+
+        case CONSTANT_InvokeDynamic: {
+            char *methodname, *methodtype;
+            int boot_mthd_idx = CP_INVDYN_BOOT_MTHD(cp, cp_index);
+            int name_type_idx = CP_INVDYN_NAME_TYPE(cp, cp_index);
+
+            if(CP_TYPE(cp, cp_index) != CONSTANT_InvokeDynamic)
+                goto retry;
+
+            methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
+            methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
+
+            pmb = sysMalloc(sizeof(PolyMethodBlock));
+            pmb->name = methodname;
+
+            pmb->mb = findInvokeDynamicInvoker(class, methodname, methodtype,
+                                              boot_mthd_idx, &pmb->appendix);
+
+            CP_TYPE(cp, cp_index) = CONSTANT_Locked;
+            MBARRIER();
+            CP_INFO(cp, cp_index) = (uintptr_t)pmb;
+            MBARRIER();
+            CP_TYPE(cp, cp_index) = CONSTANT_ResolvedInvokeDynamic;
+
+            break;
+        }
+    }
+
+    return pmb;
+}
+
 MethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
                                      char *methodname, char *type,
                                      Object **appendix) {
-        Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
-        Object **array_data;
-        Object *array;
-        Object *member_name;
-        Object *method_type;
-        Object *name_str = findInternedString(createString(methodname));
+    Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
+    Object **array_data;
+    Object *array;
+    Object *member_name;
+    Object *method_type;
+    Object *name_str = findInternedString(createString(methodname));
 
-        if((array = allocArray(obj_array_class, 1,
-                               sizeof(Object*))) == NULL)
-            return NULL;
+    if((array = allocArray(obj_array_class, 1, sizeof(Object*))) == NULL)
+        return NULL;
 
-        array_data = ARRAY_DATA(array, Object*);
+    array_data = ARRAY_DATA(array, Object*);
 
-        method_type = findMethodHandleType(type, accessing_class);
+    method_type = findMethodHandleType(type, accessing_class);
 
-        member_name = *(Object**)executeStaticMethod(MHN_linkMethod_mb->class,
-                                                 MHN_linkMethod_mb,
-                                                 accessing_class,
-                                                 REF_invokeVirtual,
-                                                 class,
-                                                 name_str,
-                                                 method_type,
-                                                 array);
+    member_name = *(Object**)executeStaticMethod(MHN_linkMethod_mb->class,
+                                             MHN_linkMethod_mb,
+                                             accessing_class,
+                                             REF_invokeVirtual,
+                                             class,
+                                             name_str,
+                                             method_type,
+                                             array);
 
-       *appendix = array_data[0];
-       return INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
+   *appendix = array_data[0];
+   return INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
 }
 
 MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
@@ -1344,7 +1542,6 @@ retry:
             break;
 
         case CONSTANT_Methodref: {
-            Object *mt;
             char *methodname, *methodtype;
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
             int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
@@ -1355,19 +1552,18 @@ retry:
             methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
             methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
 
-                pmb = sysMalloc(sizeof(PolyMethodBlock));
-                pmb->name = methodname;
+            pmb = sysMalloc(sizeof(PolyMethodBlock));
+            pmb->name = methodname;
 
-                pmb->mb = findMethodHandleInvoker(
-                         (Class*)CP_INFO(cp, cl_idx), class,
-                                     methodname, methodtype,
-                                     &pmb->appendix);
+            pmb->mb = findMethodHandleInvoker((Class*)CP_INFO(cp, cl_idx),
+                                              class, methodname, methodtype,
+                                              &pmb->appendix);
 
-                CP_TYPE(cp, cp_index) = CONSTANT_Locked;
-                MBARRIER();
-                CP_INFO(cp, cp_index) = (uintptr_t)pmb;
-                MBARRIER();
-                CP_TYPE(cp, cp_index) = CONSTANT_ResolvedPolyMethod;
+            CP_TYPE(cp, cp_index) = CONSTANT_Locked;
+            MBARRIER();
+            CP_INFO(cp, cp_index) = (uintptr_t)pmb;
+            MBARRIER();
+            CP_TYPE(cp, cp_index) = CONSTANT_ResolvedPolyMethod;
 
             break;
         }

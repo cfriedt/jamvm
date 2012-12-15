@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -175,12 +175,14 @@ Class *parseClass(char *classname, char *data, int offset, int len,
         switch(tag) {
            case CONSTANT_Class:
            case CONSTANT_String:
+           case CONSTANT_MethodType:
                READ_INDEX(CP_INFO(constant_pool,i), ptr, len);
                break;
 
            case CONSTANT_Fieldref:
            case CONSTANT_Methodref:
            case CONSTANT_NameAndType:
+           case CONSTANT_InvokeDynamic:
            case CONSTANT_InterfaceMethodref:
            {
                u2 idx1, idx2;
@@ -188,6 +190,17 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                READ_INDEX(idx1, ptr, len);
                READ_INDEX(idx2, ptr, len);
                CP_INFO(constant_pool,i) = (idx2<<16)+idx1;
+               break;
+           }
+
+           case CONSTANT_MethodHandle:
+           {
+               u1 kind;
+               u2 idx;
+
+               READ_U1(kind, ptr, len);
+               READ_INDEX(idx, ptr, len);
+               CP_INFO(constant_pool,i) = (idx<<16)+kind;
                break;
            }
 
@@ -243,7 +256,6 @@ Class *parseClass(char *classname, char *data, int offset, int len,
     classblock->name = CP_UTF8(constant_pool, CP_CLASS(constant_pool, this_idx));
 
     if(classname && strcmp(classblock->name, classname) != 0) {
-printf("**** %s\n", classblock->name);
         signalException(java_lang_NoClassDefFoundError,
                         "class file has wrong name");
         return NULL;
@@ -304,27 +316,26 @@ printf("**** %s\n", classblock->name);
 
             if(attr_name == SYMBOL(ConstantValue)) {
                 READ_INDEX(classblock->fields[i].constant, ptr, len);
+
+            } else if(attr_name == SYMBOL(Signature)) {
+                u2 signature_idx;
+                READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                classblock->fields[i].signature = CP_UTF8(constant_pool, signature_idx);
+
+            } else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
+                classblock->fields[i].annotations = sysMalloc(sizeof(AnnotationData));
+                classblock->fields[i].annotations->len = attr_length;
+                classblock->fields[i].annotations->data = sysMalloc(attr_length);
+                memcpy(classblock->fields[i].annotations->data, ptr, attr_length);
+                ptr += attr_length;
+
             } else
-                if(attr_name == SYMBOL(Signature)) {
-                    u2 signature_idx;
-                    READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-                    classblock->fields[i].signature = CP_UTF8(constant_pool, signature_idx);
-                } else
-                    if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
-                        classblock->fields[i].annotations = sysMalloc(sizeof(AnnotationData));
-                        classblock->fields[i].annotations->len = attr_length;
-                        classblock->fields[i].annotations->data = sysMalloc(attr_length);
-                        memcpy(classblock->fields[i].annotations->data, ptr, attr_length);
-                        ptr += attr_length;
-                    } else
-                        ptr += attr_length;
+                ptr += attr_length;
         }
     }
 
     READ_U2(classblock->methods_count, ptr, len);
-
     classblock->methods = sysMalloc(classblock->methods_count * sizeof(MethodBlock));
-
     memset(classblock->methods, 0, classblock->methods_count * sizeof(MethodBlock));
 
     for(i = 0; i < classblock->methods_count; i++) {
@@ -400,44 +411,44 @@ printf("**** %s\n", classblock->name);
                     } else
                         ptr += attr_length;
                 }
-            } else
-                if(attr_name == SYMBOL(Exceptions)) {
-                    int j;
+            } else if(attr_name == SYMBOL(Exceptions)) {
+                int j;
 
-                    READ_U2(method->throw_table_size, ptr, len);
-                    method->throw_table = sysMalloc(method->throw_table_size*sizeof(u2));
-                    for(j = 0; j < method->throw_table_size; j++) {
-                        READ_U2(method->throw_table[j], ptr, len);
-                    }
-                } else
-                    if(attr_name == SYMBOL(Signature)) {
-                        u2 signature_idx;
-                        READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-                        method->signature = CP_UTF8(constant_pool, signature_idx);
-                    } else
-                        if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
-                            annos.annotations = sysMalloc(sizeof(AnnotationData));
-                            annos.annotations->len = attr_length;
-                            annos.annotations->data = sysMalloc(attr_length);
-                            memcpy(annos.annotations->data, ptr, attr_length);
-                            ptr += attr_length;
-                        } else
-                            if(attr_name == SYMBOL(RuntimeVisibleParameterAnnotations)) {
-                                annos.parameters = sysMalloc(sizeof(AnnotationData));
-                                annos.parameters->len = attr_length;
-                                annos.parameters->data = sysMalloc(attr_length);
-                                memcpy(annos.parameters->data, ptr, attr_length);
-                                ptr += attr_length;
-                            } else
-                                if(attr_name == SYMBOL(AnnotationDefault)) {
-                                    annos.dft_val = sysMalloc(sizeof(AnnotationData));
-                                    annos.dft_val->len = attr_length;
-                                    annos.dft_val->data = sysMalloc(attr_length);
-                                    memcpy(annos.dft_val->data, ptr, attr_length);
-                                    ptr += attr_length;
-                                } else
-                                    ptr += attr_length;
+                READ_U2(method->throw_table_size, ptr, len);
+                method->throw_table = sysMalloc(method->throw_table_size*sizeof(u2));
+                for(j = 0; j < method->throw_table_size; j++) {
+                    READ_U2(method->throw_table[j], ptr, len);
+                }
+
+            } else if(attr_name == SYMBOL(Signature)) {
+                u2 signature_idx;
+                READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                method->signature = CP_UTF8(constant_pool, signature_idx);
+
+            } else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
+                annos.annotations = sysMalloc(sizeof(AnnotationData));
+                annos.annotations->len = attr_length;
+                annos.annotations->data = sysMalloc(attr_length);
+                memcpy(annos.annotations->data, ptr, attr_length);
+                ptr += attr_length;
+
+            } else if(attr_name == SYMBOL(RuntimeVisibleParameterAnnotations)) {
+                annos.parameters = sysMalloc(sizeof(AnnotationData));
+                annos.parameters->len = attr_length;
+                annos.parameters->data = sysMalloc(attr_length);
+                memcpy(annos.parameters->data, ptr, attr_length);
+                ptr += attr_length;
+
+            } else if(attr_name == SYMBOL(AnnotationDefault)) {
+                annos.dft_val = sysMalloc(sizeof(AnnotationData));
+                annos.dft_val->len = attr_length;
+                annos.dft_val->data = sysMalloc(attr_length);
+                memcpy(annos.dft_val->data, ptr, attr_length);
+                ptr += attr_length;
+            } else
+                ptr += attr_length;
         }
+
         if(annos.annotations != NULL || annos.parameters != NULL
                                      || annos.dft_val != NULL) {
             method->annotations = sysMalloc(sizeof(MethodAnnotationData));
@@ -459,73 +470,103 @@ printf("**** %s\n", classblock->name);
             u2 file_name_idx;
             READ_TYPE_INDEX(file_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
             classblock->source_file_name = CP_UTF8(constant_pool, file_name_idx);
-        } else
-            if(attr_name == SYMBOL(InnerClasses)) {
-                int j, size;
-                READ_U2(size, ptr, len);
-                {
-                    u2 inner_classes[size];
-                    for(j = 0; j < size; j++) {
-                        int inner, outer;
-                        READ_TYPE_INDEX(inner, constant_pool, CONSTANT_Class, ptr, len);
-                        READ_TYPE_INDEX(outer, constant_pool, CONSTANT_Class, ptr, len);
 
-                        if(inner == this_idx) {
-                            int inner_name_idx;
+        } else if(attr_name == SYMBOL(InnerClasses)) {
+            int j, size;
+            READ_U2(size, ptr, len);
+            {
+                u2 inner_classes[size];
+                for(j = 0; j < size; j++) {
+                    int inner, outer;
+                    READ_TYPE_INDEX(inner, constant_pool, CONSTANT_Class, ptr, len);
+                    READ_TYPE_INDEX(outer, constant_pool, CONSTANT_Class, ptr, len);
 
-                            /* A member class doesn't have an EnclosingMethod attribute, so set
-                               the enclosing class to be the same as the declaring class */
-                            if(outer)
-                                classblock->declaring_class = classblock->enclosing_class = outer;
+                    if(inner == this_idx) {
+                        int inner_name_idx;
 
-                            READ_TYPE_INDEX(inner_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-                            if(inner_name_idx == 0)
-                                classblock->flags |= ANONYMOUS;
+                        /* A member class doesn't have an EnclosingMethod attribute, so set
+                           the enclosing class to be the same as the declaring class */
+                        if(outer)
+                            classblock->declaring_class = classblock->enclosing_class = outer;
 
-                            READ_U2(classblock->inner_access_flags, ptr, len);
-                        } else {
-                            ptr += 4;
-                            if(outer == this_idx)
-                                inner_classes[classblock->inner_class_count++] = inner;
-                        }
-                    }
+                        READ_TYPE_INDEX(inner_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                        if(inner_name_idx == 0)
+                            classblock->flags |= ANONYMOUS;
 
-                    if(classblock->inner_class_count) {
-                        classblock->inner_classes = sysMalloc(classblock->inner_class_count*sizeof(u2));
-                        memcpy(classblock->inner_classes, &inner_classes[0],
-                                                          classblock->inner_class_count*sizeof(u2));
+                        READ_U2(classblock->inner_access_flags, ptr, len);
+                    } else {
+                        ptr += 4;
+                        if(outer == this_idx)
+                            inner_classes[classblock->inner_class_count++] = inner;
                     }
                 }
-            } else
-                if(attr_name == SYMBOL(EnclosingMethod)) {
-                    READ_TYPE_INDEX(classblock->enclosing_class, constant_pool, CONSTANT_Class, ptr, len);
-                    READ_TYPE_INDEX(classblock->enclosing_method, constant_pool, CONSTANT_NameAndType, ptr, len);
-                } else 
-                    if(attr_name == SYMBOL(Signature)) {
-                        u2 signature_idx;
-                        READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-                        classblock->signature = CP_UTF8(constant_pool, signature_idx);
-                    } else
-                        if(attr_name == SYMBOL(Synthetic))
-                            classblock->access_flags |= ACC_SYNTHETIC;
-                        else
-                            if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
-                                classblock->annotations = sysMalloc(sizeof(AnnotationData));
-                                classblock->annotations->len = attr_length;
-                                classblock->annotations->data = sysMalloc(attr_length);
-                                memcpy(classblock->annotations->data, ptr, attr_length);
-                                ptr += attr_length;
-                            } else
-                                ptr += attr_length;
+
+                if(classblock->inner_class_count) {
+                    classblock->inner_classes = sysMalloc(classblock->inner_class_count*sizeof(u2));
+                    memcpy(classblock->inner_classes, &inner_classes[0],
+                           classblock->inner_class_count*sizeof(u2));
+                }
+            }
+        } else if(attr_name == SYMBOL(EnclosingMethod)) {
+            READ_TYPE_INDEX(classblock->enclosing_class, constant_pool,
+                            CONSTANT_Class, ptr, len);
+            READ_TYPE_INDEX(classblock->enclosing_method, constant_pool,
+                            CONSTANT_NameAndType, ptr, len);
+
+        } else if(attr_name == SYMBOL(Signature)) {
+            u2 signature_idx;
+            READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+            classblock->signature = CP_UTF8(constant_pool, signature_idx);
+
+        } else if(attr_name == SYMBOL(Synthetic))
+            classblock->access_flags |= ACC_SYNTHETIC;
+
+        else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
+            classblock->annotations = sysMalloc(sizeof(AnnotationData));
+            classblock->annotations->len = attr_length;
+            classblock->annotations->data = sysMalloc(attr_length);
+            memcpy(classblock->annotations->data, ptr, attr_length);
+            ptr += attr_length;
+
+        } else if(attr_name == SYMBOL(BootstrapMethods)) {
+            int num_methods, *offsets;
+            u2 *indexes;
+            char *data;
+
+            READ_U2(num_methods, ptr, len);
+
+            data = sysMalloc(attr_length + num_methods*2 + 2);
+            indexes = (u2*)(data + num_methods*4 + 4);
+            offsets = (int*)data;
+
+            for(; num_methods != 0; num_methods--) {
+                int method_ref, num_args;
+                READ_U2(method_ref, ptr, len);
+                READ_U2(num_args, ptr, len);
+
+                *offsets++ = (char*)indexes - data;
+                *indexes++ = method_ref;
+
+                for(; num_args != 0; num_args--) {
+                    int arg_idx;
+                    READ_U2(arg_idx, ptr, len);
+                    *indexes++ = arg_idx;
+                }
+            }
+
+            *offsets++ = (char*)indexes - data;
+            classblock->bootstrap_methods = data;
+        } else
+            ptr += attr_length;
     }
 
-    classblock->super = super_idx ? resolveClass(class, super_idx, FALSE, FALSE) : NULL;
-
-    if(exceptionOccurred())
-       return NULL;
-
+    if(super_idx) {
+        classblock->super = resolveClass(class, super_idx, FALSE, FALSE);
+        if(exceptionOccurred())
+           return NULL;
+    }
+    
     classblock->state = CLASS_LOADED;
-
     return class;
 }
 

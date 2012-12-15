@@ -1439,7 +1439,6 @@ uintptr_t *executeJava() {
         if(new_mb == NULL || exceptionOccurred0(ee)) {
             if(isPolymorphicRef(mb->class, idx)) {
                 PolyMethodBlock *pmb;
-                int new_opc;
 
                 clearException();
                 pmb = resolvePolyMethod(mb->class, idx);
@@ -1447,10 +1446,8 @@ uintptr_t *executeJava() {
                 if(pmb == NULL)
                     goto throwException;
 
-                new_opc = OPC_INVOKEEXACT_QUICK;
-
                 operand.pntr = pmb;
-                OPCODE_REWRITE(new_opc, cache, operand);
+                OPCODE_REWRITE(OPC_INVOKEEXACT_QUICK, cache, operand);
             } else
                 goto throwException;
         } else {
@@ -1900,6 +1897,17 @@ uintptr_t *executeJava() {
         DISPATCH(0, 0);
     })
 
+    DEF_OPC_210(OPC_INVOKEDYNAMIC, {
+        frame->last_pc = pc;
+        resolveInvokeDynamic(mb->class, DOUBLE_INDEX(pc));
+ 
+        if(exceptionOccurred0(ee))
+            goto throwException;
+
+        OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK);
+        DISPATCH(0, 0);
+    })
+
 #define REWRITE_RESOLVE_CLASS(opcode)                                     \
     DEF_OPC_210(opcode, {                                                 \
         frame->last_pc = pc;                                              \
@@ -2111,6 +2119,16 @@ uintptr_t *executeJava() {
         new_mb = pmb->mb;
         arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
+        goto invokeMethod;
+    })
+
+    DEF_OPC_210(OPC_INVOKEDYNAMIC_QUICK, {
+        PolyMethodBlock *pmb = RESOLVED_POLYMETHOD(pc);
+
+        if(pmb->appendix)
+            *ostack++ = pmb->appendix;
+        new_mb = pmb->mb;
+        arg1 = ostack - new_mb->args_count;
         goto invokeMethod;
     })
 

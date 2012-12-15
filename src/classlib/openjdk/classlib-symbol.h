@@ -30,6 +30,7 @@
     action(ptypes, "ptypes"), \
     action(remove, "remove"), \
     action(invoke, "invoke"), \
+    action(target, "target"), \
     action(array_J, "[J"), \
     action(eetop, "eetop"), \
     action(parent, "parent"), \
@@ -44,6 +45,7 @@
     action(linkMethod, "linkMethod"), \
     action(invokeExact, "invokeExact"), \
     action(invokeBasic, "invokeBasic"), \
+    action(linkCallSite, "linkCallSite"), \
     action(threadStatus, "threadStatus"), \
     action(linkToVirtual, "linkToVirtual"), \
     action(linkToStatic, "linkToStatic"), \
@@ -57,6 +59,7 @@
     action(___java_lang_Object, "()Ljava/lang/Object;"), \
     action(java_lang_Exception, "java/lang/Exception"), \
     action(findMethodHandleType, "findMethodHandleType"), \
+    action(linkMethodHandleConstant, "linkMethodHandleConstant"), \
     action(uncaughtExceptionHandler, "uncaughtExceptionHandler"), \
     action(java_lang_RuntimeException, "java/lang/RuntimeException"), \
     action(_java_lang_Exception__V, "(Ljava/lang/Exception;)V"), \
@@ -64,6 +67,7 @@
     action(array_java_lang_Object, "[Ljava/lang/Object;"), \
     action(initializeSystemClass, "initializeSystemClass"), \
     action(sun_reflect_ConstantPool, "sun/reflect/ConstantPool"), \
+    action(java_lang_invoke_CallSite, "java/lang/invoke/CallSite"), \
     action(java_nio_DirectByteBuffer, "java/nio/DirectByteBuffer"), \
     action(java_lang_invoke_LambdaForm, "java/lang/invoke/LambdaForm"), \
     action(java_lang_invoke_MemberName, "java/lang/invoke/MemberName"), \
@@ -73,6 +77,8 @@
     action(sun_reflect_MethodAccessorImpl, "sun/reflect/MethodAccessorImpl"), \
     action(sig_java_lang_invoke_LambdaForm, "Ljava/lang/invoke/LambdaForm;"), \
     action(sig_java_lang_invoke_MemberName, "Ljava/lang/invoke/MemberName;"), \
+    action(sig_java_lang_invoke_MethodHandle, \
+           "Ljava/lang/invoke/MethodHandle;"), \
     action(sun_reflect_DelegatingClassLoader, \
            "sun/reflect/DelegatingClassLoader"), \
     action(sun_reflect_ConstructorAccessorImpl, \
@@ -103,9 +109,17 @@
            "(Ljava/lang/Class;ILjava/lang/Class;Ljava/lang/String;" \
            "Ljava/lang/Object;[Ljava/lang/Object;)" \
            "Ljava/lang/invoke/MemberName;"), \
-    action(java_lang_invoke_findMethodType_sig, \
+    action(java_lang_invoke_MHN_linkCallSite_sig, \
+           "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;" \
+           "Ljava/lang/Object;Ljava/lang/Object;[Ljava/lang/Object;)" \
+           "Ljava/lang/invoke/MemberName;"), \
+    action(java_lang_invoke_MHN_findMethodType_sig, \
            "(Ljava/lang/Class;[Ljava/lang/Class;)" \
            "Ljava/lang/invoke/MethodType;"), \
+    action(java_lang_invoke_MHN_linkMethodHandleConstant_sig, \
+           "(Ljava/lang/Class;ILjava/lang/Class;" \
+           "Ljava/lang/String;Ljava/lang/Object;)" \
+           "Ljava/lang/invoke/MethodHandle;"), \
     action(java_lang_reflect_mthd_init_sig, \
            "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;" \
            "Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V")

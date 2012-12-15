@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2008, 2010, 2012 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -71,6 +71,7 @@ extern char *symbol_values[];
     action(ConstantValue, "ConstantValue"), \
     action(LineNumberTable, "LineNumberTable"), \
     action(EnclosingMethod, "EnclosingMethod"), \
+    action(BootstrapMethods, "BootstrapMethods"), \
     action(AnnotationDefault, "AnnotationDefault"), \
     action(RuntimeVisibleAnnotations, "RuntimeVisibleAnnotations"), \
     action(RuntimeVisibleParameterAnnotations, "RuntimeVisibleParameterAnnotations"), \
