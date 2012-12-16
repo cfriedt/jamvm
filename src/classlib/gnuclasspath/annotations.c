@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -86,7 +86,6 @@ static int initAnnotation() {
 }
 
 /* Forward declarations */
-Object *createWrapperObject(int prim_type_no, void *pntr, int flags);
 Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len);
 
 Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {

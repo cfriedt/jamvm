@@ -139,6 +139,8 @@ extern void classlibHandleUnmarkedSpecial(Object *ob);
 
 
 extern int isPolymorphicRef(Class *class, int cp_index);
+extern Object *resolveMethodType(Class *class, int cp_index);
+extern Object *resolveMethodHandle(Class *class, int cp_index);
 extern PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index);
 extern PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index);
 

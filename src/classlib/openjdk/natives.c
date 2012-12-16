@@ -784,10 +784,9 @@ int stackOverflowCheck(ExecEnv *ee, char *sp) {
 }
 
 void executePolyMethod(Object *ob, MethodBlock *mb, uintptr_t *lvars) {
-
     ExecEnv *ee = getExecEnv();
-    Frame *prev = ee->last_frame->prev;
-    Frame *dummy = (Frame *)(lvars + mb->max_locals);
+    Frame *prev = ee->last_frame;
+    Frame *dummy = prev + 1;
     Frame *new_frame = dummy + 1;
     uintptr_t *new_ostack = ALIGN_OSTACK(new_frame + 1);
 
@@ -816,7 +815,7 @@ void executePolyMethod(Object *ob, MethodBlock *mb, uintptr_t *lvars) {
     if(mb->access_flags & ACC_SYNCHRONIZED)
         objectUnlock(ob ? ob : mb->class);
 
-//     ee->last_frame = dummy->prev;
+     ee->last_frame = prev;
 }
 
 int sigRetSlotSize(char *sig) {
@@ -1276,6 +1275,11 @@ Object *findMethodHandleType(char *type, Class *accessing_class) {
     if(ptypes == NULL || rtype == NULL)
         return NULL;
 
+    // XXX invokedynamic executed but Java-level stuff hasn't
+    // been initialised - find better way to fix this
+    if(MHN_findMethodType_mb == NULL)
+        invokeRegisterNatives(NULL, NULL, NULL);
+
     method_type = *(Object**)executeStaticMethod(MHN_findMethodType_mb->class,
                                                  MHN_findMethodType_mb, rtype,
                                                  ptypes);
@@ -1284,6 +1288,42 @@ Object *findMethodHandleType(char *type, Class *accessing_class) {
         return NULL;
 
     return method_type;
+}
+
+Object *resolveMethodType(Class *class, int cp_index) {
+    ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
+    Object *mt = NULL;
+
+retry:
+    switch(CP_TYPE(cp, cp_index)) {
+        case CONSTANT_Locked:
+            goto retry;
+
+        case CONSTANT_ResolvedMethodType:
+            mt = (Object *)CP_INFO(cp, cp_index);
+            break;
+
+        case CONSTANT_MethodType: {
+            char *methodtype;
+            int type_idx = CP_METHOD_TYPE(cp, cp_index);
+
+            if(CP_TYPE(cp, cp_index) != CONSTANT_MethodType)
+                goto retry;
+
+            methodtype = CP_UTF8(cp, type_idx);
+            mt = findMethodHandleType(methodtype, class);
+
+            CP_TYPE(cp, cp_index) = CONSTANT_Locked;
+            MBARRIER();
+            CP_INFO(cp, cp_index) = (uintptr_t)mt;
+            MBARRIER();
+            CP_TYPE(cp, cp_index) = CONSTANT_ResolvedMethodType;
+
+            break;
+        }
+    }
+
+    return mt;
 }
 
 Object *findMethodHandleConstant(Class *class, int ref_kind,
@@ -1350,45 +1390,82 @@ retry:
     return mh;
 }
 
+int cpType2PrimIdx(int type) {
+    switch(type) {
+        case CONSTANT_Integer:
+            return PRIM_IDX_INT;
+        case CONSTANT_Float:
+            return PRIM_IDX_FLOAT;
+        case CONSTANT_Long:
+            return PRIM_IDX_LONG;
+        case CONSTANT_Double:
+            return PRIM_IDX_DOUBLE;
+        default:
+            return -1;
+    }
+}
+
 MethodBlock *findInvokeDynamicInvoker(Class *class,
                                      char *methodname, char *type,
                                      int boot_mthd_idx, Object **appendix) {
-    Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
-    ClassBlock *cb = CLASS_CB(class);
-    Object **array_data;
-    Object *array;
-    Object *member_name;
-    Object *method_type;
     Object *boot_mthd;
+    Object *method_type;
+    Object *member_name;
+    Object *appendix_box;
+    Object *args_array = NULL;
+    ClassBlock *cb = CLASS_CB(class);
+    ConstantPool *cp = &cb->constant_pool;
+    Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
     Object *name_str = findInternedString(createString(methodname));
-
     int mthd_idx = BOOTSTRAP_METHOD_REF(cb->bootstrap_methods, boot_mthd_idx);
     int args = BOOTSTRAP_METHOD_ARG_COUNT(cb->bootstrap_methods, boot_mthd_idx);
 
     if(args != 0) {
-        signalException(java_lang_InternalError,
-                        "findInvokeDynamicInvoker: unimplemented");
-        return NULL;
+        Object **args_data;
+        int i;
+
+        args_array = allocArray(obj_array_class, args, sizeof(Object*));
+        if(args_array == NULL)
+            return NULL;
+
+        args_data = ARRAY_DATA(args_array, Object*);
+
+        for(i = 0; i < args; i++) {
+            int idx = BOOTSTRAP_METHOD_ARG(cb->bootstrap_methods,
+                                           boot_mthd_idx, i);
+            int prim_idx = cpType2PrimIdx(CP_TYPE(cp, idx));
+
+            if(prim_idx != -1)
+                args_data[i] = createWrapperObject(prim_idx,
+                                                   &CP_INFO(cp, idx),
+                                                   REF_SRC_FIELD);
+            else
+                args_data[i] = (Object*)resolveSingleConstant(class, idx);
+        }
     }
 
-    boot_mthd = resolveMethodHandle(class, mthd_idx);
-
-    if((array = allocArray(obj_array_class, 1, sizeof(Object*))) == NULL)
+    appendix_box = allocArray(obj_array_class, 1, sizeof(Object*));
+    if(appendix_box == NULL)
         return NULL;
 
-    array_data = ARRAY_DATA(array, Object*);
+    if((method_type = findMethodHandleType(type, class)) == NULL)
+        return NULL;
 
-    method_type = findMethodHandleType(type, class);
+    if((boot_mthd = resolveMethodHandle(class, mthd_idx)) == NULL)
+        return NULL;
 
     member_name = *(Object**)executeStaticMethod(MHN_linkCallSite_mb->class,
-                                             MHN_linkCallSite_mb,
-                                             class, boot_mthd, name_str, method_type,
-                                             NULL,
-                                             array);
+                                                 MHN_linkCallSite_mb,
+                                                 class, boot_mthd, name_str,
+                                                 method_type, args_array,
+                                                 appendix_box);
 
    // XXX Check for and intercept LinkageErrors
 
-   *appendix = array_data[0];
+    if(exceptionOccurred())
+        return NULL;
+
+   *appendix = ARRAY_DATA(appendix_box, Object*)[0];
    return INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
 }
 
@@ -1438,17 +1515,14 @@ retry:
 MethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
                                      char *methodname, char *type,
                                      Object **appendix) {
+    Object *name_str = findInternedString(createString(methodname));
     Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
-    Object **array_data;
-    Object *array;
     Object *member_name;
     Object *method_type;
-    Object *name_str = findInternedString(createString(methodname));
+    Object *array;
 
     if((array = allocArray(obj_array_class, 1, sizeof(Object*))) == NULL)
         return NULL;
-
-    array_data = ARRAY_DATA(array, Object*);
 
     method_type = findMethodHandleType(type, accessing_class);
 
@@ -1461,7 +1535,7 @@ MethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
                                              method_type,
                                              array);
 
-   *appendix = array_data[0];
+   *appendix = ARRAY_DATA(array, Object*)[0];
    return INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
 }
 

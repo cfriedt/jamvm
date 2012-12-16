@@ -209,7 +209,8 @@ retry:
             mb = lookupMethod(resolved_class, methodname, methodtype);
 
             if(mb == NULL)
-                mb = lookupPolymorphicMethod(resolved_class, class, methodname, methodtype);
+                mb = lookupPolymorphicMethod(resolved_class, class,
+                                             methodname, methodtype);
 
             if(mb != NULL) {
                 if((mb->access_flags & ACC_ABSTRACT) &&
@@ -360,6 +361,14 @@ retry:
 
         case CONSTANT_Class:
             resolveClass(class, cp_index, TRUE, FALSE);
+            break;
+
+        case CONSTANT_MethodType:
+            resolveMethodType(class, cp_index);
+            break;
+
+        case CONSTANT_MethodHandle:
+            resolveMethodHandle(class, cp_index);
             break;
 
         case CONSTANT_String: {

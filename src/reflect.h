@@ -67,3 +67,4 @@ extern int getWrapperPrimTypeIndex(Object *arg);
 extern Class *convertSigElement2Class(char **sig_pntr, Class *declaring_class);
 extern Object *convertSig2ClassArray(char **sig_pntr, Class *declaring_class);
 
+extern Object *createWrapperObject(int prim_type_no, void *pntr, int flags);
