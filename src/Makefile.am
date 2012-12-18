@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011
+## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011, 2012
 ## Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -42,6 +42,7 @@ libjvm_la_SOURCES =
 
 jamvm_LDADD = libcore.la
 libjvm_la_LIBADD = libcore.la
+libjvm_la_LDFLAGS = -avoid-version
 libcore_la_LIBADD = interp/libinterp.la os/@os@/@arch@/libnative.la \
                     os/@os@/libos.la classlib/@classlib@/libclasslib.la
 
