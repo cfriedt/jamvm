@@ -1812,9 +1812,12 @@ VMMethod method_handle[] = {
     {NULL,                     NULL, NULL}
 };
 
+extern VMMethod sun_misc_perf[];
+
 VMClass native_methods[] = {
     {"java/lang/invoke/MethodHandleNatives",      method_handle_natives},
     {"java/lang/invoke/MethodHandle",             method_handle},
     {"sun/misc/Unsafe",                           sun_misc_unsafe},
+    {"sun/misc/Perf",                             sun_misc_perf},
     {NULL,                                        NULL}
 };
