@@ -399,15 +399,17 @@ uintptr_t *defineAnonymousClass(Class *class, MethodBlock *mb,
     Class *host_class = (Class *)ostack[1];
     Object *data = (Object *)ostack[2];
     Object *cp_patches = (Object *)ostack[3];
+    ClassBlock *host_cb = CLASS_CB(host_class);
 
     TRACE("defineAnonymousClass\n");
 
     class = parseClass(NULL, ARRAY_DATA(data, char), 0, ARRAY_LEN(data),
-                       CLASS_CB(host_class)->class_loader);
+                       host_cb->class_loader);
 
     if(class != NULL) {
         int cp_patches_len = cp_patches == NULL ? 0 : ARRAY_LEN(cp_patches);
-        ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
+        ClassBlock *cb = CLASS_CB(class);
+        ConstantPool *cp = &(cb->constant_pool);
         int i;
 
         for(i = 0; i < cp_patches_len; i++) {
@@ -428,6 +430,8 @@ uintptr_t *defineAnonymousClass(Class *class, MethodBlock *mb,
                 }
             }
         }
+
+        cb->protection_domain = host_cb->protection_domain;
     }
 
     *ostack++ = (uintptr_t) class;
