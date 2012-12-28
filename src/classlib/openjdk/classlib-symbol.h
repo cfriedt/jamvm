@@ -35,7 +35,6 @@
     action(eetop, "eetop"), \
     action(parent, "parent"), \
     action(vmentry, "vmentry"), \
-    action(vmindex, "jvmindex"), \
     action(classes, "classes"), \
     action(vmtarget, "jvmtarget"), \
     action(dispatch, "dispatch"), \

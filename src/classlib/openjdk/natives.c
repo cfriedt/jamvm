@@ -553,7 +553,7 @@ static int fld_slot_offset, fld_class_offset;
 
 static int mem_name_clazz_offset, mem_name_name_offset,
            mem_name_type_offset, mem_name_flags_offset,
-           mem_name_vmtarget_offset, mem_name_vmindex_offset;
+           mem_name_vmtarget_offset;
        
 static int mthd_type_ptypes_offset, mthd_type_rtype_offset;
 static int mthd_hndl_form_offset;
@@ -569,7 +569,7 @@ uintptr_t *invokeRegisterNatives(Class *class, MethodBlock *mb,
                                  uintptr_t *ostack) {
     Class *member_name;
     FieldBlock *clazz_fb, *name_fb, *type_fb, *flags_fb;
-    FieldBlock *vmtarget_fb, *vmindex_fb;
+    FieldBlock *vmtarget_fb;
     Class *method_type;
     FieldBlock *ptypes_fb, *rtype_fb;
     Class *method_handle;
@@ -603,11 +603,8 @@ uintptr_t *invokeRegisterNatives(Class *class, MethodBlock *mb,
 
     vmtarget_fb = findField(member_name, SYMBOL(vmtarget), SYMBOL(J));
 
-    vmindex_fb = findField(member_name, SYMBOL(vmindex), SYMBOL(J));
-
     if(clazz_fb == NULL || name_fb == NULL || type_fb == NULL
-                        || vmtarget_fb == NULL || vmindex_fb == NULL
-    	                || flags_fb == NULL) {
+                        || vmtarget_fb == NULL || flags_fb == NULL) {
         jam_fprintf(stderr, "invokeRegisterNatives: Expected fields missing"
                             " in java.lang.invoke.MemberName\n");
         exitVM(1);
@@ -618,7 +615,6 @@ uintptr_t *invokeRegisterNatives(Class *class, MethodBlock *mb,
     mem_name_type_offset = type_fb->u.offset;
     mem_name_flags_offset = flags_fb->u.offset;
     mem_name_vmtarget_offset = vmtarget_fb->u.offset;
-    mem_name_vmindex_offset = vmindex_fb->u.offset;
     
     method_type = findSystemClass0(SYMBOL(java_lang_invoke_MethodType));
 
