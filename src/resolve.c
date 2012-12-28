@@ -59,6 +59,12 @@ FieldBlock *findField(Class *class, char *fieldname, char *type) {
 
 MethodBlock *lookupMethod(Class *class, char *methodname, char *type) {
     MethodBlock *mb;
+// XXX
+    if(CLASS_CB(class)->name == SYMBOL(java_lang_invoke_MethodHandle)) {
+        if(methodname == SYMBOL(invoke) || methodname == SYMBOL(invokeExact))
+            return NULL;
+    }
+// XXX
 
     if((mb = findMethod(class, methodname, type)))
        return mb;

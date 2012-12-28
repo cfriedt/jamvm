@@ -107,8 +107,19 @@ JNIFrame *ensureJNILrefCapacity(int cap) {
         if(incr < sizeof(JNIFrame)/sizeof(Object*))
             incr = sizeof(JNIFrame)/sizeof(Object*);
 
-        if((frame = expandJNILrefs(ee, frame, incr)) == NULL)
-            signalException(java_lang_OutOfMemoryError, "JNI local references");
+        if((frame = expandJNILrefs(ee, frame, incr)) == NULL) {
+            if(ee->overflow++) {
+                /* Overflow when we're already throwing stack
+                   overflow.  Stack extension should be enough
+                   to throw exception, so something's seriously
+                   gone wrong - abort the VM! */
+                jam_fprintf(stderr, "Fatal stack overflow!  Aborting VM.\n");
+                exitVM(1);
+            }
+            ee->stack_end += STACK_RED_ZONE_SIZE;
+            signalException(java_lang_StackOverflowError,
+                            "JNI local references");
+        }
     }
 
     return frame;

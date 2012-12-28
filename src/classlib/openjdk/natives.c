@@ -399,32 +399,33 @@ uintptr_t *defineAnonymousClass(Class *class, MethodBlock *mb,
     Class *host_class = (Class *)ostack[1];
     Object *data = (Object *)ostack[2];
     Object *cp_patches = (Object *)ostack[3];
-    int cp_patches_len = cp_patches == NULL ? 0 : ARRAY_LEN(cp_patches);
-    ConstantPool *cp;
-    int i;
 
     TRACE("defineAnonymousClass\n");
 
     class = parseClass(NULL, ARRAY_DATA(data, char), 0, ARRAY_LEN(data),
                        CLASS_CB(host_class)->class_loader);
 
-    cp = &(CLASS_CB(class)->constant_pool);
+    if(class != NULL) {
+        int cp_patches_len = cp_patches == NULL ? 0 : ARRAY_LEN(cp_patches);
+        ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
+        int i;
 
-    for(i = 0; i < cp_patches_len; i++) {
-        Object *obj = ARRAY_DATA(cp_patches, Object*)[i];
-        if(obj != NULL) {
-            int type = CP_TYPE(cp, i);
+        for(i = 0; i < cp_patches_len; i++) {
+            Object *obj = ARRAY_DATA(cp_patches, Object*)[i];
+            if(obj != NULL) {
+                int type = CP_TYPE(cp, i);
             
-            switch(type) {
-                case CONSTANT_String:
-                    CP_INFO(cp, i) = (uintptr_t)obj;
-                    CP_TYPE(cp, i) = CONSTANT_ResolvedString;
-                    break;
+                switch(type) {
+                    case CONSTANT_String:
+                        CP_INFO(cp, i) = (uintptr_t)obj;
+                        CP_TYPE(cp, i) = CONSTANT_ResolvedString;
+                        break;
 
-                default:
-                    signalException(java_lang_InternalError,
-                                    "defineAnonymousClass: "
-                                    "unimplemented patch type");
+                    default:
+                        signalException(java_lang_InternalError,
+                                        "defineAnonymousClass: "
+                                        "unimplemented patch type");
+                }
             }
         }
     }
@@ -784,38 +785,37 @@ int stackOverflowCheck(ExecEnv *ee, char *sp) {
 }
 
 void executePolyMethod(Object *ob, MethodBlock *mb, uintptr_t *lvars) {
-    ExecEnv *ee = getExecEnv();
-    Frame *prev = ee->last_frame;
-    Frame *dummy = prev + 1;
-    Frame *new_frame = dummy + 1;
-    uintptr_t *new_ostack = ALIGN_OSTACK(new_frame + 1);
-
-    if(stackOverflowCheck(ee, (char *)(new_ostack + mb->max_stack)))
-        return;
-
-    dummy->mb = NULL;
-    dummy->ostack = (uintptr_t *)new_frame;
-    dummy->prev = prev;
-
-    new_frame->mb = mb;
-    new_frame->lvars = mb->access_flags & ACC_NATIVE ? new_frame : lvars;
-    new_frame->ostack = new_ostack;
-
-    new_frame->prev = dummy;
-    ee->last_frame = new_frame;
-
-    if(mb->access_flags & ACC_SYNCHRONIZED)
-        objectLock(ob ? ob : mb->class);
-
     if(mb->access_flags & ACC_NATIVE)
         (*mb->native_invoker)(mb->class, mb, lvars);
-    else
+    else {
+        ExecEnv *ee = getExecEnv();
+        Frame *last = ee->last_frame->prev;
+        Frame *dummy = (Frame*)(lvars + mb->max_locals);
+        Frame *new_frame = dummy + 1;
+        uintptr_t *new_ostack = ALIGN_OSTACK(new_frame + 1);
+
+        if(stackOverflowCheck(ee, (char *)(new_ostack + mb->max_stack)))
+            return;
+
+        dummy->prev = last;
+        dummy->mb = NULL;
+        dummy->ostack = (uintptr_t *)new_frame;
+
+        new_frame->mb = mb;
+        new_frame->lvars = lvars;
+        new_frame->ostack = new_ostack;
+        new_frame->prev = dummy;
+
+        ee->last_frame = new_frame;
+
+        if(mb->access_flags & ACC_SYNCHRONIZED)
+            objectLock(ob ? ob : mb->class);
+
         executeJava();
 
-    if(mb->access_flags & ACC_SYNCHRONIZED)
-        objectUnlock(ob ? ob : mb->class);
-
-     ee->last_frame = prev;
+        if(mb->access_flags & ACC_SYNCHRONIZED)
+            objectUnlock(ob ? ob : mb->class);
+    }
 }
 
 int sigRetSlotSize(char *sig) {
@@ -880,15 +880,10 @@ uintptr_t *invokeGeneric(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
 // (Ljava/lang/invoke/MemberName;Ljava/lang/Object;)V
 uintptr_t *initMemberName(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-
     Object *mname = (Object*)ostack[0];
     Object *target = (Object*)ostack[1];
 
     TRACE("initMemberName\n");
-
-    DEBUG("mname %p\n", mname);
-    DEBUG("%s\n", CLASS_CB(mname->class)->name);
-    DEBUG("%s\n", CLASS_CB(target->class)->name);
 
     if(target->class == method_reflect_class) {
         Class *decl_class = INST_DATA(target, Class*, mthd_class_offset);
@@ -896,18 +891,32 @@ uintptr_t *initMemberName(Class *class, MethodBlock *mb, uintptr_t *ostack) {
         MethodBlock *mb = &(CLASS_CB(decl_class)->methods[slot]);
         int flags = mb->access_flags | IS_METHOD;
 
-        if(mb->access_flags & ACC_STATIC)
-            flags |= (REF_invokeStatic << REFERENCE_KIND_SHIFT);
-        else
-            flags |= (REF_invokeVirtual << REFERENCE_KIND_SHIFT);
+        flags |= (mb->access_flags & ACC_STATIC ? REF_invokeStatic
+                                                : REF_invokeVirtual)
+                  << REFERENCE_KIND_SHIFT;
 
-        DEBUG("method ... %s is static %d\n", mb->name, mb->access_flags & ACC_STATIC);
-        DEBUG("class ... %s\n", CLASS_CB(mb->class)->name);
         INST_DATA(mname, Class*, mem_name_clazz_offset) = mb->class;
         INST_DATA(mname, int, mem_name_flags_offset) = flags;
-        INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = mb;
+        INST_DATA(mname, MethodBlock*, mem_name_vmtarget_offset) = mb;
+
+   } else if(target->class == cons_reflect_class) {
+        signalException(java_lang_InternalError, "initMemberName: cons unimplemented");
+   } else if(target->class == field_reflect_class) {
+        Class *decl_class = INST_DATA(target, Class*, fld_class_offset);
+        int slot = INST_DATA(target, int, fld_slot_offset);
+        FieldBlock *fb = &(CLASS_CB(decl_class)->fields[slot]);
+        int flags = fb->access_flags | IS_FIELD;
+
+        flags |= (fb->access_flags & ACC_STATIC ? REF_getStatic
+                                                : REF_getField)
+                  << REFERENCE_KIND_SHIFT;
+
+        INST_DATA(mname, Class*, mem_name_clazz_offset) = fb->class;
+        INST_DATA(mname, int, mem_name_flags_offset) = flags;
+        INST_DATA(mname, FieldBlock*, mem_name_vmtarget_offset) = fb;
    } else
-        signalException(java_lang_InternalError, "initMemberName: unimplemented");
+        signalException(java_lang_InternalError,
+                        "initMemberName: unimplemented target");
 
     return ostack;
 }
@@ -930,29 +939,36 @@ uintptr_t *expandMemberName(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *MH_objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *MH_objectFieldOffset(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack) {
+
     Object *mname = (Object*)ostack[0];
     FieldBlock *fb = INST_DATA(mname, FieldBlock*, mem_name_vmtarget_offset);
 
     TRACE("MH_objectFieldOffset\n");
-    DEBUG("mname %p\n", mname);
 
     *(long long *)ostack = fb->u.offset;
     return ostack + 2;
 }
 
-uintptr_t *MH_staticFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *MH_staticFieldOffset(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack) {
+
+    Object *mname = (Object*)ostack[0];
+    FieldBlock *fb = INST_DATA(mname, FieldBlock*, mem_name_vmtarget_offset);
 
     TRACE("MH_staticFieldOffset\n");
-    signalException(java_lang_InternalError, "staticFieldOffset: unimplemented");
-    return ostack;
+
+    *(long long*)ostack = (uintptr_t)&fb->u.static_value;
+    return ostack + 2;
 }
 
 uintptr_t *MH_staticFieldBase(Class *class, MethodBlock *mb,
 	                      uintptr_t *ostack) {
 
     TRACE("MH_staticFieldBase\n");
-    signalException(java_lang_InternalError, "staticFieldBase: unimplemented");
+
+    *ostack++ = 0;
     return ostack;
 }
 
@@ -990,7 +1006,6 @@ uintptr_t *setCallSiteTargetVolatile(Class *class, MethodBlock *mb,
 // (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Class;I
 //  [Ljava/lang/invoke/MemberName;)I
 uintptr_t *getMembers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-
     Class *clazz = (Class *)ostack[0];
     Object *match_name = (Object *)ostack[1];
     Object *match_sig = (Object *)ostack[2];
@@ -1011,10 +1026,6 @@ uintptr_t *getMembers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
     TRACE("getMembers\n");
 
-    DEBUG("clazz: %s\n", CLASS_CB(clazz)->name);
-    if(caller != NULL)
-        DEBUG("caller: %s\n", CLASS_CB(caller)->name);
-
     if(match_name != NULL) {
         char *str = String2Utf8(match_name);
         name_sym = findUtf8(str);
@@ -1031,43 +1042,14 @@ uintptr_t *getMembers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
             goto no_match;
     }
 
-    DEBUG("match name: %s\n", name_sym);
-    DEBUG("match sig: %s\n", sig_sym);
-    DEBUG("match_flags: %x\n", match_flags);
-    DEBUG("skip: %d\n", skip);
-
-    DEBUG("search_super: %d\n", search_super);
-    DEBUG("search_intf: %d\n", search_intf);
-    DEBUG("local: %d\n", local);
-
-    DEBUG("results len: %d\n", rlen);
-
-    if(match_flags & IS_FIELD) {
-        DEBUG("IS_FIELD\n");
+    if(match_flags & IS_FIELD)
         goto unimplemented;
-    }
 
-    if(!local) {
-        DEBUG("!local\n");
+    if(!local)
         goto unimplemented;
-    }
 
     if(match_flags & (IS_METHOD | IS_CONSTRUCTOR)) {
         int i, j = 0;
-
-        DEBUG("IS_METHOD | IS_CONSTRUCTOR\n");
-// if just constructor, only match <init> (if name not null and not <init> is error)
-// if just method and name is null match everything but <init>
-// don't match <clinit> (unless name is <clinit>)
-// if cons or method, and name is null, match everything
-// if name not null, match name
-
-        if(!(match_flags & IS_METHOD))
-            DEBUG("just cons\n");
-        else if(!(match_flags & IS_CONSTRUCTOR))
-            DEBUG("just methods\n");
-        else
-            DEBUG("both cons and methods\n");
 
         for(i = cb->methods_count-1; i >= 0; i--) {
             MethodBlock *mb = &cb->methods[i];
@@ -1081,26 +1063,24 @@ uintptr_t *getMembers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
             if(j++ < rlen) {
                 Object *mname = *rpntr++;
-        int flags = mb->access_flags | IS_METHOD;
+                int flags = mb->access_flags | IS_METHOD;
 
-DEBUG("getMembers mname %p\n", mname);
+                flags |= (mb->access_flags & ACC_STATIC ? REF_invokeStatic
+                                                        : REF_invokeVirtual)
+                          << REFERENCE_KIND_SHIFT;
 
-        if(mb->access_flags & ACC_STATIC)
-            flags |= (REF_invokeStatic << REFERENCE_KIND_SHIFT);
-        else
-            flags |= (REF_invokeVirtual << REFERENCE_KIND_SHIFT);
-
-        DEBUG("%d method... %s\n", j-1, mb->name);
-        INST_DATA(mname, Class*, mem_name_clazz_offset) = mb->class;
-        INST_DATA(mname, int, mem_name_flags_offset) = flags;
-        INST_DATA(mname, Object*, mem_name_name_offset) = findInternedString(createString(mb->name));
-        INST_DATA(mname, Object*, mem_name_type_offset) = createString(mb->type);
-        INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = mb;
+                INST_DATA(mname, int, mem_name_flags_offset) = flags;
+                INST_DATA(mname, Class*, mem_name_clazz_offset) = mb->class;
+                INST_DATA(mname, Object*, mem_name_name_offset) =
+                                 findInternedString(createString(mb->name));
+                INST_DATA(mname, Object*, mem_name_type_offset) =
+                                 createString(mb->type);
+                INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = mb;
             }
         }
-    DEBUG("final value of j %d\n", j);
-    *ostack++ = j;
-    return ostack;
+
+        *ostack++ = j;
+        return ostack;
     }
 
 unimplemented:
@@ -1312,6 +1292,8 @@ retry:
 
             methodtype = CP_UTF8(cp, type_idx);
             mt = findMethodHandleType(methodtype, class);
+            if(mt == NULL)
+                return NULL;
 
             CP_TYPE(cp, cp_index) = CONSTANT_Locked;
             MBARRIER();
@@ -1336,10 +1318,21 @@ Object *findMethodHandleConstant(Class *class, int ref_kind,
     Object *method_type = findMethodHandleType(type, class);
     Object *mh;
 
+#if 0
+    if(methodname != '(') {
+        signalException(java_lang_InternalError,
+                        "findMethodHandleConstant: unimplemented");
+        return NULL;
+    }
+#endif
+
     mh = *(Object**)executeStaticMethod(MHN_linkMethodHandleConstant_mb->class,
                                         MHN_linkMethodHandleConstant_mb,
                                         class, ref_kind, defining_class,
                                         name_str, method_type);
+
+    if(exceptionOccurred())
+        return NULL;
 
    return mh;
 }
@@ -1373,9 +1366,14 @@ retry:
             methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
 
             resolved_class = resolveClass(class, cl_idx, TRUE, FALSE);
+            if(resolved_class == NULL)
+                return NULL;
 
             mh = findMethodHandleConstant(class, ref_kind, resolved_class,
                                           methodname, methodtype);
+
+            if(mh == NULL)
+                return NULL;
 
             CP_TYPE(cp, cp_index) = CONSTANT_Locked;
             MBARRIER();
@@ -1405,13 +1403,13 @@ int cpType2PrimIdx(int type) {
     }
 }
 
-MethodBlock *findInvokeDynamicInvoker(Class *class,
-                                     char *methodname, char *type,
-                                     int boot_mthd_idx, Object **appendix) {
+PolyMethodBlock *findInvokeDynamicInvoker(Class *class, char *methodname,
+                                          char *type, int boot_mthd_idx) {
     Object *boot_mthd;
     Object *method_type;
     Object *member_name;
     Object *appendix_box;
+    PolyMethodBlock *pmb;
     Object *args_array = NULL;
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
@@ -1441,6 +1439,9 @@ MethodBlock *findInvokeDynamicInvoker(Class *class,
                                                    REF_SRC_FIELD);
             else
                 args_data[i] = (Object*)resolveSingleConstant(class, idx);
+
+            if(args_data[i] == NULL)
+                return NULL;
         }
     }
 
@@ -1448,10 +1449,12 @@ MethodBlock *findInvokeDynamicInvoker(Class *class,
     if(appendix_box == NULL)
         return NULL;
 
-    if((method_type = findMethodHandleType(type, class)) == NULL)
+    method_type = findMethodHandleType(type, class);
+    if(method_type == NULL)
         return NULL;
 
-    if((boot_mthd = resolveMethodHandle(class, mthd_idx)) == NULL)
+    boot_mthd = resolveMethodHandle(class, mthd_idx);
+    if(boot_mthd == NULL)
         return NULL;
 
     member_name = *(Object**)executeStaticMethod(MHN_linkCallSite_mb->class,
@@ -1465,8 +1468,11 @@ MethodBlock *findInvokeDynamicInvoker(Class *class,
     if(exceptionOccurred())
         return NULL;
 
-   *appendix = ARRAY_DATA(appendix_box, Object*)[0];
-   return INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
+    pmb = sysMalloc(sizeof(PolyMethodBlock));
+    pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
+    pmb->mb = INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
+
+    return pmb;
 }
 
 PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index) {
@@ -1493,11 +1499,11 @@ retry:
             methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
             methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
 
-            pmb = sysMalloc(sizeof(PolyMethodBlock));
-            pmb->name = methodname;
+            pmb = findInvokeDynamicInvoker(class, methodname, methodtype,
+                                           boot_mthd_idx);
 
-            pmb->mb = findInvokeDynamicInvoker(class, methodname, methodtype,
-                                              boot_mthd_idx, &pmb->appendix);
+            if(pmb == NULL)
+                return NULL;
 
             CP_TYPE(cp, cp_index) = CONSTANT_Locked;
             MBARRIER();
@@ -1512,19 +1518,26 @@ retry:
     return pmb;
 }
 
-MethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
-                                     char *methodname, char *type,
-                                     Object **appendix) {
+PolyMethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
+                                         char *methodname, char *type) {
+
     Object *name_str = findInternedString(createString(methodname));
     Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
+    PolyMethodBlock *pmb;
+    Object *appendix_box;
     Object *member_name;
     Object *method_type;
-    Object *array;
 
-    if((array = allocArray(obj_array_class, 1, sizeof(Object*))) == NULL)
+    if(name_str == NULL || obj_array_class == NULL)
+        return NULL;
+
+    appendix_box = allocArray(obj_array_class, 1, sizeof(Object*));
+    if(appendix_box == NULL)
         return NULL;
 
     method_type = findMethodHandleType(type, accessing_class);
+    if(method_type == NULL)
+        return NULL;
 
     member_name = *(Object**)executeStaticMethod(MHN_linkMethod_mb->class,
                                              MHN_linkMethod_mb,
@@ -1533,10 +1546,16 @@ MethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
                                              class,
                                              name_str,
                                              method_type,
-                                             array);
+                                             appendix_box);
 
-   *appendix = ARRAY_DATA(array, Object*)[0];
-   return INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
+    if(exceptionOccurred())
+        return NULL;
+
+    pmb = sysMalloc(sizeof(PolyMethodBlock));
+    pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
+    pmb->mb = INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
+
+    return pmb;
 }
 
 MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
@@ -1595,7 +1614,8 @@ retry:
             methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
             resolved_class = (Class*)CP_INFO(cp, cl_idx);
 
-            return polymorphicNameID(resolved_class, methodname) == ID_invokeGeneric;
+            return polymorphicNameID(resolved_class, methodname) ==
+                       ID_invokeGeneric;
         }
     }
 
@@ -1626,12 +1646,11 @@ retry:
             methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
             methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
 
-            pmb = sysMalloc(sizeof(PolyMethodBlock));
-            pmb->name = methodname;
+            pmb = findMethodHandleInvoker((Class*)CP_INFO(cp, cl_idx),
+                                          class, methodname, methodtype);
 
-            pmb->mb = findMethodHandleInvoker((Class*)CP_INFO(cp, cl_idx),
-                                              class, methodname, methodtype,
-                                              &pmb->appendix);
+            if(pmb == NULL)
+                return NULL;
 
             CP_TYPE(cp, cp_index) = CONSTANT_Locked;
             MBARRIER();
@@ -1660,17 +1679,10 @@ uintptr_t *resolveMemberName(Class *class, MethodBlock *native_mb,
 
     TRACE("resolveMemberName\n");
 
-    DEBUG("mname %p\n", mname);
-    DEBUG("%s\n", CLASS_CB(mname->class)->name);
-
-//XXX
-INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = 0x1235;
-
     clazz = INST_DATA(mname, Class*, mem_name_clazz_offset);
     name_str = INST_DATA(mname, Object*, mem_name_name_offset);
     type = INST_DATA(mname, Object*, mem_name_type_offset);
     flags = INST_DATA(mname, int, mem_name_flags_offset);
-
     ref_kind = (flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK;
 
     if(clazz == NULL || name_str == NULL || type == NULL) {
@@ -1678,78 +1690,45 @@ INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = 0x1235;
         return ostack;
     }
 
-    DEBUG("%d\n", ref_kind);
-    DEBUG("%s\n", CLASS_CB(clazz->class)->name);
-    DEBUG("%s\n", CLASS_CB(clazz)->name);
-
-    DEBUG("%s\n", CLASS_CB(type->class)->name);
-
     name_utf = String2Utf8(name_str);
     name_sym = findUtf8(name_utf);
     sysFree(name_utf);
 
     if(name_sym == NULL || name_sym == SYMBOL(class_init))
-        return ostack;
-
-    DEBUG("%s\n", name_sym);
+        goto throw_excep;
 
     name_id = polymorphicNameID(clazz, name_sym);
-    DEBUG("%d\n", name_id);
-
     type_sym = type2Signature(type, name_id != -1);
-    if(type_sym == NULL) {
-        // decode flags to throw correct exception...
-        signalException(java_lang_NoSuchMethodError, NULL);
-        return ostack;
-    }
-    DEBUG("%s\n", type_sym);
-
-//    flags &= ~(REFERENCE_KIND_MASK << REFERENCE_KIND_SHIFT);
+    if(type_sym == NULL)
+        goto throw_excep;
 
     switch(flags & ALL_KINDS) {
         case IS_METHOD: {
             MethodBlock *mb;
 
-            DEBUG("IS_METHOD...\n");
-
             if(IS_INTERFACE(CLASS_CB(clazz)))
                 mb = lookupInterfaceMethod(clazz, name_sym, type_sym);
             else {
                 mb = lookupMethod(clazz, name_sym, type_sym);
+                if(mb == NULL)
+                    mb = lookupPolymorphicMethod(clazz, class, name_sym,
+                                                 type_sym);
             }
 
             if(mb == NULL)
-                mb = lookupPolymorphicMethod(clazz, class, name_sym, type_sym);
+                goto throw_excep;
 
-            flags |= mb->access_flags | IS_METHOD;
-
-//            if(flags & ACC_STATIC)
-//                flags |= (REF_invokeStatic << REFERENCE_KIND_SHIFT);
-//            else
-//                flags |= (REF_invokeVirtual << REFERENCE_KIND_SHIFT);
-
-    if(ref_kind != ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK)) {
-        printf("WTF? %s %s\n", CLASS_CB(mb->class)->name, mb->name);
-        printf(" %d %d\n", ref_kind, ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK));
-    }
-
+            flags |= mb->access_flags;
             INST_DATA(mname, int, mem_name_flags_offset) = flags;
             INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = mb;
-
-            // XXX should set modifiers here
             break;
         }
         case IS_CONSTRUCTOR: {
             MethodBlock *mb;
 
-            DEBUG("IS_CONSTRUCTOR...\n");
-
             mb = findMethod(clazz, name_sym, type_sym);
-
-            if(mb != NULL) {
-                flags |= (REF_invokeSpecial << REFERENCE_KIND_SHIFT);
-//                INST_DATA(mname, int, mem_name_flags_offset) = flags;
-            } else mb = 0x54321;
+            if(mb == NULL)
+                goto throw_excep;
 
             INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = mb;
             break;
@@ -1757,25 +1736,38 @@ INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = 0x1235;
         case IS_FIELD: {
             FieldBlock *fb;
 
-            DEBUG("IS_FIELD...\n");
-
             fb = lookupField(clazz, name_sym, type_sym);
+            if(fb == NULL)
+                goto throw_excep;
 
-            if(fb == NULL) {
-                DEBUG("fb is NULL...\n");
-                return ostack;
-            }
-
+            flags |= fb->access_flags;
+            INST_DATA(mname, int, mem_name_flags_offset) = flags;
             INST_DATA(mname, FieldBlock*, mem_name_vmtarget_offset) = fb;
-            // XXX should set modifiers here
             break;
         }
 
         default:
-            signalException(java_lang_InternalError, "resolveMemberName: unimplemented");
+            goto throw_excep;
+    }
+
+    *ostack++ = (uintptr_t)mname;
+    return ostack;
+
+throw_excep:
+    switch(flags & ALL_KINDS) {
+        case IS_METHOD:
+        case IS_CONSTRUCTOR:
+            signalException(java_lang_NoSuchMethodError, NULL);
+            break;
+
+        case IS_FIELD:
+            signalException(java_lang_NoSuchFieldError, NULL);
+            break;
+
+        default:
+            signalException(java_lang_InternalError, "resolveMemberName");
             break;
     }
-    *ostack++ = (uintptr_t)mname;
     return ostack;
 }
 

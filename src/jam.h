@@ -551,10 +551,6 @@ struct methodblock {
 };
 
 typedef struct polymethodblock  {
-    char *name;
-    Object *type;
-    u2 args_count;
-    u1 ret_slot_size;
     MethodBlock *mb;
     Object *appendix;
 } PolyMethodBlock;
@@ -791,11 +787,13 @@ typedef struct InitArgs {
 #endif
 
 /* default size of the Java stack */
-#define DEFAULT_STACK 256*KB
+//#define DEFAULT_STACK 256*KB
+#define DEFAULT_STACK 384*KB
 
 /* size of emergency area - big enough to create
    a StackOverflow exception */
-#define STACK_RED_ZONE_SIZE 1*KB
+//#define STACK_RED_ZONE_SIZE 1*KB
+#define STACK_RED_ZONE_SIZE 64*KB
 
 #define JAVA_COMPAT_VERSION "1.5.0"
 

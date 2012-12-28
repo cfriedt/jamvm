@@ -100,6 +100,7 @@ void signalChainedExceptionClass(Class *exception, char *message,
     Object *str = message == NULL ? NULL : Cstr2String(message);
     MethodBlock *init = lookupMethod(exception, SYMBOL(object_init),
                                                 SYMBOL(_java_lang_String__V));
+
     if(exp && init) {
         executeMethod(exp, init, str);
 
@@ -113,7 +114,8 @@ void signalChainedExceptionClass(Class *exception, char *message,
     }
 }
 
-void signalChainedExceptionName(char *excep_name, char *message, Object *cause) {
+void signalChainedExceptionName(char *excep_name, char *message,
+                                Object *cause) {
     if(!inited) {
         jam_fprintf(stderr, "Exception occurred while VM initialising.\n");
         if(message)
