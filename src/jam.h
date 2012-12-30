@@ -280,6 +280,8 @@
 #define OPC_INVOKEEXACT_QUICK           248
 #define OPC_INVOKEDYNAMIC_QUICK         249
 
+/* Constant pool tags */
+
 #define CONSTANT_Utf8                    1
 #define CONSTANT_Integer                 3
 #define CONSTANT_Float                   4
@@ -298,14 +300,14 @@
 #define CONSTANT_InvokeDynamic          18
 
 /* Internal */
-#define CONSTANT_Resolved               20
-#define CONSTANT_ResolvedClass          25
-#define CONSTANT_ResolvedString         26
-#define CONSTANT_ResolvedPolyMethod     27
-#define CONSTANT_ResolvedMethodType     28
-#define CONSTANT_ResolvedMethodHandle   29
-#define CONSTANT_ResolvedInvokeDynamic  30
-#define CONSTANT_Locked                 21
+#define CONSTANT_Locked                100 
+#define CONSTANT_Resolved              101 
+#define CONSTANT_ResolvedClass         102 
+#define CONSTANT_ResolvedString        103 
+#define CONSTANT_ResolvedMethodType    104 
+#define CONSTANT_ResolvedMethodHandle  105 
+#define CONSTANT_ResolvedPolyMethod    106 
+#define CONSTANT_ResolvedInvokeDynamic 107 
 
 #define ACC_PUBLIC              0x0001
 #define ACC_PRIVATE             0x0002

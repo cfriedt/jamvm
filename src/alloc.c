@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -511,15 +511,21 @@ void markClassData(Class *class, int mark) {
                     MARK_AND_PUSH(ob, mark);
             }
 
-    TRACE_GC("Marking constant pool resolved strings for class %s\n", cb->name);
+    TRACE_GC("Marking constant pool resolved objects for class %s\n", cb->name);
 
-    /* Scan the constant pool and mark all resolved string references */
+    /* Scan the constant pool and mark all resolved object references */
     for(i = 1; i < cb->constant_pool_count; i++)
-        if(CP_TYPE(cp, i) == CONSTANT_ResolvedString) {
-            Object *string = (Object *)CP_INFO(cp, i);
-            TRACE_GC("Resolved String @ constant pool idx %d @%p\n", i, string);
-            if(mark > IS_MARKED(string))
-                MARK_AND_PUSH(string, mark);
+        if(CP_TYPE(cp, i) >= CONSTANT_ResolvedString) {
+            Object *ob;
+
+            if(CP_TYPE(cp, i) >= CONSTANT_ResolvedPolyMethod)
+                ob = ((PolyMethodBlock*)CP_INFO(cp, i))->appendix;
+            else
+                ob = (Object *)CP_INFO(cp, i);
+
+            TRACE_GC("Resolved object @ constant pool idx %d @%p\n", i, ob);
+            if(ob != NULL && mark > IS_MARKED(ob))
+                MARK_AND_PUSH(ob, mark);
         }
 }
 
@@ -1189,12 +1195,18 @@ static void threadClassData(Class *class, Class *new_addr) {
                   cb->name);
 
     for(i = 1; i < cb->constant_pool_count; i++)
-        if(CP_TYPE(cp, i) == CONSTANT_ResolvedClass ||
-           CP_TYPE(cp, i) == CONSTANT_ResolvedString) {
+        if(CP_TYPE(cp, i) >= CONSTANT_ResolvedClass) {
+            Object **ob;
+
+            if(CP_TYPE(cp, i) >= CONSTANT_ResolvedPolyMethod)
+                ob = &((PolyMethodBlock*)CP_INFO(cp, i))->appendix;
+            else
+                ob = (Object**)&(CP_INFO(cp, i));
 
             TRACE_COMPACT("Constant pool ref idx %d type %d object @%p\n",
-                          i, CP_TYPE(cp, i), CP_INFO(cp, i));
-            THREAD_REFERENCE((Object**)&(CP_INFO(cp, i)));
+                          i, CP_TYPE(cp, i), *ob);
+            if(*ob != NULL)
+                THREAD_REFERENCE(ob);
         }
 
     /* Don't bother threading the references to the class from within the
