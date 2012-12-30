@@ -29,6 +29,7 @@
 #define READ_U8(v,p,l)  v = ((u8)(p)[0]<<56)|((u8)(p)[1]<<48)|((u8)(p)[2]<<40) \
                             |((u8)(p)[3]<<32)|((u8)(p)[4]<<24)|((u8)(p)[5]<<16) \
                             |((u8)(p)[6]<<8)|(u8)(p)[7]; (p)+=8
+#define SKIP_U2(v,p,l)  (p)+=2
 
 #define READ_INDEX(v,p,l)               READ_U2(v,p,l)
 #define READ_TYPE_INDEX(v,cp,t,p,l)     READ_U2(v,p,l)

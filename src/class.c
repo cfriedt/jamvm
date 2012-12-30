@@ -132,6 +132,87 @@ static void prepareClass(Class *class) {
     }
 }
 
+/* Forward declaration */
+u1 *skipAnnotation(u1 *data_ptr, int *data_len);
+
+u1 *skipElementValue(u1 *data_ptr, int *data_len) {
+    char tag;
+
+    READ_U1(tag, data_ptr, *data_len);
+
+    switch(tag) {
+        case 'e':
+            SKIP_U2(idx, data_ptr, *data_len);
+            /* Fall through */
+
+        case 'Z': case 'B': case 'C': case 'S': case 'I':
+        case 'F': case 'J': case 'D': case 's': case 'c':
+            SKIP_U2(idx, data_ptr, *data_len);
+            break;
+
+        case '@':
+            data_ptr = skipAnnotation(data_ptr, data_len);
+            break;
+
+        case '[': {
+            int i, num_values;
+
+            READ_U2(num_values, data_ptr, *data_len);
+
+            for(i = 0; i < num_values; i++)
+                data_ptr = skipElementValue(data_ptr, data_len);
+
+            break;
+        }
+    }
+
+    return data_ptr;
+}
+
+u1 *skipAnnotation(u1 *data_ptr, int *data_len) {
+    int no_value_pairs, i;
+
+    SKIP_U2(type_idx, data_ptr, *data_len);
+    READ_U2(no_value_pairs, data_ptr, *data_len);
+
+    for(i = 0; i < no_value_pairs; i++) {
+        SKIP_U2(element_name_idx, data_ptr, *data_len);
+        data_ptr = skipElementValue(data_ptr, data_len);
+    }
+
+    return data_ptr;
+}
+
+void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb) {
+    if(mb->annotations->annotations != NULL) {
+        u1 *data_ptr = mb->annotations->annotations->data;
+        int data_len = mb->annotations->annotations->len;
+        int no_annos, i;
+
+        READ_U2(no_annos, data_ptr, data_len);
+
+        for(i = 0; i < no_annos; i++) {
+            u1 *ptr = data_ptr;
+            char *type_name;
+            int type_idx;
+
+            data_ptr = skipAnnotation(data_ptr, &data_len);
+
+            READ_TYPE_INDEX(type_idx, cp, CONSTANT_Utf8, ptr, 2);
+            type_name = findUtf8(CP_UTF8(cp, type_idx));
+
+            if(type_name != NULL) {
+                if(type_name ==
+                        SYMBOL(sig_java_lang_invoke_LambdaForm_Hidden))
+                    mb->flags |= LAMBDA_HIDDEN;
+                else if(type_name ==
+                        SYMBOL(sig_java_lang_invoke_LambdaForm_Compiled))
+                    mb->flags |= LAMBDA_COMPILED;
+            }
+        }
+    }
+}
+
 Class *parseClass(char *classname, char *data, int offset, int len,
                    Object *class_loader) {
 
@@ -170,13 +251,13 @@ Class *parseClass(char *classname, char *data, int offset, int len,
         u1 tag;
 
         READ_U1(tag, ptr, len);
-        CP_TYPE(constant_pool,i) = tag;
+        CP_TYPE(constant_pool, i) = tag;
 
         switch(tag) {
            case CONSTANT_Class:
            case CONSTANT_String:
            case CONSTANT_MethodType:
-               READ_INDEX(CP_INFO(constant_pool,i), ptr, len);
+               READ_INDEX(CP_INFO(constant_pool, i), ptr, len);
                break;
 
            case CONSTANT_Fieldref:
@@ -189,7 +270,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
                READ_INDEX(idx1, ptr, len);
                READ_INDEX(idx2, ptr, len);
-               CP_INFO(constant_pool,i) = (idx2<<16)+idx1;
+               CP_INFO(constant_pool, i) = (idx2<<16)+idx1;
                break;
            }
 
@@ -200,23 +281,23 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
                READ_U1(kind, ptr, len);
                READ_INDEX(idx, ptr, len);
-               CP_INFO(constant_pool,i) = (idx<<16)+kind;
+               CP_INFO(constant_pool, i) = (idx<<16)+kind;
                break;
            }
 
            case CONSTANT_Float:
            case CONSTANT_Integer:
-               READ_U4(CP_INFO(constant_pool,i), ptr, len);
+               READ_U4(CP_INFO(constant_pool, i), ptr, len);
                break;
 
            case CONSTANT_Long:
-               READ_U8(*(u8 *)&(CP_INFO(constant_pool,i)), ptr, len);
-               CP_TYPE(constant_pool,++i) = 0;
+               READ_U8(*(u8 *)&(CP_INFO(constant_pool, i)), ptr, len);
+               CP_TYPE(constant_pool, ++i) = 0;
                break;
                
            case CONSTANT_Double:
-               READ_DBL(*(u8 *)&(CP_INFO(constant_pool,i)), ptr, len);
-               CP_TYPE(constant_pool,++i) = 0;
+               READ_DBL(*(u8 *)&(CP_INFO(constant_pool, i)), ptr, len);
+               CP_TYPE(constant_pool, ++i) = 0;
                break;
 
            case CONSTANT_Utf8:
@@ -231,7 +312,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                buff[length] = '\0';
                ptr += length;
 
-               CP_INFO(constant_pool,i) = (uintptr_t) (utf8 = newUtf8(buff));
+               CP_INFO(constant_pool, i) = (uintptr_t) (utf8 = newUtf8(buff));
 
                if(utf8 != buff)
                    sysFree(buff);
@@ -453,6 +534,8 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                                      || annos.dft_val != NULL) {
             method->annotations = sysMalloc(sizeof(MethodAnnotationData));
             memcpy(method->annotations, &annos, sizeof(MethodAnnotationData));
+
+            parseMethodAnnotations(constant_pool, method);
         }
     }
 
@@ -581,7 +664,8 @@ Class *defineClass(char *classname, char *data, int offset, int len,
         if(found != class) {
             CLASS_CB(class)->flags = CLASS_CLASH;
             if(class_loader != NULL) {
-                signalException(java_lang_LinkageError, "duplicate class definition");
+                signalException(java_lang_LinkageError,
+                                "duplicate class definition");
                 return NULL;
             }
             return found;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -55,6 +55,7 @@ Frame *classlibGetCallerFrame(Frame *last, int depth) {
     do {
         for(; last->mb != NULL; last = last->prev)
             if(!isSubClassOf(method_accessor, last->mb->class)
+                   && !(last->mb->flags & LAMBDA_COMPILED)
                    && last->mb != mthd_invoke_mb && depth-- <= 0)
                 return last;
     } while((last = last->prev)->prev != NULL);

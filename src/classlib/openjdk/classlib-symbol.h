@@ -86,6 +86,10 @@
            "java/lang/ClassLoader$NativeLibrary"), \
     action(java_lang_invoke_MethodHandleNatives, \
            "java/lang/invoke/MethodHandleNatives"), \
+    action(sig_java_lang_invoke_LambdaForm_Hidden, \
+           "Ljava/lang/invoke/LambdaForm$Hidden;"), \
+    action(sig_java_lang_invoke_LambdaForm_Compiled, \
+           "Ljava/lang/invoke/LambdaForm$Compiled;"), \
     action(java_security_PrivilegedActionException, \
            "java/security/PrivilegedActionException"), \
     action(sun_reflect_UnsafeStaticFieldAccessorImpl, \
