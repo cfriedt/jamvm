@@ -1654,6 +1654,7 @@ Class *findNonArrayClassFromClassLoader(char *classname, Object *loader) {
     if(class == NULL) {
         char *dot_name = slash2DotsDup(classname);
         Object *string = createString(dot_name);
+        MethodBlock *loadClass;
         Object *excep;
 
         sysFree(dot_name);
@@ -1669,16 +1670,18 @@ Class *findNonArrayClassFromClassLoader(char *classname, Object *loader) {
             loadClass_mtbl_idx = mb->method_table_index;
         }
 
+        loadClass = CLASS_CB(loader->class)->method_table[loadClass_mtbl_idx];
+
         /* The public loadClass is not synchronized.
            Lock the class-loader to be thread-safe */
         objectLock(loader);
-        class = *(Class**)executeMethod(loader,
-                    CLASS_CB(loader->class)->method_table[loadClass_mtbl_idx], string);
+        class = *(Class**)executeMethod(loader, loadClass, string);
         objectUnlock(loader);
 
         if((excep = exceptionOccurred()) || class == NULL) {
             clearException();
-            signalChainedException(java_lang_NoClassDefFoundError, classname, excep);
+            signalChainedException(java_lang_NoClassDefFoundError,
+                                   classname, excep);
             return NULL;
         }
 
