@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -17,7 +17,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-
 
 /* Thread */
 
@@ -48,7 +47,6 @@ extern void classlibThreadName2Buff(Object *jThread, char *buffer,
 extern int classlibInitialiseSignals();
 extern void classlibSignalThread(Thread *self);
 
-
 /* Class */
 
 #define classlibInitialiseClass() \
@@ -70,7 +68,6 @@ extern char *classlibDefaultExtDirs();
 extern void classlibNewLibraryUnloader(Object *class_loader, void *entry);
 extern Object *classlibSkipReflectionLoader(Object *loader);
 
-
 /* Reflection */
 
 extern int classlibInitReflection();
@@ -80,13 +77,11 @@ extern Object *classlibCreateFieldObject(FieldBlock *fb);
 extern MethodBlock *classlibMbFromReflectObject(Object *reflect_ob);
 extern FieldBlock *classlibFbFromReflectObject(Object *reflect_ob);
 
-
 /* DLL */
 
 extern int classlibInitialiseDll();
 extern char *classlibDefaultBootDllPath();
 extern void *classlibLookupLoadedDlls(char *name, Object *loader);
-
 
 /* JNI */
 
@@ -96,7 +91,6 @@ extern void *classlibGetDirectBufferAddress(Object *buff);
 extern long long classlibGetDirectBufferCapacity(Object *buff);
 extern Object *classlibCheckIfOnLoad(Frame *last);
 
-
 /* Properties */
 
 #define classlibAddDefaultProperties(properties) \
@@ -105,7 +99,8 @@ extern Object *classlibCheckIfOnLoad(Frame *last);
 extern char *classlibDefaultJavaHome();
 
 /* Access */
-
+    
+extern int classlibInitialiseAccess();
 extern int classlibAccessCheck(Class *class1, Class *class2);
 
 /* Natives */
@@ -137,12 +132,12 @@ extern void classlibHandleUnmarkedSpecial(Object *ob);
 
 // TEMP
 
-
 extern int isPolymorphicRef(Class *class, int cp_index);
 extern Object *resolveMethodType(Class *class, int cp_index);
 extern Object *resolveMethodHandle(Class *class, int cp_index);
 extern PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index);
 extern PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index);
 
-MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
-                                     char *methodname, char *type);
+extern MethodBlock *lookupPolymorphicMethod(Class *class,
+                                            Class *accessing_class,
+                                            char *methodname, char *type);

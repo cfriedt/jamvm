@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009, 2010, 2012
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -24,6 +24,15 @@
 #include "class.h"
 #include "thread.h"
 #include "classlib.h"
+
+int initialiseAccess() {
+    if(!classlibInitialiseAccess()) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseAccess)\n");
+        return FALSE;
+    }
+
+    return TRUE;
+}
 
 static int isSameRuntimePackage(Class *class1, Class *class2) {
     if(class1 != class2) {

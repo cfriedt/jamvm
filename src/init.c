@@ -116,6 +116,7 @@ int initVM(InitArgs *args) {
              initialiseString() &&
              initialiseException() &&
              initialiseNatives() &&
+             initialiseAccess() &&
              initialiseFrame() &&
              initialiseJNI() &&
              initialiseInterpreter(args) &&
