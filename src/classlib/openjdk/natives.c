@@ -1075,7 +1075,7 @@ uintptr_t *getMembers(Class *class, MethodBlock *mb, uintptr_t *ostack) {
                                  findInternedString(createString(mb->name));
                 INST_DATA(mname, Object*, mem_name_type_offset) =
                                  createString(mb->type);
-                INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = mb;
+                INST_DATA(mname, MethodBlock*, mem_name_vmtarget_offset) = mb;
             }
         }
 
@@ -1720,7 +1720,7 @@ uintptr_t *resolveMemberName(Class *class, MethodBlock *native_mb,
 
             flags |= mb->access_flags;
             INST_DATA(mname, int, mem_name_flags_offset) = flags;
-            INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = mb;
+            INST_DATA(mname, MethodBlock*, mem_name_vmtarget_offset) = mb;
             break;
         }
         case IS_CONSTRUCTOR: {
@@ -1730,7 +1730,7 @@ uintptr_t *resolveMemberName(Class *class, MethodBlock *native_mb,
             if(mb == NULL)
                 goto throw_excep;
 
-            INST_DATA(mname, uintptr_t, mem_name_vmtarget_offset) = mb;
+            INST_DATA(mname, MethodBlock*, mem_name_vmtarget_offset) = mb;
             break;
         }
         case IS_FIELD: {
