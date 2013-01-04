@@ -2115,7 +2115,7 @@ uintptr_t *executeJava() {
         PolyMethodBlock *pmb = RESOLVED_POLYMETHOD(pc);
 
         if(pmb->appendix)
-            *ostack++ = pmb->appendix;
+            *ostack++ = (uintptr_t)pmb->appendix;
         new_mb = pmb->mb;
         arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
@@ -2126,7 +2126,7 @@ uintptr_t *executeJava() {
         PolyMethodBlock *pmb = RESOLVED_POLYMETHOD(pc);
 
         if(pmb->appendix)
-            *ostack++ = pmb->appendix;
+            *ostack++ = (uintptr_t)pmb->appendix;
         new_mb = pmb->mb;
         arg1 = ostack - new_mb->args_count;
         goto invokeMethod;
