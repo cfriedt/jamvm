@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -36,7 +36,7 @@
     action(parent, "parent"), \
     action(vmentry, "vmentry"), \
     action(classes, "classes"), \
-    action(vmtarget, "jvmtarget"), \
+    action(vmtarget, "vmtarget"), \
     action(dispatch, "dispatch"), \
     action(capacity, "capacity"), \
     action(shutdown, "shutdown"), \

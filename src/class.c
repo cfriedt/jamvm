@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011,
+ * 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -216,16 +216,13 @@ void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb) {
 Class *parseClass(char *classname, char *data, int offset, int len,
                    Object *class_loader) {
 
-    u2 major_version, minor_version, this_idx, super_idx;
+    u2 major_version, minor_version, this_idx, super_idx, attr_count;
+    int cp_count, intf_count, injected_fields_count, i, j;
     unsigned char *ptr = (unsigned char *)data + offset;
-    int cp_count, intf_count, i;
-    u2 attr_count;
-    u4 magic;
-
     ConstantPool *constant_pool;
+    Class **interfaces, *class;
     ClassBlock *classblock;
-    Class **interfaces;
-    Class *class;
+    u4 magic;
 
     READ_U4(magic, ptr, len);
 
@@ -245,7 +242,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
     constant_pool = &classblock->constant_pool;
     constant_pool->type = sysMalloc(cp_count);
-    constant_pool->info = sysMalloc(cp_count*sizeof(ConstantPoolEntry));
+    constant_pool->info = sysMalloc(cp_count * sizeof(ConstantPoolEntry));
 
     for(i = 1; i < cp_count; i++) {
         u1 tag;
@@ -270,7 +267,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
                READ_INDEX(idx1, ptr, len);
                READ_INDEX(idx2, ptr, len);
-               CP_INFO(constant_pool, i) = (idx2<<16)+idx1;
+               CP_INFO(constant_pool, i) = (idx2<<16) + idx1;
                break;
            }
 
@@ -281,7 +278,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
                READ_U1(kind, ptr, len);
                READ_INDEX(idx, ptr, len);
-               CP_INFO(constant_pool, i) = (idx<<16)+kind;
+               CP_INFO(constant_pool, i) = (idx<<16) + kind;
                break;
            }
 
@@ -306,7 +303,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                char *buff, *utf8;
 
                READ_U2(length, ptr, len);
-               buff = sysMalloc(length+1);
+               buff = sysMalloc(length + 1);
 
                memcpy(buff, ptr, length);
                buff[length] = '\0';
@@ -334,7 +331,8 @@ Class *parseClass(char *classname, char *data, int offset, int len,
     READ_U2(classblock->access_flags, ptr, len);
 
     READ_TYPE_INDEX(this_idx, constant_pool, CONSTANT_Class, ptr, len);
-    classblock->name = CP_UTF8(constant_pool, CP_CLASS(constant_pool, this_idx));
+    classblock->name = CP_UTF8(constant_pool,
+                               CP_CLASS(constant_pool, this_idx));
 
     if(classname && strcmp(classblock->name, classname) != 0) {
         signalException(java_lang_NoClassDefFoundError,
@@ -353,13 +351,15 @@ Class *parseClass(char *classname, char *data, int offset, int len,
         classblock->super_name = NULL;
     } else {
         READ_TYPE_INDEX(super_idx, constant_pool, CONSTANT_Class, ptr, len);
-        classblock->super_name = CP_UTF8(constant_pool, CP_CLASS(constant_pool, super_idx));
+        classblock->super_name = CP_UTF8(constant_pool,
+                                         CP_CLASS(constant_pool, super_idx));
     }
 
     classblock->class_loader = class_loader;
 
     READ_U2(intf_count = classblock->interfaces_count, ptr, len);
-    interfaces = classblock->interfaces = sysMalloc(intf_count * sizeof(Class *));
+    interfaces = classblock->interfaces =
+                         sysMalloc(intf_count * sizeof(Class *));
 
     memset(interfaces, 0, intf_count * sizeof(Class *));
     for(i = 0; i < intf_count; i++) {
@@ -371,19 +371,34 @@ Class *parseClass(char *classname, char *data, int offset, int len,
     }
 
     READ_U2(classblock->fields_count, ptr, len);
-    classblock->fields = sysMalloc(classblock->fields_count * sizeof(FieldBlock));
+    injected_fields_count = classlibInjectedFieldsCount(classblock->name);
+    classblock->fields_count += injected_fields_count;
+    classblock->fields = sysMalloc(classblock->fields_count *
+                                   sizeof(FieldBlock));
 
-    for(i = 0; i < classblock->fields_count; i++) {
+    if(injected_fields_count != 0)
+        classlibFillInInjectedFields(classblock->name, classblock->fields);
+
+    for(i = injected_fields_count; i < classblock->fields_count; i++) {
+        FieldBlock *field = &classblock->fields[i];
         u2 name_idx, type_idx;
 
-        READ_U2(classblock->fields[i].access_flags, ptr, len);
+        READ_U2(field->access_flags, ptr, len);
         READ_TYPE_INDEX(name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
         READ_TYPE_INDEX(type_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-        classblock->fields[i].name = CP_UTF8(constant_pool, name_idx);
-        classblock->fields[i].type = CP_UTF8(constant_pool, type_idx);
-        classblock->fields[i].annotations = NULL;
-        classblock->fields[i].signature = NULL;
-        classblock->fields[i].constant = 0;
+        field->name = CP_UTF8(constant_pool, name_idx);
+        field->type = CP_UTF8(constant_pool, type_idx);
+        field->annotations = NULL;
+        field->signature = NULL;
+        field->constant = 0;
+
+        for(j = 0; j < injected_fields_count; j++)
+            if(field->name == classblock->fields[j].name) {
+                jam_fprintf(stderr, "Classlib mismatch: injected field "
+                                    "\"%s\" already present in %s\n",
+                                    field->name, classblock->name);
+                exitVM(1);
+            }
 
         READ_U2(attr_count, ptr, len);
         for(; attr_count != 0; attr_count--) {
@@ -391,7 +406,8 @@ Class *parseClass(char *classname, char *data, int offset, int len,
             char *attr_name;
             u4 attr_length;
 
-            READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+            READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8,
+                            ptr, len);
             attr_name = CP_UTF8(constant_pool, attr_name_idx);
             READ_U4(attr_length, ptr, len);
 
@@ -400,14 +416,15 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
             } else if(attr_name == SYMBOL(Signature)) {
                 u2 signature_idx;
-                READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-                classblock->fields[i].signature = CP_UTF8(constant_pool, signature_idx);
+                READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8,
+                                ptr, len);
+                field->signature = CP_UTF8(constant_pool, signature_idx);
 
             } else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
-                classblock->fields[i].annotations = sysMalloc(sizeof(AnnotationData));
-                classblock->fields[i].annotations->len = attr_length;
-                classblock->fields[i].annotations->data = sysMalloc(attr_length);
-                memcpy(classblock->fields[i].annotations->data, ptr, attr_length);
+                field->annotations = sysMalloc(sizeof(AnnotationData));
+                field->annotations->len = attr_length;
+                field->annotations->data = sysMalloc(attr_length);
+                memcpy(field->annotations->data, ptr, attr_length);
                 ptr += attr_length;
 
             } else
@@ -416,8 +433,10 @@ Class *parseClass(char *classname, char *data, int offset, int len,
     }
 
     READ_U2(classblock->methods_count, ptr, len);
-    classblock->methods = sysMalloc(classblock->methods_count * sizeof(MethodBlock));
-    memset(classblock->methods, 0, classblock->methods_count * sizeof(MethodBlock));
+    classblock->methods = sysMalloc(classblock->methods_count *
+                                    sizeof(MethodBlock));
+    memset(classblock->methods, 0, classblock->methods_count *
+                                   sizeof(MethodBlock));
 
     for(i = 0; i < classblock->methods_count; i++) {
         MethodBlock *method = &classblock->methods[i];
@@ -439,7 +458,8 @@ Class *parseClass(char *classname, char *data, int offset, int len,
             char *attr_name;
             u4 attr_length;
 
-            READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+            READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8,
+                            ptr, len);
             READ_U4(attr_length, ptr, len);
             attr_name = CP_UTF8(constant_pool, attr_name_idx);
 
@@ -459,7 +479,9 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                 method->code_size = code_length;
 
                 READ_U2(method->exception_table_size, ptr, len);
-                method->exception_table = sysMalloc(method->exception_table_size*sizeof(ExceptionTableEntry));
+                method->exception_table =
+                        sysMalloc(method->exception_table_size *
+                                  sizeof(ExceptionTableEntry));
 
                 for(j = 0; j < method->exception_table_size; j++) {
                     ExceptionTableEntry *entry = &method->exception_table[j];              
@@ -475,16 +497,19 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                     u2 attr_name_idx;
                     u4 attr_length;
 
-                    READ_TYPE_INDEX(attr_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                    READ_TYPE_INDEX(attr_name_idx, constant_pool,
+                                    CONSTANT_Utf8, ptr, len);
                     attr_name = CP_UTF8(constant_pool, attr_name_idx);
                     READ_U4(attr_length, ptr, len);
 
                     if(attr_name == SYMBOL(LineNumberTable)) {
                         READ_U2(method->line_no_table_size, ptr, len);
-                        method->line_no_table = sysMalloc(method->line_no_table_size*sizeof(LineNoTableEntry));
+                        method->line_no_table =
+                                sysMalloc(method->line_no_table_size *
+                                          sizeof(LineNoTableEntry));
 
                         for(j = 0; j < method->line_no_table_size; j++) {
-                            LineNoTableEntry *entry = &method->line_no_table[j];              
+                            LineNoTableEntry *entry = &method->line_no_table[j];
                          
                             READ_U2(entry->start_pc, ptr, len);
                             READ_U2(entry->line_no, ptr, len);
@@ -496,14 +521,16 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                 int j;
 
                 READ_U2(method->throw_table_size, ptr, len);
-                method->throw_table = sysMalloc(method->throw_table_size*sizeof(u2));
+                method->throw_table = sysMalloc(method->throw_table_size *
+                                                sizeof(u2));
                 for(j = 0; j < method->throw_table_size; j++) {
                     READ_U2(method->throw_table[j], ptr, len);
                 }
 
             } else if(attr_name == SYMBOL(Signature)) {
                 u2 signature_idx;
-                READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8,
+                                ptr, len);
                 method->signature = CP_UTF8(constant_pool, signature_idx);
 
             } else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
@@ -551,8 +578,10 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
         if(attr_name == SYMBOL(SourceFile)) {
             u2 file_name_idx;
-            READ_TYPE_INDEX(file_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
-            classblock->source_file_name = CP_UTF8(constant_pool, file_name_idx);
+            READ_TYPE_INDEX(file_name_idx, constant_pool, CONSTANT_Utf8,
+                            ptr, len);
+            classblock->source_file_name =
+                                  CP_UTF8(constant_pool, file_name_idx);
 
         } else if(attr_name == SYMBOL(InnerClasses)) {
             int j, size;
@@ -561,18 +590,23 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                 u2 inner_classes[size];
                 for(j = 0; j < size; j++) {
                     int inner, outer;
-                    READ_TYPE_INDEX(inner, constant_pool, CONSTANT_Class, ptr, len);
-                    READ_TYPE_INDEX(outer, constant_pool, CONSTANT_Class, ptr, len);
+                    READ_TYPE_INDEX(inner, constant_pool, CONSTANT_Class,
+                                    ptr, len);
+                    READ_TYPE_INDEX(outer, constant_pool, CONSTANT_Class,
+                                    ptr, len);
 
                     if(inner == this_idx) {
                         int inner_name_idx;
 
-                        /* A member class doesn't have an EnclosingMethod attribute, so set
-                           the enclosing class to be the same as the declaring class */
+                        /* A member class doesn't have an EnclosingMethod
+                           attribute, so set the enclosing class to be the
+                           same as the declaring class */
                         if(outer)
-                            classblock->declaring_class = classblock->enclosing_class = outer;
+                            classblock->declaring_class =
+                                       classblock->enclosing_class = outer;
 
-                        READ_TYPE_INDEX(inner_name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+                        READ_TYPE_INDEX(inner_name_idx, constant_pool,
+                                        CONSTANT_Utf8, ptr, len);
                         if(inner_name_idx == 0)
                             classblock->flags |= ANONYMOUS;
 
@@ -580,14 +614,17 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                     } else {
                         ptr += 4;
                         if(outer == this_idx)
-                            inner_classes[classblock->inner_class_count++] = inner;
+                            inner_classes[classblock->inner_class_count++]
+                                     = inner;
                     }
                 }
 
                 if(classblock->inner_class_count) {
-                    classblock->inner_classes = sysMalloc(classblock->inner_class_count*sizeof(u2));
+                    classblock->inner_classes =
+                                sysMalloc(classblock->inner_class_count *
+                                          sizeof(u2));
                     memcpy(classblock->inner_classes, &inner_classes[0],
-                           classblock->inner_class_count*sizeof(u2));
+                           classblock->inner_class_count * sizeof(u2));
                 }
             }
         } else if(attr_name == SYMBOL(EnclosingMethod)) {
@@ -598,7 +635,8 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
         } else if(attr_name == SYMBOL(Signature)) {
             u2 signature_idx;
-            READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8, ptr, len);
+            READ_TYPE_INDEX(signature_idx, constant_pool, CONSTANT_Utf8,
+                            ptr, len);
             classblock->signature = CP_UTF8(constant_pool, signature_idx);
 
         } else if(attr_name == SYMBOL(Synthetic))
@@ -701,8 +739,8 @@ Class *createArrayClass(char *classname, Object *class_loader) {
        this is used to speed up type checking (instanceof) */
 
     if(classname[1] == '[') {
-        Class *comp_class = findArrayClassFromClassLoader(classname + 1,
-                                                          class_loader);
+        Class *comp_class =
+                  findArrayClassFromClassLoader(classname + 1, class_loader);
 
         if(comp_class == NULL)
             goto error;
@@ -716,8 +754,8 @@ Class *createArrayClass(char *classname, Object *class_loader) {
             memcpy(element_name, classname + 2, len - 3);
             element_name[len - 3] = '\0';
 
-            classblock->element_class = findClassFromClassLoader(element_name,
-                                                                 class_loader);
+            classblock->element_class =
+                      findClassFromClassLoader(element_name, class_loader);
         } else
             classblock->element_class = findPrimitiveClass(classname[1]);
 
@@ -793,7 +831,6 @@ void prepareFields(Class *class) {
     ClassBlock *cb = CLASS_CB(class);
     Class *super = (cb->access_flags & ACC_INTERFACE) ? NULL
                                                       : cb->super;
-
     RefsOffsetsEntry *spr_rfs_offsts_tbl = NULL;
     int spr_rfs_offsts_sze = 0;
 
@@ -1012,11 +1049,10 @@ void linkClass(Class *class) {
    /* Prepare methods */
 
    for(mb = cb->methods, i = 0; i < cb->methods_count; i++,mb++) {
-
-       /* calculate argument count from signature */
-
        int count = 0;
        char *sig = mb->type;
+
+       /* calculate argument count from signature */
        SCAN_SIG(sig, count+=2, count++);
 
        if(mb->access_flags & ACC_STATIC)
@@ -1374,24 +1410,30 @@ Class *initClass(Class *class) {
       executeStaticMethod(class, mb);
 
    if((excep = exceptionOccurred())) {
-       Class *error, *eiie;
+       Class *error;
 
        clearException(); 
 
        /* Don't wrap exceptions of type java.lang.Error... */
-       if((error = findSystemClass0(SYMBOL(java_lang_Error)))
-                 && !isInstanceOf(error, excep->class)
-                 && (eiie = findSystemClass(SYMBOL(java_lang_ExceptionInInitializerError)))
-                 && (mb = findMethod(eiie, SYMBOL(object_init), SYMBOL(_java_lang_Throwable__V)))) {
+       error = findSystemClass0(SYMBOL(java_lang_Error));
+       if(error != NULL && !isInstanceOf(error, excep->class)) {
+           Class *init_error = findSystemClass(
+                         SYMBOL(java_lang_ExceptionInInitializerError));
+           if(init_error != NULL) {
+               mb = findMethod(init_error, SYMBOL(object_init),
+                                           SYMBOL(_java_lang_Throwable__V));
+               if(mb != NULL) {
+                   Object *ob = allocObject(init_error);
 
-           Object *ob = allocObject(eiie);
-
-           if(ob != NULL) {
-               executeMethod(ob, mb, excep);
-               setException(ob);
+                   if(ob != NULL) {
+                       executeMethod(ob, mb, excep);
+                       excep = ob;
+                   }
+               }
            }
-       } else
-           setException(excep);
+       }
+
+       setException(excep);
 
        state = CLASS_BAD;
    } else
@@ -1709,14 +1751,15 @@ Object *getSystemClassLoader() {
     Class *class_loader = findSystemClass(SYMBOL(java_lang_ClassLoader));
 
     if(!exceptionOccurred()) {
-        MethodBlock *mb;
+        MethodBlock *mb = findMethod(class_loader,
+                                     SYMBOL(getSystemClassLoader),
+                                     SYMBOL(___java_lang_ClassLoader));
 
-        if((mb = findMethod(class_loader, SYMBOL(getSystemClassLoader),
-                                          SYMBOL(___java_lang_ClassLoader))) != NULL) {
-            Object *system_loader = *(Object**)executeStaticMethod(class_loader, mb);
+        if(mb != NULL) {
+            Object *loader = *(Object**)executeStaticMethod(class_loader, mb);
 
             if(!exceptionOccurred()) 
-                return system_loader;
+                return loader;
         }
     }
     return NULL;
@@ -2096,11 +2139,13 @@ Object *bootClassPathResource(char *filename, int index) {
         if(path[0] != '/') {
             char *cwd = getCwd();
             path_len += strlen(cwd) + 1;
-            path = strcat(strcat(strcpy(sysMalloc(path_len + 1), cwd), "/"), path);
+            path = strcat(strcat(strcpy(sysMalloc(path_len + 1), cwd),
+                                 "/"), path);
             sysFree(cwd);
         }
 
-        /* Alloc enough space for Jar file URL -- jar:file://<path>!/<filename> */
+        /* Alloc enough space for Jar file URL --
+           jar:file://<path>!/<filename> */
         buff = sysMalloc(strlen(filename) + path_len + 14);
 
         if(bootclasspath[index].zip != NULL) {

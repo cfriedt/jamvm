@@ -68,6 +68,17 @@ extern char *classlibDefaultExtDirs();
 extern void classlibNewLibraryUnloader(Object *class_loader, void *entry);
 extern Object *classlibSkipReflectionLoader(Object *loader);
 
+#define classlibInjectedFieldsCount(classname) \
+    (classname == SYMBOL(java_lang_invoke_MemberName) ? 1 : 0)
+
+#define classlibFillInInjectedFields(classname, field) { \
+    field->name = SYMBOL(vmtarget);                      \
+    field->type = SYMBOL(J);                             \
+    field->access_flags = ACC_PRIVATE;                   \
+    field->annotations = NULL;                           \
+    field->signature = NULL;                             \
+}
+
 /* Reflection */
 
 extern int classlibInitReflection();
