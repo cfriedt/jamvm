@@ -169,10 +169,10 @@
 #define OPC_LUSHR                       125
 #define OPC_IAND                        126
 #define OPC_LAND                        127
-#define OPC_IOR                         128     
-#define OPC_LOR                         129     
-#define OPC_IXOR                        130     
-#define OPC_LXOR                        131     
+#define OPC_IOR                         128
+#define OPC_LOR                         129
+#define OPC_IXOR                        130
+#define OPC_LXOR                        131
 #define OPC_IINC                        132
 #define OPC_I2L                         133
 #define OPC_I2F                         134
@@ -300,14 +300,14 @@
 #define CONSTANT_InvokeDynamic          18
 
 /* Internal */
-#define CONSTANT_Locked                100 
-#define CONSTANT_Resolved              101 
-#define CONSTANT_ResolvedClass         102 
-#define CONSTANT_ResolvedString        103 
-#define CONSTANT_ResolvedMethodType    104 
-#define CONSTANT_ResolvedMethodHandle  105 
-#define CONSTANT_ResolvedPolyMethod    106 
-#define CONSTANT_ResolvedInvokeDynamic 107 
+#define CONSTANT_Locked                100
+#define CONSTANT_Resolved              101
+#define CONSTANT_ResolvedClass         102
+#define CONSTANT_ResolvedString        103
+#define CONSTANT_ResolvedMethodType    104
+#define CONSTANT_ResolvedMethodHandle  105
+#define CONSTANT_ResolvedPolyMethod    106
+#define CONSTANT_ResolvedInvokeDynamic 107
 
 #define ACC_PUBLIC              0x0001
 #define ACC_PRIVATE             0x0002
@@ -331,7 +331,7 @@
 #define ACC_REFLECT_MASK        0xffff
 
 #define T_BOOLEAN               4
-#define T_CHAR                  5       
+#define T_CHAR                  5
 #define T_FLOAT                 6
 #define T_DOUBLE                7
 #define T_BYTE                  8
@@ -369,8 +369,8 @@
 #define SOFT_REFERENCE          4
 #define WEAK_REFERENCE          8
 #define PHANTOM_REFERENCE      16
-#define FINALIZED              32 
-#define CLASS_LOADER           64 
+#define FINALIZED              32
+#define CLASS_LOADER           64
 #define CLASS_CLASH           128
 #define ANONYMOUS             256
 
