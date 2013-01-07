@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2008, 2009, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -231,7 +231,7 @@
         L(OPC_INVOKESPECIAL,          level, label), \
         L(OPC_INVOKESTATIC,           level, label), \
         L(OPC_INVOKEINTERFACE,        level, label), \
-        &&unused,                                    \
+        L(OPC_INVOKEDYNAMIC,          level, label), \
         L(OPC_NEW,                    level, label), \
         L(OPC_NEWARRAY,               level, label), \
         L(OPC_ANEWARRAY,              level, label), \
@@ -294,7 +294,7 @@
         I(OPC_INLINE_REWRITER,        level, label), \
         I(OPC_PROFILE_REWRITER,       level, label), \
         L(OPC_INVOKEEXACT_QUICK,      level, label), \
-        &&unused,                                    \
+        L(OPC_INVOKEDYNAMIC_QUICK,    level, label), \
         &&unused,                                    \
         &&unused,                                    \
         &&unused,                                    \

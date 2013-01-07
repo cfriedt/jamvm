@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2008, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -205,7 +205,7 @@ unsigned char shared_opcodes[] = {
     /* OPC_INVOKESPECIAL   */  OPC_INVOKESPECIAL,
     /* OPC_INVOKESTATIC    */  OPC_INVOKESTATIC,
     /* OPC_INVOKEINTERFACE */  OPC_INVOKEINTERFACE,
-    /* UNUSED OPCODE       */  0,
+    /* OPC_INVOKEDYNAMIC   */  OPC_INVOKEDYNAMIC,
     /* OPC_NEW             */  OPC_NEW,
     /* OPC_NEWARRAY        */  OPC_NEWARRAY,
     /* OPC_ANEWARRAY       */  OPC_ANEWARRAY,

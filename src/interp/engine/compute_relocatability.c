@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2013
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -88,15 +88,15 @@ char *symbol_values[] = {};
 void clearException() {
 }
 
-MethodBlock *exactMethodHandle2MB(Object *mh, PolyMethodBlock *pmb) {
-    return NULL;
-}
-
 int isPolymorphicRef(Class *class, int cp_index) {
     return FALSE;
 }
 
 PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index) {
+    return NULL;
+}
+
+PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index) {
     return NULL;
 }
 
@@ -195,8 +195,3 @@ void inlineProfiledBlock(Instruction *pc, MethodBlock *mb) {
 
 void shutdownInlining() {
 }
-
-MethodBlock *invokeBasic(Object *o) {
-    return NULL;
-}
-

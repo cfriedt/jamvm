@@ -1533,6 +1533,24 @@ uintptr_t *executeJava() {
         REDISPATCH
     });)
 
+    DEF_OPC_RW(OPC_INVOKEDYNAMIC, ({
+        int idx, cache;
+        Operand operand;
+        PolyMethodBlock *pmb;
+
+        WITH_OPCODE_CHANGE_CP_DINDEX(OPC_INVOKEDYNAMIC, idx, cache);
+
+        frame->last_pc = pc;
+        pmb = resolveInvokeDynamic(mb->class, idx);
+ 
+        if(pmb == NULL)
+            goto throwException;
+
+        operand.pntr = pmb;
+        OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK, cache, operand);
+        REDISPATCH
+    });)
+
     DEF_OPC_RW(OPC_MULTIANEWARRAY, ({
         int idx = pc->operand.uui.u1;
         int cache = pc->operand.uui.i;
@@ -1898,10 +1916,12 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_INVOKEDYNAMIC, {
+        PolyMethodBlock *pmb;
+
         frame->last_pc = pc;
-        resolveInvokeDynamic(mb->class, DOUBLE_INDEX(pc));
+        pmb = resolveInvokeDynamic(mb->class, DOUBLE_INDEX(pc));
  
-        if(exceptionOccurred0(ee))
+        if(pmb == NULL)
             goto throwException;
 
         OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK);

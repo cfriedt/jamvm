@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2013
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -456,8 +456,10 @@ retry:
                     break;
                 }
 
-                case OPC_PUTFIELD: case OPC_INVOKEVIRTUAL: case OPC_INVOKESPECIAL:
-                case OPC_INVOKESTATIC: case OPC_CHECKCAST: case OPC_INSTANCEOF:
+                case OPC_INVOKEVIRTUAL: case OPC_INVOKESPECIAL:
+                case OPC_INVOKESTATIC: case OPC_INVOKEDYNAMIC:
+                case OPC_CHECKCAST: case OPC_INSTANCEOF:
+                case OPC_PUTFIELD:
                     REWRITE_OPERAND(READ_U2_OP(code + pc));
 #ifdef USE_CACHE
                     cache = 0;

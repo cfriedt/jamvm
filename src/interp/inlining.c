@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2007, 2008, 2009, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2007, 2008, 2009, 2011, 2013
+ * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -788,6 +789,7 @@ void inlineBlocks(MethodBlock *mb, BasicBlock *start, BasicBlock *end) {
                 case OPC_INVOKESTATIC: case OPC_INVOKEINTERFACE:
                 case OPC_INVOKEVIRTUAL: case OPC_INVOKESPECIAL:
                 case OPC_MULTIANEWARRAY: case OPC_INSTANCEOF:
+                case OPC_INVOKEDYNAMIC:
                     op1 = op2 = op3 = GOTO_END;
                     break;
 
