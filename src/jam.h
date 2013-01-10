@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * Robert Lougher <rob@jamvm.org.uk>.
+ * 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -279,6 +279,7 @@
 #define OPC_PROFILE_REWRITER            247
 #define OPC_INVOKEEXACT_QUICK           248
 #define OPC_INVOKEDYNAMIC_QUICK         249
+#define OPC_INVOKEBASIC                 250
 
 /* Constant pool tags */
 
@@ -378,6 +379,7 @@
 
 #define LAMBDA_HIDDEN            1
 #define LAMBDA_COMPILED          2
+#define POLY_NAMEID_SHIFT        8
 
 typedef unsigned char           u1;
 typedef unsigned short          u2;

@@ -100,6 +100,10 @@ PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index) {
     return NULL;
 }
 
+MethodBlock *getInvokeBasicTarget(Object *method_handle) {
+    return NULL;
+}
+
 Object *allocObject(Class *class) {
     return NULL;
 }

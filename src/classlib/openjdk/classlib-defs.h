@@ -33,3 +33,11 @@
 #define CLASSLIB_CLASSBLOCK_REFS_DO(action, cb, ...) \
     action(cb, protection_domain, ## __VA_ARGS__);   \
     action(cb, signers, ## __VA_ARGS__)
+
+
+#define ID_invokeGeneric   0
+#define ID_invokeBasic     1
+#define ID_linkToVirtual   2
+#define ID_linkToStatic    3
+#define ID_linkToSpecial   4
+#define ID_linkToInterface 5

@@ -1450,15 +1450,19 @@ uintptr_t *executeJava() {
                 OPCODE_REWRITE(OPC_INVOKEEXACT_QUICK, cache, operand);
             } else
                 goto throwException;
-        } else {
-            if(new_mb->access_flags & ACC_PRIVATE) {
+
+        } else if(new_mb->access_flags & ACC_PRIVATE) {
+            if(mbPolymorphicNameID(new_mb) == ID_invokeBasic) {
+                operand.i = new_mb->args_count;
+                OPCODE_REWRITE(OPC_INVOKEBASIC, cache, operand);
+            } else {
                 operand.pntr = new_mb;
                 OPCODE_REWRITE(OPC_INVOKENONVIRTUAL_QUICK, cache, operand);
-            } else {
-                operand.uu.u1 = new_mb->args_count;
-                operand.uu.u2 = new_mb->method_table_index;
-                OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK, cache, operand);
             }
+        } else {
+            operand.uu.u1 = new_mb->args_count;
+            operand.uu.u2 = new_mb->method_table_index;
+            OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK, cache, operand);
         }
 
         REDISPATCH
@@ -2139,6 +2143,12 @@ uintptr_t *executeJava() {
         new_mb = pmb->mb;
         arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
+        goto invokeMethod;
+    })
+
+    DEF_OPC_210(OPC_INVOKEBASIC, {
+        arg1 = ostack - INVOKEBASIC_ARGS(pc);
+        new_mb = getInvokeBasicTarget((Object*)*arg1);
         goto invokeMethod;
     })
 

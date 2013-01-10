@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -835,6 +835,14 @@ int sigRetSlotSize(char *sig) {
     }
 }
 
+MethodBlock *getInvokeBasicTarget(Object *method_handle) {
+    Object *form = INST_DATA(method_handle, Object*, mthd_hndl_form_offset);
+    Object *vmentry = INST_DATA(form, Object*, lmda_form_vmentry_offset);
+    MethodBlock *vmtarget = INST_DATA(vmentry, MethodBlock*, 
+    	                              mem_name_vmtarget_offset);
+    return vmtarget;
+}
+
 uintptr_t *invokeBasic(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *method_handle = (Object*)ostack[0];
     Object *form = INST_DATA(method_handle, Object*, mthd_hndl_form_offset);
@@ -873,11 +881,6 @@ uintptr_t *linkToVirtual(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *invokeGeneric(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    signalException(java_lang_InternalError, "should not reach here");
-    return ostack;
-}
-
 // (Ljava/lang/invoke/MemberName;Ljava/lang/Object;)V
 uintptr_t *initMemberName(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     Object *mname = (Object*)ostack[0];
@@ -900,7 +903,8 @@ uintptr_t *initMemberName(Class *class, MethodBlock *mb, uintptr_t *ostack) {
         INST_DATA(mname, MethodBlock*, mem_name_vmtarget_offset) = mb;
 
    } else if(target->class == cons_reflect_class) {
-        signalException(java_lang_InternalError, "initMemberName: cons unimplemented");
+        signalException(java_lang_InternalError,
+                        "initMemberName: cons unimplemented");
    } else if(target->class == field_reflect_class) {
         Class *decl_class = INST_DATA(target, Class*, fld_class_offset);
         int slot = INST_DATA(target, int, fld_slot_offset);
@@ -1195,13 +1199,6 @@ char *type2Signature(Object *type, int add_if_absent) {
     return found;
 }
 
-#define ID_invokeGeneric   0
-#define ID_invokeBasic     1
-#define ID_linkToVirtual   2
-#define ID_linkToStatic    3
-#define ID_linkToSpecial   4
-#define ID_linkToInterface 5
-
 #define isStaticPolymorphicSig(id) (id >= ID_linkToVirtual)
 
 int polymorphicNameID(Class *clazz, char *name) {
@@ -1219,7 +1216,6 @@ int polymorphicNameID(Class *clazz, char *name) {
         else if(name == SYMBOL(linkToInterface))
             return ID_linkToInterface;
     }
-
     return -1;
 }
 
@@ -1233,9 +1229,8 @@ NativeMethod polymorphicID2Invoker(int id) {
         case ID_linkToVirtual:
         case ID_linkToInterface:
             return &linkToVirtual;
-        case ID_invokeGeneric:
-            return &invokeGeneric;
     }
+    return NULL;
 }
 
 Object *findMethodHandleType(char *type, Class *accessing_class) {
@@ -1564,7 +1559,7 @@ MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
     int id = polymorphicNameID(class, methodname);
     MethodBlock *mb;
 
-    if(id == -1 || id == ID_invokeGeneric)
+    if(id <= ID_invokeGeneric)
         return NULL;
 
     mb = sysMalloc(sizeof(MethodBlock));
@@ -1582,6 +1577,7 @@ MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
         mb->args_count++;
 
     mb->max_locals = mb->args_count;
+    mb->flags = id << POLY_NAMEID_SHIFT;
     mb->native_extra_arg = sigRetSlotSize(type);
     mb->native_invoker = polymorphicID2Invoker(id);
 

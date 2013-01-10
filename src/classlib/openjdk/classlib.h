@@ -152,3 +152,6 @@ extern PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index);
 extern MethodBlock *lookupPolymorphicMethod(Class *class,
                                             Class *accessing_class,
                                             char *methodname, char *type);
+extern MethodBlock *getInvokeBasicTarget(Object *method_handle);
+
+#define mbPolymorphicNameID(mb) (mb->flags >> POLY_NAMEID_SHIFT)

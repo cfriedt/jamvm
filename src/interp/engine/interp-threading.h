@@ -295,7 +295,7 @@
         I(OPC_PROFILE_REWRITER,       level, label), \
         L(OPC_INVOKEEXACT_QUICK,      level, label), \
         L(OPC_INVOKEDYNAMIC_QUICK,    level, label), \
-        &&unused,                                    \
+        L(OPC_INVOKEBASIC,            level, label), \
         &&unused,                                    \
         &&unused,                                    \
         &&unused,                                    \
