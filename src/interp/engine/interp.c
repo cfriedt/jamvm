@@ -2148,6 +2148,7 @@ uintptr_t *executeJava() {
 
     DEF_OPC_210(OPC_INVOKEBASIC, {
         arg1 = ostack - INVOKEBASIC_ARGS(pc);
+        NULL_POINTER_CHECK(*arg1);
         new_mb = getInvokeBasicTarget((Object*)*arg1);
         goto invokeMethod;
     })
