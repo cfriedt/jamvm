@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -152,6 +152,32 @@ extern PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index);
 extern MethodBlock *lookupPolymorphicMethod(Class *class,
                                             Class *accessing_class,
                                             char *methodname, char *type);
-extern MethodBlock *getInvokeBasicTarget(Object *method_handle);
+extern void cachePolyOffsets(CachedPolyOffsets *cpo);
 
 #define mbPolymorphicNameID(mb) (mb->flags >> POLY_NAMEID_SHIFT)
+
+#define CACHED_POLY_OFFSETS                      \
+    static CachedPolyOffsets cpo = {-1, -1, -1};
+
+#define CACHE_POLY_OFFSETS                                           \
+    if(cpo.mem_name_vmtarget == -1 || cpo.mthd_hndl_form == -1       \
+                                   || cpo.lmda_form_vmentry == -1) { \
+        cachePolyOffsets(&cpo);                                      \
+        MBARRIER();                                                  \
+}
+
+#define getInvokeBasicTarget(method_handle) ({                            \
+    Object *form = INST_DATA(method_handle, Object*, cpo.mthd_hndl_form); \
+    Object *vmentry = INST_DATA(form, Object*, cpo.lmda_form_vmentry);    \
+    INST_DATA(vmentry, MethodBlock*, cpo.mem_name_vmtarget);              \
+})
+
+#define getLinkToSpecialTarget(mem_name)                      \
+    INST_DATA(mem_name, MethodBlock*, cpo.mem_name_vmtarget)
+
+#define getLinkToVirtualTarget(this, mem_name) ({             \
+    MethodBlock *vmtarget = INST_DATA(mem_name, MethodBlock*, \
+    	                              cpo.mem_name_vmtarget); \
+    lookupVirtualMethod(this, vmtarget);                      \
+})
+

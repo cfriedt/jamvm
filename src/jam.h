@@ -280,6 +280,8 @@
 #define OPC_INVOKEEXACT_QUICK           248
 #define OPC_INVOKEDYNAMIC_QUICK         249
 #define OPC_INVOKEBASIC                 250
+#define OPC_LINKTOSPECIAL               251
+#define OPC_LINKTOVIRTUAL               252
 
 /* Constant pool tags */
 

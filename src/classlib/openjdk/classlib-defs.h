@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -35,9 +35,15 @@
     action(cb, signers, ## __VA_ARGS__)
 
 
-#define ID_invokeGeneric   0
-#define ID_invokeBasic     1
-#define ID_linkToVirtual   2
+#define ID_invokeGeneric   1
+#define ID_invokeBasic     2
 #define ID_linkToStatic    3
 #define ID_linkToSpecial   4
-#define ID_linkToInterface 5
+#define ID_linkToVirtual   5
+#define ID_linkToInterface 6
+
+typedef struct cached_poly_offsets {
+    int mem_name_vmtarget;
+    int lmda_form_vmentry;
+    int mthd_hndl_form;
+} CachedPolyOffsets;

@@ -88,6 +88,10 @@ char *symbol_values[] = {};
 void clearException() {
 }
 
+MethodBlock *lookupVirtualMethod(Class *class, MethodBlock *mb) {
+    return NULL;
+}
+
 int isPolymorphicRef(Class *class, int cp_index) {
     return FALSE;
 }
@@ -100,8 +104,7 @@ PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index) {
     return NULL;
 }
 
-MethodBlock *getInvokeBasicTarget(Object *method_handle) {
-    return NULL;
+void cachePolyOffsets(CachedPolyOffsets *cpo) {
 }
 
 Object *allocObject(Class *class) {

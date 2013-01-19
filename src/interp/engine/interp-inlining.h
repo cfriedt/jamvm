@@ -417,7 +417,7 @@ branch_##level##_##type:                        \
 #define RESOLVED_METHOD(pc)      ((MethodBlock*)pc->operand.pntr)
 #define RESOLVED_POLYMETHOD(pc)  ((PolyMethodBlock*)pc->operand.pntr)
 #define RESOLVED_CLASS(pc)       (Class *)CP_INFO(cp, pc->operand.uui.u1)
-#define INVOKEBASIC_ARGS(pc)     pc->operand.i
+#define INTRINSIC_ARGS(pc)       pc->operand.i
 
 /* Macros for checking for common exceptions */
 

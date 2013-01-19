@@ -735,6 +735,12 @@ uintptr_t *invokeRegisterNatives(Class *class, MethodBlock *mb,
     return ostack;
 }
 
+void cachePolyOffsets(CachedPolyOffsets *cpo) {
+    cpo->mthd_hndl_form = mthd_hndl_form_offset;
+    cpo->mem_name_vmtarget = mem_name_vmtarget_offset;
+    cpo->lmda_form_vmentry = lmda_form_vmentry_offset;
+}
+
 // (I)I
 uintptr_t *getConstant(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     TRACE("getConstant: type %d\n", (int)*ostack);
@@ -833,14 +839,6 @@ int sigRetSlotSize(char *sig) {
         default:
             return 1;
     }
-}
-
-MethodBlock *getInvokeBasicTarget(Object *method_handle) {
-    Object *form = INST_DATA(method_handle, Object*, mthd_hndl_form_offset);
-    Object *vmentry = INST_DATA(form, Object*, lmda_form_vmentry_offset);
-    MethodBlock *vmtarget = INST_DATA(vmentry, MethodBlock*, 
-    	                              mem_name_vmtarget_offset);
-    return vmtarget;
 }
 
 uintptr_t *invokeBasic(Class *class, MethodBlock *mb, uintptr_t *ostack) {
@@ -1199,7 +1197,7 @@ char *type2Signature(Object *type, int add_if_absent) {
     return found;
 }
 
-#define isStaticPolymorphicSig(id) (id >= ID_linkToVirtual)
+#define isStaticPolymorphicSig(id) (id >= ID_linkToStatic)
 
 int polymorphicNameID(Class *clazz, char *name) {
     if(CLASS_CB(clazz)->name == SYMBOL(java_lang_invoke_MethodHandle)) {

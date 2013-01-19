@@ -296,8 +296,8 @@
         L(OPC_INVOKEEXACT_QUICK,      level, label), \
         L(OPC_INVOKEDYNAMIC_QUICK,    level, label), \
         L(OPC_INVOKEBASIC,            level, label), \
-        &&unused,                                    \
-        &&unused,                                    \
+        L(OPC_LINKTOSPECIAL,          level, label), \
+        L(OPC_LINKTOVIRTUAL,          level, label), \
         &&unused,                                    \
         &&unused,                                    \
         &&unused};

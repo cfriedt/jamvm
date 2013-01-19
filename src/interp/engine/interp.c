@@ -71,6 +71,8 @@ uintptr_t *executeJava() {
     MethodBlock *new_mb, *mb = frame->mb;
     ConstantPool *cp = &(CLASS_CB(mb->class)->constant_pool);
 
+    CACHED_POLY_OFFSETS
+
     /* Initialise pc to the start of the method.  If it
        hasn't been executed before it may need preparing */
     PREPARE_MB(mb);
@@ -1453,6 +1455,7 @@ uintptr_t *executeJava() {
 
         } else if(new_mb->access_flags & ACC_PRIVATE) {
             if(mbPolymorphicNameID(new_mb) == ID_invokeBasic) {
+                CACHE_POLY_OFFSETS
                 operand.i = new_mb->args_count;
                 OPCODE_REWRITE(OPC_INVOKEBASIC, cache, operand);
             } else {
@@ -1507,8 +1510,16 @@ uintptr_t *executeJava() {
         if(exceptionOccurred0(ee))
             goto throwException;
 
-        operand.pntr = new_mb;
-        OPCODE_REWRITE(OPC_INVOKESTATIC_QUICK, cache, operand);
+        if(mbPolymorphicNameID(new_mb) >= ID_linkToStatic) {
+            int opcode = mbPolymorphicNameID(new_mb) >= ID_linkToVirtual ?
+                                   OPC_LINKTOVIRTUAL : OPC_LINKTOSPECIAL;
+            CACHE_POLY_OFFSETS
+            operand.i = new_mb->args_count;
+            OPCODE_REWRITE(opcode, cache, operand);
+        } else {
+            operand.pntr = new_mb;
+            OPCODE_REWRITE(OPC_INVOKESTATIC_QUICK, cache, operand);
+        }
         REDISPATCH
     });)
 
@@ -1839,19 +1850,22 @@ uintptr_t *executeJava() {
                 OPCODE_REWRITE(OPC_INVOKEEXACT_QUICK);
             } else
                 goto throwException;
-        } else {
-            if(new_mb->access_flags & ACC_PRIVATE)
+
+        } else if(new_mb->access_flags & ACC_PRIVATE) {
+            if(mbPolymorphicNameID(new_mb) == ID_invokeBasic) {
+                CACHE_POLY_OFFSETS
+                OPCODE_REWRITE(OPC_INVOKEBASIC);
+            } else
                 OPCODE_REWRITE(OPC_INVOKENONVIRTUAL_QUICK);
-            else {
-                if((new_mb->args_count < 256) &&
+
+        } else if((new_mb->args_count < 256) &&
                            (new_mb->method_table_index < 256)) {
-                    OPCODE_REWRITE_OPERAND2(OPC_INVOKEVIRTUAL_QUICK,
-                                            new_mb->method_table_index,
-                                            new_mb->args_count);
-                } else
-                    OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK_W);
-            }
-        }
+            OPCODE_REWRITE_OPERAND2(OPC_INVOKEVIRTUAL_QUICK,
+                                    new_mb->method_table_index,
+                                    new_mb->args_count);
+        } else
+            OPCODE_REWRITE(OPC_INVOKEVIRTUAL_QUICK_W);
+
         DISPATCH(0, 0);
     })
 
@@ -1898,7 +1912,14 @@ uintptr_t *executeJava() {
         if(exceptionOccurred0(ee))
             goto throwException;
 
-        OPCODE_REWRITE(OPC_INVOKESTATIC_QUICK);
+        if(mbPolymorphicNameID(new_mb) >= ID_linkToStatic) {
+            int opcode = mbPolymorphicNameID(new_mb) >= ID_linkToVirtual ?
+                                   OPC_LINKTOVIRTUAL : OPC_LINKTOSPECIAL;
+            CACHE_POLY_OFFSETS
+            OPCODE_REWRITE(opcode);
+        } else
+            OPCODE_REWRITE(OPC_INVOKESTATIC_QUICK);
+
         DISPATCH(0, 0);
     })
 
@@ -2146,13 +2167,6 @@ uintptr_t *executeJava() {
         goto invokeMethod;
     })
 
-    DEF_OPC_210(OPC_INVOKEBASIC, {
-        arg1 = ostack - INVOKEBASIC_ARGS(pc);
-        NULL_POINTER_CHECK(*arg1);
-        new_mb = getInvokeBasicTarget((Object*)*arg1);
-        goto invokeMethod;
-    })
-
     DEF_OPC_210(OPC_INVOKEDYNAMIC_QUICK, {
         PolyMethodBlock *pmb = RESOLVED_POLYMETHOD(pc);
 
@@ -2160,6 +2174,30 @@ uintptr_t *executeJava() {
             *ostack++ = (uintptr_t)pmb->appendix;
         new_mb = pmb->mb;
         arg1 = ostack - new_mb->args_count;
+        goto invokeMethod;
+    })
+
+    DEF_OPC_210(OPC_INVOKEBASIC, {
+        arg1 = ostack - INTRINSIC_ARGS(pc);
+//        NULL_POINTER_CHECK(*arg1);
+        new_mb = getInvokeBasicTarget((Object*)*arg1);
+        goto invokeMethod;
+    })
+
+    DEF_OPC_210(OPC_LINKTOSPECIAL, {
+        new_mb = getLinkToSpecialTarget((Object*)ostack[-1]);
+        arg1 = ostack - INTRINSIC_ARGS(pc);
+        goto invokeMethod;
+    })
+
+    DEF_OPC_210(OPC_LINKTOVIRTUAL, {
+        Object *mem_name = (Object*)ostack[-1];
+        arg1 = ostack - INTRINSIC_ARGS(pc);
+        new_mb = getLinkToVirtualTarget((Object*)*arg1, mem_name);
+
+        if(new_mb == NULL)
+            goto throwException;
+
         goto invokeMethod;
     })
 
