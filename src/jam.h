@@ -1146,28 +1146,42 @@ extern int initialiseNatives();
 extern void copyarray(Object *src, int start1, Object *dest,
                       int start2, int length);
 
-extern uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *compareAndSwapInt(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *compareAndSwapLong(Class *class, MethodBlock *mb,
-                              uintptr_t *ostack);
-extern uintptr_t *putOrderedInt(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *putOrderedLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *putIntVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *getIntVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *putLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *getLongVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *getLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *compareAndSwapObject(Class *class, MethodBlock *mb,
-                                uintptr_t *ostack);
-extern uintptr_t *putOrderedObject(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *putObjectVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *getObjectVolatile(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *putObject(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *arrayBaseOffset(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *arrayIndexScale(Class *class, MethodBlock *mb, uintptr_t *ostack);
 extern uintptr_t *unpark(Class *class, MethodBlock *mb, uintptr_t *ostack);
 extern uintptr_t *park(Class *class, MethodBlock *mb, uintptr_t *ostack);
-extern uintptr_t *vmSupportsCS8(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *putLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *getLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
+extern uintptr_t *putObject(Class *class, MethodBlock *mb, uintptr_t *ostack);
+
+extern uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb,
+                                    uintptr_t *ostack);
+extern uintptr_t *compareAndSwapInt(Class *class, MethodBlock *mb,
+                                    uintptr_t *ostack);
+extern uintptr_t *compareAndSwapLong(Class *class, MethodBlock *mb,
+                                     uintptr_t *ostack);
+extern uintptr_t *putOrderedInt(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack);
+extern uintptr_t *putOrderedLong(Class *class, MethodBlock *mb,
+                                 uintptr_t *ostack);
+extern uintptr_t *putIntVolatile(Class *class, MethodBlock *mb,
+                                 uintptr_t *ostack);
+extern uintptr_t *getIntVolatile(Class *class, MethodBlock *mb,
+                                 uintptr_t *ostack);
+extern uintptr_t *getLongVolatile(Class *class, MethodBlock *mb,
+                                  uintptr_t *ostack);
+extern uintptr_t *compareAndSwapObject(Class *class, MethodBlock *mb,
+                                       uintptr_t *ostack);
+extern uintptr_t *putOrderedObject(Class *class, MethodBlock *mb,
+                                   uintptr_t *ostack);
+extern uintptr_t *putObjectVolatile(Class *class, MethodBlock *mb,
+                                    uintptr_t *ostack);
+extern uintptr_t *getObjectVolatile(Class *class, MethodBlock *mb,
+                                    uintptr_t *ostack);
+extern uintptr_t *arrayBaseOffset(Class *class, MethodBlock *mb,
+                                  uintptr_t *ostack);
+extern uintptr_t *arrayIndexScale(Class *class, MethodBlock *mb,
+                                  uintptr_t *ostack);
+extern uintptr_t *vmSupportsCS8(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack);
 
 /* init */
 
@@ -1204,9 +1218,9 @@ extern int initialiseSymbol();
 /* time */
 
 extern void getTimeoutAbsolute(struct timespec *ts, long long millis,
-                        long long nanos);
+                               long long nanos);
 extern void getTimeoutRelative(struct timespec *ts, long long millis,
-                        long long nanos);
+                               long long nanos);
 
 /* sig */
 
