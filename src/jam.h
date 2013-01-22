@@ -549,8 +549,16 @@ struct methodblock {
            LineNoTableEntry *line_no_table;
        };
        struct {
-           char *simple_sig;
-           int native_extra_arg;
+           union {
+               struct {
+                   char *simple_sig;
+                   int native_extra_arg;
+               };
+               struct {
+                   int ref_count;
+                   int ret_slot_size;
+               };
+           };
            NativeMethod native_invoker;
        };
    };

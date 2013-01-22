@@ -28,6 +28,7 @@
 #include <stdio.h>
 
 #include "jam.h"
+#include "hash.h"
 #include "excep.h"
 #include "frame.h"
 #include "class.h"
@@ -569,6 +570,9 @@ static MethodBlock *MHN_linkCallSite_mb;
 static MethodBlock *MHN_findMethodType_mb;
 static MethodBlock *MHN_linkMethodHandleConstant_mb;
 
+#define CACHE_SIZE 1<<7
+static HashTable intrinsic_cache;
+
 uintptr_t *invokeRegisterNatives(Class *class, MethodBlock *mb,
                                  uintptr_t *ostack) {
     Class *member_name;
@@ -732,6 +736,9 @@ uintptr_t *invokeRegisterNatives(Class *class, MethodBlock *mb,
 
     call_site_target_offset = target_fb->u.offset;
 
+    /* Init hash table and create lock */
+    initHashTable(intrinsic_cache, CACHE_SIZE, TRUE);
+
     return ostack;
 }
 
@@ -850,7 +857,7 @@ uintptr_t *invokeBasic(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
     executePolyMethod(NULL, vmtarget, ostack);
 
-    ostack += mb->native_extra_arg;
+    ostack += mb->ret_slot_size;
     return ostack;
 }
 
@@ -861,7 +868,7 @@ uintptr_t *linkToSpecial(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 
     executePolyMethod(NULL, vmtarget, ostack);
 
-    ostack += mb->native_extra_arg;
+    ostack += mb->ret_slot_size;
     return ostack;
 }
 
@@ -875,7 +882,7 @@ uintptr_t *linkToVirtual(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     if(vmtarget != NULL)
         executePolyMethod(this, vmtarget, ostack);
 
-    ostack += mb->native_extra_arg;
+    ostack += mb->ret_slot_size;
     return ostack;
 }
 
@@ -1551,11 +1558,25 @@ PolyMethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
     return pmb;
 }
 
+#define HASH(ptr) ((ptr->flags * 31 + ptr->args_count) * 31 + \
+                  ptr->ret_slot_size)
+
+#define COMPARE(ptr1, ptr2, hash1, hash2)                     \
+                  (hash1 == hash2 &&                          \
+                  ptr1->flags == ptr2->flags &&               \
+                  ptr1->args_count == ptr2->args_count &&     \
+                  ptr1->ret_slot_size == ptr2->ret_slot_size)
+
+#define PREPARE(ptr) ptr
+#define SCAVENGE(ptr) (((MethodBlock*)ptr)->ref_count == 0)
+#define FOUND(ptr1, ptr2) ({ ptr2->ref_count++;               \
+                             ptr2; })
+
 MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
                                      char *methodname, char *type) {
 
     int id = polymorphicNameID(class, methodname);
-    MethodBlock *mb;
+    MethodBlock *found, *mb;
 
     if(id <= ID_invokeGeneric)
         return NULL;
@@ -1563,9 +1584,9 @@ MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
     mb = sysMalloc(sizeof(MethodBlock));
     memset(mb, 0, sizeof(MethodBlock));
 
+    mb->type = type;
     mb->class = class;
     mb->name = methodname;
-    mb->type = type;
     mb->args_count = sigArgsCount(type);
     mb->access_flags = ACC_PUBLIC | ACC_PRIVATE | ACC_NATIVE;
 
@@ -1574,12 +1595,19 @@ MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
     else
         mb->args_count++;
 
+    mb->ref_count = 1;
     mb->max_locals = mb->args_count;
     mb->flags = id << POLY_NAMEID_SHIFT;
-    mb->native_extra_arg = sigRetSlotSize(type);
+    mb->ret_slot_size = sigRetSlotSize(type);
     mb->native_invoker = polymorphicID2Invoker(id);
 
-    return mb;
+    /* Add if absent, scavenge, locked */
+    findHashEntry(intrinsic_cache, mb, found, TRUE, TRUE, TRUE);
+
+    if(mb != found)
+        sysFree(mb);
+
+    return found;
 }
 
 int isPolymorphicRef(Class *class, int cp_index) {

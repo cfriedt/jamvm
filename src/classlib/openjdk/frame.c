@@ -56,7 +56,8 @@ Frame *classlibGetCallerFrame(Frame *last, int depth) {
         for(; last->mb != NULL; last = last->prev)
             if(!isSubClassOf(method_accessor, last->mb->class)
                    && !(last->mb->flags & LAMBDA_COMPILED)
-                   && last->mb != mthd_invoke_mb && depth-- <= 0)
+                   && last->mb != mthd_invoke_mb
+                   && depth-- <= 0)
                 return last;
     } while((last = last->prev)->prev != NULL);
 
