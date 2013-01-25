@@ -139,9 +139,7 @@ extern void classlibVMShutdown();
 
 extern void classlibHandleUnmarkedSpecial(Object *ob);
 
-
-
-// TEMP
+/* Method Handles */
 
 extern int isPolymorphicRef(Class *class, int cp_index);
 extern Object *resolveMethodType(Class *class, int cp_index);

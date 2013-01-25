@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -39,3 +39,14 @@ extern int widenPrimitiveElement(int src_idx, int dst_idx,
 
 extern int jThreadIsAlive(Object *jthread);
 extern void *getJMMInterface(int version);
+
+extern void initialiseMethodHandles();
+extern void initMemberName(Object *mname, Object *target);
+extern long long memNameFieldOffset(Object *mname);
+extern long long memNameStaticFieldOffset(Object *mname);
+extern void setCallSiteTargetNormal(Object *call_site, Object *target);
+extern void setCallSiteTargetVolatile(Object *call_site, Object *target);
+extern int getMembers(Class *clazz, Object *match_name, Object *match_sig,
+                      int match_flags, Class *caller, int skip,
+                      Object *results);
+extern Object *resolveMemberName(Class *mh_class, Object *mname);
