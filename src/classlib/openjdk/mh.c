@@ -946,9 +946,17 @@ PolyMethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
                   ptr1->ret_slot_size == ptr2->ret_slot_size)
 
 #define PREPARE(ptr) ptr
-#define SCAVENGE(ptr) (((MethodBlock*)ptr)->ref_count == 0)
-#define FOUND(ptr1, ptr2) ({ ptr2->ref_count++;               \
-                             ptr2; })
+
+#define SCAVENGE(ptr) ({                                      \
+    int result = ((MethodBlock*)ptr)->ref_count == 0;         \
+    if(result) sysFree(ptr);                                  \
+    result;                                                   \
+})
+
+#define FOUND(ptr1, ptr2) ({                                  \
+    ptr2->ref_count++;                                        \
+    ptr2;                                                     \
+})
 
 MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
                                      char *methodname, char *type) {
