@@ -1164,3 +1164,19 @@ throw_excep:
     }
     return NULL;
 }
+
+void freeResolvedPolyData(Class *class) {
+    ClassBlock *cb = CLASS_CB(class);
+    ConstantPool *cp = &cb->constant_pool;
+    int i;
+
+    for(i = 1; i < cb->constant_pool_count; i++)
+        if(CP_TYPE(cp, i) >= CONSTANT_ResolvedPolyMethod)
+            gcPendingFree((void*)CP_INFO(cp, i));
+
+        else if(CP_TYPE(cp, i) == CONSTANT_ResolvedMethod) {
+            MethodBlock *mb = (MethodBlock*)CP_INFO(cp, i);
+            if((mb->flags >> POLY_NAMEID_SHIFT) > ID_invokeGeneric)
+                mb->ref_count--;
+        }
+}

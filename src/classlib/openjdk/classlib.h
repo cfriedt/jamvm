@@ -151,6 +151,7 @@ extern MethodBlock *lookupPolymorphicMethod(Class *class,
                                             Class *accessing_class,
                                             char *methodname, char *type);
 extern void cachePolyOffsets(CachedPolyOffsets *cpo);
+extern void freeResolvedPolyData(Class *class);
 
 #define mbPolymorphicNameID(mb) (mb->flags >> POLY_NAMEID_SHIFT)
 

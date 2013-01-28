@@ -1869,6 +1869,8 @@ void freeClassData(Class *class) {
         return;
     }
 
+    freeResolvedPolyData(class);
+
     gcPendingFree((void*)cb->constant_pool.type);
     gcPendingFree(cb->constant_pool.info);
     gcPendingFree(cb->interfaces);

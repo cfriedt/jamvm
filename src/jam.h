@@ -305,12 +305,13 @@
 /* Internal */
 #define CONSTANT_Locked                100
 #define CONSTANT_Resolved              101
-#define CONSTANT_ResolvedClass         102
-#define CONSTANT_ResolvedString        103
-#define CONSTANT_ResolvedMethodType    104
-#define CONSTANT_ResolvedMethodHandle  105
-#define CONSTANT_ResolvedPolyMethod    106
-#define CONSTANT_ResolvedInvokeDynamic 107
+#define CONSTANT_ResolvedMethod        102
+#define CONSTANT_ResolvedClass         103
+#define CONSTANT_ResolvedString        104
+#define CONSTANT_ResolvedMethodType    105
+#define CONSTANT_ResolvedMethodHandle  106
+#define CONSTANT_ResolvedPolyMethod    107
+#define CONSTANT_ResolvedInvokeDynamic 108
 
 #define ACC_PUBLIC              0x0001
 #define ACC_PRIVATE             0x0002

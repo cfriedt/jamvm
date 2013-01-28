@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * Robert Lougher <rob@jamvm.org.uk>.
+ * 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -184,7 +184,7 @@ retry:
         case CONSTANT_Locked:
             goto retry;
 
-        case CONSTANT_Resolved:
+        case CONSTANT_ResolvedMethod:
             mb = (MethodBlock *)CP_INFO(cp, cp_index);
             break;
 
@@ -238,7 +238,7 @@ retry:
                 MBARRIER();
                 CP_INFO(cp, cp_index) = (uintptr_t)mb;
                 MBARRIER();
-                CP_TYPE(cp, cp_index) = CONSTANT_Resolved;
+                CP_TYPE(cp, cp_index) = CONSTANT_ResolvedMethod;
             } else
                 signalException(java_lang_NoSuchMethodError, methodname);
 
