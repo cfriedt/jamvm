@@ -524,9 +524,6 @@ jclass JVM_FindClassFromClassLoader(JNIEnv *env, const char *name,
     TRACE("JVM_FindClassFromClassLoader(env=%p, name=%s, init=%d, loader=%p,"
           " throwError=%d)", env, name, init, loader, throwError);
 
-    if(!strcmp(name, "test/java/lang/invoke/CallSiteTest"))
-        printf("HELLO\n");
-       
     class = findClassFromClassLoader((char *)name, loader);
 
     if(class == NULL && !throw_error) {
