@@ -177,6 +177,16 @@ extern void freeResolvedPolyData(Class *class);
 #define getLinkToVirtualTarget(this, mem_name) ({             \
     MethodBlock *vmtarget = INST_DATA(mem_name, MethodBlock*, \
     	                              cpo.mem_name_vmtarget); \
-    lookupVirtualMethod(this, vmtarget);                      \
+    if(!(vmtarget->access_flags & ACC_PRIVATE)) {             \
+        ClassBlock *cb = CLASS_CB((this)->class);             \
+        int mtbl_idx = vmtarget->method_table_index;          \
+        vmtarget = cb->method_table[mtbl_idx];                \
+    }                                                         \
+    vmtarget;                                                 \
 })
 
+#define getLinkToInterfaceTarget(this, mem_name) ({           \
+    MethodBlock *vmtarget = INST_DATA(mem_name, MethodBlock*, \
+    	                              cpo.mem_name_vmtarget); \
+    lookupVirtualMethod(this, vmtarget);                      \
+})

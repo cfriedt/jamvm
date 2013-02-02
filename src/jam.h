@@ -282,6 +282,7 @@
 #define OPC_INVOKEBASIC                 250
 #define OPC_LINKTOSPECIAL               251
 #define OPC_LINKTOVIRTUAL               252
+#define OPC_LINKTOINTERFACE             253
 
 /* Constant pool tags */
 

@@ -298,7 +298,7 @@
         L(OPC_INVOKEBASIC,            level, label), \
         L(OPC_LINKTOSPECIAL,          level, label), \
         L(OPC_LINKTOVIRTUAL,          level, label), \
-        &&unused,                                    \
+        L(OPC_LINKTOINTERFACE,        level, label), \
         &&unused,                                    \
         &&unused};
 

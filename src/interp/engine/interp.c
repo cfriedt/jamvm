@@ -1499,7 +1499,7 @@ uintptr_t *executeJava() {
     });)
 
     DEF_OPC_RW(OPC_INVOKESTATIC, ({
-        int idx, cache;
+        int id, idx, cache;
         Operand operand;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_INVOKESTATIC, idx, cache);
@@ -1510,9 +1510,14 @@ uintptr_t *executeJava() {
         if(exceptionOccurred0(ee))
             goto throwException;
 
-        if(mbPolymorphicNameID(new_mb) >= ID_linkToStatic) {
-            int opcode = mbPolymorphicNameID(new_mb) >= ID_linkToVirtual ?
-                                   OPC_LINKTOVIRTUAL : OPC_LINKTOSPECIAL;
+        if((id = mbPolymorphicNameID(new_mb)) >= ID_linkToStatic) {
+            int opcode;
+
+            if(id < ID_linkToVirtual)
+                 opcode = OPC_LINKTOSPECIAL;
+            else
+                opcode = OPC_LINKTOVIRTUAL + id - ID_linkToVirtual;
+
             CACHE_POLY_OFFSETS
             operand.i = new_mb->args_count;
             OPCODE_REWRITE(opcode, cache, operand);
@@ -1906,15 +1911,21 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_INVOKESTATIC, {
+        int id;
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, DOUBLE_INDEX(pc));
  
         if(exceptionOccurred0(ee))
             goto throwException;
 
-        if(mbPolymorphicNameID(new_mb) >= ID_linkToStatic) {
-            int opcode = mbPolymorphicNameID(new_mb) >= ID_linkToVirtual ?
-                                   OPC_LINKTOVIRTUAL : OPC_LINKTOSPECIAL;
+        if((id = mbPolymorphicNameID(new_mb)) >= ID_linkToStatic) {
+            int opcode;
+
+            if(id < ID_linkToVirtual)
+                 opcode = OPC_LINKTOSPECIAL;
+            else
+                opcode = OPC_LINKTOVIRTUAL + id - ID_linkToVirtual;
+
             CACHE_POLY_OFFSETS
             OPCODE_REWRITE(opcode);
         } else
@@ -2164,6 +2175,7 @@ uintptr_t *executeJava() {
         new_mb = pmb->mb;
         arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
+
         goto invokeMethod;
     })
 
@@ -2174,19 +2186,21 @@ uintptr_t *executeJava() {
             *ostack++ = (uintptr_t)pmb->appendix;
         new_mb = pmb->mb;
         arg1 = ostack - new_mb->args_count;
+
         goto invokeMethod;
     })
 
     DEF_OPC_210(OPC_INVOKEBASIC, {
         arg1 = ostack - INTRINSIC_ARGS(pc);
-//        NULL_POINTER_CHECK(*arg1);
         new_mb = getInvokeBasicTarget((Object*)*arg1);
+
         goto invokeMethod;
     })
 
     DEF_OPC_210(OPC_LINKTOSPECIAL, {
         new_mb = getLinkToSpecialTarget((Object*)ostack[-1]);
         arg1 = ostack - INTRINSIC_ARGS(pc);
+
         goto invokeMethod;
     })
 
@@ -2194,6 +2208,14 @@ uintptr_t *executeJava() {
         Object *mem_name = (Object*)ostack[-1];
         arg1 = ostack - INTRINSIC_ARGS(pc);
         new_mb = getLinkToVirtualTarget((Object*)*arg1, mem_name);
+
+        goto invokeMethod;
+    })
+
+    DEF_OPC_210(OPC_LINKTOINTERFACE, {
+        Object *mem_name = (Object*)ostack[-1];
+        arg1 = ostack - INTRINSIC_ARGS(pc);
+        new_mb = getLinkToInterfaceTarget((Object*)*arg1, mem_name);
 
         if(new_mb == NULL)
             goto throwException;
@@ -2455,7 +2477,7 @@ throwException:
             ee->stack_end -= STACK_RED_ZONE_SIZE;
         }
 
-        /* Setup intepreter to run the found catch block */
+        /* Setup interpreter to run the found catch block */
 
         frame = ee->last_frame;
         mb = frame->mb;

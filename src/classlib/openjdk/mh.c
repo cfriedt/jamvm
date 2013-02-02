@@ -377,14 +377,22 @@ uintptr_t *linkToVirtual(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 void initMemberName(Object *mname, Object *target) {
 
     if(target->class == method_reflect_class) {
-        Class *decl_class = INST_DATA(target, Class*, mthd_class_offset);
         int slot = INST_DATA(target, int, mthd_slot_offset);
-        MethodBlock *mb = &(CLASS_CB(decl_class)->methods[slot]);
-        int flags = mb->access_flags | IS_METHOD;
+        Class *decl_class = INST_DATA(target, Class*, mthd_class_offset);
 
-        flags |= (mb->access_flags & ACC_STATIC ? REF_invokeStatic
-                                                : REF_invokeVirtual)
-                  << REFERENCE_KIND_SHIFT;
+        ClassBlock *cb = CLASS_CB(decl_class);
+        MethodBlock *mb = &(cb->methods[slot]);
+        int flags = mb->access_flags | IS_METHOD;
+        int ref_kind;
+        
+        if(mb->access_flags & ACC_STATIC)
+            ref_kind = REF_invokeStatic;
+        else if(IS_INTERFACE(cb))
+            ref_kind = REF_invokeInterface;
+        else
+            ref_kind = REF_invokeVirtual;
+
+        flags |= ref_kind << REFERENCE_KIND_SHIFT;
 
         INST_DATA(mname, Class*, mem_name_clazz_offset) = mb->class;
         INST_DATA(mname, int, mem_name_flags_offset) = flags;
