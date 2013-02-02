@@ -277,7 +277,7 @@
 #define OPC_ABSTRACT_METHOD_ERROR       245
 #define OPC_INLINE_REWRITER             246
 #define OPC_PROFILE_REWRITER            247
-#define OPC_INVOKEEXACT_QUICK           248
+#define OPC_INVOKEHANDLE                248
 #define OPC_INVOKEDYNAMIC_QUICK         249
 #define OPC_INVOKEBASIC                 250
 #define OPC_LINKTOSPECIAL               251

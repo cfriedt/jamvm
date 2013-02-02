@@ -293,7 +293,7 @@
         L(OPC_ABSTRACT_METHOD_ERROR,  level, label), \
         I(OPC_INLINE_REWRITER,        level, label), \
         I(OPC_PROFILE_REWRITER,       level, label), \
-        L(OPC_INVOKEEXACT_QUICK,      level, label), \
+        L(OPC_INVOKEHANDLE,           level, label), \
         L(OPC_INVOKEDYNAMIC_QUICK,    level, label), \
         L(OPC_INVOKEBASIC,            level, label), \
         L(OPC_LINKTOSPECIAL,          level, label), \

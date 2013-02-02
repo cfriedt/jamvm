@@ -1449,7 +1449,7 @@ uintptr_t *executeJava() {
                     goto throwException;
 
                 operand.pntr = pmb;
-                OPCODE_REWRITE(OPC_INVOKEEXACT_QUICK, cache, operand);
+                OPCODE_REWRITE(OPC_INVOKEHANDLE, cache, operand);
             } else
                 goto throwException;
 
@@ -1852,7 +1852,7 @@ uintptr_t *executeJava() {
                 if(pmb == NULL)
                     goto throwException;
 
-                OPCODE_REWRITE(OPC_INVOKEEXACT_QUICK);
+                OPCODE_REWRITE(OPC_INVOKEHANDLE);
             } else
                 goto throwException;
 
@@ -2167,7 +2167,7 @@ uintptr_t *executeJava() {
         goto invokeMethod;
     })
 
-    DEF_OPC_210(OPC_INVOKEEXACT_QUICK, {
+    DEF_OPC_210(OPC_INVOKEHANDLE, {
         PolyMethodBlock *pmb = RESOLVED_POLYMETHOD(pc);
 
         if(pmb->appendix)
