@@ -444,6 +444,21 @@ uintptr_t *shouldBeInitialized(Class *clazz, MethodBlock *mb,
     return ostack;
 }
 
+uintptr_t *fullFence(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    MBARRIER();
+    return ostack;
+}
+
+uintptr_t *loadFence(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    RMBARRIER();
+    return ostack;
+}
+
+uintptr_t *storeFence(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    WMBARRIER();
+    return ostack;
+}
+
 VMMethod sun_misc_unsafe[] = {
     {"registerNatives",        "()V", unsafeRegisterNatives},
     {"objectFieldOffset",      "(Ljava/lang/reflect/Field;)J",
@@ -538,6 +553,9 @@ VMMethod sun_misc_unsafe[] = {
     {"pageSize",               NULL, pageSize},
     {"defineAnonymousClass",   NULL, defineAnonymousClass},
     {"shouldBeInitialized",    NULL, shouldBeInitialized},
+    {"fullFence",              "()V", fullFence},
+    {"loadFence",              "()V", loadFence},
+    {"storeFence",             "()V", storeFence},
     {NULL,                     NULL, NULL}
 };
 

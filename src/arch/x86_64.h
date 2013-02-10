@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2011, 2013
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -124,6 +124,8 @@ extern void setDoublePrecision();
 
 #define FLUSH_CACHE(addr, length)
 
-#define MBARRIER() __asm__ __volatile__ ("mfence" ::: "memory")
-#define JMM_LOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")
+#define MBARRIER()  __asm__ __volatile__ ("mfence" ::: "memory")
+#define RMBARRIER() __asm__ __volatile__ ("lfence" ::: "memory")
+#define WMBARRIER() __asm__ __volatile__ ("sfence" ::: "memory")
+#define JMM_LOCK_MBARRIER()   __asm__ __volatile__ ("" ::: "memory")
 #define JMM_UNLOCK_MBARRIER() __asm__ __volatile__ ("" ::: "memory")

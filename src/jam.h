@@ -829,6 +829,14 @@ typedef struct InitArgs {
 #define OPT_ERROR 1
 #define OPT_UNREC 2
 
+#ifndef RMBARRIER
+#define RMBARRIER() MBARRIER()
+#endif
+
+#ifndef WMBARRIER
+#define WMBARRIER() MBARRIER()
+#endif
+
 /* --------------------- Function prototypes  --------------------------- */
 
 /* Alloc */
