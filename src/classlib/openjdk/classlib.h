@@ -68,6 +68,7 @@ extern char *classlibDefaultExtDirs();
 extern void classlibNewLibraryUnloader(Object *class_loader, void *entry);
 extern Object *classlibSkipReflectionLoader(Object *loader);
 
+#ifdef JSR292
 #define classlibInjectedFieldsCount(classname) \
     (classname == SYMBOL(java_lang_invoke_MemberName) ? 1 : 0)
 
@@ -78,6 +79,9 @@ extern Object *classlibSkipReflectionLoader(Object *loader);
     field->annotations = NULL;                           \
     field->signature = NULL;                             \
 }
+#else
+#define classlibInjectedFieldsCount(classname) 0
+#endif
 
 /* Reflection */
 
@@ -141,6 +145,7 @@ extern void classlibHandleUnmarkedSpecial(Object *ob);
 
 /* Method Handles */
 
+#ifdef JSR292
 extern int isPolymorphicRef(Class *class, int cp_index);
 extern Object *resolveMethodType(Class *class, int cp_index);
 extern Object *resolveMethodHandle(Class *class, int cp_index);
@@ -190,3 +195,4 @@ extern void freeResolvedPolyData(Class *class);
     	                              cpo.mem_name_vmtarget); \
     lookupVirtualMethod(this, vmtarget);                      \
 })
+#endif

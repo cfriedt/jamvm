@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -76,6 +76,8 @@ extern void classlibNewLibraryUnloader(Object *class_loader, void *entry);
 #define classlibSkipReflectionLoader(loader) \
     loader
 
+#define classlibInjectedFieldsCount(classname) 0
+
 
 /* Reflection */
 
@@ -112,6 +114,9 @@ extern void classlibAddDefaultProperties(Object *properties);
 
 
 /* Access */
+
+#define classlibInitialiseAccess() \
+    /* NOTHING TO DO */ TRUE
 
 #define classlibAccessCheck(class1, class2) FALSE
 

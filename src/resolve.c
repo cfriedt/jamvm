@@ -59,12 +59,13 @@ FieldBlock *findField(Class *class, char *fieldname, char *type) {
 
 MethodBlock *lookupMethod(Class *class, char *methodname, char *type) {
     MethodBlock *mb;
-// XXX
+
+#ifdef JSR292
     if(CLASS_CB(class)->name == SYMBOL(java_lang_invoke_MethodHandle)) {
         if(methodname == SYMBOL(invoke) || methodname == SYMBOL(invokeExact))
             return NULL;
     }
-// XXX
+#endif
 
     if((mb = findMethod(class, methodname, type)))
        return mb;
@@ -214,9 +215,11 @@ retry:
             
             mb = lookupMethod(resolved_class, methodname, methodtype);
 
+#ifdef JSR292
             if(mb == NULL)
                 mb = lookupPolymorphicMethod(resolved_class, class,
                                              methodname, methodtype);
+#endif
 
             if(mb != NULL) {
                 if((mb->access_flags & ACC_ABSTRACT) &&
@@ -369,6 +372,7 @@ retry:
             resolveClass(class, cp_index, TRUE, FALSE);
             break;
 
+#ifdef JSR292
         case CONSTANT_MethodType:
             resolveMethodType(class, cp_index);
             break;
@@ -376,6 +380,7 @@ retry:
         case CONSTANT_MethodHandle:
             resolveMethodHandle(class, cp_index);
             break;
+#endif
 
         case CONSTANT_String: {
             Object *string;

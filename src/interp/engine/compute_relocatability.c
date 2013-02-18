@@ -104,7 +104,7 @@ PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index) {
     return NULL;
 }
 
-void cachePolyOffsets(CachedPolyOffsets *cpo) {
+void cachePolyOffsets(void *cpo) {
 }
 
 Object *allocObject(Class *class) {

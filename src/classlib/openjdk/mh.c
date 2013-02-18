@@ -18,10 +18,13 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+/* Must be included first to get configure options */
+#include "jam.h"
+
+#ifdef JSR292
 #include <stdio.h>
 #include <string.h>
 
-#include "jam.h"
 #include "hash.h"
 #include "lock.h"
 #include "class.h"
@@ -1196,3 +1199,4 @@ void freeResolvedPolyData(Class *class) {
                 mb->ref_count--;
         }
 }
+#endif

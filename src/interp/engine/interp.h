@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2013
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -84,6 +84,19 @@
     (dividend == LLONG_MIN && divisor == -1)
 #else
 #define LONGDIV_OVERFLOW(dividend, divisor) FALSE
+#endif
+
+#ifndef JSR292
+#define CACHE_POLY_OFFSETS
+#define CACHED_POLY_OFFSETS
+
+#define ID_invokeBasic   1
+#define ID_linkToStatic  1
+#define ID_linkToVirtual 1
+
+#define mbPolymorphicNameID(mb)       0
+#define isPolymorphicRef(class, idx)  FALSE
+#define resolvePolyMethod(class, idx) ({ NULL; })
 #endif
 
 /* Include the interpreter variant header */

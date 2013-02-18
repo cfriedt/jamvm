@@ -132,6 +132,7 @@ static void prepareClass(Class *class) {
     }
 }
 
+#ifdef CLASSLIB_METHOD_ANNOTATIONS
 /* Forward declaration */
 u1 *skipAnnotation(u1 *data_ptr, int *data_len);
 
@@ -201,17 +202,15 @@ void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb) {
             READ_TYPE_INDEX(type_idx, cp, CONSTANT_Utf8, ptr, 2);
             type_name = findUtf8(CP_UTF8(cp, type_idx));
 
-            if(type_name != NULL) {
-                if(type_name ==
-                        SYMBOL(sig_java_lang_invoke_LambdaForm_Hidden))
-                    mb->flags |= LAMBDA_HIDDEN;
-                else if(type_name ==
-                        SYMBOL(sig_java_lang_invoke_LambdaForm_Compiled))
-                    mb->flags |= LAMBDA_COMPILED;
-            }
+            if(type_name != NULL)
+                CLASSLIB_METHOD_ANNOTATIONS(mb, type_name);
         }
     }
 }
+#else
+void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb) {
+}
+#endif
 
 Class *parseClass(char *classname, char *data, int offset, int len,
                    Object *class_loader) {
@@ -649,6 +648,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
             memcpy(classblock->annotations->data, ptr, attr_length);
             ptr += attr_length;
 
+#ifdef JSR292
         } else if(attr_name == SYMBOL(BootstrapMethods)) {
             int num_methods, *offsets;
             u2 *indexes;
@@ -677,6 +677,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
             *offsets++ = (char*)indexes - data;
             classblock->bootstrap_methods = data;
+#endif
         } else
             ptr += attr_length;
     }
@@ -1869,7 +1870,9 @@ void freeClassData(Class *class) {
         return;
     }
 
+#ifdef JSR292
     freeResolvedPolyData(class);
+#endif
 
     gcPendingFree((void*)cb->constant_pool.type);
     gcPendingFree(cb->constant_pool.info);

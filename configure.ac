@@ -1,6 +1,6 @@
 ##
 ## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-## Robert Lougher <rob@jamvm.org.uk>.
+## 2013 Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
 ##
@@ -22,6 +22,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(jamvm, 1.6.0-devel)
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(src/jam.c)
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
@@ -211,9 +212,10 @@ AC_ARG_ENABLE(profile-stubs,
     [AS_HELP_STRING(--enable-profile-stubs,JNI stubs support profiling)],,)
 
 AC_ARG_WITH(java-runtime-library,
-    [AS_HELP_STRING(--with-java-runtime-library=[[[gnuclasspath|openjdk6|openjdk7]]],which Java runtime
-                    library interface to use (default gnuclasspath))],
-    [if test "$withval" != gnuclasspath -a "$withval" != openjdk6 -a "$withval" != openjdk7; then
+    [AS_HELP_STRING(--with-java-runtime-library=[[[gnuclasspath|openjdk6|openjdk7|openjdk8]]],
+                    which Java runtime library interface to use (default gnuclasspath))],
+    [if test "$withval" != gnuclasspath -a "$withval" != openjdk6 -a \
+             "$withval" != openjdk7 -a "$withval" != openjdk8; then
         AC_MSG_ERROR($withval Java runtime library is not supported)
      fi],
     [with_java_runtime_library=gnuclasspath])
@@ -226,8 +228,13 @@ fi
 
 AC_SUBST(classlib)
 
-if test "$with_java_runtime_library" != openjdk7; then
+if test "$with_java_runtime_library" = gnuclasspath -o \
+        "$with_java_runtime_library" = openjdk6; then
     AC_DEFINE([SHARED_CHAR_BUFFERS],1,[java.lang.String uses shared char buffers])
+fi
+
+if test "$with_java_runtime_library" = openjdk8; then
+    AC_DEFINE([JSR292],1,[support for JSR292 (invokedynamic)])
 fi
 
 AC_ARG_WITH(classpath-install-dir,

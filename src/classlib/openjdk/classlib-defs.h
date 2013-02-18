@@ -34,7 +34,7 @@
     action(cb, protection_domain, ## __VA_ARGS__);   \
     action(cb, signers, ## __VA_ARGS__)
 
-
+#ifdef JSR292
 #define ID_invokeGeneric   1
 #define ID_invokeBasic     2
 #define ID_linkToStatic    3
@@ -47,3 +47,11 @@ typedef struct cached_poly_offsets {
     int lmda_form_vmentry;
     int mthd_hndl_form;
 } CachedPolyOffsets;
+
+#define CLASSLIB_METHOD_ANNOTATIONS(mb, type_name) {                       \
+    if(type_name == SYMBOL(sig_java_lang_invoke_LambdaForm_Hidden))        \
+        mb->flags |= LAMBDA_HIDDEN;                                        \
+    else if(type_name == SYMBOL(sig_java_lang_invoke_LambdaForm_Compiled)) \
+        mb->flags |= LAMBDA_COMPILED;                                      \
+}
+#endif

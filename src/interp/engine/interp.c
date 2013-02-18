@@ -1553,6 +1553,7 @@ uintptr_t *executeJava() {
         REDISPATCH
     });)
 
+#ifdef JSR292
     DEF_OPC_RW(OPC_INVOKEDYNAMIC, ({
         int idx, cache;
         Operand operand;
@@ -1570,6 +1571,7 @@ uintptr_t *executeJava() {
         OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK, cache, operand);
         REDISPATCH
     });)
+#endif
 
     DEF_OPC_RW(OPC_MULTIANEWARRAY, ({
         int idx = pc->operand.uui.u1;
@@ -2167,6 +2169,7 @@ uintptr_t *executeJava() {
         goto invokeMethod;
     })
 
+#ifdef JSR292
     DEF_OPC_210(OPC_INVOKEHANDLE, {
         PolyMethodBlock *pmb = RESOLVED_POLYMETHOD(pc);
 
@@ -2222,6 +2225,7 @@ uintptr_t *executeJava() {
 
         goto invokeMethod;
     })
+#endif
 
     DEF_OPC_210(OPC_NEW_QUICK, {
         Class *class = RESOLVED_CLASS(pc);

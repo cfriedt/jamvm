@@ -43,6 +43,12 @@
     DEF_HANDLER_TABLES(0);
 #endif
 
+#ifdef JSR292
+#define J(opcode, level, label) L(opcode, level, label)
+#else
+#define J(opcode, level, label) &&unused
+#endif
+
 #define DEF_HANDLER_TABLE(level,label)               \
     HANDLER_TABLE_T *TBL_NAME(level,label)[] = {     \
         L(OPC_NOP,                    level, label), \
@@ -231,7 +237,7 @@
         L(OPC_INVOKESPECIAL,          level, label), \
         L(OPC_INVOKESTATIC,           level, label), \
         L(OPC_INVOKEINTERFACE,        level, label), \
-        L(OPC_INVOKEDYNAMIC,          level, label), \
+        J(OPC_INVOKEDYNAMIC,          level, label), \
         L(OPC_NEW,                    level, label), \
         L(OPC_NEWARRAY,               level, label), \
         L(OPC_ANEWARRAY,              level, label), \
@@ -293,12 +299,12 @@
         L(OPC_ABSTRACT_METHOD_ERROR,  level, label), \
         I(OPC_INLINE_REWRITER,        level, label), \
         I(OPC_PROFILE_REWRITER,       level, label), \
-        L(OPC_INVOKEHANDLE,           level, label), \
-        L(OPC_INVOKEDYNAMIC_QUICK,    level, label), \
-        L(OPC_INVOKEBASIC,            level, label), \
-        L(OPC_LINKTOSPECIAL,          level, label), \
-        L(OPC_LINKTOVIRTUAL,          level, label), \
-        L(OPC_LINKTOINTERFACE,        level, label), \
+        J(OPC_INVOKEHANDLE,           level, label), \
+        J(OPC_INVOKEDYNAMIC_QUICK,    level, label), \
+        J(OPC_INVOKEBASIC,            level, label), \
+        J(OPC_LINKTOSPECIAL,          level, label), \
+        J(OPC_LINKTOVIRTUAL,          level, label), \
+        J(OPC_LINKTOINTERFACE,        level, label), \
         &&unused,                                    \
         &&unused};
 

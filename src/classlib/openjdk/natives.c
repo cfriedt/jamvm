@@ -559,6 +559,7 @@ VMMethod sun_misc_unsafe[] = {
     {NULL,                     NULL, NULL}
 };
 
+#ifdef JSR292
 uintptr_t *MHN_registerNatives(Class *class, MethodBlock *mb,
                                uintptr_t *ostack) {
 
@@ -763,12 +764,15 @@ VMMethod method_handle[] = {
                                MH_invokeExact},
     {NULL,                     NULL, NULL}
 };
+#endif
 
 extern VMMethod sun_misc_perf[];
 
 VMClass native_methods[] = {
+#ifdef JSR292
     {"java/lang/invoke/MethodHandleNatives",      method_handle_natives},
     {"java/lang/invoke/MethodHandle",             method_handle},
+#endif
     {"sun/misc/Unsafe",                           sun_misc_unsafe},
     {"sun/misc/Perf",                             sun_misc_perf},
     {NULL,                                        NULL}
