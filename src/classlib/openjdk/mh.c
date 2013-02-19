@@ -699,26 +699,20 @@ retry:
 
 Object *findMethodHandleConstant(Class *class, int ref_kind,
                                  Class *defining_class,
-                                 char *methodname, char *type) {
+                                 char *name, char *type) {
 
-    // XXX type could be a method or field signature
-    // this works for method sig, but not for field
-    Object *name_str = findInternedString(createString(methodname));
-    Object *method_type = findMethodHandleType(type, class);
     Object *mh;
+    Object *name_str = findInternedString(createString(name));
+    Object *type_obj = type[0] == '(' ? findMethodHandleType(type, class)
+                                      : findClassFromSignature(type, class);
 
-#if 0
-    if(methodname != '(') {
-        signalException(java_lang_InternalError,
-                        "findMethodHandleConstant: unimplemented");
+    if(name_str == NULL || type_obj == NULL)
         return NULL;
-    }
-#endif
 
     mh = *(Object**)executeStaticMethod(MHN_linkMethodHandleConstant_mb->class,
                                         MHN_linkMethodHandleConstant_mb,
                                         class, ref_kind, defining_class,
-                                        name_str, method_type);
+                                        name_str, type_obj);
 
     if(exceptionOccurred())
         return NULL;
