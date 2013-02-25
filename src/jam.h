@@ -1003,9 +1003,13 @@ extern void stackTrace2Buffer(Frame *last, void **data, int max_depth);
 
 extern Object *convertStackTrace(Object *vmthrwble);
 extern Object *setStackTrace0(ExecEnv *ee, int max_depth);
+extern Object *exceptionEnumToException(int excep_enum);	
 
 #define exceptionOccurred0(ee) \
     ee->exception
+
+#define EXCEPTION(excep_name) \
+    exceptionEnumToException(EXCEPTION_ENUM(excep_name))
 
 #define signalException(excep_name, excep_mess) \
     signalChainedExceptionEnum(EXCEPTION_ENUM(excep_name), excep_mess, NULL)

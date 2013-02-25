@@ -37,6 +37,7 @@ static int inited = FALSE;
 static Class *exceptions[MAX_EXCEPTION_ENUM];
 
 static int exception_symbols[] = {
+    CLASSLIB_EXCEPTIONS_DO(SYMBOL_NAME_ENUM)
     EXCEPTIONS_DO(SYMBOL_NAME_ENUM)
 };
 
@@ -144,6 +145,10 @@ void signalChainedExceptionEnum(int excep_enum, char *message, Object *cause) {
     }
 
     signalChainedExceptionClass(exceptions[excep_enum], message, cause);
+}
+
+Object *exceptionEnumToException(int excep_enum) {
+    return exceptions[excep_enum];
 }
 
 void printException() {
