@@ -788,6 +788,7 @@ int cpType2PrimIdx(int type) {
 
 PolyMethodBlock *findInvokeDynamicInvoker(Class *class, char *methodname,
                                           char *type, int boot_mthd_idx) {
+    Object *exception;
     Object *boot_mthd;
     Object *method_type;
     Object *member_name;
@@ -846,10 +847,17 @@ PolyMethodBlock *findInvokeDynamicInvoker(Class *class, char *methodname,
                                                  method_type, args_array,
                                                  appendix_box);
 
-   // XXX Check for and intercept LinkageErrors
-
-    if(exceptionOccurred())
+    /* Intercept LinkageErrors */
+    if((exception = exceptionOccurred())) {
+        if(!isSubClassOf(EXCEPTION(java_lang_BootstrapMethodError),
+                         exception) &&
+           isSubClassOf(EXCEPTION(java_lang_LinkageError), exception)) {
+            clearException();
+            signalChainedException(java_lang_BootstrapMethodError,
+                                   NULL, exception);
+        }
         return NULL;
+    }
 
     pmb = sysMalloc(sizeof(PolyMethodBlock));
     pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
@@ -923,13 +931,13 @@ PolyMethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
         return NULL;
 
     member_name = *(Object**)executeStaticMethod(MHN_linkMethod_mb->class,
-                                             MHN_linkMethod_mb,
-                                             accessing_class,
-                                             REF_invokeVirtual,
-                                             class,
-                                             name_str,
-                                             method_type,
-                                             appendix_box);
+                                                 MHN_linkMethod_mb,
+                                                 accessing_class,
+                                                 REF_invokeVirtual,
+                                                 class,
+                                                 name_str,
+                                                 method_type,
+                                                 appendix_box);
 
     if(exceptionOccurred())
         return NULL;
