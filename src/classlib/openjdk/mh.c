@@ -1172,15 +1172,15 @@ throw_excep:
     switch(flags & ALL_KINDS) {
         case IS_METHOD:
         case IS_CONSTRUCTOR:
-            signalException(java_lang_NoSuchMethodError, NULL);
+            signalException(java_lang_NoSuchMethodError, "resolve member name");
             break;
 
         case IS_FIELD:
-            signalException(java_lang_NoSuchFieldError, NULL);
+            signalException(java_lang_NoSuchFieldError, "resolve member name");
             break;
 
         default:
-            signalException(java_lang_InternalError, "resolveMemberName");
+            signalException(java_lang_LinkageError, "resolve member name");
             break;
     }
     return NULL;
