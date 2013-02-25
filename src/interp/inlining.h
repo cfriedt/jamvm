@@ -45,7 +45,7 @@
 #define END_BEFORE_ENTRY -3
 
 #define FALLTHROUGH 1
-#define EXCEPTION   2
+#define HANDLER     2
 #define TARGET      4
 #define END         8
 

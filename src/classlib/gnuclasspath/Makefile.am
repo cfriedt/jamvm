@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+## Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
 ##
@@ -24,6 +24,6 @@ noinst_LTLIBRARIES = libclasslib.la
 libclasslib_la_SOURCES = thread.c class.c natives.c excep.c reflect.c \
                          dll.c jni.c properties.c annotations.c frame.c \
                          classlib.h classlib-symbol.h classlib-defs.h \
-                         alloc.c gnuclasspath.h
+                         alloc.c gnuclasspath.h classlib-excep.h
 
 AM_CPPFLAGS = -I$(top_builddir)/src -I$(top_srcdir)/src

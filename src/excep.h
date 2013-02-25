@@ -18,6 +18,8 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include "classlib-excep.h"
+
 #define EXCEPTIONS_DO(action) \
     action(java_lang_LinkageError), \
     action(java_lang_InternalError), \
@@ -50,6 +52,7 @@
 #define EXCEPTION_ENUM(name) exception_##name
 
 enum {
+    CLASSLIB_EXCEPTIONS_DO(EXCEPTION_ENUM)
     EXCEPTIONS_DO(EXCEPTION_ENUM),
     MAX_EXCEPTION_ENUM
 }; 

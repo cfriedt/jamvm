@@ -146,7 +146,7 @@ retry:
        exception */
     memset(info, FALSE, code_len + 1);
     for(i = 0; i < mb->exception_table_size; i++)
-        info[mb->exception_table[i].handler_pc] = EXCEPTION;
+        info[mb->exception_table[i].handler_pc] = HANDLER;
 #endif
 
     for(pass = 0; pass < 2; pass++) {

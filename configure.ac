@@ -376,6 +376,7 @@ AM_MAINTAINER_MODE
 AC_CONFIG_LINKS(src/arch.h:src/arch/$arch.h
                 src/classlib.h:src/classlib/$classlib/classlib.h
                 src/classlib-defs.h:src/classlib/$classlib/classlib-defs.h
+                src/classlib-excep.h:src/classlib/$classlib/classlib-excep.h
                 src/classlib-symbol.h:src/classlib/$classlib/classlib-symbol.h)
 
 AC_CONFIG_FILES(

@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011, 2012
+## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011, 2012, 2013
 ## Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -48,4 +48,5 @@ libcore_la_LIBADD = interp/libinterp.la os/@os@/@arch@/libnative.la \
 
 AM_CPPFLAGS = -I$(top_srcdir)/src/interp/engine
 
-DISTCLEANFILES = arch.h classlib.h classlib-defs.h classlib-symbol.h
+DISTCLEANFILES = arch.h classlib.h classlib-defs.h classlib-symbol.h \
+                 classlib-excep.h

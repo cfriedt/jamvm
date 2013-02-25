@@ -73,6 +73,7 @@
     action(java_lang_invoke_MethodType, "java/lang/invoke/MethodType"), \
     action(java_lang_invoke_MethodHandle, "java/lang/invoke/MethodHandle"), \
     action(sun_reflect_MagicAccessorImpl, "sun/reflect/MagicAccessorImpl"), \
+    action(java_lang_BootstrapMethodError, "java/lang/BootstrapMethodError"), \
     action(sun_reflect_MethodAccessorImpl, "sun/reflect/MethodAccessorImpl"), \
     action(sig_java_lang_invoke_LambdaForm, "Ljava/lang/invoke/LambdaForm;"), \
     action(sig_java_lang_invoke_MemberName, "Ljava/lang/invoke/MemberName;"), \

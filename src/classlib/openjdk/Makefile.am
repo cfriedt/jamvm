@@ -23,6 +23,6 @@ libclasslib_la_SOURCES = thread.c class.c natives.c excep.c reflect.c \
                          dll.c jni.c jvm.c properties.c openjdk.h \
                          trace.h management.c jmm.h access.c frame.c \
                          classlib.h classlib-symbol.h classlib-defs.h \
-                         shutdown.c alloc.c perf.c mh.c
+                         shutdown.c alloc.c perf.c mh.c classlib-excep.h
 
 AM_CPPFLAGS = -I$(top_builddir)/src -I$(top_srcdir)/src
