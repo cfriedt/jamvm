@@ -47,18 +47,6 @@
 #define DEBUG(fmt, ...)
 #endif
 
-#define static extern
-static Class *cons_reflect_class, *method_reflect_class;
-static Class *field_reflect_class;
-
-static MethodBlock *cons_init_mb, *fld_init_mb, *mthd_init_mb;
-
-static int cons_slot_offset, cons_class_offset, cons_param_offset;
-static int mthd_slot_offset, mthd_class_offset, mthd_ret_offset,
-           mthd_param_offset;
-static int fld_slot_offset, fld_class_offset;
-#undef static
-
 static int mem_name_clazz_offset, mem_name_name_offset,
            mem_name_type_offset, mem_name_flags_offset,
            mem_name_vmtarget_offset;
@@ -72,6 +60,14 @@ static MethodBlock *MHN_linkMethod_mb;
 static MethodBlock *MHN_linkCallSite_mb;
 static MethodBlock *MHN_findMethodType_mb;
 static MethodBlock *MHN_linkMethodHandleConstant_mb;
+
+/* Defined in reflect.c */
+extern Class *cons_reflect_class, *method_reflect_class;
+extern Class *field_reflect_class;
+
+extern int cons_slot_offset, cons_class_offset;
+extern int mthd_slot_offset, mthd_class_offset;
+extern int fld_slot_offset, fld_class_offset;
 
 #define CACHE_SIZE 1<<7
 static HashTable intrinsic_cache;

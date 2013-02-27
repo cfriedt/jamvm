@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -25,22 +25,19 @@
 #include "symbol.h"
 #include "reflect.h"
 
-#define static
-
-static Class *cons_reflect_class, *method_reflect_class;
-static Class *field_reflect_class;
-
-static MethodBlock *cons_init_mb, *fld_init_mb, *mthd_init_mb;
-
-static int cons_slot_offset, cons_class_offset, cons_param_offset;
-static int mthd_slot_offset, mthd_class_offset, mthd_ret_offset,
-           mthd_param_offset;
-static int fld_slot_offset, fld_class_offset;
-
-#undef static
-
 /* Accessed from frame.c */
 MethodBlock *mthd_invoke_mb;
+
+/* Accessed from mh.c */
+Class *cons_reflect_class, *method_reflect_class;
+Class *field_reflect_class;
+
+int cons_slot_offset, cons_class_offset;
+int mthd_slot_offset, mthd_class_offset;
+int fld_slot_offset, fld_class_offset;
+
+static MethodBlock *cons_init_mb, *fld_init_mb, *mthd_init_mb;
+static int cons_param_offset, mthd_ret_offset, mthd_param_offset;
 
 int classlibInitReflection() {
     Class *cons_ref_cls, *mthd_ref_cls, *fld_ref_cls;
