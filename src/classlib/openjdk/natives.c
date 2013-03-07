@@ -563,7 +563,7 @@ VMMethod sun_misc_unsafe[] = {
 uintptr_t *MHN_registerNatives(Class *class, MethodBlock *mb,
                                uintptr_t *ostack) {
 
-    TRACE("MNH_registerNatives");
+    TRACE("MNH_registerNatives\n");
 
     initialiseMethodHandles();
     return ostack;
@@ -584,7 +584,7 @@ uintptr_t *MHN_initMemberName(Class *class, MethodBlock *mb,
     Object *mname = (Object*)ostack[0];
     Object *target = (Object*)ostack[1];
 
-    TRACE("MNH_initMemberName");
+    TRACE("MNH_initMemberName\n");
 
     initMemberName(mname, target);
     return ostack;
