@@ -41,6 +41,7 @@ extern int jThreadIsAlive(Object *jthread);
 extern void *getJMMInterface(int version);
 
 extern void initialiseMethodHandles();
+extern void expandMemberName(Object *mname);
 extern void initMemberName(Object *mname, Object *target);
 extern long long memNameFieldOffset(Object *mname);
 extern long long memNameStaticFieldOffset(Object *mname);

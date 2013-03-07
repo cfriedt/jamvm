@@ -419,6 +419,48 @@ void initMemberName(Object *mname, Object *target) {
                         "initMemberName: unimplemented target");
 }
 
+void expandMemberName(Object *mname) {
+    void *vmtarget = INST_DATA(mname, void*, mem_name_vmtarget_offset);
+
+    if(vmtarget == NULL)
+        signalException(java_lang_IllegalArgumentException, "vmtarget");
+    else {
+        Object *name = INST_DATA(mname, Object*, mem_name_name_offset);
+        Object *type = INST_DATA(mname, Object*, mem_name_type_offset);
+        int flags = INST_DATA(mname, int, mem_name_flags_offset);
+
+        switch(flags & ALL_KINDS) {
+            case IS_METHOD:
+            case IS_CONSTRUCTOR: {
+                MethodBlock *mb = vmtarget;
+
+                if(name == NULL)
+                    INST_DATA(mname, Object*, mem_name_name_offset) =
+                                     findInternedString(createString(mb->name));
+                if(type == NULL)
+                    INST_DATA(mname, Object*, mem_name_type_offset) =
+                                     createString(mb->type);
+                break;
+            }
+
+            case IS_FIELD: {
+                FieldBlock *fb = vmtarget;
+
+                if(name == NULL)
+                    INST_DATA(mname, Object*, mem_name_name_offset) =
+                                     findInternedString(createString(fb->name));
+                if(type == NULL)
+                    INST_DATA(mname, Object*, mem_name_type_offset) =
+                                     getFieldType(fb);
+                break;
+            }
+
+            default:
+                signalException(java_lang_InternalError, "flags kind");
+        }
+    }
+}
+
 long long memNameFieldOffset(Object *mname) {
     FieldBlock *fb = INST_DATA(mname, FieldBlock*, mem_name_vmtarget_offset);
     return fb->u.offset;

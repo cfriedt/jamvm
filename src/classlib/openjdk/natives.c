@@ -594,10 +594,11 @@ uintptr_t *MHN_initMemberName(Class *class, MethodBlock *mb,
 uintptr_t *MHN_expandMemberName(Class *class, MethodBlock *mb,
                                 uintptr_t *ostack) {
 
+    Object *mname = (Object*)ostack[0];
+
     TRACE("MHN_expandMemberName\n");
 
-    signalException(java_lang_InternalError,
-                    "MHN_expandMemberName: unimplemented");
+    expandMemberName(mname);
     return ostack;
 }
 
