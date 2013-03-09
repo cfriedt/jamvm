@@ -393,13 +393,20 @@ void initMemberName(Object *mname, Object *target) {
 
         flags |= ref_kind << REFERENCE_KIND_SHIFT;
 
-        INST_DATA(mname, Class*, mem_name_clazz_offset) = mb->class;
+        INST_DATA(mname, Class*, mem_name_clazz_offset) = decl_class;
         INST_DATA(mname, int, mem_name_flags_offset) = flags;
         INST_DATA(mname, MethodBlock*, mem_name_vmtarget_offset) = mb;
 
    } else if(target->class == cons_reflect_class) {
-        signalException(java_lang_InternalError,
-                        "initMemberName: cons unimplemented");
+        int slot = INST_DATA(target, int, cons_slot_offset);
+        Class *decl_class = INST_DATA(target, Class*, cons_class_offset);
+        MethodBlock *mb = &(CLASS_CB(decl_class)->methods[slot]);
+        int flags = mb->access_flags | IS_CONSTRUCTOR |
+                    (REF_invokeSpecial << REFERENCE_KIND_SHIFT);
+
+        INST_DATA(mname, Class*, mem_name_clazz_offset) = decl_class;
+        INST_DATA(mname, int, mem_name_flags_offset) = flags;
+        INST_DATA(mname, MethodBlock*, mem_name_vmtarget_offset) = mb;
 
    } else if(target->class == field_reflect_class) {
         Class *decl_class = INST_DATA(target, Class*, fld_class_offset);
@@ -411,7 +418,7 @@ void initMemberName(Object *mname, Object *target) {
                                                 : REF_getField)
                   << REFERENCE_KIND_SHIFT;
 
-        INST_DATA(mname, Class*, mem_name_clazz_offset) = fb->class;
+        INST_DATA(mname, Class*, mem_name_clazz_offset) = decl_class;
         INST_DATA(mname, int, mem_name_flags_offset) = flags;
         INST_DATA(mname, FieldBlock*, mem_name_vmtarget_offset) = fb;
    } else
