@@ -1131,20 +1131,14 @@ retry:
     return pmb;
 }
 
-// (Ljava/lang/invoke/MemberName;Ljava/lang/Class;)V
 Object *resolveMemberName(Class *mh_class, Object *mname) {
-    char *name_utf, *name_sym, *type_sym;
-    Object *name_str, *type;
-    Class *clazz;
-    int ref_kind;
-    int name_id;
-    int flags;
 
-    clazz = INST_DATA(mname, Class*, mem_name_clazz_offset);
-    name_str = INST_DATA(mname, Object*, mem_name_name_offset);
-    type = INST_DATA(mname, Object*, mem_name_type_offset);
-    flags = INST_DATA(mname, int, mem_name_flags_offset);
-    ref_kind = (flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK;
+    Object *name_str = INST_DATA(mname, Object*, mem_name_name_offset);
+    Class *clazz = INST_DATA(mname, Class*, mem_name_clazz_offset);
+    Object *type = INST_DATA(mname, Object*, mem_name_type_offset);
+    int flags = INST_DATA(mname, int, mem_name_flags_offset);
+    char *name_utf, *name_sym, *type_sym;
+    int name_id;
 
     if(clazz == NULL || name_str == NULL || type == NULL) {
         signalException(java_lang_IllegalArgumentException, NULL);
@@ -1191,6 +1185,8 @@ Object *resolveMemberName(Class *mh_class, Object *mname) {
             if(mb == NULL)
                 goto throw_excep;
 
+            flags |= mb->access_flags;
+            INST_DATA(mname, int, mem_name_flags_offset) = flags;
             INST_DATA(mname, MethodBlock*, mem_name_vmtarget_offset) = mb;
             break;
         }
