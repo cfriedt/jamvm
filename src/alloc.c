@@ -1512,6 +1512,11 @@ marked_phase2:
     /* Free conservative roots hash table */
     gcMemFree(con_roots_hashtable);
     
+    /* Class library specific post compact processing - this
+       is currently limited to the JSR 292 intrinsic cache
+       on OpenJDK */
+    classlibPostCompact();
+
     if(verbosegc) {
         long long size = heaplimit-heapbase;
         long long pcnt_used = ((long long)heapfree)*100/size;

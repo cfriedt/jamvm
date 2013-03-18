@@ -143,6 +143,14 @@ extern void classlibVMShutdown();
 
 extern void classlibHandleUnmarkedSpecial(Object *ob);
 
+#ifdef JSR292
+#define classlibPostCompact() \
+    updateIntrinsicCache()
+#else
+#define classlibPostCompact() \
+    /* NOTHING TO DO */
+#endif
+
 /* Method Handles */
 
 #ifdef JSR292
@@ -157,6 +165,7 @@ extern MethodBlock *lookupPolymorphicMethod(Class *class,
                                             char *methodname, char *type);
 extern void cachePolyOffsets(CachedPolyOffsets *cpo);
 extern void freeResolvedPolyData(Class *class);
+extern updateIntrinsicCache();
 
 #define mbPolymorphicNameID(mb) (mb->flags >> POLY_NAMEID_SHIFT)
 

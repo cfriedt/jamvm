@@ -145,3 +145,6 @@ extern Frame *classlibGetCallerFrame(Frame *last, int depth);
 
 extern void classlibMarkSpecial(Object *ob, int mark);
 extern void classlibHandleUnmarkedSpecial(Object *ob);
+
+#define classlibPostCompact() \
+    /* NOTHING TO DO */

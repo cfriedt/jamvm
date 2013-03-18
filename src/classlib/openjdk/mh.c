@@ -61,6 +61,8 @@ static MethodBlock *MHN_linkCallSite_mb;
 static MethodBlock *MHN_findMethodType_mb;
 static MethodBlock *MHN_linkMethodHandleConstant_mb;
 
+static Class *method_handle_class;
+
 /* Defined in reflect.c */
 extern Class *cons_reflect_class, *method_reflect_class;
 extern Class *field_reflect_class;
@@ -161,6 +163,8 @@ void initialiseMethodHandles() {
     }
 
     mthd_hndl_form_offset = form_fb->u.offset;
+
+    registerStaticClassRefLocked(&method_handle_class, method_handle);
 
     lambda_form = findSystemClass0(SYMBOL(java_lang_invoke_LambdaForm));
 
@@ -994,6 +998,8 @@ PolyMethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
     return pmb;
 }
 
+/* Intrinsic cache hashtable definitions */
+
 #define HASH(ptr) ((ptr->flags * 31 + ptr->args_count) * 31 + \
                   ptr->ret_slot_size)
 
@@ -1015,6 +1021,17 @@ PolyMethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
     ptr2->ref_count++;                                        \
     ptr2;                                                     \
 })
+
+#define ITERATE(ptr) ((MethodBlock*)ptr)->class = method_handle_class
+
+/* Called after heap compaction to update the intrinsic method class
+   references.  The method handle class may have moved and as the
+   intrinsic methods are not part of the class methods they won't get
+   updated normally */
+
+void updateIntrinsicCache() {
+    hashIterate(intrinsic_cache);
+}
 
 MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
                                      char *methodname, char *type) {
