@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * Robert Lougher <rob@jamvm.org.uk>.
+ * 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -544,6 +544,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
             Object **body = ARRAY_DATA(ob, Object*);
             int len = ARRAY_LEN(ob);
             int i;
+
             TRACE_GC("Scanning Array object @%p class is %s len is %d\n",
                      ob, cb->name, len);
 
@@ -566,42 +567,41 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
                 TRACE_GC("Found class object @%p name is %s\n", ob,
                          CLASS_CB(ob)->name);
                 markClassData(ob, mark);
-            } else
-                if(IS_CLASS_LOADER(cb)) {
-                    TRACE_GC("Mark found class loader object @%p class %s\n",
-                             ob, cb->name);
-                    markLoaderClasses(ob, mark);
-                } else
-                    if(IS_REFERENCE(cb)) {
-                        Object *referent = INST_DATA(ob, Object*,
-                                                     ref_referent_offset);
 
-                        TRACE_GC("Mark found Reference object @%p class %s"
-                                 " flags %d referent @%p\n",
-                             ob, cb->name, cb->flags, referent);
+            } else if(IS_CLASS_LOADER(cb)) {
+                TRACE_GC("Mark found class loader object @%p class %s\n",
+                         ob, cb->name);
+                markLoaderClasses(ob, mark);
 
-                        if(!IS_WEAK_REFERENCE(cb) && referent != NULL) {
-                            int ref_mark = IS_MARKED(referent);
-                            int new_mark;
+            } else if(IS_REFERENCE(cb)) {
+                Object *referent = INST_DATA(ob, Object*, ref_referent_offset);
 
-                            if(IS_PHANTOM_REFERENCE(cb))
-                                new_mark = PHANTOM_MARK;
-                            else
-                                if(!IS_SOFT_REFERENCE(cb) || mark_soft_refs)
-                                    new_mark = mark;
-                                else
-                                    new_mark = 0;
+                TRACE_GC("Mark found Reference object @%p class %s"
+                         " flags %d referent @%p\n",
+                         ob, cb->name, cb->flags, referent);
 
-                            if(new_mark > ref_mark) {
-                                TRACE_GC("Marking referent object @%p mark %d"
-                                         " ref_mark %d new_mark %d\n",
-                                         referent, mark, ref_mark, new_mark);
-                                MARK_AND_PUSH(referent, new_mark);
-                            }
-                        }
-                    } else
-                        if(IS_CLASSLIB_SPECIAL(cb))
-                            classlibMarkSpecial(ob, mark);
+                if(!IS_WEAK_REFERENCE(cb) && referent != NULL) {
+                    int ref_mark = IS_MARKED(referent);
+                    int new_mark;
+
+                    if(IS_PHANTOM_REFERENCE(cb))
+                        new_mark = PHANTOM_MARK;
+                    else
+                        if(!IS_SOFT_REFERENCE(cb) || mark_soft_refs)
+                            new_mark = mark;
+                        else
+                            new_mark = 0;
+
+                    if(new_mark > ref_mark) {
+                        TRACE_GC("Marking referent object @%p mark %d"
+                                 " ref_mark %d new_mark %d\n",
+                                 referent, mark, ref_mark, new_mark);
+                        MARK_AND_PUSH(referent, new_mark);
+                    }
+                }
+
+            } else if(IS_CLASSLIB_SPECIAL(cb))
+                classlibMarkSpecial(ob, mark);
         }
 
         TRACE_GC("Scanning object @%p class is %s\n", ob, cb->name);
@@ -1233,6 +1233,7 @@ int threadChildren(Object *ob, Object *new_addr) {
             Object **body = ARRAY_DATA(ob, Object*);
             int len = ARRAY_LEN(ob);
             int i;
+
             TRACE_COMPACT("Scanning Array object @%p class is %s len is %d\n",
                           ob, cb->name, len);
 
@@ -1249,53 +1250,55 @@ int threadChildren(Object *ob, Object *new_addr) {
     } else {
         int i;
 
-        if(IS_CLASS_CLASS(cb)) {
-            TRACE_COMPACT("Found class object @%p name is %s\n",
-                          ob, CLASS_CB(ob)->name);
-            threadClassData(ob, new_addr);
-        } else
-            if(IS_CLASS_LOADER(cb)) {
+        if(IS_SPECIAL(cb)) {
+            if(IS_CLASS_CLASS(cb)) {
+                TRACE_COMPACT("Found class object @%p name is %s\n",
+                              ob, CLASS_CB(ob)->name);
+                threadClassData(ob, new_addr);
+
+            } else if(IS_CLASS_LOADER(cb)) {
                 TRACE_COMPACT("Found class loader object @%p class %s\n",
                               ob, cb->name);
                 threadLoaderClasses(ob);
-            } else
-                if(IS_REFERENCE(cb)) {
-                    Object **referent = &INST_DATA(ob, Object*,
-                                                   ref_referent_offset);
 
-                    if(*referent != NULL) {
-                        int ref_mark = IS_MARKED(*referent);
+            } else if(IS_REFERENCE(cb)) {
+                Object **referent = &INST_DATA(ob, Object*,
+                                               ref_referent_offset);
 
-                        TRACE_GC("Found Reference Object @%p class %s flags"
-                                 " %d referent %x mark %d\n", ob, cb->name,
-                                 cb->flags, *referent, ref_mark);
+                if(*referent != NULL) {
+                    int ref_mark = IS_MARKED(*referent);
 
-                        if(IS_PHANTOM_REFERENCE(cb)) {
-                            if(ref_mark != PHANTOM_MARK)
-                                goto out;
-                        } else {
-                            if(ref_mark == HARD_MARK)
-                                goto out;
+                    TRACE_GC("Found Reference Object @%p class %s flags"
+                             " %d referent %x mark %d\n", ob, cb->name,
+                             cb->flags, *referent, ref_mark);
 
-                            TRACE_GC("Clearing the referent field.\n");
-                            *referent = NULL;
-                            cleared = TRUE;
-                        }
+                    if(IS_PHANTOM_REFERENCE(cb)) {
+                        if(ref_mark != PHANTOM_MARK)
+                            goto out;
+                    } else {
+                        if(ref_mark == HARD_MARK)
+                            goto out;
 
-                        /* If the reference has a queue, add it to the list
-                           for enqueuing by the Reference Handler thread. */
-
-                        if(INST_DATA(ob, Object*, ref_queue_offset) != NULL) {
-                            TRACE_GC("Adding to list for enqueuing.\n");
-
-                            ADD_TO_OBJECT_LIST(reference, ob);
-                            notify_reference_thread = TRUE;
-                        }
-out:
-                        if(!cleared)
-                            THREAD_REFERENCE(referent);
+                        TRACE_GC("Clearing the referent field.\n");
+                        *referent = NULL;
+                        cleared = TRUE;
                     }
+
+                    /* If the reference has a queue, add it to the list
+                       for enqueuing by the Reference Handler thread. */
+
+                    if(INST_DATA(ob, Object*, ref_queue_offset) != NULL) {
+                        TRACE_GC("Adding to list for enqueuing.\n");
+
+                        ADD_TO_OBJECT_LIST(reference, ob);
+                        notify_reference_thread = TRUE;
+                    }
+out:
+                    if(!cleared)
+                        THREAD_REFERENCE(referent);
                 }
+            }
+        }
 
         TRACE_COMPACT("Scanning object @%p class is %s\n", ob, cb->name);
 
