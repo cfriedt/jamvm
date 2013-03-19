@@ -97,17 +97,19 @@ void initialiseMethodHandles() {
     }
 
     clazz_fb = findField(member_name, SYMBOL(clazz),
-                                        SYMBOL(sig_java_lang_Class));
+                                      SYMBOL(sig_java_lang_Class));
 
     name_fb = findField(member_name, SYMBOL(name),
-                                        SYMBOL(sig_java_lang_String));
+                                     SYMBOL(sig_java_lang_String));
 
     type_fb = findField(member_name, SYMBOL(type),
-                                        SYMBOL(sig_java_lang_Object));
+                                     SYMBOL(sig_java_lang_Object));
 
     flags_fb = findField(member_name, SYMBOL(flags), SYMBOL(I));
 
-    vmtarget_fb = findField(member_name, SYMBOL(vmtarget), SYMBOL(J));
+    vmtarget_fb = findField(member_name, SYMBOL(vmtarget),
+                                         sizeof(void*) == 4 ? SYMBOL(I)
+                                                            : SYMBOL(J));
 
     if(clazz_fb == NULL || name_fb == NULL || type_fb == NULL
                         || vmtarget_fb == NULL || flags_fb == NULL) {
