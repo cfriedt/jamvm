@@ -41,12 +41,6 @@
 #define TRACE(fmt, ...)
 #endif
 
-#if 0
-#define DEBUG(fmt, ...) printf(fmt, ## __VA_ARGS__)
-#else
-#define DEBUG(fmt, ...)
-#endif
-
 int classlibInitialiseNatives() {
     Class *field_accessor;
     FieldBlock *base_fb = NULL;

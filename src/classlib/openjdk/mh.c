@@ -41,12 +41,6 @@
 #define TRACE(fmt, ...)
 #endif
 
-#if 0
-#define DEBUG(fmt, ...) printf(fmt, ## __VA_ARGS__)
-#else
-#define DEBUG(fmt, ...)
-#endif
-
 static int mem_name_clazz_offset, mem_name_name_offset,
            mem_name_type_offset, mem_name_flags_offset,
            mem_name_vmtarget_offset;
