@@ -34,13 +34,6 @@
 #include "reflect.h"
 #include "openjdk.h"
 
-#if 0
-//#define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
-#define TRACE(fmt, ...) printf(fmt, ## __VA_ARGS__)
-#else
-#define TRACE(fmt, ...)
-#endif
-
 static int mem_name_clazz_offset, mem_name_name_offset,
            mem_name_type_offset, mem_name_flags_offset,
            mem_name_vmtarget_offset;

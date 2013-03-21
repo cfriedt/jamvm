@@ -33,13 +33,7 @@
 #include "reflect.h"
 #include "natives.h"
 #include "openjdk.h"
-
-#if 0
-//#define TRACE(fmt, ...) jam_printf(fmt, ## __VA_ARGS__)
-#define TRACE(fmt, ...) printf(fmt, ## __VA_ARGS__)
-#else
-#define TRACE(fmt, ...)
-#endif
+#include "trace.h"
 
 int classlibInitialiseNatives() {
     Class *field_accessor;
