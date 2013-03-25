@@ -682,10 +682,11 @@ Object *findMethodHandleType(char *type, Class *accessing_class) {
     if(ptypes == NULL || rtype == NULL)
         return NULL;
 
-    // XXX invokedynamic executed but Java-level stuff hasn't
-    // been initialised - find better way to fix this
+    /* An invokedynamic bytecode can be executed without MethodHandleNatives
+       being initialised, so initialiseMethodHandles will not have been
+       called (via registerNatives) */
     if(MHN_findMethodType_mb == NULL)
-        initialiseMethodHandles();
+        findSystemClass(SYMBOL(java_lang_invoke_MethodHandleNatives));
 
     method_type = *(Object**)executeStaticMethod(MHN_findMethodType_mb->class,
                                                  MHN_findMethodType_mb, rtype,
