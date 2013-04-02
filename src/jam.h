@@ -416,6 +416,22 @@ typedef struct object {
    Class *class;
 } Object;
 
+typedef struct annotation_data {
+   u1 *data;
+   int len;
+} AnnotationData;
+
+typedef union annotations {
+    struct {
+        AnnotationData *class;
+        AnnotationData **field;
+        AnnotationData **method;
+        AnnotationData **method_parameters;
+        AnnotationData **method_default_val;
+    };
+    void *data[5];
+} Annotations;
+
 #ifdef DIRECT
 typedef union ins_operand {
     uintptr_t u;
@@ -515,17 +531,6 @@ typedef Instruction *CodePntr;
 typedef unsigned char *CodePntr;
 #endif
 
-typedef struct annotation_data {
-   u1 *data;
-   int len;
-} AnnotationData;
-
-typedef struct method_annotation_data {
-    AnnotationData *annotations;
-    AnnotationData *parameters;
-    AnnotationData *dft_val;
-} MethodAnnotationData;
-
 typedef struct methodblock MethodBlock;
 typedef uintptr_t *(*NativeMethod)(Class*, MethodBlock*, uintptr_t*);
 
@@ -565,7 +570,6 @@ struct methodblock {
        };
    };
    int method_table_index;
-   MethodAnnotationData *annotations;
 #ifdef INLINING
    QuickPrepareInfo *quick_prepare_info;
    ProfileInfo *profile_info;
@@ -584,7 +588,6 @@ typedef struct fieldblock {
    char *signature;
    u2 access_flags;
    u2 constant;
-   AnnotationData *annotations;
    union {
        union {
            char data[8];
@@ -643,7 +646,7 @@ typedef struct classblock {
    u2 enclosing_class;
    u2 enclosing_method;
    char *bootstrap_methods;
-   AnnotationData *annotations;
+   Annotations *annotations;
    CLASSLIB_CLASS_EXTRA_FIELDS
 } ClassBlock;
 

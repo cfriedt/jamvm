@@ -76,7 +76,6 @@ extern Object *classlibSkipReflectionLoader(Object *loader);
     field->name = SYMBOL(vmtarget);                           \
     field->type = sizeof(void*) == 4 ? SYMBOL(I) : SYMBOL(J); \
     field->access_flags = ACC_PRIVATE;                        \
-    field->annotations = NULL;                                \
     field->signature = NULL;                                  \
 }
 #else

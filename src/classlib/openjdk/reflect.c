@@ -24,6 +24,7 @@
 #include "excep.h"
 #include "symbol.h"
 #include "reflect.h"
+#include "annotations.h"
 
 /* Accessed from frame.c */
 MethodBlock *mthd_invoke_mb;
@@ -126,10 +127,8 @@ Object *getAnnotationsAsArray(AnnotationData *annotations) {
 }
 
 Object *classlibCreateConstructorObject(MethodBlock *mb) {
-    AnnotationData *annotations = mb->annotations == NULL ? NULL
-                                         : mb->annotations->annotations;
-    AnnotationData *parameters = mb->annotations == NULL ? NULL
-                                         : mb->annotations->parameters;
+    AnnotationData *annotations = getMethodAnnotationData(mb);
+    AnnotationData *parameters = getMethodParameterAnnotationData(mb);
     Object *reflect_ob;
 
     if((reflect_ob = allocObject(cons_reflect_class)) == NULL)
@@ -150,12 +149,9 @@ Object *classlibCreateConstructorObject(MethodBlock *mb) {
 }
 
 Object *classlibCreateMethodObject(MethodBlock *mb) {
-    AnnotationData *annotations = mb->annotations == NULL ? NULL
-                                         : mb->annotations->annotations;
-    AnnotationData *dft_val = mb->annotations == NULL ? NULL
-                                         : mb->annotations->dft_val;
-    AnnotationData *parameters = mb->annotations == NULL ? NULL
-                                         : mb->annotations->parameters;
+    AnnotationData *annotations = getMethodAnnotationData(mb);
+    AnnotationData *dft_val = getMethodDefaultValueAnnotationData(mb);
+    AnnotationData *parameters = getMethodParameterAnnotationData(mb);
     Object *reflect_ob;
 
     if((reflect_ob = allocObject(method_reflect_class)) == NULL)
@@ -179,6 +175,7 @@ Object *classlibCreateMethodObject(MethodBlock *mb) {
 }
 
 Object *classlibCreateFieldObject(FieldBlock *fb) {
+    AnnotationData *annotations = getFieldAnnotationData(fb);
     Object *reflect_ob;
 
     if((reflect_ob = allocObject(field_reflect_class)) == NULL)
@@ -192,7 +189,7 @@ Object *classlibCreateFieldObject(FieldBlock *fb) {
         fb - CLASS_CB(fb->class)->fields,
         fb->signature == NULL ? NULL
                       : findInternedString(createString(fb->signature)),
-        getAnnotationsAsArray(fb->annotations));
+        getAnnotationsAsArray(annotations));
  
     return reflect_ob;
 }

@@ -184,33 +184,54 @@ u1 *skipAnnotation(u1 *data_ptr, int *data_len) {
     return data_ptr;
 }
 
-void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb) {
-    if(mb->annotations->annotations != NULL) {
-        u1 *data_ptr = mb->annotations->annotations->data;
-        int data_len = mb->annotations->annotations->len;
-        int no_annos, i;
+void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb,
+                            u1 *data_ptr, int data_len) {
+    int no_annos, i;
 
-        READ_U2(no_annos, data_ptr, data_len);
+    READ_U2(no_annos, data_ptr, data_len);
 
-        for(i = 0; i < no_annos; i++) {
-            u1 *ptr = data_ptr;
-            char *type_name;
-            int type_idx;
+    for(i = 0; i < no_annos; i++) {
+        u1 *ptr = data_ptr;
+        char *type_name;
+        int type_idx;
 
-            data_ptr = skipAnnotation(data_ptr, &data_len);
+        data_ptr = skipAnnotation(data_ptr, &data_len);
 
-            READ_TYPE_INDEX(type_idx, cp, CONSTANT_Utf8, ptr, 2);
-            type_name = findUtf8(CP_UTF8(cp, type_idx));
+        READ_TYPE_INDEX(type_idx, cp, CONSTANT_Utf8, ptr, 2);
+        type_name = findUtf8(CP_UTF8(cp, type_idx));
 
-            if(type_name != NULL)
-                CLASSLIB_METHOD_ANNOTATIONS(mb, type_name);
-        }
+        if(type_name != NULL)
+            CLASSLIB_METHOD_ANNOTATIONS(mb, type_name);
     }
 }
 #else
-void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb) {
+void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb,
+                            u1 *data_ptr, int data_len) {
 }
 #endif
+
+static void _setIndexedAnnotation(AnnotationData ***annotations,
+                                  int index, char *data, int len,
+                                  int size) {
+    if(*annotations == NULL) {
+        *annotations = sysMalloc(size * sizeof(AnnotationData*));
+        memset(*annotations, 0, size * sizeof(AnnotationData*));
+    }
+
+    (*annotations)[index] = sysMalloc(sizeof(AnnotationData));
+    (*annotations)[index]->len = len;
+    (*annotations)[index]->data = sysMalloc(len);
+    memcpy((*annotations)[index]->data, data, len);
+}
+
+#define setIndexedAnnotation(annotations, index, data, len, size) \
+    _setIndexedAnnotation(&annotations, index, data, len, size)
+
+#define setSingleAnnotation(annotations, _data, _len) \
+    annotations = sysMalloc(sizeof(AnnotationData));  \
+    annotations->len = _len;                          \
+    annotations->data = sysMalloc(_len);              \
+    memcpy(annotations->data, _data, _len);
 
 Class *parseClass(char *classname, char *data, int offset, int len,
                    Object *class_loader) {
@@ -220,6 +241,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
     unsigned char *ptr = (unsigned char *)data + offset;
     ConstantPool *constant_pool;
     Class **interfaces, *class;
+    Annotations annotations;
     ClassBlock *classblock;
     u4 magic;
 
@@ -369,6 +391,8 @@ Class *parseClass(char *classname, char *data, int offset, int len,
            return NULL; 
     }
 
+    memset(&annotations, 0, sizeof(Annotations));
+
     READ_U2(classblock->fields_count, ptr, len);
     injected_fields_count = classlibInjectedFieldsCount(classblock->name);
     classblock->fields_count += injected_fields_count;
@@ -387,7 +411,6 @@ Class *parseClass(char *classname, char *data, int offset, int len,
         READ_TYPE_INDEX(type_idx, constant_pool, CONSTANT_Utf8, ptr, len);
         field->name = CP_UTF8(constant_pool, name_idx);
         field->type = CP_UTF8(constant_pool, type_idx);
-        field->annotations = NULL;
         field->signature = NULL;
         field->constant = 0;
 
@@ -420,12 +443,10 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                 field->signature = CP_UTF8(constant_pool, signature_idx);
 
             } else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
-                field->annotations = sysMalloc(sizeof(AnnotationData));
-                field->annotations->len = attr_length;
-                field->annotations->data = sysMalloc(attr_length);
-                memcpy(field->annotations->data, ptr, attr_length);
+                setIndexedAnnotation(annotations.field,
+                                     field - classblock->fields, ptr,
+                                     attr_length, classblock->fields_count); 
                 ptr += attr_length;
-
             } else
                 ptr += attr_length;
         }
@@ -439,10 +460,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
     for(i = 0; i < classblock->methods_count; i++) {
         MethodBlock *method = &classblock->methods[i];
-        MethodAnnotationData annos;
         u2 name_idx, type_idx;
-
-        memset(&annos, 0, sizeof(MethodAnnotationData));
 
         READ_U2(method->access_flags, ptr, len);
         READ_TYPE_INDEX(name_idx, constant_pool, CONSTANT_Utf8, ptr, len);
@@ -484,7 +502,6 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
                 for(j = 0; j < method->exception_table_size; j++) {
                     ExceptionTableEntry *entry = &method->exception_table[j];              
-
                     READ_U2(entry->start_pc, ptr, len);
                     READ_U2(entry->end_pc, ptr, len);
                     READ_U2(entry->handler_pc, ptr, len);
@@ -533,35 +550,27 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                 method->signature = CP_UTF8(constant_pool, signature_idx);
 
             } else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
-                annos.annotations = sysMalloc(sizeof(AnnotationData));
-                annos.annotations->len = attr_length;
-                annos.annotations->data = sysMalloc(attr_length);
-                memcpy(annos.annotations->data, ptr, attr_length);
+                setIndexedAnnotation(annotations.method,
+                                     method - classblock->methods, ptr,
+                                     attr_length, classblock->methods_count); 
+
+                parseMethodAnnotations(constant_pool, method, ptr,
+                                       attr_length);
                 ptr += attr_length;
 
             } else if(attr_name == SYMBOL(RuntimeVisibleParameterAnnotations)) {
-                annos.parameters = sysMalloc(sizeof(AnnotationData));
-                annos.parameters->len = attr_length;
-                annos.parameters->data = sysMalloc(attr_length);
-                memcpy(annos.parameters->data, ptr, attr_length);
+                setIndexedAnnotation(annotations.method_parameters,
+                                     method - classblock->methods, ptr,
+                                     attr_length, classblock->methods_count); 
                 ptr += attr_length;
 
             } else if(attr_name == SYMBOL(AnnotationDefault)) {
-                annos.dft_val = sysMalloc(sizeof(AnnotationData));
-                annos.dft_val->len = attr_length;
-                annos.dft_val->data = sysMalloc(attr_length);
-                memcpy(annos.dft_val->data, ptr, attr_length);
+                setIndexedAnnotation(annotations.method_default_val,
+                                     method - classblock->methods, ptr,
+                                     attr_length, classblock->methods_count); 
                 ptr += attr_length;
             } else
                 ptr += attr_length;
-        }
-
-        if(annos.annotations != NULL || annos.parameters != NULL
-                                     || annos.dft_val != NULL) {
-            method->annotations = sysMalloc(sizeof(MethodAnnotationData));
-            memcpy(method->annotations, &annos, sizeof(MethodAnnotationData));
-
-            parseMethodAnnotations(constant_pool, method);
         }
     }
 
@@ -642,10 +651,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
             classblock->access_flags |= ACC_SYNTHETIC;
 
         else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
-            classblock->annotations = sysMalloc(sizeof(AnnotationData));
-            classblock->annotations->len = attr_length;
-            classblock->annotations->data = sysMalloc(attr_length);
-            memcpy(classblock->annotations->data, ptr, attr_length);
+            setSingleAnnotation(annotations.class, ptr, attr_length);
             ptr += attr_length;
 
 #ifdef JSR292
@@ -680,6 +686,14 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 #endif
         } else
             ptr += attr_length;
+    }
+
+    for(i = 0; i < sizeof(Annotations)/sizeof(void*)
+                      && annotations.data[i] == NULL; i++);
+
+    if(i < sizeof(Annotations)/sizeof(void*)) {
+        classblock->annotations = sysMalloc(sizeof(Annotations));
+        memcpy(classblock->annotations, &annotations, sizeof(Annotations));
     }
 
     if(super_idx) {
@@ -1861,6 +1875,27 @@ void threadLoaderClasses(Object *class_loader) {
     }
 }
 
+static void freeIndexedAnnotations(AnnotationData **annotations, int size) {
+    int i;
+
+    if(annotations == NULL)
+        return;
+
+    for(i = 0; i < size; i++)
+        if(annotations[i] != NULL) {
+            gcPendingFree(annotations[i]->data);
+            gcPendingFree(annotations[i]);
+        }
+
+    gcPendingFree(annotations);
+}
+
+#define freeSingleAnnotations(annotations) \
+    if(annotations != NULL) {              \
+        gcPendingFree(annotations->data);  \
+        gcPendingFree(annotations);        \
+    }
+
 void freeClassData(Class *class) {
     ClassBlock *cb = CLASS_CB(class);
     int i;
@@ -1877,16 +1912,6 @@ void freeClassData(Class *class) {
     gcPendingFree((void*)cb->constant_pool.type);
     gcPendingFree(cb->constant_pool.info);
     gcPendingFree(cb->interfaces);
-
-    for(i = 0; i < cb->fields_count; i++) {
-        FieldBlock *fb = &cb->fields[i];
-
-        if(fb->annotations != NULL) {
-            gcPendingFree(fb->annotations->data);
-            gcPendingFree(fb->annotations);
-        }
-    }
-
     gcPendingFree(cb->fields);
 
     for(i = 0; i < cb->methods_count; i++) {
@@ -1918,29 +1943,21 @@ void freeClassData(Class *class) {
             gcPendingFree(mb->line_no_table);
         }
         gcPendingFree(mb->throw_table);
-
-        if(mb->annotations != NULL) {
-            if(mb->annotations->annotations != NULL) {
-                gcPendingFree(mb->annotations->annotations->data);
-                gcPendingFree(mb->annotations->annotations);
-            }
-            if(mb->annotations->parameters != NULL) {
-                gcPendingFree(mb->annotations->parameters->data);
-                gcPendingFree(mb->annotations->parameters);
-            }
-            if(mb->annotations->dft_val != NULL) {
-                gcPendingFree(mb->annotations->dft_val->data);
-                gcPendingFree(mb->annotations->dft_val);
-            }
-            gcPendingFree(mb->annotations);
-        }
     } 
 
     gcPendingFree(cb->methods);
     gcPendingFree(cb->inner_classes);
 
     if(cb->annotations != NULL) {
-        gcPendingFree(cb->annotations->data);
+        freeSingleAnnotations(cb->annotations->class);
+
+        freeIndexedAnnotations(cb->annotations->field, cb->fields_count);
+        freeIndexedAnnotations(cb->annotations->method, cb->methods_count);
+        freeIndexedAnnotations(cb->annotations->method_parameters,
+                               cb->methods_count);
+        freeIndexedAnnotations(cb->annotations->method_default_val,
+                               cb->methods_count);
+
         gcPendingFree(cb->annotations);
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011, 2012 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012, 2013  Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -50,6 +50,7 @@
 #include "openjdk.h"
 #include "classlib.h"
 #include "properties.h"
+#include "annotations.h"
 #include "trace.h"
 
 #define JVM_INTERFACE_VERSION 4
@@ -844,11 +845,9 @@ jstring JVM_GetClassSignature(JNIEnv *env, jclass cls) {
 /* JVM_GetClassAnnotations */
 
 jbyteArray JVM_GetClassAnnotations(JNIEnv *env, jclass cls) {
-    ClassBlock *cb = CLASS_CB((Class*)cls);
-
     TRACE("JVM_GetClassAnnotations(env=%p, cls=%p)", env, cls);
 
-    return getAnnotationsAsArray(cb->annotations);
+    return getAnnotationsAsArray(getClassAnnotationData((Class*)cls));
 }
 
 
@@ -859,7 +858,7 @@ jbyteArray JVM_GetFieldAnnotations(JNIEnv *env, jobject field) {
 
     TRACE("JVM_GetFieldAnnotations(env=%p, field=%p)", env, field);
 
-    return getAnnotationsAsArray(fb->annotations);
+    return getAnnotationsAsArray(getFieldAnnotationData(fb));
 }
 
 
@@ -867,12 +866,10 @@ jbyteArray JVM_GetFieldAnnotations(JNIEnv *env, jobject field) {
 
 jbyteArray JVM_GetMethodAnnotations(JNIEnv *env, jobject method) {
     MethodBlock *mb = mbFromReflectObject(method);
-    AnnotationData *annotations = mb->annotations == NULL ? NULL
-                                         : mb->annotations->annotations;
 
     TRACE("JVM_GetMethodAnnotations(env=%p, method=%p)", env, method);
 
-    return getAnnotationsAsArray(annotations);
+    return getAnnotationsAsArray(getMethodAnnotationData(mb));
 }
 
 
@@ -880,13 +877,11 @@ jbyteArray JVM_GetMethodAnnotations(JNIEnv *env, jobject method) {
 
 jbyteArray JVM_GetMethodDefaultAnnotationValue(JNIEnv *env, jobject method) {
     MethodBlock *mb = mbFromReflectObject(method);
-    AnnotationData *annotations = mb->annotations == NULL ? NULL
-                                         : mb->annotations->dft_val;
 
     TRACE("JVM_GetMethodDefaultAnnotationValue(env=%p, method=%p)", env,
           method);
 
-    return getAnnotationsAsArray(annotations);
+    return getAnnotationsAsArray(getMethodDefaultValueAnnotationData(mb));
 }
 
 
@@ -894,12 +889,10 @@ jbyteArray JVM_GetMethodDefaultAnnotationValue(JNIEnv *env, jobject method) {
 
 jbyteArray JVM_GetMethodParameterAnnotations(JNIEnv *env, jobject method) {
     MethodBlock *mb = mbFromReflectObject(method);
-    AnnotationData *annotations = mb->annotations == NULL ? NULL
-                                         : mb->annotations->parameters;
 
     TRACE("JVM_GetMethodParameterAnnotations(env=%p, method=%p)", env, method);
 
-    return getAnnotationsAsArray(annotations);
+    return getAnnotationsAsArray(getMethodParameterAnnotationData(mb));
 }
 
 

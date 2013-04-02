@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012, 2013
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -26,6 +26,7 @@
 #include "excep.h"
 #include "symbol.h"
 #include "reflect.h"
+#include "annotations.h"
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -277,19 +278,19 @@ Object *parseAnnotations(Class *class, AnnotationData *annotations) {
 }
 
 Object *getClassAnnotations(Class *class) {
-    return parseAnnotations(class, CLASS_CB(class)->annotations);
+    return parseAnnotations(class, getClassAnnotationData(class));
 }
 
 Object *getFieldAnnotations(FieldBlock *fb) {
-    return parseAnnotations(fb->class, fb->annotations);
+    return parseAnnotations(fb->class, getFieldAnnotationData(fb));
 }
 
 Object *getMethodAnnotations(MethodBlock *mb) {
-    return parseAnnotations(mb->class, mb->annotations == NULL ?
-                                NULL : mb->annotations->annotations);
+    return parseAnnotations(mb->class, getMethodAnnotationData(mb));
 }
 
 Object *getMethodParameterAnnotations(MethodBlock *mb) {
+    AnnotationData *annotations;
     Object **outer_array_data;
     Object *outer_array;
     int no_params, i;
@@ -299,15 +300,16 @@ Object *getMethodParameterAnnotations(MethodBlock *mb) {
     if(!anno_inited && !initAnnotation())
         return NULL;
 
-    if(mb->annotations == NULL || mb->annotations->parameters == NULL) {
+    annotations = getMethodParameterAnnotationData(mb);
+    if(annotations == NULL) {
         no_params = numElementsInSig(mb->type);
         data_len = no_params * 2 + 1;
         data_ptr = alloca(data_len);
         memset(data_ptr, 0, data_len);
         data_ptr[0] = no_params;
     } else {
-        data_ptr = mb->annotations->parameters->data;
-        data_len = mb->annotations->parameters->len;
+        data_ptr = annotations->data;
+        data_len = annotations->len;
     }
 
     READ_U1(no_params, data_ptr, data_len);
@@ -340,14 +342,17 @@ Object *getMethodParameterAnnotations(MethodBlock *mb) {
 }
 
 Object *getMethodDefaultValue(MethodBlock *mb) {
+    AnnotationData *annotations;
+
     if(!anno_inited && !initAnnotation())
         return NULL;
 
-    if(mb->annotations == NULL || mb->annotations->dft_val == NULL)
+    annotations = getMethodDefaultValueAnnotationData(mb);
+    if(annotations == NULL)
         return NULL;
     else {
-        u1 *data = mb->annotations->dft_val->data;
-        int len = mb->annotations->dft_val->len;
+        u1 *data = annotations->data;
+        int len = annotations->len;
 
         return parseElementValue(mb->class, &data, &len);
     }
