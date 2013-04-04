@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2010, 2012 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2008, 2010, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -74,6 +74,7 @@ extern char *symbol_values[];
     action(BootstrapMethods, "BootstrapMethods"), \
     action(AnnotationDefault, "AnnotationDefault"), \
     action(RuntimeVisibleAnnotations, "RuntimeVisibleAnnotations"), \
+    action(RuntimeVisibleTypeAnnotations, "RuntimeVisibleTypeAnnotations"), \
     action(RuntimeVisibleParameterAnnotations, "RuntimeVisibleParameterAnnotations"), \
     \
     /* Primitive type names */\
@@ -158,6 +159,7 @@ extern char *symbol_values[];
     \
     /* Array class names */\
     action(array_C, "[C"), \
+    action(array_B, "[B"), \
     action(array_java_lang_Class, "[Ljava/lang/Class;"), \
     action(array_java_lang_String, "[Ljava/lang/String;"), \
     action(array_java_lang_reflect_Field, "[Ljava/lang/reflect/Field;"), \

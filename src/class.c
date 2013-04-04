@@ -447,6 +447,12 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                                      field - classblock->fields, ptr,
                                      attr_length, classblock->fields_count); 
                 ptr += attr_length;
+
+            } else if(attr_name == SYMBOL(RuntimeVisibleTypeAnnotations)) {
+                setIndexedAnnotation(annotations.field_type,
+                                     field - classblock->fields, ptr,
+                                     attr_length, classblock->fields_count); 
+                ptr += attr_length;
             } else
                 ptr += attr_length;
         }
@@ -569,6 +575,12 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                                      method - classblock->methods, ptr,
                                      attr_length, classblock->methods_count); 
                 ptr += attr_length;
+
+            } else if(attr_name == SYMBOL(RuntimeVisibleTypeAnnotations)) {
+                setIndexedAnnotation(annotations.method_type,
+                                     method - classblock->methods, ptr,
+                                     attr_length, classblock->methods_count); 
+                ptr += attr_length;
             } else
                 ptr += attr_length;
         }
@@ -652,6 +664,10 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
         else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
             setSingleAnnotation(annotations.class, ptr, attr_length);
+            ptr += attr_length;
+
+        } else if(attr_name == SYMBOL(RuntimeVisibleTypeAnnotations)) {
+            setSingleAnnotation(annotations.class_type, ptr, attr_length);
             ptr += attr_length;
 
 #ifdef JSR292

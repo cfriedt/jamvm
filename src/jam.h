@@ -424,12 +424,15 @@ typedef struct annotation_data {
 typedef union annotations {
     struct {
         AnnotationData *class;
+        AnnotationData *class_type;
         AnnotationData **field;
+        AnnotationData **field_type;
         AnnotationData **method;
+        AnnotationData **method_type;
         AnnotationData **method_parameters;
         AnnotationData **method_default_val;
     };
-    void *data[5];
+    void *data[8];
 } Annotations;
 
 #ifdef DIRECT

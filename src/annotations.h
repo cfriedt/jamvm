@@ -24,6 +24,7 @@
 })
 
 #define getClassAnnotationData(_class)    classAnnotations(_class, class)
+#define getClassTypeAnnotationData(class) classAnnotations(class, class_type)
 
 #define indexedAnnotationData(annotations, name, index) ( \
     annotations == NULL || annotations->name == NULL ?    \
@@ -37,6 +38,7 @@
 })
 
 #define getMethodAnnotationData(mb)     methodAnnotations(mb, method)
+#define getMethodTypeAnnotationData(mb) methodAnnotations(mb, method_type)
 
 #define getMethodParameterAnnotationData(mb) \
     methodAnnotations(mb, method_parameters)
@@ -51,3 +53,4 @@
 })
 
 #define getFieldAnnotationData(fb)     fieldAnnotations(fb, field)
+#define getFieldTypeAnnotationData(fb) fieldAnnotations(fb, field_type)

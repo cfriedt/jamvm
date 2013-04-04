@@ -851,6 +851,15 @@ jbyteArray JVM_GetClassAnnotations(JNIEnv *env, jclass cls) {
 }
 
 
+/* JVM_GetClassTypeAnnotations */
+
+jbyteArray JVM_GetClassTypeAnnotations(JNIEnv *env, jclass cls) {
+    TRACE("JVM_GetClassTypeAnnotations(env=%p, cls=%p)", env, cls);
+
+    return getAnnotationsAsArray(getClassTypeAnnotationData((Class*)cls));
+}
+
+
 /* JVM_GetFieldAnnotations */
 
 jbyteArray JVM_GetFieldAnnotations(JNIEnv *env, jobject field) {

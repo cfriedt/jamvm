@@ -40,12 +40,16 @@ int fld_slot_offset, fld_class_offset;
 static MethodBlock *cons_init_mb, *fld_init_mb, *mthd_init_mb;
 static int cons_param_offset, mthd_ret_offset, mthd_param_offset;
 
+static int fld_type_annos_offset = -1, cons_type_annos_offset = -1;
+static int mthd_type_annos_offset = -1;
+
 int classlibInitReflection() {
     Class *cons_ref_cls, *mthd_ref_cls, *fld_ref_cls;
 
+    FieldBlock *fld_slot_fb, *fld_class_fb;
     FieldBlock *cons_slot_fb, *cons_class_fb, *cons_param_fb;
     FieldBlock *mthd_slot_fb, *mthd_class_fb, *mthd_ret_fb, *mthd_param_fb;
-    FieldBlock *fld_slot_fb, *fld_class_fb;
+    FieldBlock *fld_type_annos_fb, *mthd_type_annos_fb, *cons_type_annos_fb;
 
     cons_ref_cls = findSystemClass(SYMBOL(java_lang_reflect_Constructor));
     mthd_ref_cls = findSystemClass(SYMBOL(java_lang_reflect_Method));
@@ -105,6 +109,29 @@ int classlibInitReflection() {
     fld_slot_offset = fld_slot_fb->u.offset; 
     fld_class_offset = fld_class_fb->u.offset; 
 
+    /* Look for the type annotation fields.  If they cannot be found
+       we are likely to be running with a pre-JSR308 JDK.  In this
+       case we don't try to set them when creating the reflection
+       objects (offsets are initialised to -1) */
+
+    fld_type_annos_fb = findField(fld_ref_cls, SYMBOL(typeAnnotations),
+                                  SYMBOL(array_B));
+
+    mthd_type_annos_fb = findField(mthd_ref_cls, SYMBOL(typeAnnotations),
+                                   SYMBOL(array_B));
+
+    cons_type_annos_fb = findField(cons_ref_cls, SYMBOL(typeAnnotations),
+                                   SYMBOL(array_B));
+
+    if(fld_type_annos_fb != NULL)
+        fld_type_annos_offset = fld_type_annos_fb->u.offset;
+
+    if(mthd_type_annos_fb != NULL)
+        mthd_type_annos_offset = mthd_type_annos_fb->u.offset;
+
+    if(cons_type_annos_fb != NULL)
+        cons_type_annos_offset = cons_type_annos_fb->u.offset;
+
     registerStaticClassRefLocked(&cons_reflect_class, cons_ref_cls);
     registerStaticClassRefLocked(&method_reflect_class, mthd_ref_cls);
     registerStaticClassRefLocked(&field_reflect_class, fld_ref_cls);
@@ -145,6 +172,12 @@ Object *classlibCreateConstructorObject(MethodBlock *mb) {
         getAnnotationsAsArray(annotations),
         getAnnotationsAsArray(parameters));
 
+    if(cons_type_annos_offset != -1) {
+        AnnotationData *type_data = getMethodTypeAnnotationData(mb);
+        Object *annos = getAnnotationsAsArray(type_data);
+        INST_DATA(reflect_ob, Object*, cons_type_annos_offset) = annos;
+    }
+
     return reflect_ob;
 }
 
@@ -171,6 +204,12 @@ Object *classlibCreateMethodObject(MethodBlock *mb) {
         getAnnotationsAsArray(parameters),
         getAnnotationsAsArray(dft_val));
 
+    if(mthd_type_annos_offset != -1) {
+        AnnotationData *type_data = getMethodTypeAnnotationData(mb);
+        Object *annos = getAnnotationsAsArray(type_data);
+        INST_DATA(reflect_ob, Object*, mthd_type_annos_offset) = annos;
+    }
+
     return reflect_ob;
 }
 
@@ -190,7 +229,13 @@ Object *classlibCreateFieldObject(FieldBlock *fb) {
         fb->signature == NULL ? NULL
                       : findInternedString(createString(fb->signature)),
         getAnnotationsAsArray(annotations));
- 
+
+    if(fld_type_annos_offset != -1) {
+        AnnotationData *type_data = getFieldTypeAnnotationData(fb);
+        Object *annos = getAnnotationsAsArray(type_data);
+        INST_DATA(reflect_ob, Object*, fld_type_annos_offset) = annos;
+    }
+
     return reflect_ob;
 }
 

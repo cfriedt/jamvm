@@ -52,6 +52,7 @@
     action(linkToInterface, "linkToInterface"), \
     action(getFromClass, "getFromClass"), \
     action(constantPoolOop, "constantPoolOop"), \
+    action(typeAnnotations, "typeAnnotations"), \
     action(sun_misc_Signal, "sun/misc/Signal"), \
     action(java_lang_Shutdown, "java/lang/Shutdown"), \
     action(___java_lang_Class, "()Ljava/lang/Class;"), \
