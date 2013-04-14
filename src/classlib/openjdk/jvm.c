@@ -1363,6 +1363,14 @@ jboolean JVM_IsConstructorIx(JNIEnv *env, jclass cls, int method_index) {
 }
 
 
+/* JVM_IsVMGeneratedMethodIx */
+
+jboolean JVM_IsVMGeneratedMethodIx(JNIEnv *env, jclass cls, int method_index) {
+    UNIMPLEMENTED("JVM_IsVMGeneratedMethodIx");
+
+    return 0;
+}
+
 /* JVM_GetMethodIxNameUTF */
 
 const char *JVM_GetMethodIxNameUTF(JNIEnv *env, jclass cls, jint method_index) {
