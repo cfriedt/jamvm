@@ -1289,7 +1289,7 @@ void linkClass(Class *class) {
                memcpy(mb, method_table[i], sizeof(MethodBlock));
                mb->access_flags |= ACC_MIRANDA;
                mb->method_table_index = i;
-               mb->class = class;
+//               mb->class = class;
                method_table[i] = mb;
            }
        }

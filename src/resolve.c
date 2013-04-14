@@ -179,9 +179,11 @@ retry:
 MethodBlock *resolveMethod(Class *class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
     MethodBlock *mb = NULL;
+    int tag;
 
 retry:
-    switch(CP_TYPE(cp, cp_index)) {
+    tag = CP_TYPE(cp, cp_index);
+    switch(tag) {
         case CONSTANT_Locked:
             goto retry;
 
@@ -189,14 +191,15 @@ retry:
             mb = (MethodBlock *)CP_INFO(cp, cp_index);
             break;
 
-        case CONSTANT_Methodref: {
+        case CONSTANT_Methodref:
+        case CONSTANT_InterfaceMethodref: {
             Class *resolved_class;
             ClassBlock *resolved_cb;
             char *methodname, *methodtype;
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
             int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
 
-            if(CP_TYPE(cp, cp_index) != CONSTANT_Methodref)
+            if(CP_TYPE(cp, cp_index) != tag)
                 goto retry;
 
             methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
@@ -208,10 +211,12 @@ retry:
             if(exceptionOccurred())
                 return NULL;
 
+#if 0
             if(resolved_cb->access_flags & ACC_INTERFACE) {
                 signalException(java_lang_IncompatibleClassChangeError, NULL);
                 return NULL;
             }
+#endif
             
             mb = lookupMethod(resolved_class, methodname, methodtype);
 

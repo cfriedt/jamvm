@@ -1217,7 +1217,10 @@ static void threadClassData(Class *class, Class *new_addr) {
         cb->fields[i].class = new_addr;
 
     for(i = 0; i < cb->methods_count; i++)
-        cb->methods[i].class = new_addr;
+        if(cb->methods[i].class == class)
+            cb->methods[i].class = new_addr;
+        else
+            THREAD_REFERENCE(&cb->methods[i].class);
 }
 
 int threadChildren(Object *ob, Object *new_addr) {
