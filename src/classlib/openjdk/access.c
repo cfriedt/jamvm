@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2012 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -21,24 +21,35 @@
 #include "jam.h"
 #include "symbol.h"
 
-static Class *magic_lambda;
 static Class *magic_accessor;
+
+#ifdef JSR292
+static Class *magic_lambda;
+#endif
 
 int classlibInitialiseAccess() {
     magic_accessor = findSystemClass0(SYMBOL(sun_reflect_MagicAccessorImpl));
-    magic_lambda = findSystemClass0(SYMBOL(java_lang_invoke_MagicLambdaImpl));
+    if(magic_accessor == NULL)
+        return FALSE;
 
-    if(magic_accessor == NULL || magic_lambda == NULL)
+#ifdef JSR292
+    magic_lambda = findSystemClass0(SYMBOL(java_lang_invoke_MagicLambdaImpl));
+    if(magic_lambda == NULL)
         return FALSE;
 
     registerStaticClassRef(&magic_lambda);
-    registerStaticClassRef(&magic_accessor);
+#endif
 
+    registerStaticClassRef(&magic_accessor);
     return TRUE;
 }
 
 int classlibAccessCheck(Class *class, Class *referrer) {
-    return isSubClassOf(magic_accessor, referrer) ||
-           isSubClassOf(magic_lambda, referrer);
+#ifdef JSR292
+    if(isSubClassOf(magic_lambda, referrer))
+        return TRUE;
+#endif
+
+    return isSubClassOf(magic_accessor, referrer);
 }
 
