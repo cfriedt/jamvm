@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "jam.h"
+#include "class.h"
 #include "excep.h"
 #include "symbol.h"
 #include "reflect.h"
@@ -139,7 +140,7 @@ int classlibInitReflection() {
     return TRUE;
 }
 
-Object *getAnnotationsAsArray(AnnotationData *annotations) {
+Object *getAnnotationsAsArray(AttributeData *annotations) {
     Object *array;
 
     if(annotations == NULL)
@@ -154,8 +155,8 @@ Object *getAnnotationsAsArray(AnnotationData *annotations) {
 }
 
 Object *classlibCreateConstructorObject(MethodBlock *mb) {
-    AnnotationData *annotations = getMethodAnnotationData(mb);
-    AnnotationData *parameters = getMethodParameterAnnotationData(mb);
+    AttributeData *annotations = getMethodAnnotationData(mb);
+    AttributeData *parameters = getMethodParameterAnnotationData(mb);
     Object *reflect_ob;
 
     if((reflect_ob = allocObject(cons_reflect_class)) == NULL)
@@ -173,7 +174,7 @@ Object *classlibCreateConstructorObject(MethodBlock *mb) {
         getAnnotationsAsArray(parameters));
 
     if(cons_type_annos_offset != -1) {
-        AnnotationData *type_data = getMethodTypeAnnotationData(mb);
+        AttributeData *type_data = getMethodTypeAnnotationData(mb);
         Object *annos = getAnnotationsAsArray(type_data);
         INST_DATA(reflect_ob, Object*, cons_type_annos_offset) = annos;
     }
@@ -182,9 +183,9 @@ Object *classlibCreateConstructorObject(MethodBlock *mb) {
 }
 
 Object *classlibCreateMethodObject(MethodBlock *mb) {
-    AnnotationData *annotations = getMethodAnnotationData(mb);
-    AnnotationData *dft_val = getMethodDefaultValueAnnotationData(mb);
-    AnnotationData *parameters = getMethodParameterAnnotationData(mb);
+    AttributeData *annotations = getMethodAnnotationData(mb);
+    AttributeData *dft_val = getMethodDefaultValueAnnotationData(mb);
+    AttributeData *parameters = getMethodParameterAnnotationData(mb);
     Object *reflect_ob;
 
     if((reflect_ob = allocObject(method_reflect_class)) == NULL)
@@ -205,7 +206,7 @@ Object *classlibCreateMethodObject(MethodBlock *mb) {
         getAnnotationsAsArray(dft_val));
 
     if(mthd_type_annos_offset != -1) {
-        AnnotationData *type_data = getMethodTypeAnnotationData(mb);
+        AttributeData *type_data = getMethodTypeAnnotationData(mb);
         Object *annos = getAnnotationsAsArray(type_data);
         INST_DATA(reflect_ob, Object*, mthd_type_annos_offset) = annos;
     }
@@ -214,7 +215,7 @@ Object *classlibCreateMethodObject(MethodBlock *mb) {
 }
 
 Object *classlibCreateFieldObject(FieldBlock *fb) {
-    AnnotationData *annotations = getFieldAnnotationData(fb);
+    AttributeData *annotations = getFieldAnnotationData(fb);
     Object *reflect_ob;
 
     if((reflect_ob = allocObject(field_reflect_class)) == NULL)
@@ -231,7 +232,7 @@ Object *classlibCreateFieldObject(FieldBlock *fb) {
         getAnnotationsAsArray(annotations));
 
     if(fld_type_annos_offset != -1) {
-        AnnotationData *type_data = getFieldTypeAnnotationData(fb);
+        AttributeData *type_data = getFieldTypeAnnotationData(fb);
         Object *annos = getAnnotationsAsArray(type_data);
         INST_DATA(reflect_ob, Object*, fld_type_annos_offset) = annos;
     }

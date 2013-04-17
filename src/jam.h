@@ -416,24 +416,24 @@ typedef struct object {
    Class *class;
 } Object;
 
-typedef struct annotation_data {
+typedef struct attribute_data {
    u1 *data;
    int len;
-} AnnotationData;
+} AttributeData;
 
-typedef union annotations {
+typedef union extra_attributes {
     struct {
-        AnnotationData *class;
-        AnnotationData *class_type;
-        AnnotationData **field;
-        AnnotationData **field_type;
-        AnnotationData **method;
-        AnnotationData **method_type;
-        AnnotationData **method_parameters;
-        AnnotationData **method_default_val;
+        AttributeData *class_annos;
+        AttributeData *class_type_annos;
+        AttributeData **field_annos;
+        AttributeData **field_type_annos;
+        AttributeData **method_annos;
+        AttributeData **method_type_annos;
+        AttributeData **method_parameter_annos;
+        AttributeData **method_anno_default_val;
     };
     void *data[8];
-} Annotations;
+} ExtraAttributes;
 
 #ifdef DIRECT
 typedef union ins_operand {
@@ -649,7 +649,7 @@ typedef struct classblock {
    u2 enclosing_class;
    u2 enclosing_method;
    char *bootstrap_methods;
-   Annotations *annotations;
+   ExtraAttributes *extra_attributes;
    CLASSLIB_CLASS_EXTRA_FIELDS
 } ClassBlock;
 

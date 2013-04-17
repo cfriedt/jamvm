@@ -29,7 +29,7 @@ extern Object *stackTraceElementAtIndex(Object *thrwble, int index);
 
 extern int initialiseJVMInterface();
 extern Object *enclosingMethodInfo(Class *class);
-extern Object *getAnnotationsAsArray(AnnotationData *annotations);
+extern Object *getAnnotationsAsArray(AttributeData *annotations);
 
 extern int typeNo2PrimTypeIndex(int type_no);
 extern int primTypeIndex2Size(int prim_idx);

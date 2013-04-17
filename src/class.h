@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2010, 2012
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2010, 2012, 2013
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -62,3 +62,27 @@ typedef struct package_entry {
 #define BOOTSTRAP_DATA_LEN(bootstrap_methods)                            \
     BOOTSTRAP_OFFSET(bootstrap_methods,                                  \
                      BOOTSTRAP_METHODS_COUNT(bootstrap_methods))
+
+
+#define CLASS_EXTRA_ATTRIBUTES(class, name) ({           \
+    ClassBlock *cb = CLASS_CB(class);                    \
+    ExtraAttributes *attributes = cb->extra_attributes;  \
+    attributes == NULL ? NULL : attributes->name;        \
+})
+
+#define INDEXED_ATTRIBUTE_DATA(attributes, name, index) ( \
+    attributes == NULL || attributes->name == NULL ?      \
+        NULL : attributes->name[index]                    \
+)
+
+#define METHOD_EXTRA_ATTRIBUTES(mb, name) ({                   \
+    ClassBlock *cb = CLASS_CB(mb->class);                      \
+    int index = mb - cb->methods;                              \
+    INDEXED_ATTRIBUTE_DATA(cb->extra_attributes, name, index); \
+})
+
+#define FIELD_EXTRA_ATTRIBUTES(fb, name) ({                    \
+    ClassBlock *cb = CLASS_CB(fb->class);                      \
+    int index = fb - cb->fields;                               \
+    INDEXED_ATTRIBUTE_DATA(cb->extra_attributes, name, index); \
+})

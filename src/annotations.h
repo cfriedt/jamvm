@@ -18,39 +18,26 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#define classAnnotations(class, name) ({                    \
-    ClassBlock *cb = CLASS_CB(class);                       \
-    cb->annotations == NULL ? NULL : cb->annotations->name; \
-})
+#define getClassAnnotationData(class) \
+    CLASS_EXTRA_ATTRIBUTES(class, class_annos)
 
-#define getClassAnnotationData(_class)    classAnnotations(_class, class)
-#define getClassTypeAnnotationData(class) classAnnotations(class, class_type)
+#define getClassTypeAnnotationData(class) \
+    CLASS_EXTRA_ATTRIBUTES(class, class_type_annos)
 
-#define indexedAnnotationData(annotations, name, index) ( \
-    annotations == NULL || annotations->name == NULL ?    \
-        NULL : annotations->name[index]                   \
-)
+#define getMethodAnnotationData(mb) \
+    METHOD_EXTRA_ATTRIBUTES(mb, method_annos)
 
-#define methodAnnotations(mb, name) ({                    \
-    ClassBlock *cb = CLASS_CB(mb->class);                 \
-    int index = mb - cb->methods;                         \
-    indexedAnnotationData(cb->annotations, name, index);  \
-})
-
-#define getMethodAnnotationData(mb)     methodAnnotations(mb, method)
-#define getMethodTypeAnnotationData(mb) methodAnnotations(mb, method_type)
+#define getMethodTypeAnnotationData(mb) \
+    METHOD_EXTRA_ATTRIBUTES(mb, method_type_annos)
 
 #define getMethodParameterAnnotationData(mb) \
-    methodAnnotations(mb, method_parameters)
+    METHOD_EXTRA_ATTRIBUTES(mb, method_parameter_annos)
 
 #define getMethodDefaultValueAnnotationData(mb) \
-    methodAnnotations(mb, method_default_val)
+    METHOD_EXTRA_ATTRIBUTES(mb, method_anno_default_val)
 
-#define fieldAnnotations(fb, name) ({                    \
-    ClassBlock *cb = CLASS_CB(fb->class);                \
-    int index = fb - cb->fields;                         \
-    indexedAnnotationData(cb->annotations, name, index); \
-})
+#define getFieldAnnotationData(fb) \
+    FIELD_EXTRA_ATTRIBUTES(fb, field_annos)
 
-#define getFieldAnnotationData(fb)     fieldAnnotations(fb, field)
-#define getFieldTypeAnnotationData(fb) fieldAnnotations(fb, field_type)
+#define getFieldTypeAnnotationData(fb) \
+    FIELD_EXTRA_ATTRIBUTES(fb, field_type_annos)

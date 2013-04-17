@@ -210,28 +210,28 @@ void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb,
 }
 #endif
 
-static void _setIndexedAnnotation(AnnotationData ***annotations,
-                                  int index, char *data, int len,
-                                  int size) {
-    if(*annotations == NULL) {
-        *annotations = sysMalloc(size * sizeof(AnnotationData*));
-        memset(*annotations, 0, size * sizeof(AnnotationData*));
+static void setIndexedAttributeData(AttributeData ***attributes,
+                                    int index, char *data, int len,
+                                    int size) {
+    if(*attributes == NULL) {
+        *attributes = sysMalloc(size * sizeof(AttributeData*));
+        memset(*attributes, 0, size * sizeof(AttributeData*));
     }
 
-    (*annotations)[index] = sysMalloc(sizeof(AnnotationData));
-    (*annotations)[index]->len = len;
-    (*annotations)[index]->data = sysMalloc(len);
-    memcpy((*annotations)[index]->data, data, len);
+    (*attributes)[index] = sysMalloc(sizeof(AttributeData));
+    (*attributes)[index]->len = len;
+    (*attributes)[index]->data = sysMalloc(len);
+    memcpy((*attributes)[index]->data, data, len);
 }
 
-#define setIndexedAnnotation(annotations, index, data, len, size) \
-    _setIndexedAnnotation(&annotations, index, data, len, size)
+#define setIndexedAttribute(attributes, index, data, len, size) \
+    setIndexedAttributeData(&attributes, index, data, len, size)
 
-#define setSingleAnnotation(annotations, _data, _len) \
-    annotations = sysMalloc(sizeof(AnnotationData));  \
-    annotations->len = _len;                          \
-    annotations->data = sysMalloc(_len);              \
-    memcpy(annotations->data, _data, _len);
+#define setSingleAttribute(attributes, pntr, length) \
+    attributes = sysMalloc(sizeof(AttributeData));   \
+    attributes->len = length;                        \
+    attributes->data = sysMalloc(length);            \
+    memcpy(attributes->data, pntr, length);
 
 Class *parseClass(char *classname, char *data, int offset, int len,
                    Object *class_loader) {
@@ -239,9 +239,9 @@ Class *parseClass(char *classname, char *data, int offset, int len,
     u2 major_version, minor_version, this_idx, super_idx, attr_count;
     int cp_count, intf_count, injected_fields_count, i, j;
     unsigned char *ptr = (unsigned char *)data + offset;
+    ExtraAttributes extra_attributes;
     ConstantPool *constant_pool;
     Class **interfaces, *class;
-    Annotations annotations;
     ClassBlock *classblock;
     u4 magic;
 
@@ -391,7 +391,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
            return NULL; 
     }
 
-    memset(&annotations, 0, sizeof(Annotations));
+    memset(&extra_attributes, 0, sizeof(ExtraAttributes));
 
     READ_U2(classblock->fields_count, ptr, len);
     injected_fields_count = classlibInjectedFieldsCount(classblock->name);
@@ -443,15 +443,15 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                 field->signature = CP_UTF8(constant_pool, signature_idx);
 
             } else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
-                setIndexedAnnotation(annotations.field,
-                                     field - classblock->fields, ptr,
-                                     attr_length, classblock->fields_count); 
+                setIndexedAttribute(extra_attributes.field_annos,
+                                    field - classblock->fields, ptr,
+                                    attr_length, classblock->fields_count); 
                 ptr += attr_length;
 
             } else if(attr_name == SYMBOL(RuntimeVisibleTypeAnnotations)) {
-                setIndexedAnnotation(annotations.field_type,
-                                     field - classblock->fields, ptr,
-                                     attr_length, classblock->fields_count); 
+                setIndexedAttribute(extra_attributes.field_type_annos,
+                                    field - classblock->fields, ptr,
+                                    attr_length, classblock->fields_count); 
                 ptr += attr_length;
             } else
                 ptr += attr_length;
@@ -556,30 +556,30 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                 method->signature = CP_UTF8(constant_pool, signature_idx);
 
             } else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
-                setIndexedAnnotation(annotations.method,
-                                     method - classblock->methods, ptr,
-                                     attr_length, classblock->methods_count); 
+                setIndexedAttribute(extra_attributes.method_annos,
+                                    method - classblock->methods, ptr,
+                                    attr_length, classblock->methods_count); 
 
                 parseMethodAnnotations(constant_pool, method, ptr,
                                        attr_length);
                 ptr += attr_length;
 
             } else if(attr_name == SYMBOL(RuntimeVisibleParameterAnnotations)) {
-                setIndexedAnnotation(annotations.method_parameters,
-                                     method - classblock->methods, ptr,
-                                     attr_length, classblock->methods_count); 
+                setIndexedAttribute(extra_attributes.method_parameter_annos,
+                                    method - classblock->methods, ptr,
+                                    attr_length, classblock->methods_count); 
                 ptr += attr_length;
 
             } else if(attr_name == SYMBOL(AnnotationDefault)) {
-                setIndexedAnnotation(annotations.method_default_val,
-                                     method - classblock->methods, ptr,
-                                     attr_length, classblock->methods_count); 
+                setIndexedAttribute(extra_attributes.method_anno_default_val,
+                                    method - classblock->methods, ptr,
+                                    attr_length, classblock->methods_count); 
                 ptr += attr_length;
 
             } else if(attr_name == SYMBOL(RuntimeVisibleTypeAnnotations)) {
-                setIndexedAnnotation(annotations.method_type,
-                                     method - classblock->methods, ptr,
-                                     attr_length, classblock->methods_count); 
+                setIndexedAttribute(extra_attributes.method_type_annos,
+                                    method - classblock->methods, ptr,
+                                    attr_length, classblock->methods_count); 
                 ptr += attr_length;
             } else
                 ptr += attr_length;
@@ -663,11 +663,13 @@ Class *parseClass(char *classname, char *data, int offset, int len,
             classblock->access_flags |= ACC_SYNTHETIC;
 
         else if(attr_name == SYMBOL(RuntimeVisibleAnnotations)) {
-            setSingleAnnotation(annotations.class, ptr, attr_length);
+            setSingleAttribute(extra_attributes.class_annos,
+                               ptr, attr_length);
             ptr += attr_length;
 
         } else if(attr_name == SYMBOL(RuntimeVisibleTypeAnnotations)) {
-            setSingleAnnotation(annotations.class_type, ptr, attr_length);
+            setSingleAttribute(extra_attributes.class_type_annos,
+                               ptr, attr_length);
             ptr += attr_length;
 
 #ifdef JSR292
@@ -704,12 +706,13 @@ Class *parseClass(char *classname, char *data, int offset, int len,
             ptr += attr_length;
     }
 
-    for(i = 0; i < sizeof(Annotations)/sizeof(void*)
-                      && annotations.data[i] == NULL; i++);
+    for(i = 0; i < sizeof(ExtraAttributes)/sizeof(void*)
+                      && extra_attributes.data[i] == NULL; i++);
 
-    if(i < sizeof(Annotations)/sizeof(void*)) {
-        classblock->annotations = sysMalloc(sizeof(Annotations));
-        memcpy(classblock->annotations, &annotations, sizeof(Annotations));
+    if(i < sizeof(ExtraAttributes)/sizeof(void*)) {
+        classblock->extra_attributes = sysMalloc(sizeof(ExtraAttributes));
+        memcpy(classblock->extra_attributes, &extra_attributes,
+                                             sizeof(ExtraAttributes));
     }
 
     if(super_idx) {
@@ -1891,25 +1894,25 @@ void threadLoaderClasses(Object *class_loader) {
     }
 }
 
-static void freeIndexedAnnotations(AnnotationData **annotations, int size) {
+static void freeIndexedAttributes(AttributeData **attributes, int size) {
     int i;
 
-    if(annotations == NULL)
+    if(attributes == NULL)
         return;
 
     for(i = 0; i < size; i++)
-        if(annotations[i] != NULL) {
-            gcPendingFree(annotations[i]->data);
-            gcPendingFree(annotations[i]);
+        if(attributes[i] != NULL) {
+            gcPendingFree(attributes[i]->data);
+            gcPendingFree(attributes[i]);
         }
 
-    gcPendingFree(annotations);
+    gcPendingFree(attributes);
 }
 
-#define freeSingleAnnotations(annotations) \
-    if(annotations != NULL) {              \
-        gcPendingFree(annotations->data);  \
-        gcPendingFree(annotations);        \
+#define freeSingleAttributes(attributes) \
+    if(attributes != NULL) {             \
+        gcPendingFree(attributes->data); \
+        gcPendingFree(attributes);       \
     }
 
 void freeClassData(Class *class) {
@@ -1964,17 +1967,19 @@ void freeClassData(Class *class) {
     gcPendingFree(cb->methods);
     gcPendingFree(cb->inner_classes);
 
-    if(cb->annotations != NULL) {
-        freeSingleAnnotations(cb->annotations->class);
+    if(cb->extra_attributes != NULL) {
+        freeSingleAttributes(cb->extra_attributes->class_annos);
 
-        freeIndexedAnnotations(cb->annotations->field, cb->fields_count);
-        freeIndexedAnnotations(cb->annotations->method, cb->methods_count);
-        freeIndexedAnnotations(cb->annotations->method_parameters,
-                               cb->methods_count);
-        freeIndexedAnnotations(cb->annotations->method_default_val,
-                               cb->methods_count);
+        freeIndexedAttributes(cb->extra_attributes->field_annos,
+                              cb->fields_count);
+        freeIndexedAttributes(cb->extra_attributes->method_annos,
+                              cb->methods_count);
+        freeIndexedAttributes(cb->extra_attributes->method_parameter_annos,
+                              cb->methods_count);
+        freeIndexedAttributes(cb->extra_attributes->method_anno_default_val,
+                              cb->methods_count);
 
-        gcPendingFree(cb->annotations);
+        gcPendingFree(cb->extra_attributes);
     }
 
     if(cb->state >= CLASS_LINKED) {
