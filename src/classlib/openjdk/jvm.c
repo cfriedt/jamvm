@@ -905,6 +905,15 @@ jbyteArray JVM_GetMethodParameterAnnotations(JNIEnv *env, jobject method) {
 }
 
 
+/* JVM_GetMethodParameters */
+
+jbyteArray JVM_GetMethodParameters(JNIEnv *env, jobject method) {
+    TRACE("JVM_GetMethodParameters(env=%p, method=%p)", env, method);
+
+    return getMethodParameters(method);
+}
+
+
 /* JVM_GetClassDeclaredFields */
 
 jobjectArray JVM_GetClassDeclaredFields(JNIEnv *env, jclass ofClass,

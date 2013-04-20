@@ -581,6 +581,11 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                                     method - classblock->methods, ptr,
                                     attr_length, classblock->methods_count); 
                 ptr += attr_length;
+            } else if(attr_name == SYMBOL(MethodParameters)) {
+                setIndexedAttribute(extra_attributes.method_parameters,
+                                    method - classblock->methods, ptr,
+                                    attr_length, classblock->methods_count); 
+                ptr += attr_length;
             } else
                 ptr += attr_length;
         }

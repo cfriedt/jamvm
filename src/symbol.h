@@ -71,6 +71,7 @@ extern char *symbol_values[];
     action(ConstantValue, "ConstantValue"), \
     action(LineNumberTable, "LineNumberTable"), \
     action(EnclosingMethod, "EnclosingMethod"), \
+    action(MethodParameters, "MethodParameters"), \
     action(BootstrapMethods, "BootstrapMethods"), \
     action(AnnotationDefault, "AnnotationDefault"), \
     action(RuntimeVisibleAnnotations, "RuntimeVisibleAnnotations"), \

@@ -82,6 +82,8 @@
            "java/lang/invoke/MagicLambdaImpl"), \
     action(sig_java_lang_invoke_MethodHandle, \
            "Ljava/lang/invoke/MethodHandle;"), \
+    action(array_java_lang_reflect_Parameter, \
+           "[Ljava/lang/reflect/Parameter;"), \
     action(sun_reflect_DelegatingClassLoader, \
            "sun/reflect/DelegatingClassLoader"), \
     action(sun_reflect_ConstructorAccessorImpl, \
@@ -127,6 +129,8 @@
            "(Ljava/lang/Class;ILjava/lang/Class;" \
            "Ljava/lang/String;Ljava/lang/Object;)" \
            "Ljava/lang/invoke/MethodHandle;"), \
+    action(java_lang_reflect_param_init_sig, \
+           "(Ljava/lang/String;ILjava/lang/reflect/Executable;I)V"), \
     action(java_lang_reflect_mthd_init_sig, \
            "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;" \
            "Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V")

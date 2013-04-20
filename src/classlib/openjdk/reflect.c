@@ -44,8 +44,12 @@ static int cons_param_offset, mthd_ret_offset, mthd_param_offset;
 static int fld_type_annos_offset = -1, cons_type_annos_offset = -1;
 static int mthd_type_annos_offset = -1;
 
+static Class *parameter_array_class;
+static MethodBlock *param_init_mb;
+
 int classlibInitReflection() {
     Class *cons_ref_cls, *mthd_ref_cls, *fld_ref_cls;
+    Class *prm_ary_cls;
 
     FieldBlock *fld_slot_fb, *fld_class_fb;
     FieldBlock *cons_slot_fb, *cons_class_fb, *cons_param_fb;
@@ -132,6 +136,24 @@ int classlibInitReflection() {
 
     if(cons_type_annos_fb != NULL)
         cons_type_annos_offset = cons_type_annos_fb->u.offset;
+
+    prm_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Parameter));
+
+    if(!prm_ary_cls)
+        return FALSE;
+
+    param_init_mb = findMethod(CLASS_CB(prm_ary_cls)->element_class,
+                               SYMBOL(object_init),
+                               SYMBOL(java_lang_reflect_param_init_sig));
+
+    if(!param_init_mb) {
+        /* Find Method doesn't throw an exception... */
+        signalException(java_lang_InternalError,
+                        "Expected init method doesn't exist (Parameter)");
+        return FALSE;
+    }
+
+    registerStaticClassRefLocked(&parameter_array_class, prm_ary_cls);
 
     registerStaticClassRefLocked(&cons_reflect_class, cons_ref_cls);
     registerStaticClassRefLocked(&method_reflect_class, mthd_ref_cls);
@@ -372,5 +394,51 @@ FieldBlock *classlibFbFromReflectObject(Object *reflect_ob) {
     int slot = INST_DATA(reflect_ob, int, fld_slot_offset);
 
     return &(CLASS_CB(decl_class)->fields[slot]);
+}
+
+Object *getMethodParameters(Object *method) {
+    Object *params = NULL;
+    MethodBlock *mb = classlibMbFromReflectObject(method);
+    AttributeData *attr = METHOD_EXTRA_ATTRIBUTES(mb, method_parameters);
+
+    if(attr != NULL) {
+        char *data = attr->data;
+        int len = attr->len;
+        int no_params;
+
+        READ_U1(no_params, data, len);
+        params = allocArray(parameter_array_class, no_params, sizeof(Object*));
+
+        if(params != NULL) {
+            ConstantPool *cp = &CLASS_CB(mb->class)->constant_pool;
+            Object **params_data = ARRAY_DATA(params, Object*);
+            int i;
+
+            for(i = 0; i < no_params; i++) {
+                Object *param = allocObject(param_init_mb->class);
+                int name_idx, access_flags;
+                Object *name_str = NULL;
+
+                if(param == NULL)
+                    return NULL;
+
+                READ_U2(name_idx, data, len);
+                READ_U2(access_flags, data, len);
+
+                if(name_idx != 0) {
+                    name_str = createString(CP_UTF8(cp, name_idx));
+                    if(name_str == NULL)
+                        return NULL;
+                }
+                    
+                executeMethod(param, param_init_mb, name_str,
+                              access_flags, method, i);
+
+                params_data[i] = param;
+            }
+        }
+    }
+
+    return params;
 }
 

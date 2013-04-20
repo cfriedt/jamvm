@@ -431,8 +431,9 @@ typedef union extra_attributes {
         AttributeData **method_type_annos;
         AttributeData **method_parameter_annos;
         AttributeData **method_anno_default_val;
+        AttributeData **method_parameters;
     };
-    void *data[8];
+    void *data[9];
 } ExtraAttributes;
 
 #ifdef DIRECT

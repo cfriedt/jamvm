@@ -51,3 +51,5 @@ extern int getMembers(Class *clazz, Object *match_name, Object *match_sig,
                       int match_flags, Class *caller, int skip,
                       Object *results);
 extern Object *resolveMemberName(Class *mh_class, Object *mname);
+
+extern Object *getMethodParameters(Object *method);
