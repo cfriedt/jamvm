@@ -905,6 +905,7 @@ jbyteArray JVM_GetMethodParameterAnnotations(JNIEnv *env, jobject method) {
 }
 
 
+#ifdef JSR901
 /* JVM_GetMethodParameters */
 
 jbyteArray JVM_GetMethodParameters(JNIEnv *env, jobject method) {
@@ -912,6 +913,7 @@ jbyteArray JVM_GetMethodParameters(JNIEnv *env, jobject method) {
 
     return getMethodParameters(method);
 }
+#endif
 
 
 /* JVM_GetClassDeclaredFields */

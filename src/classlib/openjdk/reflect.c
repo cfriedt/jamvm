@@ -44,8 +44,10 @@ static int cons_param_offset, mthd_ret_offset, mthd_param_offset;
 static int fld_type_annos_offset = -1, cons_type_annos_offset = -1;
 static int mthd_type_annos_offset = -1;
 
+#ifdef JSR901
 static Class *parameter_array_class;
 static MethodBlock *param_init_mb;
+#endif
 
 int classlibInitReflection() {
     Class *cons_ref_cls, *mthd_ref_cls, *fld_ref_cls;
@@ -137,6 +139,7 @@ int classlibInitReflection() {
     if(cons_type_annos_fb != NULL)
         cons_type_annos_offset = cons_type_annos_fb->u.offset;
 
+#ifdef JSR901
     prm_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Parameter));
 
     if(!prm_ary_cls)
@@ -154,6 +157,7 @@ int classlibInitReflection() {
     }
 
     registerStaticClassRefLocked(&parameter_array_class, prm_ary_cls);
+#endif
 
     registerStaticClassRefLocked(&cons_reflect_class, cons_ref_cls);
     registerStaticClassRefLocked(&method_reflect_class, mthd_ref_cls);
@@ -396,6 +400,7 @@ FieldBlock *classlibFbFromReflectObject(Object *reflect_ob) {
     return &(CLASS_CB(decl_class)->fields[slot]);
 }
 
+#ifdef JSR901
 Object *getMethodParameters(Object *method) {
     Object *params = NULL;
     MethodBlock *mb = classlibMbFromReflectObject(method);
@@ -441,4 +446,5 @@ Object *getMethodParameters(Object *method) {
 
     return params;
 }
+#endif
 
