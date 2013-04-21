@@ -1986,6 +1986,9 @@ void freeClassData(Class *class) {
         freeIndexedAttributes(cb->extra_attributes->method_anno_default_val,
                               cb->methods_count);
 
+        freeIndexedAttributes(cb->extra_attributes->method_parameters,
+                              cb->methods_count);
+
         gcPendingFree(cb->extra_attributes);
     }
 
