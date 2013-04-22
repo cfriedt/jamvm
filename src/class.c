@@ -1986,6 +1986,12 @@ void freeClassData(Class *class) {
         freeIndexedAttributes(cb->extra_attributes->method_anno_default_val,
                               cb->methods_count);
 
+        freeSingleAttributes(cb->extra_attributes->class_type_annos);
+        freeIndexedAttributes(cb->extra_attributes->field_type_annos,
+                              cb->fields_count);
+        freeIndexedAttributes(cb->extra_attributes->method_type_annos,
+                              cb->methods_count);
+
         freeIndexedAttributes(cb->extra_attributes->method_parameters,
                               cb->methods_count);
 
