@@ -235,6 +235,7 @@ fi
 
 if test "$with_java_runtime_library" = openjdk8; then
     AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)])
+    AC_DEFINE([JSR308],1,[VM support for JSR308 (type annotations)])
     AC_DEFINE([JSR901],1,[VM support for JSR901 (method parameter reflection)])
 fi
 

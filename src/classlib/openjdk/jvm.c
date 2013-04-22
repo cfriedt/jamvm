@@ -851,6 +851,7 @@ jbyteArray JVM_GetClassAnnotations(JNIEnv *env, jclass cls) {
 }
 
 
+#ifdef JSR308
 /* JVM_GetClassTypeAnnotations */
 
 jbyteArray JVM_GetClassTypeAnnotations(JNIEnv *env, jclass cls) {
@@ -858,6 +859,7 @@ jbyteArray JVM_GetClassTypeAnnotations(JNIEnv *env, jclass cls) {
 
     return getAnnotationsAsArray(getClassTypeAnnotationData((Class*)cls));
 }
+#endif
 
 
 /* JVM_GetFieldAnnotations */

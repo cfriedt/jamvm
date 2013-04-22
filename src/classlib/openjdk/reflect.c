@@ -41,8 +41,10 @@ int fld_slot_offset, fld_class_offset;
 static MethodBlock *cons_init_mb, *fld_init_mb, *mthd_init_mb;
 static int cons_param_offset, mthd_ret_offset, mthd_param_offset;
 
-static int fld_type_annos_offset = -1, cons_type_annos_offset = -1;
-static int mthd_type_annos_offset = -1;
+#ifdef JSR308
+static int fld_type_annos_offset, cons_type_annos_offset;
+static int mthd_type_annos_offset;
+#endif
 
 #ifdef JSR901
 static Class *parameter_array_class;
@@ -116,11 +118,7 @@ int classlibInitReflection() {
     fld_slot_offset = fld_slot_fb->u.offset; 
     fld_class_offset = fld_class_fb->u.offset; 
 
-    /* Look for the type annotation fields.  If they cannot be found
-       we are likely to be running with a pre-JSR308 JDK.  In this
-       case we don't try to set them when creating the reflection
-       objects (offsets are initialised to -1) */
-
+#ifdef JSR308
     fld_type_annos_fb = findField(fld_ref_cls, SYMBOL(typeAnnotations),
                                   SYMBOL(array_B));
 
@@ -130,14 +128,17 @@ int classlibInitReflection() {
     cons_type_annos_fb = findField(cons_ref_cls, SYMBOL(typeAnnotations),
                                    SYMBOL(array_B));
 
-    if(fld_type_annos_fb != NULL)
-        fld_type_annos_offset = fld_type_annos_fb->u.offset;
+    if(!fld_type_annos_fb || !mthd_type_annos_fb || !cons_type_annos_fb) {
+        /* Find Field doesn't throw an exception... */
+        signalException(java_lang_InternalError,
+                        "Expected type annotation fields don't exist");
+        return FALSE;
+    }
 
-    if(mthd_type_annos_fb != NULL)
-        mthd_type_annos_offset = mthd_type_annos_fb->u.offset;
-
-    if(cons_type_annos_fb != NULL)
-        cons_type_annos_offset = cons_type_annos_fb->u.offset;
+    fld_type_annos_offset = fld_type_annos_fb->u.offset;
+    mthd_type_annos_offset = mthd_type_annos_fb->u.offset;
+    cons_type_annos_offset = cons_type_annos_fb->u.offset;
+#endif
 
 #ifdef JSR901
     prm_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Parameter));
@@ -199,11 +200,10 @@ Object *classlibCreateConstructorObject(MethodBlock *mb) {
         getAnnotationsAsArray(annotations),
         getAnnotationsAsArray(parameters));
 
-    if(cons_type_annos_offset != -1) {
-        AttributeData *type_data = getMethodTypeAnnotationData(mb);
-        Object *annos = getAnnotationsAsArray(type_data);
-        INST_DATA(reflect_ob, Object*, cons_type_annos_offset) = annos;
-    }
+#ifdef JSR308
+    INST_DATA(reflect_ob, Object*, cons_type_annos_offset) =
+              getAnnotationsAsArray(getMethodTypeAnnotationData(mb));
+#endif
 
     return reflect_ob;
 }
@@ -231,11 +231,10 @@ Object *classlibCreateMethodObject(MethodBlock *mb) {
         getAnnotationsAsArray(parameters),
         getAnnotationsAsArray(dft_val));
 
-    if(mthd_type_annos_offset != -1) {
-        AttributeData *type_data = getMethodTypeAnnotationData(mb);
-        Object *annos = getAnnotationsAsArray(type_data);
-        INST_DATA(reflect_ob, Object*, mthd_type_annos_offset) = annos;
-    }
+#ifdef JSR308
+    INST_DATA(reflect_ob, Object*, mthd_type_annos_offset) =
+              getAnnotationsAsArray(getMethodTypeAnnotationData(mb));
+#endif
 
     return reflect_ob;
 }
@@ -257,11 +256,10 @@ Object *classlibCreateFieldObject(FieldBlock *fb) {
                       : findInternedString(createString(fb->signature)),
         getAnnotationsAsArray(annotations));
 
-    if(fld_type_annos_offset != -1) {
-        AttributeData *type_data = getFieldTypeAnnotationData(fb);
-        Object *annos = getAnnotationsAsArray(type_data);
-        INST_DATA(reflect_ob, Object*, fld_type_annos_offset) = annos;
-    }
+#ifdef JSR308
+    INST_DATA(reflect_ob, Object*, fld_type_annos_offset) =
+              getAnnotationsAsArray(getFieldTypeAnnotationData(fb));
+#endif
 
     return reflect_ob;
 }
