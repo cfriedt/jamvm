@@ -424,16 +424,20 @@ typedef struct attribute_data {
 typedef union extra_attributes {
     struct {
         AttributeData *class_annos;
-        AttributeData *class_type_annos;
         AttributeData **field_annos;
-        AttributeData **field_type_annos;
         AttributeData **method_annos;
-        AttributeData **method_type_annos;
         AttributeData **method_parameter_annos;
         AttributeData **method_anno_default_val;
+#ifdef JSR308
+        AttributeData *class_type_annos;
+        AttributeData **field_type_annos;
+        AttributeData **method_type_annos;
+#endif
+#ifdef JSR901
         AttributeData **method_parameters;
+#endif
     };
-    void *data[9];
+    void *data[0];
 } ExtraAttributes;
 
 #ifdef DIRECT
