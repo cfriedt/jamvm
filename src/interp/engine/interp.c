@@ -1485,7 +1485,7 @@ uintptr_t *executeJava() {
 
         /* Check if invoking a super method... */
         if((CLASS_CB(mb->class)->access_flags & ACC_SUPER)
-              && ((new_mb->access_flags & ACC_PRIVATE) == 0)
+              && isSubClassOf(new_mb->class, CLASS_CB(mb->class)->super)
                                  && (new_mb->name[0] != '<')) {
 
             operand.i = new_mb->method_table_index;

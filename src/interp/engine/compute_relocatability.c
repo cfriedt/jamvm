@@ -155,6 +155,10 @@ char isInstanceOf(Class *class, Class *test) {
     return 0;
 }
 
+char isSubClassOf(Class *class, Class *test) {
+    return 0;
+}
+
 char arrayStoreCheck(Class *class, Class *test) {
     return 0;
 }
