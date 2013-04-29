@@ -1953,16 +1953,15 @@ void freeClassData(Class *class) {
 #endif
             gcPendingFree(mb->code);
         } else
-            if(!(mb->access_flags & ACC_ABSTRACT))
+            if(!(mb->access_flags & (ACC_ABSTRACT | ACC_MIRANDA)))
                 gcPendingFree((void*)((uintptr_t)mb->code & ~3));
 #else
-        if(!(mb->access_flags & ACC_ABSTRACT))
+        if(!(mb->access_flags & (ACC_ABSTRACT | ACC_MIRANDA)))
             gcPendingFree(mb->code);
 #endif
 
         /* Miranda methods are a shallow copy of an interface
-           method.  Apart from code, all values are shared, and
-           we must not free them. */
+           method so we must not free the data they point to */
         if(mb->access_flags & ACC_MIRANDA)
             continue;
 
