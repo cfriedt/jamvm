@@ -166,8 +166,6 @@ extern void cachePolyOffsets(CachedPolyOffsets *cpo);
 extern void freeResolvedPolyData(Class *class);
 extern updateIntrinsicCache();
 
-#define mbPolymorphicNameID(mb) (mb->flags >> POLY_NAMEID_SHIFT)
-
 #define CACHED_POLY_OFFSETS                      \
     static CachedPolyOffsets cpo = {-1, -1, -1};
 

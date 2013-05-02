@@ -648,7 +648,7 @@ int polymorphicNameID(Class *clazz, char *name) {
         else if(name == SYMBOL(linkToInterface))
             return ID_linkToInterface;
     }
-    return -1;
+    return ID_none;
 }
 
 NativeMethod polymorphicID2Invoker(int id) {
@@ -990,7 +990,7 @@ PolyMethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
 
 /* Intrinsic cache hashtable definitions */
 
-#define HASH(ptr) ((ptr->flags * 31 + ptr->args_count) * 31 + \
+#define HASH(ptr) ((ptr->state * 31 + ptr->args_count) * 31 + \
                   ptr->ret_slot_size)
 
 #define COMPARE(ptr1, ptr2, hash1, hash2)                     \
@@ -1048,7 +1048,7 @@ MethodBlock *lookupPolymorphicMethod(Class *class, Class *accessing_class,
 
     mb->ref_count = 1;
     mb->max_locals = mb->args_count;
-    mb->flags = id << POLY_NAMEID_SHIFT;
+    mb->state = id + POLY_NAMEID_OFFSET;
     mb->ret_slot_size = sigRetSlotSize(type);
     mb->native_invoker = polymorphicID2Invoker(id);
 
@@ -1160,7 +1160,7 @@ Object *resolveMemberName(Class *mh_class, Object *mname) {
         goto throw_excep;
 
     name_id = polymorphicNameID(clazz, name_sym);
-    type_sym = type2Signature(type, name_id != -1);
+    type_sym = type2Signature(type, name_id != ID_none);
     if(type_sym == NULL)
         goto throw_excep;
 
@@ -1245,7 +1245,7 @@ void freeResolvedPolyData(Class *class) {
 
         else if(CP_TYPE(cp, i) == CONSTANT_ResolvedMethod) {
             MethodBlock *mb = (MethodBlock*)CP_INFO(cp, i);
-            if((mb->flags >> POLY_NAMEID_SHIFT) > ID_invokeGeneric)
+            if(mbPolymorphicNameID(mb) != ID_none)
                 mb->ref_count--;
         }
 }

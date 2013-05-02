@@ -383,7 +383,6 @@
 
 #define LAMBDA_HIDDEN            1
 #define LAMBDA_COMPILED          2
-#define POLY_NAMEID_SHIFT        8
 
 typedef unsigned char           u1;
 typedef unsigned short          u2;
@@ -547,7 +546,8 @@ struct methodblock {
    char *name;
    char *type;
    char *signature;
-   u2 flags;
+   u1 state;
+   u1 flags;
    u2 access_flags;
    u2 max_stack;
    u2 max_locals;
