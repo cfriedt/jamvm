@@ -35,18 +35,14 @@
     action(cb, signers, ## __VA_ARGS__)
 
 #ifdef JSR292
-#define POLY_NAMEID_OFFSET 0
+#define ID_invokeGeneric   (MB_PREPARED + 1)
+#define ID_invokeBasic     (MB_PREPARED + 2)
+#define ID_linkToStatic    (MB_PREPARED + 3)
+#define ID_linkToSpecial   (MB_PREPARED + 4)
+#define ID_linkToVirtual   (MB_PREPARED + 5)
+#define ID_linkToInterface (MB_PREPARED + 6)
 
-#define ID_none            0
-#define ID_invokeGeneric   1
-#define ID_invokeBasic     2
-#define ID_linkToStatic    3
-#define ID_linkToSpecial   4
-#define ID_linkToVirtual   5
-#define ID_linkToInterface 6
-
-#define mbPolymorphicNameID(mb) (mb->state < POLY_NAMEID_OFFSET ?         \
-                                 ID_none : mb->state - POLY_NAMEID_OFFSET)
+#define mbPolymorphicNameID(mb) mb->state
 
 typedef struct cached_poly_offsets {
     int mem_name_vmtarget;
