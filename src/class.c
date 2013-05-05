@@ -1945,7 +1945,7 @@ void freeClassData(Class *class) {
             gcPendingFree(mb->code);
         } else
 #endif
-        if(!(mb->access_flags & (ACC_ABSTRACT | ACC_MIRANDA)))
+        if(!(mb->access_flags & (ACC_NATIVE | ACC_ABSTRACT | ACC_MIRANDA)))
             gcPendingFree(mb->code);
 
         /* Miranda methods are a shallow copy of an interface
