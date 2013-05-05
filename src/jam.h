@@ -381,13 +381,20 @@
 
 /* Method flags */
 
-#define LAMBDA_HIDDEN            1
-#define LAMBDA_COMPILED          2
+#define LAMBDA_HIDDEN           1
+#define LAMBDA_COMPILED         2
 
-typedef unsigned char           u1;
-typedef unsigned short          u2;
-typedef unsigned int            u4;
-typedef unsigned long long      u8;
+/* Method states (direct or inlining
+   interpreter variants) */
+
+#define MB_UNPREPARED           0
+#define MB_PREPARING            1
+#define MB_PREPARED             2
+
+typedef unsigned char          u1;
+typedef unsigned short         u2;
+typedef unsigned int           u4;
+typedef unsigned long long     u8;
 
 typedef uintptr_t ConstantPoolEntry;
 

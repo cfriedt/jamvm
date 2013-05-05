@@ -18,8 +18,8 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#define PREPARE_MB(mb)                          \
-    if((uintptr_t)mb->code & 0x3)               \
+#define PREPARE_MB(mb)                        \
+    if(mb->state < MB_PREPARED)               \
         prepare(mb, handlers)
 
 #define ARRAY_TYPE(pc)           pc->operand.i

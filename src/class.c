@@ -1126,14 +1126,6 @@ void linkClass(Class *class) {
            mb->max_stack = 0;
        }
 
-#ifdef DIRECT
-       else  {
-           /* Set the bottom bit of the pointer to indicate the
-              method is unprepared */
-           mb->code = ((char*)mb->code) + 1;
-       }
-#endif
-
        /* Static, private or init methods aren't dynamically invoked, so
          don't stick them in the table to save space */
 
@@ -1946,19 +1938,15 @@ void freeClassData(Class *class) {
         MethodBlock *mb = &cb->methods[i];
 
 #ifdef DIRECT
-        if(!((uintptr_t)mb->code & 0x3)) {
+        if(mb->state == MB_PREPARED) {
 #ifdef INLINING
-            if(cb->state >= CLASS_LINKED)
-                freeMethodInlinedInfo(mb);
+            freeMethodInlinedInfo(mb);
 #endif
             gcPendingFree(mb->code);
         } else
-            if(!(mb->access_flags & (ACC_ABSTRACT | ACC_MIRANDA)))
-                gcPendingFree((void*)((uintptr_t)mb->code & ~3));
-#else
+#endif
         if(!(mb->access_flags & (ACC_ABSTRACT | ACC_MIRANDA)))
             gcPendingFree(mb->code);
-#endif
 
         /* Miranda methods are a shallow copy of an interface
            method so we must not free the data they point to */

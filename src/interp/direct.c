@@ -53,11 +53,6 @@
    has not been calculated yet */
 #define DEPTH_UNKNOWN -1
 
-/* Method preparation states */
-#define PREPARED   0
-#define UNPREPARED 1
-#define PREPARING  2
-
 /* Global lock for method preparation */
 static VMWaitLock prepare_lock;
 
@@ -85,20 +80,20 @@ void prepare(MethodBlock *mb, const void ***handlers) {
     OpcodeInfo opcodes[code_len];
     char info[code_len + 1];
 #endif
+    unsigned char *code = mb->code;
     Instruction *new_code = NULL;
-    unsigned char *code;
     short map[code_len];
     int ins_count = 0;
     int pass;
     int i;
 
-    /* The bottom bits of the code pointer are used to
-       indicate whether the method has been prepared.  The
-       check in the interpreter is unsynchronised, so grab
-       the lock and recheck.  If another thread tries to
-       prepare the method, they will wait on the lock.  This
-       lock is global, but methods are only prepared once,
-       and contention to prepare a method is unlikely. */
+    /* The method's state field indicates whether the method
+       has been prepared.  The check in the interpreter is
+       unsynchronised, so grab the lock and recheck.  If
+       another thread tries to prepare the method, they will
+       wait on the lock.  This lock is global, but methods are
+       only prepared once, and contention to prepare a method
+       is unlikely. */
 
     Thread *self = threadSelf();
 
@@ -106,29 +101,24 @@ void prepare(MethodBlock *mb, const void ***handlers) {
     lockVMWaitLock(prepare_lock, self);
 
 retry:
-    code = mb->code;
+    switch(mb->state) {
+        case MB_UNPREPARED:
+            mb->state = MB_PREPARING;
+            break;
 
-    switch((uintptr_t)code & 0x3) {
-        case PREPARED:
+        case MB_PREPARING:
+            waitVMWaitLock(prepare_lock, self);
+            goto retry;
+
+        default:
             unlockVMWaitLock(prepare_lock, self);
             enableSuspend(self);
             return;
-
-        case UNPREPARED:
-            mb->code = (void*)PREPARING;
-            break;
-
-        case PREPARING:
-            waitVMWaitLock(prepare_lock, self);
-            goto retry;
     }
 
     unlockVMWaitLock(prepare_lock, self);
 
     TRACE("Preparing %s.%s%s\n", CLASS_CB(mb->class)->name, mb->name, mb->type);
-
-    /* Method is unprepared, so bottom bit of pntr will be set */
-    code--;
 
 #ifdef USE_CACHE
     /* Initialise cache depth array, indicating that
@@ -937,12 +927,15 @@ retry:
         entry->handler_pc = map[entry->handler_pc];
     }
 
-    /* Update the method with the new code.  This
-       also marks the method as being prepared. */
+    /* Update the method with the new code, and
+       mark the method as being prepared. */
 
-    lockVMWaitLock(prepare_lock, self);
     mb->code = new_code;
     mb->code_size = ins_count;
+
+    lockVMWaitLock(prepare_lock, self);
+    mb->state = MB_PREPARED;
+
     notifyAllVMWaitLock(prepare_lock, self);
     unlockVMWaitLock(prepare_lock, self);
     enableSuspend(self);
