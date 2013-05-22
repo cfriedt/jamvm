@@ -1020,18 +1020,6 @@ int hideFieldFromGC(FieldBlock *hidden) {
     return hidden->u.offset = cb->object_size - sizeof(Object*);
 }
 
-#define MRNDA_CACHE_SZE 10
-
-#define resizeMTable(method_table, method_table_size, miranda, count)   \
-{                                                                       \
-    method_table = sysRealloc(method_table, (method_table_size + count) \
-                                            * sizeof(MethodBlock*));    \
-                                                                        \
-    memcpy(&method_table[method_table_size], miranda,                   \
-                               count * sizeof(MethodBlock*));           \
-    method_table_size += count;                                         \
-}
-
 #define fillinMTable(method_table, methods, methods_count)              \
 {                                                                       \
     int i;                                                              \
@@ -1042,6 +1030,18 @@ int hideFieldFromGC(FieldBlock *hidden) {
         method_table[methods->method_table_index] = methods;            \
     }                                                                   \
 }
+
+#define MRNDA_CACHE_INCR 16
+
+/* Structure of each Miranda cache entry.  The Miranda
+   cache holds details of new Miranda methods found during
+   the construction of the interface method table. */
+
+typedef struct miranda {
+    MethodBlock *mb;
+    int mtbl_idx;
+    int default_conflict;
+} Miranda;
 
 void linkClass(Class *class) {
    static MethodBlock *obj_fnlzr_mthd = NULL;
@@ -1207,21 +1207,23 @@ void linkClass(Class *class) {
 
    if(!(cb->access_flags & ACC_INTERFACE)) {
        int *offsets_pntr = sysMalloc(itbl_offset_count * sizeof(int));
-       int old_mtbl_size = method_table_size;
-       MethodBlock *miranda[MRNDA_CACHE_SZE];
+       Miranda *mirandas = NULL;
+       int new_mtbl_count = 0;
        int miranda_count = 0;
-       int mtbl_idx;
 
        /* run through table again, this time filling in the offsets array -
         * for each new interface, run through it's methods and locate
         * each method in this classes method table */
 
        for(i = spr_imthd_tbl_sze; i < cb->imethod_table_size; i++) {
-           ClassBlock *intf_cb = CLASS_CB(cb->imethod_table[i].interface);
+           Class *interface = cb->imethod_table[i].interface;
+           ClassBlock *intf_cb = CLASS_CB(interface);
+
            cb->imethod_table[i].offsets = offsets_pntr;
 
            for(j = 0; j < intf_cb->methods_count; j++) {
                MethodBlock *intf_mb = &intf_cb->methods[j];
+               int mtbl_idx, mrnda_idx;
 
                if((intf_mb->access_flags & (ACC_STATIC | ACC_PRIVATE)) ||
                       (intf_mb->name[0] == '<'))
@@ -1233,49 +1235,112 @@ void linkClass(Class *class) {
                   method */
                for(mtbl_idx = method_table_size - 1; mtbl_idx >= 0; mtbl_idx--)
                    if(intf_mb->name == method_table[mtbl_idx]->name &&
-                           intf_mb->type == method_table[mtbl_idx]->type) {
-                       *offsets_pntr++ = mtbl_idx;
+                           intf_mb->type == method_table[mtbl_idx]->type)
                        break;
-                   }
 
-               if(mtbl_idx < 0) {
-
-                   /* didn't find it - add a dummy abstract method (a so-called
-                      miranda method).  If it's invoked we'll get an abstract
-                      method error */
-
-                   int k;
-                   for(k = 0; k < miranda_count; k++)
-                       if(intf_mb->name == miranda[k]->name &&
-                                   intf_mb->type == miranda[k]->type)
-                           break;
-                           
-                   *offsets_pntr++ = method_table_size + k;
-
-                   if(k == miranda_count) {
-                       if(miranda_count == MRNDA_CACHE_SZE) {
-                           resizeMTable(method_table, method_table_size,
-                                        miranda, MRNDA_CACHE_SZE);
-                           miranda_count = 0;
-                       }
-                       miranda[miranda_count++] = intf_mb;
+               /* If we found the method in the method table and it's
+                  a real method (i.e. implemented) or we already have
+                  conflicting defaults we're done */
+               if(mtbl_idx >= 0) {
+                   MethodBlock *mb = method_table[mtbl_idx];
+                   if(!(mb->access_flags & ACC_MIRANDA) ||
+                                      mb->flags & DEFAULT_CONFLICT) {
+                       *offsets_pntr++ = mtbl_idx;
+                       continue;
                    }
                }
+
+               /* We didn't find it, or we already have a matching
+                  inherited Miranda method.  Search the Miranda cache
+                  to see if we have cached a new Miranda method (either
+                  a new Miranda or an override - see below) */
+               for(mrnda_idx = 0; mrnda_idx < miranda_count; mrnda_idx++)
+                   if(intf_mb->name == mirandas[mrnda_idx].mb->name &&
+                               intf_mb->type == mirandas[mrnda_idx].mb->type)
+                       break;
+                           
+               if(mrnda_idx == miranda_count) {
+                   int new_mtbl_idx, default_conflict = FALSE;
+
+                   /* No cached Miranda method.  If we found a Miranda
+                      method in the method table we need to check it
+                      against the interface method to see if either one
+                      extends the other.  If the method table Miranda
+                      extends the new method it takes precedence and we
+                      don't need a new Miranda.  If, however, the new method
+                      extends the method table Miranda, or they are
+                      unrelated, we need to add a new Miranda to override
+                      the method table Miranda (with the new Miranda, or a
+                      default conflict). */
+                   if(mtbl_idx >= 0) {
+                       MethodBlock *mtbl_mb = method_table[mtbl_idx];
+
+                       if(((mtbl_mb->access_flags & ACC_ABSTRACT) 
+                                   && (intf_mb->access_flags & ACC_ABSTRACT))
+                             || mtbl_mb->class == interface 
+                             || implements(interface, mtbl_mb->class)) {
+                           *offsets_pntr++ = mtbl_idx;
+                           continue;
+                       }
+
+                       if(!implements(mtbl_mb->class, interface))
+                           default_conflict = TRUE;
+
+                       /* The new Miranda is an override, so it replaces
+                          the method in the method table */
+                       new_mtbl_idx = mtbl_idx;
+                   } else {
+                       /* No cached Miranda, and none in the method table -
+                          simply add a new Miranda - it has a new method
+                          table index */
+                       new_mtbl_idx = method_table_size + new_mtbl_count++;
+                   }
+
+                   /* Extend the Miranda cache if it's full */
+                   if((miranda_count % MRNDA_CACHE_INCR) == 0)
+                       mirandas = sysRealloc(mirandas, (miranda_count +
+                                     MRNDA_CACHE_INCR) * sizeof(Miranda));
+
+                   /* Add the new Miranda to the cache */
+                   mirandas[miranda_count].mb = intf_mb;
+                   mirandas[miranda_count].mtbl_idx = new_mtbl_idx;
+                   mirandas[miranda_count].default_conflict = default_conflict;
+                   miranda_count++;
+               } else {
+                   /* Found a matching Miranda method in the cache (either
+                      an override or a new Miranda).  Check the two methods
+                      against each other as above.  The difference is if
+                      we need to override, we simply modify the cached
+                      Miranda - we don't need to add a new Miranda for the
+                      override */
+                   MethodBlock *mrnda_mb = mirandas[mrnda_idx].mb;
+
+                   if(!((mrnda_mb->access_flags & ACC_ABSTRACT) 
+                                && (intf_mb->access_flags & ACC_ABSTRACT))
+                         && !mirandas[mrnda_idx].default_conflict
+                         && mrnda_mb->class != interface
+                         && !implements(interface, mrnda_mb->class)) {
+
+                       if(implements(mrnda_mb->class, interface))
+                           mirandas[mrnda_idx].mb = intf_mb;
+                       else
+                           mirandas[mrnda_idx].default_conflict = TRUE;
+                   }
+               }
+
+               *offsets_pntr++ = mirandas[mrnda_idx].mtbl_idx;
            }
        }
 
-       if(miranda_count > 0)
-           resizeMTable(method_table, method_table_size, miranda,
-                        miranda_count);
-
-       if(old_mtbl_size != method_table_size) {
-           /* We've created some abstract methods */
-           int num_mirandas = method_table_size - old_mtbl_size;
+       if(miranda_count > 0) {
+           /* We've created some new Miranda methods.  Add them to
+              the method area.  The method table may also need expanding
+              if they are not all overrides */
    
-           mb = sysRealloc(cb->methods, (cb->methods_count + num_mirandas)
+           mb = sysRealloc(cb->methods, (cb->methods_count + miranda_count)
                                         * sizeof(MethodBlock));
 
-           /* If the realloc of the method list gave us a new pointer, the
+           /* If the realloc of the method area gave us a new pointer, the
               pointers to them in the method table are now wrong. */
            if(mb != cb->methods) {
                /*  mb will be left pointing to the end of the methods */
@@ -1284,18 +1349,31 @@ void linkClass(Class *class) {
            } else
                mb += cb->methods_count;
 
-           cb->methods_count += num_mirandas;
+           cb->methods_count += miranda_count;
 
-           /* Now we've expanded the method list, replace pointers to
-              the interface methods. */
-
-           for(i = old_mtbl_size; i < method_table_size; i++,mb++) {
-               memcpy(mb, method_table[i], sizeof(MethodBlock));
-               mb->access_flags |= ACC_MIRANDA;
-               mb->method_table_index = i;
-//               mb->class = class;
-               method_table[i] = mb;
+           if(new_mtbl_count > 0) {
+               method_table_size += new_mtbl_count;
+               method_table = sysRealloc(method_table, method_table_size *
+                                                       sizeof(MethodBlock*));
            }
+
+           /* Now we've expanded the methods, run through the Miranda
+              cache and fill them in */
+           for(i = 0; i < miranda_count; i++,mb++) {
+               memcpy(mb, mirandas[i].mb, sizeof(MethodBlock));
+               mb->method_table_index = mirandas[i].mtbl_idx;
+               method_table[mirandas[i].mtbl_idx] = mb;
+               mb->access_flags |= ACC_MIRANDA;
+
+               if(mirandas[i].default_conflict) {
+                   mb->flags |= DEFAULT_CONFLICT;
+                   if(!(mb->access_flags & ACC_ABSTRACT)) {
+                       mb->code_size = sizeof(abstract_method);
+                       mb->code = abstract_method;
+                   }
+               }
+           }
+           sysFree(mirandas);
        }
    }
 

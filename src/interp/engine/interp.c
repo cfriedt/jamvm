@@ -2316,6 +2316,8 @@ uintptr_t *executeJava() {
     /* Special bytecode which forms the body of an abstract method.
        If it is invoked it'll throw an abstract method exception. */
 
+    #define MESSAGE ": conflicting default methods"
+
     DEF_OPC_210(OPC_ABSTRACT_METHOD_ERROR, {
         /* As the method has been invoked, a frame will exist for
            the abstract method itself.  Pop this to get the correct
@@ -2323,7 +2325,14 @@ uintptr_t *executeJava() {
         ee->last_frame = frame->prev;
 
         /* Throw the exception */
-        signalException(java_lang_AbstractMethodError, mb->name);
+        if(mb->flags & DEFAULT_CONFLICT) {
+            char buff[strlen(mb->name) + sizeof(MESSAGE)];
+
+            strcat(strcpy(buff, mb->name), MESSAGE);
+            signalException(java_lang_AbstractMethodError, buff);
+        } else
+            signalException(java_lang_AbstractMethodError, mb->name);
+
         goto throwException;
     })
 

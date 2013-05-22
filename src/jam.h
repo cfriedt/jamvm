@@ -383,6 +383,7 @@
 
 #define LAMBDA_HIDDEN           1
 #define LAMBDA_COMPILED         2
+#define DEFAULT_CONFLICT        4
 
 /* Method states (direct or inlining
    interpreter variants) */
