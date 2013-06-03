@@ -261,6 +261,7 @@
 #define OPC_GETSTATIC_QUICK_REF         219
 #define OPC_PUTSTATIC_QUICK_REF         220
 #define OPC_GETFIELD_THIS_REF           221
+#define OPC_MIRANDA_BRIDGE              222
 #define OPC_INVOKEVIRTUAL_QUICK_W       226
 #define OPC_GETFIELD_QUICK_W            227
 #define OPC_PUTFIELD_QUICK_W            228
@@ -569,7 +570,10 @@ struct methodblock {
            u2 exception_table_size;
            u2 line_no_table_size;
            ExceptionTableEntry *exception_table;
-           LineNoTableEntry *line_no_table;
+           union {
+               LineNoTableEntry *line_no_table;
+               MethodBlock *miranda_mb;
+           };
        };
        struct {
            union {

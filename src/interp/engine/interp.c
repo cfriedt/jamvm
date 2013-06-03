@@ -2313,8 +2313,25 @@ uintptr_t *executeJava() {
         PUSH_0((uintptr_t)obj, 4);
     });)
 
+    /* Special bytecode which forms the body of a Miranda method.
+       If it is invoked it executes the interface method that it
+       represents. */
+
+    DEF_OPC_210(OPC_MIRANDA_BRIDGE, {
+        frame->mb = mb = mb->miranda_mb;
+        PREPARE_MB(mb);
+
+        pc = (CodePntr)mb->code;
+        cp = &(CLASS_CB(mb->class)->constant_pool);
+
+        DISPATCH_FIRST
+    })
+
     /* Special bytecode which forms the body of an abstract method.
        If it is invoked it'll throw an abstract method exception. */
+
+    /* A class which has conflicting default interface methods also
+       throws an abstract method exception if the method is invoked */
 
     #define MESSAGE ": conflicting default methods"
 

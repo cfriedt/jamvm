@@ -273,7 +273,7 @@
         L(OPC_GETSTATIC_QUICK_REF,    level, label), \
         L(OPC_PUTSTATIC_QUICK_REF,    level, label), \
         L(OPC_GETFIELD_THIS_REF,      level, label), \
-        &&unused,                                    \
+        L(OPC_MIRANDA_BRIDGE,         level, label), \
         &&unused,                                    \
         &&unused,                                    \
         &&unused,                                    \

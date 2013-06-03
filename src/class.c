@@ -92,6 +92,10 @@ static Class *prim_classes[MAX_PRIM_CLASSES];
    we'll get an abstract method error. */
 static char abstract_method[] = {OPC_ABSTRACT_METHOD_ERROR};
 
+/* Bytecode for a Miranda method.  If it is invoked it executes
+   the unimplemented interface method that it represents. */
+static char miranda_bridge[] = {OPC_MIRANDA_BRIDGE};
+
 static Class *addClassToHash(Class *class, Object *class_loader) {
     HashTable *table;
     Class *entry;
@@ -1277,13 +1281,13 @@ void linkClass(Class *class) {
 
                        if(((mtbl_mb->access_flags & ACC_ABSTRACT) 
                                    && (intf_mb->access_flags & ACC_ABSTRACT))
-                             || mtbl_mb->class == interface 
-                             || implements(interface, mtbl_mb->class)) {
+                             || mtbl_mb->miranda_mb->class == interface 
+                             || implements(interface, mtbl_mb->miranda_mb->class)) {
                            *offsets_pntr++ = mtbl_idx;
                            continue;
                        }
 
-                       if(!implements(mtbl_mb->class, interface))
+                       if(!implements(mtbl_mb->miranda_mb->class, interface))
                            default_conflict = TRUE;
 
                        /* The new Miranda is an override, so it replaces
@@ -1349,7 +1353,7 @@ void linkClass(Class *class) {
            } else
                mb += cb->methods_count;
 
-           cb->methods_count += miranda_count;
+           memset(mb, 0, miranda_count * sizeof(MethodBlock));
 
            if(new_mtbl_count > 0) {
                method_table_size += new_mtbl_count;
@@ -1360,20 +1364,32 @@ void linkClass(Class *class) {
            /* Now we've expanded the methods, run through the Miranda
               cache and fill them in */
            for(i = 0; i < miranda_count; i++,mb++) {
-               memcpy(mb, mirandas[i].mb, sizeof(MethodBlock));
+               MethodBlock *intf_mb = mirandas[i].mb;
+
+               mb->class = class;
+               mb->name = intf_mb->name;
+               mb->type = intf_mb->type;
+               mb->max_stack = intf_mb->max_stack;
+               mb->max_locals = intf_mb->max_locals;
+               mb->args_count = intf_mb->args_count;
                mb->method_table_index = mirandas[i].mtbl_idx;
-               method_table[mirandas[i].mtbl_idx] = mb;
-               mb->access_flags |= ACC_MIRANDA;
+               mb->access_flags = intf_mb->access_flags | ACC_MIRANDA;
 
                if(mirandas[i].default_conflict) {
-                   mb->flags |= DEFAULT_CONFLICT;
-                   if(!(mb->access_flags & ACC_ABSTRACT)) {
-                       mb->code_size = sizeof(abstract_method);
-                       mb->code = abstract_method;
-                   }
+                   mb->flags = DEFAULT_CONFLICT;
+                   mb->code_size = sizeof(abstract_method);
+                   mb->code = abstract_method;
+               } else {
+                   mb->miranda_mb = intf_mb;
+                   mb->code_size = sizeof(miranda_bridge);
+                   mb->code = miranda_bridge;
                }
+
+               method_table[mirandas[i].mtbl_idx] = mb;
            }
+
            sysFree(mirandas);
+           cb->methods_count += miranda_count;
        }
    }
 

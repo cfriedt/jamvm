@@ -337,6 +337,7 @@ retry:
                 case OPC_DREM: case OPC_FNEG: case OPC_DNEG:
                 case OPC_MONITORENTER: case OPC_MONITOREXIT:
                 case OPC_ABSTRACT_METHOD_ERROR:
+                case OPC_MIRANDA_BRIDGE:
 #ifdef USE_CACHE
                     cache = 0;
                     pc += 1;
