@@ -2042,8 +2042,8 @@ void freeClassData(Class *class) {
         if(!(mb->access_flags & (ACC_NATIVE | ACC_ABSTRACT | ACC_MIRANDA)))
             gcPendingFree(mb->code);
 
-        /* Miranda methods are a shallow copy of an interface
-           method so we must not free the data they point to */
+        /* Miranda methods have no exception, line number
+           or throw tables */
         if(mb->access_flags & ACC_MIRANDA)
             continue;
 
