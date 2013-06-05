@@ -2054,35 +2054,48 @@ void freeClassData(Class *class) {
         gcPendingFree(mb->throw_table);
     } 
 
-    gcPendingFree(cb->methods);
-    gcPendingFree(cb->inner_classes);
-
     if(cb->extra_attributes != NULL) {
+        int methods_count;
+
+        /* The method extra attributes does not include the Miranda
+           methods so we need to adjust the methods count.  The
+           Mirandas are all at the end of the methods and are small
+           in number - this quick loop is preferable to storing an
+           extra count in the method block.  Likewise, we could put
+           something in the loop above to track the last non-Miranda,
+           but extra attributes are also rare. */
+        for(i = cb->methods_count - 1; i >= 0 &&
+            cb->methods[i].access_flags & ACC_MIRANDA; i--);
+        methods_count = i + 1;
+
         freeSingleAttributes(cb->extra_attributes->class_annos);
 
         freeIndexedAttributes(cb->extra_attributes->field_annos,
                               cb->fields_count);
         freeIndexedAttributes(cb->extra_attributes->method_annos,
-                              cb->methods_count);
+                              methods_count);
         freeIndexedAttributes(cb->extra_attributes->method_parameter_annos,
-                              cb->methods_count);
+                              methods_count);
         freeIndexedAttributes(cb->extra_attributes->method_anno_default_val,
-                              cb->methods_count);
+                              methods_count);
 
 #ifdef JSR308
         freeSingleAttributes(cb->extra_attributes->class_type_annos);
         freeIndexedAttributes(cb->extra_attributes->field_type_annos,
                               cb->fields_count);
         freeIndexedAttributes(cb->extra_attributes->method_type_annos,
-                              cb->methods_count);
+                              methods_count);
 #endif
 #ifdef JSR901
         freeIndexedAttributes(cb->extra_attributes->method_parameters,
-                              cb->methods_count);
+                              methods_count);
 #endif
 
         gcPendingFree(cb->extra_attributes);
     }
+
+    gcPendingFree(cb->methods);
+    gcPendingFree(cb->inner_classes);
 
     if(cb->state >= CLASS_LINKED) {
         ClassBlock *super_cb = CLASS_CB(cb->super);
@@ -2090,7 +2103,7 @@ void freeClassData(Class *class) {
         /* interfaces do not have a method table, or 
             imethod table offsets */
         if(!IS_INTERFACE(cb)) {
-             int spr_imthd_sze = super_cb->imethod_table_size;
+            int spr_imthd_sze = super_cb->imethod_table_size;
 
             gcPendingFree(cb->method_table);
             if(cb->imethod_table_size > spr_imthd_sze)
