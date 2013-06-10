@@ -290,7 +290,8 @@ int initialiseAlloc(InitArgs *args) {
     char *mem = (char*)mmap(0, args->max_heap, PROT_READ|PROT_WRITE,
                                                MAP_PRIVATE|MAP_ANON, -1, 0);
     if(mem == MAP_FAILED) {
-        perror("Couldn't allocate the heap; try reducing the max heap size (-Xmx)\n");
+        perror("Couldn't allocate the heap; try reducing the max "
+               "heap size (-Xmx)");
         return FALSE;
     }
 
@@ -2259,7 +2260,7 @@ void *gcMemMalloc(int n) {
                                    MAP_PRIVATE|MAP_ANON, -1, 0);
 
     if(mem == MAP_FAILED) {
-        jam_fprintf(stderr, "Mmap failed - aborting VM...\n");
+        perror("Mmap failed - aborting VM...");
         exitVM(1);
     }
 
