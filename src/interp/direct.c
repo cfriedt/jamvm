@@ -450,9 +450,6 @@ retry:
                 case OPC_INVOKEVIRTUAL: case OPC_INVOKESPECIAL:
                 case OPC_INVOKESTATIC: case OPC_CHECKCAST:
                 case OPC_INSTANCEOF: case OPC_PUTFIELD:
-#ifdef JSR292
-                case OPC_INVOKEDYNAMIC:
-#endif
                     REWRITE_OPERAND(READ_U2_OP(code + pc));
 #ifdef USE_CACHE
                     cache = 0;
@@ -661,6 +658,9 @@ retry:
                 }
     
                 case OPC_INVOKEINTERFACE:
+#ifdef JSR292
+                case OPC_INVOKEDYNAMIC:
+#endif
                     REWRITE_OPERAND(READ_U2_OP(code + pc));
 #ifdef USE_CACHE
                     cache = 0;
