@@ -2175,6 +2175,7 @@ uintptr_t *executeJava() {
 
         if(pmb->appendix)
             *ostack++ = (uintptr_t)pmb->appendix;
+
         new_mb = pmb->mb;
         arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
@@ -2187,6 +2188,7 @@ uintptr_t *executeJava() {
 
         if(pmb->appendix)
             *ostack++ = (uintptr_t)pmb->appendix;
+
         new_mb = pmb->mb;
         arg1 = ostack - new_mb->args_count;
 
@@ -2209,6 +2211,7 @@ uintptr_t *executeJava() {
 
     DEF_OPC_210(OPC_LINKTOVIRTUAL, {
         Object *mem_name = (Object*)ostack[-1];
+
         arg1 = ostack - INTRINSIC_ARGS(pc);
         new_mb = getLinkToVirtualTarget((Object*)*arg1, mem_name);
 
@@ -2217,6 +2220,7 @@ uintptr_t *executeJava() {
 
     DEF_OPC_210(OPC_LINKTOINTERFACE, {
         Object *mem_name = (Object*)ostack[-1];
+
         arg1 = ostack - INTRINSIC_ARGS(pc);
         new_mb = getLinkToInterfaceTarget((Object*)*arg1, mem_name);
 
