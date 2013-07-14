@@ -211,7 +211,7 @@ retry:
             if(exceptionOccurred())
                 return NULL;
 
-#if 0
+#ifndef JSR335
             if(resolved_cb->access_flags & ACC_INTERFACE) {
                 signalException(java_lang_IncompatibleClassChangeError, NULL);
                 return NULL;
