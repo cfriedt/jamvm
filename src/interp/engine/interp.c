@@ -2428,7 +2428,7 @@ invokeMethod:
 
         if(exceptionOccurred0(ee))
             goto throwException;
-        DISPATCH(0, *pc == OPC_INVOKEINTERFACE_QUICK ? 5 : 3);
+        DISPATCH(0, *pc >= OPC_INVOKEINTERFACE_QUICK ? 5 : 3);
     } else {
         PREPARE_MB(new_mb);
 
@@ -2468,7 +2468,7 @@ methodReturn:
     /* Pop frame */ 
     ee->last_frame = frame;
 
-    DISPATCH_METHOD_RET(*pc == OPC_INVOKEINTERFACE_QUICK ? 5 : 3);
+    DISPATCH_METHOD_RET(*pc >= OPC_INVOKEINTERFACE_QUICK ? 5 : 3);
 
 #ifdef INLINING
     DEF_DUMMY_HANDLERS

@@ -274,9 +274,9 @@
         L(OPC_PUTSTATIC_QUICK_REF,    level, label), \
         L(OPC_GETFIELD_THIS_REF,      level, label), \
         L(OPC_MIRANDA_BRIDGE,         level, label), \
-        &&unused,                                    \
-        &&unused,                                    \
-        &&unused,                                    \
+        L(OPC_ABSTRACT_METHOD_ERROR,  level, label), \
+        I(OPC_INLINE_REWRITER,        level, label), \
+        I(OPC_PROFILE_REWRITER,       level, label), \
         D(OPC_INVOKEVIRTUAL_QUICK_W,  level, label), \
         D(OPC_GETFIELD_QUICK_W,       level, label), \
         D(OPC_PUTFIELD_QUICK_W,       level, label), \
@@ -295,16 +295,16 @@
         &&unused,                                    \
         &&unused,                                    \
         L(OPC_MULTIANEWARRAY_QUICK,   level, label), \
-        L(OPC_INVOKEINTERFACE_QUICK,  level, label), \
-        L(OPC_ABSTRACT_METHOD_ERROR,  level, label), \
-        I(OPC_INLINE_REWRITER,        level, label), \
-        I(OPC_PROFILE_REWRITER,       level, label), \
         J(OPC_INVOKEHANDLE,           level, label), \
-        J(OPC_INVOKEDYNAMIC_QUICK,    level, label), \
         J(OPC_INVOKEBASIC,            level, label), \
         J(OPC_LINKTOSPECIAL,          level, label), \
         J(OPC_LINKTOVIRTUAL,          level, label), \
         J(OPC_LINKTOINTERFACE,        level, label), \
+        L(OPC_INVOKEINTERFACE_QUICK,  level, label), \
+        J(OPC_INVOKEDYNAMIC_QUICK,    level, label), \
+        &&unused,                                    \
+        &&unused,                                    \
+        &&unused,                                    \
         &&unused,                                    \
         &&unused};
 

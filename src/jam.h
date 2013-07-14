@@ -262,6 +262,9 @@
 #define OPC_PUTSTATIC_QUICK_REF         220
 #define OPC_GETFIELD_THIS_REF           221
 #define OPC_MIRANDA_BRIDGE              222
+#define OPC_ABSTRACT_METHOD_ERROR       223
+#define OPC_INLINE_REWRITER             224
+#define OPC_PROFILE_REWRITER            225
 #define OPC_INVOKEVIRTUAL_QUICK_W       226
 #define OPC_GETFIELD_QUICK_W            227
 #define OPC_PUTFIELD_QUICK_W            228
@@ -274,16 +277,13 @@
 #define OPC_CHECKCAST_QUICK             238
 #define OPC_INSTANCEOF_QUICK            239
 #define OPC_MULTIANEWARRAY_QUICK        243
-#define OPC_INVOKEINTERFACE_QUICK       244
-#define OPC_ABSTRACT_METHOD_ERROR       245
-#define OPC_INLINE_REWRITER             246
-#define OPC_PROFILE_REWRITER            247
-#define OPC_INVOKEHANDLE                248
-#define OPC_INVOKEDYNAMIC_QUICK         249
-#define OPC_INVOKEBASIC                 250
-#define OPC_LINKTOSPECIAL               251
-#define OPC_LINKTOVIRTUAL               252
-#define OPC_LINKTOINTERFACE             253
+#define OPC_INVOKEHANDLE                244
+#define OPC_INVOKEBASIC                 245
+#define OPC_LINKTOSPECIAL               246
+#define OPC_LINKTOVIRTUAL               247
+#define OPC_LINKTOINTERFACE             248
+#define OPC_INVOKEINTERFACE_QUICK       249
+#define OPC_INVOKEDYNAMIC_QUICK         250
 
 /* Constant pool tags */
 
