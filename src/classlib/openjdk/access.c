@@ -23,7 +23,7 @@
 
 static Class *magic_accessor;
 
-#ifdef JSR292
+#ifdef JSR335
 static Class *magic_lambda;
 #endif
 
@@ -32,7 +32,7 @@ int classlibInitialiseAccess() {
     if(magic_accessor == NULL)
         return FALSE;
 
-#ifdef JSR292
+#ifdef JSR335
     magic_lambda = findSystemClass0(SYMBOL(java_lang_invoke_MagicLambdaImpl));
     if(magic_lambda == NULL)
         return FALSE;
@@ -45,7 +45,7 @@ int classlibInitialiseAccess() {
 }
 
 int classlibAccessCheck(Class *class, Class *referrer) {
-#ifdef JSR292
+#ifdef JSR335
     if(isSubClassOf(magic_lambda, referrer))
         return TRUE;
 #endif
