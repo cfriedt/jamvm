@@ -233,9 +233,14 @@ if test "$with_java_runtime_library" = gnuclasspath -o \
     AC_DEFINE([SHARED_CHAR_BUFFERS],1,[java.lang.String uses shared char buffers])
 fi
 
+if test "$with_java_runtime_library" = openjdk7; then
+    AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)])
+fi
+
 if test "$with_java_runtime_library" = openjdk8; then
     AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)])
     AC_DEFINE([JSR308],1,[VM support for JSR308 (type annotations)])
+    AC_DEFINE([JSR335],1,[VM support for JSR335 (lambda expressions)])
     AC_DEFINE([JSR901],1,[VM support for JSR901 (method parameter reflection)])
 fi
 
