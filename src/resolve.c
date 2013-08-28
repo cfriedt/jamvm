@@ -211,14 +211,16 @@ retry:
             if(exceptionOccurred())
                 return NULL;
 
-#ifndef JSR335
             if(resolved_cb->access_flags & ACC_INTERFACE) {
+#ifdef JSR335
+                mb = lookupInterfaceMethod(resolved_class, methodname,
+                	                   methodtype);
+#else
                 signalException(java_lang_IncompatibleClassChangeError, NULL);
                 return NULL;
-            }
 #endif
-            
-            mb = lookupMethod(resolved_class, methodname, methodtype);
+            } else
+                mb = lookupMethod(resolved_class, methodname, methodtype);
 
 #ifdef JSR292
             if(mb == NULL)
