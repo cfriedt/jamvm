@@ -88,6 +88,23 @@ uintptr_t *staticFieldBase(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
+uintptr_t *getAddress(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    int64_t address = *(int64_t *)&ostack[1];
+    uintptr_t *pntr = (uintptr_t *)(uintptr_t)address;
+
+    *(int64_t *)ostack = (int64_t)*pntr;
+    return ostack + 2;
+}
+
+uintptr_t *putAddress(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    int64_t address = *(int64_t *)&ostack[1];
+    int64_t value = *(int64_t *)&ostack[3];
+    uintptr_t *pntr = (uintptr_t *)(uintptr_t)address;
+
+    *pntr = (uintptr_t)value;
+    return ostack;
+}
+
 uintptr_t *putLongAddress(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     int64_t address = *(int64_t *)&ostack[1];
     int64_t value   = *(int64_t *)&ostack[3];
@@ -455,6 +472,8 @@ VMMethod sun_misc_unsafe[] = {
                                staticFieldOffset},
     {"staticFieldBase",        "(Ljava/lang/reflect/Field;)Ljava/lang/Object;",
                                staticFieldBase},
+    {"getAddress",             "(J)J", getAddress},
+    {"putAddress",             "(JJ)V", putAddress},
     {"putLong",                "(JJ)V", putLongAddress},
     {"putDouble",              "(JD)V", putLongAddress},
     {"putInt",                 "(JI)V", putIntAddress},
