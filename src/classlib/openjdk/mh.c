@@ -259,7 +259,7 @@ void cachePolyOffsets(CachedPolyOffsets *cpo) {
 #define REFERENCE_KIND_SHIFT 24
 #define REFERENCE_KIND_MASK  (0xf000000 >> REFERENCE_KIND_SHIFT)
 
-int stackOverflowCheck(ExecEnv *ee, char *sp) {
+static int stackOverflowCheck(ExecEnv *ee, char *sp) {
     if(sp > ee->stack_end) {
         if(ee->overflow++) {
             /* Overflow when we're already throwing stack
@@ -277,7 +277,7 @@ int stackOverflowCheck(ExecEnv *ee, char *sp) {
     return FALSE;
 }
 
-void executePolyMethod(Object *ob, MethodBlock *mb, uintptr_t *lvars) {
+static void executePolyMethod(Object *ob, MethodBlock *mb, uintptr_t *lvars) {
     if(mb->access_flags & ACC_NATIVE)
         (*mb->native_invoker)(mb->class, mb, lvars);
     else {
@@ -311,7 +311,7 @@ void executePolyMethod(Object *ob, MethodBlock *mb, uintptr_t *lvars) {
     }
 }
 
-int sigRetSlotSize(char *sig) {
+static int sigRetSlotSize(char *sig) {
     int len = strlen(sig);
 
     if(sig[len-2] != ')')
@@ -328,7 +328,9 @@ int sigRetSlotSize(char *sig) {
     }
 }
 
-uintptr_t *invokeBasic(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+static uintptr_t *invokeBasic(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack) {
+
     Object *method_handle = (Object*)ostack[0];
     Object *form = INST_DATA(method_handle, Object*, mthd_hndl_form_offset);
     Object *vmentry = INST_DATA(form, Object*, lmda_form_vmentry_offset);
@@ -341,7 +343,9 @@ uintptr_t *invokeBasic(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *linkToSpecial(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+static uintptr_t *linkToSpecial(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack) {
+
     Object *mem_name = (Object*)ostack[mb->args_count-1];
     MethodBlock *vmtarget = INST_DATA(mem_name, MethodBlock*,
     	                              mem_name_vmtarget_offset);
@@ -352,7 +356,9 @@ uintptr_t *linkToSpecial(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     return ostack;
 }
 
-uintptr_t *linkToVirtual(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+static uintptr_t *linkToVirtual(Class *class, MethodBlock *mb,
+                                uintptr_t *ostack) {
+
     Object *this = (Object*)ostack[0];
     Object *mem_name = (Object*)ostack[mb->args_count-1];
     MethodBlock *vmtarget = INST_DATA(mem_name, MethodBlock*,
@@ -555,7 +561,9 @@ no_match:
     return 0;
 }
 
-int class2Signature(Class *class, char *buff[], int pos, int *buff_len)  {
+static int class2Signature(Class *class, char *buff[], int pos,
+                           int *buff_len)  {
+
     ClassBlock *cb = CLASS_CB(class);
     int rem, len, name_len;
 
@@ -587,7 +595,7 @@ int class2Signature(Class *class, char *buff[], int pos, int *buff_len)  {
     return pos;
 }
 
-char *type2Signature(Object *type, int add_if_absent) {
+static char *type2Signature(Object *type, int add_if_absent) {
     char *sig, *found;
 
     if(IS_CLASS(type)) {
@@ -633,7 +641,7 @@ char *type2Signature(Object *type, int add_if_absent) {
 
 #define isStaticPolymorphicSig(id) (id >= ID_linkToStatic)
 
-int polymorphicNameID(Class *clazz, char *name) {
+static int polymorphicNameID(Class *clazz, char *name) {
     if(CLASS_CB(clazz)->name == SYMBOL(java_lang_invoke_MethodHandle)) {
         if(name == SYMBOL(invoke) || name == SYMBOL(invokeExact))
             return ID_invokeGeneric;
@@ -651,7 +659,7 @@ int polymorphicNameID(Class *clazz, char *name) {
     return -1;
 }
 
-NativeMethod polymorphicID2Invoker(int id) {
+static NativeMethod polymorphicID2Invoker(int id) {
     switch(id) {
         case ID_invokeBasic:
             return &invokeBasic;
@@ -665,7 +673,7 @@ NativeMethod polymorphicID2Invoker(int id) {
     return NULL;
 }
 
-Object *findMethodHandleType(char *type, Class *accessing_class) {
+static Object *findMethodHandleType(char *type, Class *accessing_class) {
     Object *method_type, *ptypes;
     char *signature, *sig;
     Class *rtype;
@@ -736,9 +744,9 @@ retry:
     return mt;
 }
 
-Object *findMethodHandleConstant(Class *class, int ref_kind,
-                                 Class *defining_class,
-                                 char *name, char *type) {
+static Object *findMethodHandleConstant(Class *class, int ref_kind,
+                                        Class *defining_class,
+                                        char *name, char *type) {
 
     Object *mh;
     Object *name_str = findInternedString(createString(name));
@@ -810,7 +818,7 @@ retry:
     return mh;
 }
 
-int cpType2PrimIdx(int type) {
+static int cpType2PrimIdx(int type) {
     switch(type) {
         case CONSTANT_Integer:
             return PRIM_IDX_INT;
@@ -825,8 +833,10 @@ int cpType2PrimIdx(int type) {
     }
 }
 
-PolyMethodBlock *findInvokeDynamicInvoker(Class *class, char *methodname,
-                                          char *type, int boot_mthd_idx) {
+static PolyMethodBlock *findInvokeDynamicInvoker(Class *class,
+                                                 char *methodname,
+                                                 char *type,
+                                                 int boot_mthd_idx) {
     Object *exception;
     Object *boot_mthd;
     Object *method_type;
@@ -948,8 +958,9 @@ retry:
     return pmb;
 }
 
-PolyMethodBlock *findMethodHandleInvoker(Class *class, Class *accessing_class,
-                                         char *methodname, char *type) {
+static PolyMethodBlock *findMethodHandleInvoker(Class *class,
+                                                Class *accessing_class,
+                                                char *methodname, char *type) {
 
     Object *name_str = findInternedString(createString(methodname));
     Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
