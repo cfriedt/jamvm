@@ -479,7 +479,7 @@ char *JVM_NativePath(char* path) {
 jclass JVM_GetCallerClass(JNIEnv* env, int depth) {
     TRACE("JVM_GetCallerClass(env=%p, depth=%d)", env, depth);
 
-    return getCallerClass(depth);
+    return getCallerClass(depth == -1 ? 2 : depth);
 }
 
 

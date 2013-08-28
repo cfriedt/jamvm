@@ -246,10 +246,11 @@ void cachePolyOffsets(CachedPolyOffsets *cpo) {
 #define REF_newInvokeSpecial        8
 #define REF_invokeInterface         9
 
-#define IS_METHOD      0x10000
-#define IS_CONSTRUCTOR 0x20000
-#define IS_FIELD       0x40000
-#define IS_TYPE        0x80000
+#define IS_METHOD        0x010000
+#define IS_CONSTRUCTOR   0x020000
+#define IS_FIELD         0x040000
+#define IS_TYPE          0x080000
+#define CALLER_SENSITIVE 0x100000
 
 #define SEARCH_SUPERCLASSES 0x100000
 #define SEARCH_INTERFACES   0x200000
@@ -372,6 +373,15 @@ static uintptr_t *linkToVirtual(Class *class, MethodBlock *mb,
     return ostack;
 }
 
+static int mbFlags(MethodBlock *mb) {
+    int flags = mb->access_flags;
+
+    if(mb->flags & MB_CALLER_SENSITIVE)
+        flags |= CALLER_SENSITIVE;
+
+    return flags;
+}
+
 void initMemberName(Object *mname, Object *target) {
 
     if(target->class == method_reflect_class) {
@@ -380,7 +390,7 @@ void initMemberName(Object *mname, Object *target) {
 
         ClassBlock *cb = CLASS_CB(decl_class);
         MethodBlock *mb = &(cb->methods[slot]);
-        int flags = mb->access_flags | IS_METHOD;
+        int flags = mbFlags(mb) | IS_METHOD;
         int ref_kind;
         
         if(mb->access_flags & ACC_STATIC)
@@ -400,7 +410,7 @@ void initMemberName(Object *mname, Object *target) {
         int slot = INST_DATA(target, int, cons_slot_offset);
         Class *decl_class = INST_DATA(target, Class*, cons_class_offset);
         MethodBlock *mb = &(CLASS_CB(decl_class)->methods[slot]);
-        int flags = mb->access_flags | IS_CONSTRUCTOR |
+        int flags = mbFlags(mb) | IS_CONSTRUCTOR |
                     (REF_invokeSpecial << REFERENCE_KIND_SHIFT);
 
         INST_DATA(mname, Class*, mem_name_clazz_offset) = decl_class;
@@ -535,7 +545,7 @@ int getMembers(Class *clazz, Object *match_name, Object *match_sig,
 
             if(j++ < rlen) {
                 Object *mname = *rpntr++;
-                int flags = mb->access_flags | IS_METHOD;
+                int flags = mbFlags(mb) | IS_METHOD;
 
                 flags |= (mb->access_flags & ACC_STATIC ? REF_invokeStatic
                                                         : REF_invokeVirtual)
@@ -1191,7 +1201,7 @@ Object *resolveMemberName(Class *mh_class, Object *mname) {
             if(mb == NULL)
                 goto throw_excep;
 
-            flags |= mb->access_flags;
+            flags |= mbFlags(mb);
             INST_DATA(mname, int, mem_name_flags_offset) = flags;
             INST_DATA(mname, MethodBlock*, mem_name_vmtarget_offset) = mb;
             break;
@@ -1203,7 +1213,7 @@ Object *resolveMemberName(Class *mh_class, Object *mname) {
             if(mb == NULL)
                 goto throw_excep;
 
-            flags |= mb->access_flags;
+            flags |= mbFlags(mb);
             INST_DATA(mname, int, mem_name_flags_offset) = flags;
             INST_DATA(mname, MethodBlock*, mem_name_vmtarget_offset) = mb;
             break;

@@ -2346,7 +2346,7 @@ uintptr_t *executeJava() {
         ee->last_frame = frame->prev;
 
         /* Throw the exception */
-        if(mb->flags & DEFAULT_CONFLICT) {
+        if(mb->flags & MB_DEFAULT_CONFLICT) {
             char buff[strlen(mb->name) + sizeof(MESSAGE)];
 
             strcat(strcpy(buff, mb->name), MESSAGE);

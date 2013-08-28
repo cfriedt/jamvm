@@ -1248,7 +1248,7 @@ void linkClass(Class *class) {
                if(mtbl_idx >= 0) {
                    MethodBlock *mb = method_table[mtbl_idx];
                    if(!(mb->access_flags & ACC_MIRANDA) ||
-                                      mb->flags & DEFAULT_CONFLICT) {
+                                      mb->flags & MB_DEFAULT_CONFLICT) {
                        *offsets_pntr++ = mtbl_idx;
                        continue;
                    }
@@ -1376,7 +1376,7 @@ void linkClass(Class *class) {
                mb->access_flags = intf_mb->access_flags | ACC_MIRANDA;
 
                if(mirandas[i].default_conflict) {
-                   mb->flags = DEFAULT_CONFLICT;
+                   mb->flags = MB_DEFAULT_CONFLICT;
                    mb->code_size = sizeof(abstract_method);
                    mb->code = abstract_method;
                } else {

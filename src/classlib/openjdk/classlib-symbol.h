@@ -78,6 +78,7 @@
     action(sun_reflect_MethodAccessorImpl, "sun/reflect/MethodAccessorImpl"), \
     action(sig_java_lang_invoke_LambdaForm, "Ljava/lang/invoke/LambdaForm;"), \
     action(sig_java_lang_invoke_MemberName, "Ljava/lang/invoke/MemberName;"), \
+    action(sig_sun_reflect_CallerSensitive, "Lsun/reflect/CallerSensitive;"), \
     action(java_lang_invoke_MagicLambdaImpl, \
            "java/lang/invoke/MagicLambdaImpl"), \
     action(sig_java_lang_invoke_MethodHandle, \

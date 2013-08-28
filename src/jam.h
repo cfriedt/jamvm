@@ -382,9 +382,10 @@
 
 /* Method flags */
 
-#define LAMBDA_HIDDEN           1
-#define LAMBDA_COMPILED         2
-#define DEFAULT_CONFLICT        4
+#define MB_LAMBDA_HIDDEN        1
+#define MB_LAMBDA_COMPILED      2
+#define MB_CALLER_SENSITIVE     4
+#define MB_DEFAULT_CONFLICT     8
 
 /* Method states (direct or inlining
    interpreter variants) */

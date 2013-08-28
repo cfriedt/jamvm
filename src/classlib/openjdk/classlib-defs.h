@@ -51,9 +51,11 @@ typedef struct cached_poly_offsets {
 } CachedPolyOffsets;
 
 #define CLASSLIB_METHOD_ANNOTATIONS(mb, type_name) {                       \
-    if(type_name == SYMBOL(sig_java_lang_invoke_LambdaForm_Hidden))        \
-        mb->flags |= LAMBDA_HIDDEN;                                        \
+    if(type_name == SYMBOL(sig_sun_reflect_CallerSensitive))               \
+        mb->flags |= MB_CALLER_SENSITIVE;                                  \
+    else if(type_name == SYMBOL(sig_java_lang_invoke_LambdaForm_Hidden))   \
+        mb->flags |= MB_LAMBDA_HIDDEN;                                     \
     else if(type_name == SYMBOL(sig_java_lang_invoke_LambdaForm_Compiled)) \
-        mb->flags |= LAMBDA_COMPILED;                                      \
+        mb->flags |= MB_LAMBDA_COMPILED;                                   \
 }
 #endif
