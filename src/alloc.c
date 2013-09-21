@@ -1214,11 +1214,13 @@ static void threadClassData(Class *class, Class *new_addr) {
        classes own method and field blocks.  As we know the new address we
        can update the address now. */
 
-    for(i = 0; i < cb->fields_count; i++)
-        cb->fields[i].class = new_addr;
+    if(class != new_addr) {
+        for(i = 0; i < cb->fields_count; i++)
+            cb->fields[i].class = new_addr;
 
-    for(i = 0; i < cb->methods_count; i++)
-        cb->methods[i].class = new_addr;
+        for(i = 0; i < cb->methods_count; i++)
+            cb->methods[i].class = new_addr;
+    }
 }
 
 int threadChildren(Object *ob, Object *new_addr) {
