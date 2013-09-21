@@ -247,7 +247,7 @@ Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len) {
     return anno;
 }
 
-Object *parseAnnotations(Class *class, AnnotationData *annotations) {
+Object *parseAnnotations(Class *class, AttributeData *annotations) {
     if(!anno_inited && !initAnnotation())
         return NULL;
 
@@ -290,7 +290,7 @@ Object *getMethodAnnotations(MethodBlock *mb) {
 }
 
 Object *getMethodParameterAnnotations(MethodBlock *mb) {
-    AnnotationData *annotations;
+    AttributeData *annotations;
     Object **outer_array_data;
     Object *outer_array;
     int no_params, i;
@@ -342,7 +342,7 @@ Object *getMethodParameterAnnotations(MethodBlock *mb) {
 }
 
 Object *getMethodDefaultValue(MethodBlock *mb) {
-    AnnotationData *annotations;
+    AttributeData *annotations;
 
     if(!anno_inited && !initAnnotation())
         return NULL;
