@@ -1066,6 +1066,7 @@ void linkClass(Class *class) {
    int new_itable_count;
    int itbl_idx, i, j;
    int spr_flags = 0;
+   Thread *self;
 
    if(cb->state >= CLASS_LINKED)
        return;
@@ -1178,8 +1179,16 @@ void linkClass(Class *class) {
    for(i = 0; i < cb->interfaces_count; i++)
        new_itable_count += CLASS_CB(cb->interfaces[i])->imethod_table_size;
 
+   cb->imethod_table = sysMalloc((spr_imthd_tbl_sze + new_itable_count) *
+                                 sizeof(ITableEntry));
+
+   /* the interface references in the imethod table are updated by the
+      GC during heap compaction - disable suspension while it is being
+      setup */
+   self = threadSelf();
+   fastDisableSuspend(self);
+
    cb->imethod_table_size = spr_imthd_tbl_sze + new_itable_count;
-   cb->imethod_table = sysMalloc(cb->imethod_table_size * sizeof(ITableEntry));
 
    /* copy parent's interface table - the offsets into the method
       table won't change */
@@ -1206,6 +1215,8 @@ void linkClass(Class *class) {
            itbl_offset_count += CLASS_CB(spr_intf)->method_table_size;
        }
    }
+
+   fastEnableSuspend(self);
 
    /* if we're an interface all finished - offsets aren't used */
 
