@@ -1016,7 +1016,7 @@ static PolyMethodBlock *findMethodHandleInvoker(Class *class,
 
 #define COMPARE(ptr1, ptr2, hash1, hash2)                     \
                   (hash1 == hash2 &&                          \
-                  ptr1->flags == ptr2->flags &&               \
+                  ptr1->state == ptr2->state &&               \
                   ptr1->args_count == ptr2->args_count &&     \
                   ptr1->ret_slot_size == ptr2->ret_slot_size)
 
