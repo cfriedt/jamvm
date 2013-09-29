@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011,
+ * 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -309,6 +309,7 @@ int dllNameHash(char *name) {
 
 int resolveDll(char *name, Object *loader) {
     DllEntry *dll;
+    Thread *self = threadSelf();
 
     TRACE("<DLL: Attempting to resolve library %s>\n", name);
 
@@ -324,7 +325,21 @@ int resolveDll(char *name, Object *loader) {
 
     if(dll == NULL) {
         DllEntry *dll2;
-        void *onload, *handle = nativeLibOpen(name);
+        void *onload, *handle;
+
+        /* lookupLoadedDlls0 calls nativeLibSym with the hashtable
+           locked (which fast-disables suspension).  Internally, the
+           nativeLibXXX calls (may) acquire locks.  As the thread in
+           lookupLoadedDlls0 has suspension fast-disabled, the
+           suspension code will wait for it to self-suspend.  However,
+           if we are suspended holding the internal lock, the thread
+           in lookupLoadedDlls0 will block on the lock, and the
+           suspension code will wait forever.  We therefore must
+           disable suspension here to prevent us from being suspended
+           holding the lock */
+        fastDisableSuspend(self);
+        handle = nativeLibOpen(name);
+        fastEnableSuspend(self);
 
         if(handle == NULL) {
             if(verbose) {
@@ -336,7 +351,12 @@ int resolveDll(char *name, Object *loader) {
             return FALSE;
         }
 
-        if((onload = nativeLibSym(handle, "JNI_OnLoad")) != NULL) {
+        /* See comment above on nativeLibOpen */
+        fastDisableSuspend(self);
+        onload = nativeLibSym(handle, "JNI_OnLoad");
+        fastEnableSuspend(self);
+
+        if(onload != NULL) {
             int ver;
 
             initJNILrefs();
@@ -375,8 +395,17 @@ int resolveDll(char *name, Object *loader) {
            the bootstrap classloader will never be collected,
            therefore libraries loaded by it will never be
            unloaded */
-        if(loader != NULL && nativeLibSym(dll->handle, "JNI_OnUnload") != NULL)
-            classlibNewLibraryUnloader(loader, dll);
+        if(loader != NULL) {
+            void *on_unload;
+
+            /* See comment above on nativeLibOpen */
+            fastDisableSuspend(self);
+            on_unload = nativeLibSym(dll->handle, "JNI_OnUnload");
+            fastEnableSuspend(self);
+
+            if(on_unload != NULL)
+                classlibNewLibraryUnloader(loader, dll);
+        }
 
     } else
         if(dll->loader != loader) {
@@ -402,41 +431,73 @@ char *getDllName(char *name) {
 }
 
 void *lookupLoadedDlls0(char *name, Object *loader) {
+    void *sym = NULL;
+
     TRACE("<DLL: Looking up %s loader %p in loaded DLL's>\n", name, loader);
 
 #define ITERATE(ptr)                                          \
 {                                                             \
     DllEntry *dll = (DllEntry*)ptr;                           \
     if(dll->loader == loader) {                               \
-        void *sym = nativeLibSym(dll->handle, name);          \
+        sym = nativeLibSym(dll->handle, name);                \
         if(sym != NULL)                                       \
-            return sym;                                       \
+            goto out;                                         \
     }                                                         \
 }
 
+    /* We need to explicitly lock the hashtable as hashIterate
+       doesn't grab the hashtable lock (hashIterate is normally
+       used during GC and as hashtables are accessed with
+       suspension fast-disabled, they can't be being accessed
+       during GC). */
+    lockHashTable(hash_table);
     hashIterate(hash_table);
-    return NULL;
+
+out:
+    unlockHashTable(hash_table);
+    return sym;
 }
 
-void unloadDll(DllEntry *dll, int unloader) {
+/* Called from an unloader object finalize method.  As this is
+   running on the finalizer thread we must be careful not to block
+   a thread within lookupLoadedDlls0 (see comment in resolveDll) */
+void unloaderUnloadDll(uintptr_t entry) {
+    DllEntry *dll = (DllEntry*)entry;
+    Thread *self = threadSelf();
+    void *on_unload;
+
+    fastDisableSuspend(self);
+    on_unload = nativeLibSym(dll->handle, "JNI_OnUnload");
+    fastEnableSuspend(self);
+
+    TRACE("<DLL: Unloading loader %p DLL %s\n", dll->loader, dll->name);
+
+    if(on_unload != NULL) {
+        initJNILrefs();
+        (*(void (*)(JavaVM*, void*))on_unload)(&jni_invoke_intf, NULL);
+    }
+
+    fastDisableSuspend(self);
+    nativeLibClose(dll->handle);
+    fastEnableSuspend(self);
+
+    sysFree(dll->name);
+    sysFree(dll);
+}
+
+/* Called from GC when unloading Dlls for an unreachable classloader.
+   This only handles Dlls without a JNI_OnUnload function as these
+   will be handled by an unloader object */
+void unloadDll(DllEntry *dll) {
     void *on_unload = nativeLibSym(dll->handle, "JNI_OnUnload");
 
-    if(unloader || on_unload == NULL) {
-        TRACE("<DLL: Unloading DLL %s\n", dll->name);
-
-        if(on_unload != NULL) {
-            initJNILrefs();
-            (*(void (*)(JavaVM*, void*))on_unload)(&jni_invoke_intf, NULL);
-        }
+    if(on_unload == NULL) {
+        TRACE("<DLL: Unloading loader %p DLL %s\n", dll->loader, dll->name);
 
         nativeLibClose(dll->handle);
         sysFree(dll->name);
         sysFree(dll);
     }
-}
-
-void unloaderUnloadDll(uintptr_t entry) {
-    unloadDll((DllEntry*)entry, TRUE);
 }
 
 #undef ITERATE
@@ -461,7 +522,7 @@ void unloadClassLoaderDlls(Object *loader) {
 {                                                             \
     DllEntry *dll = (DllEntry*)*ptr;                          \
     if(dll->loader == loader) {                               \
-        unloadDll(dll, FALSE);                                \
+        unloadDll(dll);                                       \
         *ptr = NULL;                                          \
         unloaded++;                                           \
     }                                                         \
