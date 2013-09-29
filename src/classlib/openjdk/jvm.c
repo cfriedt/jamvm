@@ -859,6 +859,26 @@ jbyteArray JVM_GetClassTypeAnnotations(JNIEnv *env, jclass cls) {
 
     return getAnnotationsAsArray(getClassTypeAnnotationData((Class*)cls));
 }
+
+/* JVM_GetFieldTypeAnnotations */
+
+jbyteArray JVM_GetFieldTypeAnnotations(JNIEnv *env, jobject field) {
+    FieldBlock *fb = fbFromReflectObject(field);
+
+    TRACE("JVM_GetFieldTypeAnnotations(env=%p, field=%p)", env, field);
+
+    return getAnnotationsAsArray(getFieldTypeAnnotationData(fb));
+}
+
+/* JVM_GetMethodTypeAnnotations */
+
+jbyteArray JVM_GetMethodTypeAnnotations(JNIEnv *env, jobject method) {
+    MethodBlock *mb = mbFromReflectObject(method);
+
+    TRACE("JVM_GetMethodTypeAnnotations(env=%p, method=%p)", env, method);
+
+    return getAnnotationsAsArray(getMethodTypeAnnotationData(mb));
+}
 #endif
 
 

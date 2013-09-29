@@ -160,7 +160,6 @@ extern char *symbol_values[];
     \
     /* Array class names */\
     action(array_C, "[C"), \
-    action(array_B, "[B"), \
     action(array_java_lang_Class, "[Ljava/lang/Class;"), \
     action(array_java_lang_String, "[Ljava/lang/String;"), \
     action(array_java_lang_reflect_Field, "[Ljava/lang/reflect/Field;"), \

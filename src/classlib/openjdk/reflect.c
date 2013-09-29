@@ -41,11 +41,6 @@ int fld_slot_offset, fld_class_offset;
 static MethodBlock *cons_init_mb, *fld_init_mb, *mthd_init_mb;
 static int cons_param_offset, mthd_ret_offset, mthd_param_offset;
 
-#ifdef JSR308
-static int fld_type_annos_offset, cons_type_annos_offset;
-static int mthd_type_annos_offset;
-#endif
-
 #ifdef JSR901
 static Class *parameter_array_class;
 static MethodBlock *param_init_mb;
@@ -58,7 +53,6 @@ int classlibInitReflection() {
     FieldBlock *fld_slot_fb, *fld_class_fb;
     FieldBlock *cons_slot_fb, *cons_class_fb, *cons_param_fb;
     FieldBlock *mthd_slot_fb, *mthd_class_fb, *mthd_ret_fb, *mthd_param_fb;
-    FieldBlock *fld_type_annos_fb, *mthd_type_annos_fb, *cons_type_annos_fb;
 
     cons_ref_cls = findSystemClass(SYMBOL(java_lang_reflect_Constructor));
     mthd_ref_cls = findSystemClass(SYMBOL(java_lang_reflect_Method));
@@ -117,28 +111,6 @@ int classlibInitReflection() {
     mthd_param_offset = mthd_param_fb->u.offset; 
     fld_slot_offset = fld_slot_fb->u.offset; 
     fld_class_offset = fld_class_fb->u.offset; 
-
-#ifdef JSR308
-    fld_type_annos_fb = findField(fld_ref_cls, SYMBOL(typeAnnotations),
-                                  SYMBOL(array_B));
-
-    mthd_type_annos_fb = findField(mthd_ref_cls, SYMBOL(typeAnnotations),
-                                   SYMBOL(array_B));
-
-    cons_type_annos_fb = findField(cons_ref_cls, SYMBOL(typeAnnotations),
-                                   SYMBOL(array_B));
-
-    if(!fld_type_annos_fb || !mthd_type_annos_fb || !cons_type_annos_fb) {
-        /* Find Field doesn't throw an exception... */
-        signalException(java_lang_InternalError,
-                        "Expected type annotation fields don't exist");
-        return FALSE;
-    }
-
-    fld_type_annos_offset = fld_type_annos_fb->u.offset;
-    mthd_type_annos_offset = mthd_type_annos_fb->u.offset;
-    cons_type_annos_offset = cons_type_annos_fb->u.offset;
-#endif
 
 #ifdef JSR901
     prm_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Parameter));
@@ -200,11 +172,6 @@ Object *classlibCreateConstructorObject(MethodBlock *mb) {
         getAnnotationsAsArray(annotations),
         getAnnotationsAsArray(parameters));
 
-#ifdef JSR308
-    INST_DATA(reflect_ob, Object*, cons_type_annos_offset) =
-              getAnnotationsAsArray(getMethodTypeAnnotationData(mb));
-#endif
-
     return reflect_ob;
 }
 
@@ -231,11 +198,6 @@ Object *classlibCreateMethodObject(MethodBlock *mb) {
         getAnnotationsAsArray(parameters),
         getAnnotationsAsArray(dft_val));
 
-#ifdef JSR308
-    INST_DATA(reflect_ob, Object*, mthd_type_annos_offset) =
-              getAnnotationsAsArray(getMethodTypeAnnotationData(mb));
-#endif
-
     return reflect_ob;
 }
 
@@ -255,11 +217,6 @@ Object *classlibCreateFieldObject(FieldBlock *fb) {
         fb->signature == NULL ? NULL
                       : findInternedString(createString(fb->signature)),
         getAnnotationsAsArray(annotations));
-
-#ifdef JSR308
-    INST_DATA(reflect_ob, Object*, fld_type_annos_offset) =
-              getAnnotationsAsArray(getFieldTypeAnnotationData(fb));
-#endif
 
     return reflect_ob;
 }
