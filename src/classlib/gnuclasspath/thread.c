@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -76,10 +76,14 @@ char classlibCreateJavaThread(Thread *thread, Object *jThread) {
     return TRUE;
 }
 
-void classlibMarkThreadTerminated(Object *jThread) {
+void *classlibMarkThreadTerminated(Object *jThread) {
+    Object *vmthread = INST_DATA(jThread, Object*, vmthread_offset);
+
     /* set VMThread ref in Thread object to null - operations after this
        point will result in an IllegalThreadStateException */
     INST_DATA(jThread, Object*, vmthread_offset) = NULL;
+
+    return vmthread;
 }
 
 Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {

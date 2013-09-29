@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011,
+ * 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -606,10 +606,11 @@ void uncaughtException() {
     printException();
 }
 
-void detachThread(Thread *thread) {
+void *detachThread(Thread *thread) {
+    Object *keep_alive;
     ExecEnv *ee = thread->ee;
-    Object *jThread = ee->thread;
-    Object *group = INST_DATA(jThread, Object*, group_offset);
+    Object *java_thread = ee->thread;
+    Object *group = INST_DATA(java_thread, Object*, group_offset);
 
     /* If there's an exception pending, it is uncaught */
     if(exceptionOccurred0(ee))
@@ -621,28 +622,30 @@ void detachThread(Thread *thread) {
 
     /* remove thread from thread group */
     executeMethod(group, (CLASS_CB(group->class))->
-                                     method_table[rmveThrd_mtbl_idx], jThread);
+                              method_table[rmveThrd_mtbl_idx], java_thread);
 
     /* Remove thread from the ID map hash table */
     deleteThreadFromHash(thread);
 
-    objectLock(jThread);
+    objectLock(java_thread);
 
-    /* Mark the thread as terminated.  This state is used in
-       determining if the thread is alive and so must be
-       done before notifying joining threads */
-    classlibSetThreadState(thread, TERMINATED);
-    classlibMarkThreadTerminated(jThread);
+    /* Mark the thread as terminated.  This state is used in determining
+       if the thread is alive and so must be done before notifying joining
+       threads.  The VM thread structure is tied to a Java-level object 
+       (see comment below).  The keep_alive is an object which must be
+       kept alive to prevent the structure from being freed while we are
+       still accessing it */
+    keep_alive = classlibMarkThreadTerminated(java_thread);
 
     /* Notify any threads waiting on the thread object -
         these are joining this thread */
-    objectNotifyAll(jThread);
+    objectNotifyAll(java_thread);
 
-    objectUnlock(jThread);
+    objectUnlock(java_thread);
 
-    /* Thread's about to die, so no need to save registers for
-       scanning.  Also no need to enable suspend afterwards. */
-    disableSuspend0(thread, &group);
+    /* Thread's about to die, so no need to enable suspend
+       afterwards. */
+    disableSuspend(thread);
 
     /* Grab global lock, and update thread structures protected by
        it (thread list, thread ID and number of daemon threads) */
@@ -659,7 +662,7 @@ void detachThread(Thread *thread) {
     freeThreadID(thread->id);
 
     /* Handle daemon thread status */
-    if(!INST_DATA(jThread, int, daemon_offset))
+    if(!INST_DATA(java_thread, int, daemon_offset))
         non_daemon_thrds--;
 
     pthread_mutex_unlock(&lock);
@@ -689,6 +692,7 @@ void detachThread(Thread *thread) {
     setThreadSelf(NULL);
 
     TRACE("Thread %p id: %d detached from VM\n", thread, thread->id);
+    return keep_alive;
 }
 
 void *threadStart(void *arg) {

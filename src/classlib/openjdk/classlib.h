@@ -29,9 +29,7 @@ extern Object *classlibThreadPreInit(Class *thread_class,
 
 extern char classlibCreateJavaThread(Thread *thread, Object *jThread);
 extern Thread *classlibJThread2Thread(Object *jThread);
-
-#define classlibMarkThreadTerminated(jThread) \
-    /* NOTHING TO DO */
+extern Object *classlibMarkThreadTerminated(Object *jThread);
 
 #define classlibThreadIdName() SYMBOL(tid)
 #define classlibAddThreadName() SYMBOL(add)

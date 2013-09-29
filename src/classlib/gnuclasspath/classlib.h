@@ -29,7 +29,7 @@ extern Object *classlibThreadPreInit(Class *thread_class,
                                      Class *thrdGrp_class);
 
 extern char classlibCreateJavaThread(Thread *thread, Object *jThread);
-extern void classlibMarkThreadTerminated(Object *jThread);
+extern Object *classlibMarkThreadTerminated(Object *jThread);
 
 extern Thread *classlibJThread2Thread(Object *jThread);
 

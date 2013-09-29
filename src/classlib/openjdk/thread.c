@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -127,6 +127,11 @@ Thread *classlibJThread2Thread(Object *jThread) {
 int jThreadIsAlive(Object *jThread) {
     int state = INST_DATA(jThread, int, thread_status_offset);
     return state != CREATING && state != TERMINATED;
+}
+
+void *classlibMarkThreadTerminated(Object *jThread) {
+    INST_DATA(jThread, int, thread_status_offset) = TERMINATED;
+    return jThread;
 }
 
 int classlibGetThreadState(Thread *thread) {
