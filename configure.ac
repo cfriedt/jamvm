@@ -39,6 +39,7 @@ i386-*-openbsd*) host_os=bsd libdl_needed=no ;;
 i386-*-freebsd*) host_os=bsd libdl_needed=no ;;
 i386-*-solaris*) host_cpu=x86 host_os=solaris ;;
 x86_64-*-linux*) host_os=linux ;;
+x86_64-*-darwin*) host_os=darwin ;;
 hppa*-*-linux*) host_cpu=parisc host_os=linux ;;
 mips*-*-linux*) host_cpu=mips host_os=linux ;;
 x86_64-*-openbsd*) host_os=bsd libdl_needed=no ;;
@@ -405,6 +406,7 @@ AC_CONFIG_FILES(
     src/os/linux/parisc/Makefile \
     src/os/linux/mips/Makefile \
     src/os/darwin/i386/Makefile \
+    src/os/darwin/x86_64/Makefile \
     src/os/darwin/arm/Makefile \
     src/os/darwin/powerpc/Makefile \
     src/os/bsd/powerpc/Makefile \
