@@ -321,6 +321,10 @@ struct _JNINativeInterface {
     void* (*GetDirectBufferAddress)(JNIEnv *env, jobject buffer);
     jlong (*GetDirectBufferCapacity)(JNIEnv *env, jobject buffer);
     jobjectRefType (*GetObjectRefType)(JNIEnv *env, jobject obj);
+    /* ---- Custom ---- */
+
+    jobject (JNICALL *CreateArrayFromPointer)(JNIEnv *, jobject, jint, jint, jstring);
+
 };
 
 struct _JNIInvokeInterface {

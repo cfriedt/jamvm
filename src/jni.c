@@ -322,6 +322,57 @@ void scanJNIWeakGlobalRefs() {
 
 /* --------------- JNI interface functions --------------- */
 
+/* Custom JNI */
+
+jobject JNICALL Jam_CreateArrayFromPointer(JNIEnv *env, jobject pointer, jint capacity, jint array_offset, jstring className) {
+	jbyteArray r = NULL;
+	ArrayObject *ao = NULL;
+
+	static char *pointer_class_name, *pointer_data_signature;
+	static jclass pointer_class;
+	static jfieldID pointer_data_fieldID;
+	char *class_name = NULL;
+	jboolean isCopy = JNI_FALSE;
+
+	jlong pointer_data = 0;
+
+	if (!(pointer_class_name && pointer_data_signature && pointer_class && pointer_data_fieldID)) {
+		pointer_class_name     = sizeof(void *) == 8 ? "gnu/classpath/Pointer64" : "gnu/classpath/Pointer32";
+		pointer_data_signature = sizeof(void *) == 8 ? "J" : "I";
+
+		pointer_class = (*env)->FindClass(env, pointer_class_name );
+		pointer_data_fieldID = (*env)->GetFieldID(env, pointer_class, "data", pointer_data_signature );
+	}
+	if (!(pointer_class_name && pointer_data_signature && pointer_class && pointer_data_fieldID)) {
+		goto out;
+	}
+
+	pointer_data =
+		sizeof(void *) == 8
+			? (*env)->GetLongField(env, pointer, pointer_data_fieldID)
+			: (*env)->GetIntField(env, pointer, pointer_data_fieldID);
+
+	class_name = (char *)(*env)->GetStringUTFChars(env, className, &isCopy);
+	if ( NULL == class_name ) {
+		goto out;
+	}
+
+	r = allocTypeArrayFromClassName(class_name,0);
+	if ( !r ) {
+		goto out;
+	}
+	ao = r;
+	ao->data = pointer_data;
+	ao->size = capacity;
+
+out:
+	if ( class_name && isCopy ) {
+		(*env)->ReleaseStringUTFChars(env, className, class_name);
+	}
+
+	return (jobject)r;
+}
+
 /* Extensions added to JNI in JDK 1.6 */
 
 jobjectRefType Jam_GetObjectRefType(JNIEnv *env, jobject obj) {
@@ -1423,7 +1474,8 @@ struct _JNINativeInterface Jam_JNINativeInterface = {
     Jam_NewDirectByteBuffer,
     Jam_GetDirectBufferAddress,
     Jam_GetDirectBufferCapacity,
-    Jam_GetObjectRefType
+    Jam_GetObjectRefType,
+    Jam_CreateArrayFromPointer,
 };
 
 jint Jam_DestroyJavaVM(JavaVM *vm) {

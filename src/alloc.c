@@ -2087,7 +2087,7 @@ Object *allocObject(Class *class) {
 }
     
 Object *allocArray(Class *class, int size, int el_size) {
-    Object *ob;
+    ArrayObject *ob;
 
     /* Special check to protect against integer overflow */
     if(size > (INT_MAX - sizeof(uintptr_t) - sizeof(Object)) / el_size) {
@@ -2095,16 +2095,47 @@ Object *allocArray(Class *class, int size, int el_size) {
         return NULL;
     }
 
-    ob = gcMalloc(size * el_size + sizeof(uintptr_t) + sizeof(Object));
+    ob = gcMalloc(size * el_size + sizeof(ArrayObject));
 
     if(ob != NULL) {
         ob->class = class;
-        ARRAY_LEN(ob) = size;
+        ob->size  = size;
+        if ( size > 0 ) {
+            ob->data = ob->contig_data;
+        }
         TRACE_ALLOC("<ALLOC: allocated %s array object @%p>\n",
                     CLASS_CB(class)->name, ob);
     }
 
-    return ob;
+    return (Object *)ob;
+}
+
+static char *_array_names[] = { "[Z", "[C", "[F", "[D",
+	"[B", "[S", "[I", "[J", };
+
+Object *allocTypeArrayFromClassName(const char *className, int size) {
+	Object *r = NULL;
+	int type;
+	char t;
+
+	if ( NULL == className || strlen(className) != 2 || *className != '[' )
+		goto out;
+	t = *(className+1);
+
+	for(type = 0; type < 8; type++) {
+		if ( t == _array_names[type][1] ) {
+			break;
+		}
+	}
+	if ( type > 8 )
+		goto out;
+
+	type += T_BOOLEAN;
+
+	r = allocTypeArray(type, size);
+
+out:
+	return r;
 }
 
 Object *allocObjectArray(Class *element_class, int length) {
@@ -2126,8 +2157,6 @@ Object *allocObjectArray(Class *element_class, int length) {
 }
 
 Object *allocTypeArray(int type, int size) {
-    static char *array_names[] = {"[Z", "[C", "[F", "[D", "[B",
-                                  "[S", "[I", "[J"};
     static int element_sizes[] = {1, 2, 4, 8, 1, 2, 4, 8};
     static Class *array_classes[8];
 
@@ -2139,7 +2168,7 @@ Object *allocTypeArray(int type, int size) {
     }
 
     if(array_classes[idx] == NULL) {
-        Class *class = findArrayClass(array_names[idx]);
+        Class *class = findArrayClass(_array_names[idx]);
 
         if(class == NULL)
             return NULL;

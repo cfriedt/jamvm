@@ -24,6 +24,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <time.h>
+#include <stddef.h>
 
 /* Configure options */
 #include "config.h"
@@ -418,6 +419,22 @@ typedef struct line_no_table_entry {
     u2 line_no;
 } LineNoTableEntry;
 
+/*
+ * Previously, jamvm did not use a data indirection to point to (possible)
+ * contiguous data, and the array data was always bound to the array at 
+ * allocation time. The added indirection allows possibly-elsewhere-defined
+ * regions of memory to be used in the creation of java arrays.
+ * This includes pointers to externally-malloced data, memory-mapped files,
+ * memory-mapped devices, and so on.
+ */
+typedef struct array_object {
+   uintptr_t lock;
+   Class *class;
+   uintptr_t size;
+   uintptr_t data;
+   char contig_data[];
+} ArrayObject;
+
 typedef struct object Class;
 
 typedef struct object {
@@ -758,7 +775,7 @@ typedef struct InitArgs {
 #define INST_DATA(obj, type, offset) *(type*)&((char*)obj)[offset]
 #define INST_BASE(obj, type)         ((type*)(obj+1))
 
-#define ARRAY_DATA(arrayRef, type)   ((type*)(((uintptr_t*)(arrayRef+1))+1)) 
+#define ARRAY_DATA(arrayRef, type)   (*((type**)(((uintptr_t*)(arrayRef+1))+1)))
 #define ARRAY_LEN(arrayRef)          *(uintptr_t*)(arrayRef+1)
 
 #define IS_CLASS(object)             (object->class && IS_CLASS_CLASS( \
@@ -870,6 +887,7 @@ extern int initialiseGC(InitArgs *args);
 extern Class *allocClass();
 extern Object *allocObject(Class *class);
 extern Object *allocTypeArray(int type, int size);
+extern Object *allocTypeArrayFromClassName(const char *className, int size);
 extern Object *allocObjectArray(Class *element_class, int size);
 extern Object *allocArray(Class *class, int size, int el_size);
 extern Object *allocMultiArray(Class *array_class, int dim, intptr_t *count);
