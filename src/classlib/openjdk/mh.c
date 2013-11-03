@@ -733,6 +733,7 @@ retry:
             char *methodtype;
             int type_idx = CP_METHOD_TYPE(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_MethodType)
                 goto retry;
 
@@ -795,6 +796,7 @@ retry:
             int ref_idx = CP_METHOD_HANDLE_REF(cp, cp_index);
             int ref_kind = CP_METHOD_HANDLE_KIND(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_MethodHandle)
                 goto retry;
 
@@ -964,6 +966,7 @@ retry:
             int boot_mthd_idx = CP_INVDYN_BOOT_MTHD(cp, cp_index);
             int name_type_idx = CP_INVDYN_NAME_TYPE(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_InvokeDynamic)
                 goto retry;
 
@@ -1120,6 +1123,7 @@ retry:
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
             int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_Methodref)
                 goto retry;
 
@@ -1155,6 +1159,7 @@ retry:
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
             int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_Methodref)
                 goto retry;
 

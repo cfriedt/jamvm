@@ -134,6 +134,7 @@ retry:
             char *classname;
             int name_idx = CP_CLASS(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_Class)
                 goto retry;
 
@@ -199,6 +200,7 @@ retry:
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
             int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != tag)
                 goto retry;
 
@@ -278,6 +280,7 @@ retry:
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
             int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_InterfaceMethodref)
                 goto retry;
 
@@ -330,6 +333,7 @@ retry:
             int cl_idx = CP_FIELD_CLASS(cp, cp_index);
             int name_type_idx = CP_FIELD_NAME_TYPE(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_Fieldref)
                 goto retry;
 
@@ -393,6 +397,7 @@ retry:
             Object *string;
             int idx = CP_STRING(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_String)
                 goto retry;
 
