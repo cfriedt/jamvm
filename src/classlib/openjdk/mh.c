@@ -875,16 +875,20 @@ static PolyMethodBlock *findInvokeDynamicInvoker(Class *class,
             int idx = BOOTSTRAP_METHOD_ARG(cb->bootstrap_methods,
                                            boot_mthd_idx, i);
             int prim_idx = cpType2PrimIdx(CP_TYPE(cp, idx));
+            Object *arg;
 
-            if(prim_idx != -1)
-                args_data[i] = createWrapperObject(prim_idx,
-                                                   &CP_INFO(cp, idx),
-                                                   REF_SRC_FIELD);
-            else
-                args_data[i] = (Object*)resolveSingleConstant(class, idx);
+            if(prim_idx != -1) {
+                arg = createWrapperObject(prim_idx, &CP_INFO(cp, idx),
+                                          REF_SRC_FIELD);
+                if(arg == NULL)
+                    return NULL;
+            } else {
+                arg = (Object*)resolveSingleConstant(class, idx);
 
-            if(args_data[i] == NULL)
-                return NULL;
+                if(exceptionOccurred())
+                    return NULL;
+            }
+            args_data[i] = arg;
         }
     }
 
