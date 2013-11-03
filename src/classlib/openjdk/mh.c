@@ -756,20 +756,18 @@ retry:
 
 static Object *findMethodHandleConstant(Class *class, int ref_kind,
                                         Class *defining_class,
-                                        char *name, char *type) {
+                                        char *name, Object *type) {
 
     Object *mh;
     Object *name_str = findInternedString(createString(name));
-    Object *type_obj = type[0] == '(' ? findMethodHandleType(type, class)
-                                      : findClassFromSignature(type, class);
 
-    if(name_str == NULL || type_obj == NULL)
+    if(name_str == NULL)
         return NULL;
 
     mh = *(Object**)executeStaticMethod(MHN_linkMethodHandleConstant_mb->class,
                                         MHN_linkMethodHandleConstant_mb,
                                         class, ref_kind, defining_class,
-                                        name_str, type_obj);
+                                        name_str, type);
 
     if(exceptionOccurred())
         return NULL;
@@ -791,26 +789,45 @@ retry:
             break;
 
         case CONSTANT_MethodHandle: {
+            char *name;
+            Object *type;
             Class *resolved_class;
-            int cl_idx, name_type_idx;
-            char *methodname, *methodtype;
             int ref_idx = CP_METHOD_HANDLE_REF(cp, cp_index);
             int ref_kind = CP_METHOD_HANDLE_KIND(cp, cp_index);
 
             if(CP_TYPE(cp, cp_index) != CONSTANT_MethodHandle)
                 goto retry;
 
-            cl_idx = CP_METHOD_CLASS(cp, ref_idx);
-            name_type_idx = CP_METHOD_NAME_TYPE(cp, ref_idx);
-            methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
-            methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
+            if(ref_kind >= REF_invokeVirtual) {
+                MethodBlock *mb;
 
-            resolved_class = resolveClass(class, cl_idx, TRUE, FALSE);
-            if(resolved_class == NULL)
+                if(ref_kind == REF_invokeInterface)
+                    mb = resolveInterfaceMethod(class, ref_idx);
+                else
+                    mb = resolveMethod(class, ref_idx);
+
+                if(mb == NULL)
+                    return NULL;
+
+                name = mb->name;
+                resolved_class = mb->class;
+                type = findMethodHandleType(mb->type, resolved_class);
+            } else {
+                FieldBlock *fb = resolveField(class, ref_idx);
+
+                if(fb == NULL)
+                    return NULL;
+
+                name = fb->name;
+                resolved_class = fb->class;
+                type = findClassFromSignature(fb->type, resolved_class);
+            }
+
+            if(type == NULL)
                 return NULL;
 
             mh = findMethodHandleConstant(class, ref_kind, resolved_class,
-                                          methodname, methodtype);
+                                          name, type);
 
             if(mh == NULL)
                 return NULL;
