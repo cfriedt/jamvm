@@ -129,7 +129,7 @@ int jThreadIsAlive(Object *jThread) {
     return state != CREATING && state != TERMINATED;
 }
 
-void *classlibMarkThreadTerminated(Object *jThread) {
+Object *classlibMarkThreadTerminated(Object *jThread) {
     INST_DATA(jThread, int, thread_status_offset) = TERMINATED;
     return jThread;
 }
