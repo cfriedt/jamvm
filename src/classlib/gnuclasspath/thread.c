@@ -76,7 +76,7 @@ char classlibCreateJavaThread(Thread *thread, Object *jThread) {
     return TRUE;
 }
 
-void *classlibMarkThreadTerminated(Object *jThread) {
+Object *classlibMarkThreadTerminated(Object *jThread) {
     Object *vmthread = INST_DATA(jThread, Object*, vmthread_offset);
 
     /* set VMThread ref in Thread object to null - operations after this
