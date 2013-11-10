@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2013
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -304,19 +304,27 @@ FieldBlock *classlibFbFromReflectObject(Object *reflect_ob) {
 
 Class *getEnclosingClass(Class *class) {
     ClassBlock *cb = CLASS_CB(class);
+    int encl_class_idx = cb->enclosing_class;
 
-    return cb->enclosing_class ? resolveClass(class, cb->enclosing_class,
-                                              FALSE, TRUE)
-                               : NULL;
+    /* A member class doesn't have an EnclosingMethod attribute,
+       so the enclosing class is the declaring class */
+    if(!encl_class_idx)
+        encl_class_idx = cb->declaring_class;
+
+    if(!encl_class_idx)
+        return NULL;
+
+    return resolveClass(class, encl_class_idx, FALSE, TRUE);
 }
 
 MethodBlock *getEnclosingMethod(Class *class) {
-    Class *enclosing_class = getEnclosingClass(class);
+    ClassBlock *cb = CLASS_CB(class);
 
-    if(enclosing_class != NULL) {
-        ClassBlock *cb = CLASS_CB(class);
+    if(cb->enclosing_class && cb->enclosing_method) {
+        Class *enclosing_class = resolveClass(class, cb->enclosing_class,
+                                              FALSE, TRUE);
 
-        if(cb->enclosing_method) {
+        if(enclosing_class != NULL) {
             ConstantPool *cp = &cb->constant_pool;
             char *methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp,
                                                cb->enclosing_method));

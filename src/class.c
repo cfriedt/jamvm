@@ -631,12 +631,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                     if(inner == this_idx) {
                         int inner_name_idx;
 
-                        /* A member class doesn't have an EnclosingMethod
-                           attribute, so set the enclosing class to be the
-                           same as the declaring class */
-                        if(outer)
-                            classblock->declaring_class =
-                                       classblock->enclosing_class = outer;
+                        classblock->declaring_class = outer;
 
                         READ_TYPE_INDEX(inner_name_idx, constant_pool,
                                         CONSTANT_Utf8, ptr, len);
