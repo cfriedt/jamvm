@@ -350,7 +350,7 @@ MethodBlock *getEnclosingMethod(Class *class) {
 Object *getEnclosingMethodObject(Class *class) {
     MethodBlock *mb = getEnclosingMethod(class);
 
-    if(mb != NULL && mb->name == SYMBOL(object_init))
+    if(mb != NULL && mb->name != SYMBOL(object_init))
         return classlibCreateMethodObject(mb);
 
     return NULL;
