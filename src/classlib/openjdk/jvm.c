@@ -2143,6 +2143,11 @@ jobject JVM_NewArray(JNIEnv *env, jclass eltClass, jint length) {
             return allocTypeArray(type_map[type - 1], length);
         }
 
+        if(cb->dim == 255) {
+            signalException(java_lang_IllegalArgumentException, NULL);
+            return NULL;
+        }
+
         return allocObjectArray(eltClass, length);
     }
 }
@@ -2165,6 +2170,11 @@ jobject JVM_NewMultiArray(JNIEnv *env, jclass eltClass, jintArray dim) {
         int len = ARRAY_LEN((Class*)dim);
         int *dim_data = ARRAY_DATA((Class*)dim, int);
         ClassBlock *cb = CLASS_CB((Class*)eltClass);
+
+        if(len == 0 || cb->dim + len > 255) {
+            signalException(java_lang_IllegalArgumentException, NULL);
+            return NULL;
+        }
 
         if(IS_PRIMITIVE(cb)) {
             /* If the element is a primitive class, we
