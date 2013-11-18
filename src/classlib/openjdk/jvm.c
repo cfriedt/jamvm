@@ -2198,11 +2198,18 @@ jobject JVM_NewMultiArray(JNIEnv *env, jclass eltClass, jintArray dim) {
         } else {
             /* Construct object array name, e.g. "[[Ljava/lang/String;" */
             int name_len = strlen(cb->name);
-            array_name = alloca(len + name_len + 3);
-            array_name[len] = 'L';
-            memcpy(array_name + len + 1, cb->name, name_len);
-            array_name[len + name_len + 1] = ';';
-            array_name[len + name_len + 2] = '\0';
+
+            if(IS_ARRAY(cb)) {
+                array_name = alloca(len + name_len + 1);
+                memcpy(array_name + len, cb->name, name_len);
+                array_name[len + name_len] = '\0';
+            } else {
+                array_name = alloca(len + name_len + 3);
+                array_name[len] = 'L';
+                memcpy(array_name + len + 1, cb->name, name_len);
+                array_name[len + name_len + 1] = ';';
+                array_name[len + name_len + 2] = '\0';
+            }
         }
 
         /* Add a [ for each dimension */
