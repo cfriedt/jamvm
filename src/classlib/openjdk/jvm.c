@@ -523,7 +523,7 @@ jclass JVM_FindClassFromClassLoader(JNIEnv *env, const char *name,
     Class *class;
 
     TRACE("JVM_FindClassFromClassLoader(env=%p, name=%s, init=%d, loader=%p,"
-          " throwError=%d)", env, name, init, loader, throwError);
+          " throw_error=%d)", env, name, init, loader, throw_error);
 
     class = findClassFromClassLoader((char *)name, loader);
 
