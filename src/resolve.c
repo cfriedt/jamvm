@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -242,9 +242,6 @@ retry:
                                     "method is not accessible");
                     return NULL;
                 }
-
-                if(initClass(mb->class) == NULL)
-                    return NULL;
 
                 CP_TYPE(cp, cp_index) = CONSTANT_Locked;
                 MBARRIER();

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2013
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2013, 2014
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -86,6 +86,10 @@ int main() {
 char *symbol_values[] = {};
 
 void clearException() {
+}
+
+Class *initClass(Class *class) {
+    return NULL;
 }
 
 MethodBlock *lookupVirtualMethod(Class *class, MethodBlock *mb) {
