@@ -1331,6 +1331,9 @@ uintptr_t *executeJava() {
         frame->last_pc = pc;
         fb = resolveField(mb->class, idx);
 
+        if(fb != NULL)
+            initClass(fb->class);
+
         if(exceptionOccurred0(ee))
             goto throwException;
 
@@ -1357,6 +1360,9 @@ uintptr_t *executeJava() {
 
         frame->last_pc = pc;
         fb = resolveField(mb->class, idx);
+
+        if(fb != NULL)
+            initClass(fb->class);
 
         if(exceptionOccurred0(ee))
             goto throwException;
@@ -1676,6 +1682,9 @@ uintptr_t *executeJava() {
         frame->last_pc = pc;
         fb = resolveField(mb->class, DOUBLE_INDEX(pc));
 
+        if(fb != NULL)
+            initClass(fb->class);
+
         if(exceptionOccurred0(ee))
             goto throwException;
 
@@ -1698,6 +1707,9 @@ uintptr_t *executeJava() {
                
         frame->last_pc = pc;
         fb = resolveField(mb->class, DOUBLE_INDEX(pc));
+
+        if(fb != NULL)
+            initClass(fb->class);
 
         if(exceptionOccurred0(ee))
             goto throwException;

@@ -343,15 +343,12 @@ retry:
 
             fb = lookupField(resolved_class, fieldname, fieldtype);
 
-            if(fb) {
+            if(fb != NULL) {
                 if(!checkFieldAccess(fb, class)) {
                     signalException(java_lang_IllegalAccessError,
                                     "field is not accessible");
                     return NULL;
                 }
-
-                if(initClass(fb->class) == NULL)
-                    return NULL;
 
                 CP_TYPE(cp, cp_index) = CONSTANT_Locked;
                 MBARRIER();
