@@ -932,8 +932,8 @@ static PolyMethodBlock *findInvokeDynamicInvoker(Class *class,
     /* Intercept LinkageErrors */
     if((exception = exceptionOccurred())) {
         if(!isSubClassOf(EXCEPTION(java_lang_BootstrapMethodError),
-                         exception) &&
-           isSubClassOf(EXCEPTION(java_lang_LinkageError), exception)) {
+                         exception->class) &&
+           isSubClassOf(EXCEPTION(java_lang_LinkageError), exception->class)) {
             clearException();
             signalChainedException(java_lang_BootstrapMethodError,
                                    NULL, exception);
