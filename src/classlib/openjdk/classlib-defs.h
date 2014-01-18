@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2011, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -25,6 +25,7 @@
 
 #define CLASSLIB_CLASS_EXTRA_FIELDS  \
    Object *protection_domain;        \
+   Object *host_class;               \
    Object *signers;
 
 #define CLASSLIB_THREAD_EXTRA_FIELDS \

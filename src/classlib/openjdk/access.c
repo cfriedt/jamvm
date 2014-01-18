@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2012, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -33,6 +33,16 @@ int classlibInitialiseAccess() {
 }
 
 int classlibAccessCheck(Class *class, Class *referrer) {
+    Class *host_class = CLASS_CB(referrer)->host_class;
+
+    if(host_class != NULL) {
+        while(CLASS_CB(host_class)->host_class != NULL)
+            host_class = CLASS_CB(host_class)->host_class;
+
+        if(host_class == class)
+            return TRUE;
+    }
+
     return isSubClassOf(magic_accessor, referrer);
 }
 
