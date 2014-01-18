@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -923,14 +923,15 @@ extern Class *defineClass(char *classname, char *data, int offset, int len,
                           Object *class_loader);
 extern void linkClass(Class *class);
 extern Class *initClass(Class *class);
-extern Class *findSystemClass(char *);
-extern Class *findSystemClass0(char *);
-extern Class *loadSystemClass(char *);
+extern Class *findSystemClass(char *name);
+extern Class *findSystemClass0(char *name);
+extern Class *loadSystemClass(char *name);
 
-extern Class *findHashedClass(char *, Object *);
-extern Class *findPrimitiveClass(char);
-extern Class *findPrimitiveClassByName(char *);
-extern Class *findArrayClassFromClassLoader(char *, Object *);
+extern Class *findPrimitiveClass(char name);
+extern Class *findPrimitiveClassByName(char *name);
+extern Class *findHashedClass(char *name, Object *loader);
+extern Class *findClassFromClassLoader(char *name, Object *loader);
+extern Class *findArrayClassFromClassLoader(char *name, Object *loader);
 
 extern Object *getSystemClassLoader();
 
@@ -940,14 +941,15 @@ extern Object *bootClassPathResource(char *filename, int index);
 
 #define findArrayClassFromClass(name, class) \
              findArrayClassFromClassLoader(name, CLASS_CB(class)->class_loader)
+
 #define findArrayClass(name) findArrayClassFromClassLoader(name, NULL)
 
-extern Class *findClassFromClassLoader(char *, Object *);
-#define findClassFromClass(name, class) \
-             findClassFromClassLoader(name, CLASS_CB(class)->class_loader)
+#define findClassFromClass(classname, class)                               \
+    (CLASS_CB(class)->name == classname ? class :                          \
+        findClassFromClassLoader(classname, CLASS_CB(class)->class_loader))
 
-extern void freeClassData(Class *class);
 extern void freeClassLoaderData(Object *class_loader);
+extern void freeClassData(Class *class);
 
 extern char *getClassPath();
 extern char *getBootClassPath();
