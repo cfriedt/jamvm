@@ -645,12 +645,14 @@ typedef struct classblock {
    u2 interfaces_count;
    u2 inner_class_count;
    u2 constant_pool_count;
-   int dim;
    int object_size;
    int method_table_size;
    int imethod_table_size;
    int initing_tid;
-   int refs_offsets_size;
+   union {
+       int dim;
+       int refs_offsets_size;
+   };
    char *name;
    char *signature;
    char *super_name;
@@ -663,10 +665,12 @@ typedef struct classblock {
    ITableEntry *imethod_table;
    Object *class_loader;
    u2 *inner_classes;
-   Class *element_class;
    char *bootstrap_methods;
    ExtraAttributes *extra_attributes;
-   RefsOffsetsEntry *refs_offsets_table;
+   union {
+       Class *element_class;
+       RefsOffsetsEntry *refs_offsets_table;
+   };
    ConstantPool constant_pool;
    CLASSLIB_CLASS_EXTRA_FIELDS
 } ClassBlock;
