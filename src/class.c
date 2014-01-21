@@ -2335,7 +2335,7 @@ out:
     return res;
 }
 
-int initialiseClass(InitArgs *args) {
+int initialiseClassStage1(InitArgs *args) {
     verbose = args->verboseclass;
 
     setClassPath(args);
@@ -2354,7 +2354,19 @@ int initialiseClass(InitArgs *args) {
 
     /* Do classlib specific class initialisation */
     if(!classlibInitialiseClass()) {
-        jam_fprintf(stderr, "Error initialising VM (initialiseClass)\n");
+        jam_fprintf(stderr, "Error initialising VM (initialiseClassStage1)\n");
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+int initialiseClassStage2() {
+    /* Ensure that java.lang.Class is initialised.  We can't do it in
+       stage1 (above) as it is too early in the initialisation process
+       to run Java code */
+    if(initClass(java_lang_Class) == NULL) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseClassStage2)\n");
         return FALSE;
     }
 

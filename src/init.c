@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2011, 2012
- * Robert Lougher <rob@jamvm.org.uk>.
+ * 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -110,7 +110,7 @@ int initVM(InitArgs *args) {
              initialiseThreadStage1(args) &&
              initialiseUtf8() &&
              initialiseSymbol() &&
-             initialiseClass(args) &&
+             initialiseClassStage1(args) &&
              initialiseDll(args) &&
              initialiseMonitor() &&
              initialiseString() &&
@@ -120,6 +120,7 @@ int initVM(InitArgs *args) {
              initialiseFrame() &&
              initialiseJNI() &&
              initialiseInterpreter(args) &&
+             initialiseClassStage2() &&
              initialiseThreadStage2(args) &&
              initialiseGC(args);
 

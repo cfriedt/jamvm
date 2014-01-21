@@ -963,7 +963,8 @@ extern void markLoaderClasses(Object *loader, int mark);
 extern void threadBootClasses();
 extern void threadLoaderClasses(Object *class_loader);
 extern void newLibraryUnloader(Object *class_loader, void *entry);
-extern int initialiseClass(InitArgs *args);
+extern int initialiseClassStage1(InitArgs *args);
+extern int initialiseClassStage2();
 
 extern Object *bootPackage(char *package_name);
 extern Object *bootPackages();
