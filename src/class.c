@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011,
- * 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * 2012, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -373,11 +373,8 @@ Class *parseClass(char *classname, char *data, int offset, int len,
            signalException(java_lang_ClassFormatError, "Object has super");
            return NULL;
         }
-        classblock->super_name = NULL;
     } else {
         READ_TYPE_INDEX(super_idx, constant_pool, CONSTANT_Class, ptr, len);
-        classblock->super_name = CP_UTF8(constant_pool,
-                                         CP_CLASS(constant_pool, super_idx));
     }
 
     classblock->class_loader = class_loader;
@@ -766,7 +763,6 @@ Class *createArrayClass(char *classname, Object *class_loader) {
     classblock = CLASS_CB(class);
 
     classblock->name = copyUtf8(classname);
-    classblock->super_name = SYMBOL(java_lang_Object);
     classblock->super = findSystemClass0(SYMBOL(java_lang_Object));
     classblock->method_table = CLASS_CB(classblock->super)->method_table;
 
@@ -2364,4 +2360,3 @@ int initialiseClass(InitArgs *args) {
 
     return TRUE;
 }
-

@@ -655,7 +655,6 @@ typedef struct classblock {
    };
    char *name;
    char *signature;
-   char *super_name;
    char *source_file_name;
    Class *super;
    FieldBlock *fields;
