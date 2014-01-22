@@ -2383,7 +2383,7 @@ jint JVM_SendTo(jint fd, char *buf, int len, int flags, struct sockaddr *to,
 jint JVM_SocketAvailable(jint fd, jint *pbytes) {
     TRACE("JVM_SocketAvailable(fd=%d, pbytes=%p)", fd, pbytes);
 
-    if(ioctl(fd, TIOCINQ, pbytes) == -1)
+    if(ioctl(fd, FIONREAD, pbytes) == -1)
         return JNI_FALSE;
 
     return JNI_TRUE;
