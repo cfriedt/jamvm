@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2010, 2011, 2012, 2013  Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012, 2013, 2014
+ * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -25,6 +26,8 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+
+#define BSD_COMP /* Get FIONREAD on Solaris */
 #include <sys/ioctl.h>
 
 #include <signal.h>
@@ -55,13 +58,10 @@
 
 #define JVM_INTERFACE_VERSION 4
 
-/* have_monotonic_clock determines whether to use the monotonic clock or
-   fallback to using gettimeofday.  If the clock is supported, we
-   check on startup if it is working */
+/* We use the monotonic clock if it is available.  As the clock_id may be
+   present but not actually supported, we check it on startup */
 #if defined(HAVE_LIBRT) && defined(CLOCK_MONOTONIC)
 static int have_monotonic_clock;
-#else
-#define have_monotonic_clock FALSE
 #endif
 
 static Class *cloneable_class, *constant_pool_class;
@@ -173,12 +173,15 @@ jlong JVM_CurrentTimeMillis(JNIEnv *env, jclass ignored) {
 jlong JVM_NanoTime(JNIEnv *env, jclass ignored) {
     TRACE("JVM_NanoTime(env=%p, ignored=%p)", env, ignored);
 
+#if defined(HAVE_LIBRT) && defined(CLOCK_MONOTONIC)
     if(have_monotonic_clock) {
         struct timespec ts;
 
         clock_gettime(CLOCK_MONOTONIC, &ts);
         return (jlong) ts.tv_sec * 1000000000 + ts.tv_nsec;
-    } else {
+    }
+#endif
+    {
         struct timeval tv;
 
         gettimeofday(&tv, NULL);
@@ -1598,7 +1601,7 @@ jint JVM_Available(jint fd, jlong *bytes) {
         case S_IFSOCK: {
             int n;
 
-            if(ioctl(fd, TIOCINQ, &n) == -1)
+            if(ioctl(fd, FIONREAD, &n) == -1)
                 return 0;
 
             *bytes = n;
