@@ -21,13 +21,12 @@
 
 #include "config.h"
 
-#define _LARGEFILE64_SOURCE
+#define BSD_COMP
+#define _FILE_OFFSET_BITS 64
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-
-#define BSD_COMP /* Get FIONREAD on Solaris */
 #include <sys/ioctl.h>
 
 #include <signal.h>
@@ -1609,15 +1608,15 @@ jint JVM_Available(jint fd, jlong *bytes) {
         }
 
         default: {
-            off64_t cur, end;
+            off_t cur, end;
 
-            if((cur = lseek64(fd, 0, SEEK_CUR)) == -1)
+            if((cur = lseek(fd, 0, SEEK_CUR)) == -1)
                 return 0;
 
-            if((end = lseek64(fd, 0, SEEK_END)) == -1)
+            if((end = lseek(fd, 0, SEEK_END)) == -1)
                 return 0;
 
-            if(lseek64(fd, cur, SEEK_SET) == -1)
+            if(lseek(fd, cur, SEEK_SET) == -1)
                 return 0;
 
             *bytes = end - cur;
@@ -1632,7 +1631,7 @@ jint JVM_Available(jint fd, jlong *bytes) {
 jlong JVM_Lseek(jint fd, jlong offset, jint whence) {
     TRACE("JVM_Lseek(fd=%d, offset=%ld, whence=%d)", fd, offset, whence);
 
-    return lseek64(fd, offset, whence);
+    return lseek(fd, offset, whence);
 }
 
 
@@ -1641,7 +1640,7 @@ jlong JVM_Lseek(jint fd, jlong offset, jint whence) {
 jint JVM_SetLength(jint fd, jlong length) {
     TRACE("JVM_SetLength(fd=%d, length=%ld)", length);
 
-    if(ftruncate64(fd, length) == -1)
+    if(ftruncate(fd, length) == -1)
         return 0;
 
     return 1;
