@@ -33,6 +33,7 @@
 
 #define CLASSLIB_CLASSBLOCK_REFS_DO(action, cb, ...) \
     action(cb, protection_domain, ## __VA_ARGS__);   \
+    action(cb, host_class, ## __VA_ARGS__);          \
     action(cb, signers, ## __VA_ARGS__)
 
 #ifdef JSR292
