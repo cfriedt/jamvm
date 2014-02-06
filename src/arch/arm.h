@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012,
+ * 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -21,11 +21,16 @@
 
 #define OS_ARCH "arm"
 
-/* Override default min heap size.  The initial heap size is a ratio
-   of the physical memory, but it must be at least the default min
+/* Override minimum min heap size.  The initial heap size is a ratio
+   of the physical memory, but it must be at least the minimum min
    size.  The normal setting is too large for ARM machines as they
    are usually embedded. */
+#define MIN_MIN_HEAP 1*MB
+
+/* Likewise, override the default min/max heap sizes used when the
+   size of physical memory is not available */
 #define DEFAULT_MIN_HEAP 1*MB
+#define DEFAULT_MAX_HEAP 64*MB
 
 #ifdef DIRECT
 #define HANDLER_TABLE_T static const void

@@ -819,20 +819,34 @@ typedef struct InitArgs {
 #define KB 1024
 #define MB (KB*KB)
 
-/* minimum allowable size of object heap */
+/* minimum allowable size of object heap specified on command line */
 #define MIN_HEAP 4*KB
 
-/* minimum allowable size of the Java stack */
+/* minimum allowable size of the Java stack specified on command line */
 #define MIN_STACK 2*KB
 
-/* default minimum size of object heap */
+/* minimum size of object heap used when size of physical memory
+   is not available */
 #ifndef DEFAULT_MIN_HEAP
 #define DEFAULT_MIN_HEAP 16*MB
 #endif
 
-/* default maximum size of object heap */
+/* maximum size of object heap used when size of physical memory
+   is not available */
 #ifndef DEFAULT_MAX_HEAP
-#define DEFAULT_MAX_HEAP 1024*MB
+#define DEFAULT_MAX_HEAP 256*MB
+#endif
+
+/* the mimimum heap size is a ratio of the size of physical memory
+   (when available) but it must be at least min min heap size */
+#ifndef MIN_MIN_HEAP
+#define MIN_MIN_HEAP 16*MB
+#endif
+
+/* the maximum heap size is a ratio of the size of physical memory
+   (when available) but it can't be more than max max heap size */
+#ifndef MAX_MAX_HEAP
+#define MAX_MAX_HEAP 1024*MB
 #endif
 
 /* default size of the Java stack */
@@ -1128,6 +1142,7 @@ extern void *nativeLibSym(void *handle, char *symbol);
 extern void *nativeStackBase();
 extern char *nativeJVMPath();
 extern int nativeAvailableProcessors();
+extern long long nativePhysicalMemory();
 
 extern char *convertSig2Simple(char *sig);
 

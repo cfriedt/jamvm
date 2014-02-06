@@ -23,32 +23,23 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <unistd.h>
 
 #include "jam.h"
 
 static int VM_initing = TRUE;
 extern void initialisePlatform();
 
-long long getPhysicalMemory() {
-    /* Long longs are used here because with PAE, a 32-bit
-       machine can have more than 4GB of physical memory */
-
-    long long num_pages = sysconf(_SC_PHYS_PAGES);
-    long long page_size = sysconf(_SC_PAGESIZE);
-
-    return num_pages * page_size;
-}
-
 unsigned long clampHeapLimit(long long limit) {
-    long long int clamp = MAX(limit, DEFAULT_MIN_HEAP);
-    return (unsigned long)MIN(clamp, DEFAULT_MAX_HEAP);
+    long long int clamp = MAX(limit, MIN_MIN_HEAP);
+    return (unsigned long)MIN(clamp, MAX_MAX_HEAP);
 }
 
 /* Setup default values for command line args */
 
 void setDefaultInitArgs(InitArgs *args) {
-    long long phys_mem = getPhysicalMemory();
+    /* Long longs are used here because with PAE, a 32-bit
+       machine can have more than 4GB of physical memory */
+    long long phys_mem = nativePhysicalMemory();
 
     args->asyncgc = FALSE;
 
@@ -59,16 +50,18 @@ void setDefaultInitArgs(InitArgs *args) {
     args->trace_jni_sigs = FALSE;
     args->compact_specified = FALSE;
 
-    args->classpath = NULL;
-    args->bootpath  = NULL;
+    args->classpath  = NULL;
+    args->bootpath   = NULL;
     args->bootpath_p = NULL;
     args->bootpath_a = NULL;
     args->bootpath_c = NULL;
     args->bootpath_v = NULL;
 
     args->java_stack = DEFAULT_STACK;
-    args->max_heap   = clampHeapLimit(phys_mem/4);
-    args->min_heap   = clampHeapLimit(phys_mem/64);
+    args->max_heap   = phys_mem == 0 ? DEFAULT_MAX_HEAP
+                                     : clampHeapLimit(phys_mem/4);
+    args->min_heap   = phys_mem == 0 ? DEFAULT_MIN_HEAP
+                                     : clampHeapLimit(phys_mem/64);
 
     args->props_count = 0;
 

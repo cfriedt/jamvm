@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2014
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/sysinfo.h>
 
 #define __USE_GNU
@@ -29,6 +30,16 @@
 #include <pthread.h>
 
 #include "../../jam.h"
+
+long long nativePhysicalMemory() {
+    /* Long longs are used here because with PAE, a 32-bit
+       machine can have more than 4GB of physical memory */
+
+    long long num_pages = sysconf(_SC_PHYS_PAGES);
+    long long page_size = sysconf(_SC_PAGESIZE);
+
+    return num_pages * page_size;
+}
 
 void *nativeStackBase() {
 #ifdef __UCLIBC__

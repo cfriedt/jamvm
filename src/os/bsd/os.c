@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009, 2014
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -92,4 +92,8 @@ char *nativeLibMapName(char *name) {
 
    sprintf(buff, "lib%s.so", name);
    return buff;
+}
+
+long long nativePhysicalMemory() {
+    return 0; /* TBD */
 }
