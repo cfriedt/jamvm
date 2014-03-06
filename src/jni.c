@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * Robert Lougher <rob@jamvm.org.uk>.
+ * 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -1552,6 +1552,9 @@ jint parseInitOptions(JavaVMInitArgs *vm_args, InitArgs *args) {
 
                 else if(strcmp(string, "abort") == 0)
                     args->abort = vm_args->options[i].extraInfo;
+
+                else if(strcmp(string, "-verbose") == 0)
+                    args->verboseclass = TRUE;
 
                 else if(strncmp(string, "-verbose:", 9) == 0) {
                     char *type = &string[8];
