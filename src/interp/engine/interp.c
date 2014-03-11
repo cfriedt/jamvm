@@ -1971,6 +1971,7 @@ uintptr_t *executeJava() {
         DISPATCH(0, 0);
     })
 
+#ifdef JSR292
     DEF_OPC_210(OPC_INVOKEDYNAMIC, {
         PolyMethodBlock *pmb;
 
@@ -1983,6 +1984,7 @@ uintptr_t *executeJava() {
         OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK);
         DISPATCH(0, 0);
     })
+#endif
 
 #define REWRITE_RESOLVE_CLASS(opcode)                                     \
     DEF_OPC_210(opcode, {                                                 \
