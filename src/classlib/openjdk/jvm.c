@@ -606,12 +606,26 @@ jclass JVM_FindLoadedClass(JNIEnv *env, jobject loader, jstring name) {
 /* JVM_GetClassName */
 
 jstring JVM_GetClassName(JNIEnv *env, jclass cls) {
-    char *dot_name = slash2DotsDup(CLASS_CB((Class*)cls)->name);
-    Object *string = createString(dot_name);
+    Object *string;
+    ClassBlock *cb = CLASS_CB((Class*)cls);
+    char *dot_name = slash2DotsDup(cb->name);
 
     TRACE("JVM_GetClassName(env=%p, cls=%p)", env, cls);
 
+    if(cb->host_class != NULL) {
+        char buff[21];
+        int len = strlen(dot_name);
+        uint64_t hash = getObjectHashcode(cls);
+        int hash_len = sprintf(buff, "%llu", hash);
+
+        dot_name = sysRealloc(dot_name, len + hash_len + 2);
+        memcpy(dot_name + len + 1, buff, hash_len + 1);
+        dot_name[len] = '/';
+    }
+
+    string = createString(dot_name);
     sysFree(dot_name);
+
     return string;
 }
 
