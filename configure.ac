@@ -1,6 +1,6 @@
 ##
 ## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-## 2013 Robert Lougher <rob@jamvm.org.uk>.
+## 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
 ##
@@ -220,30 +220,6 @@ AC_ARG_WITH(java-runtime-library,
      fi],
     [with_java_runtime_library=gnuclasspath])
 
-if test "$with_java_runtime_library" != gnuclasspath; then
-    classlib=openjdk
-else
-    classlib=gnuclasspath
-fi
-
-AC_SUBST(classlib)
-
-if test "$with_java_runtime_library" = gnuclasspath -o \
-        "$with_java_runtime_library" = openjdk6; then
-    AC_DEFINE([SHARED_CHAR_BUFFERS],1,[java.lang.String uses shared char buffers])
-fi
-
-if test "$with_java_runtime_library" = openjdk7; then
-    AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)])
-fi
-
-if test "$with_java_runtime_library" = openjdk8; then
-    AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)])
-    AC_DEFINE([JSR308],1,[VM support for JSR308 (type annotations)])
-    AC_DEFINE([JSR335],1,[VM support for JSR335 (lambda expressions)])
-    AC_DEFINE([JSR901],1,[VM support for JSR901 (method parameter reflection)])
-fi
-
 AC_ARG_WITH(classpath-install-dir,
     [AS_HELP_STRING(--with-classpath-install-dir=<dir>,installation directory of GNU classpath
                    (default /usr/local/classpath))],,
@@ -364,6 +340,33 @@ if test "$enable_tls" != no; then
          AC_MSG_RESULT([yes])],
         [AC_MSG_RESULT([no])])
 fi
+
+dnl configure class-library support
+
+if test "$with_java_runtime_library" != gnuclasspath; then
+    ver=`echo "$with_java_runtime_library" | $SED 's/^openjdk\([[0-9]]\)$/\1/'`
+    AC_DEFINE_UNQUOTED([OPENJDK_VERSION],$ver,[OpenJDK class-library])
+    classlib=openjdk
+else
+    classlib=gnuclasspath
+fi
+
+AC_SUBST(classlib)
+
+case "$with_java_runtime_library" in
+    gnuclasspath | openjdk6 )
+        AC_DEFINE([SHARED_CHAR_BUFFERS],1,
+                  [java.lang.String uses shared char buffers]) ;;
+
+    openjdk7 )
+        AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)]) ;;
+
+    openjdk8 )
+        AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)])
+        AC_DEFINE([JSR308],1,[VM support for JSR308 (type annotations)])
+        AC_DEFINE([JSR335],1,[VM support for JSR335 (lambda expressions)])
+        AC_DEFINE([JSR901],1,[VM support for JSR901 (method parameter reflection)]) ;;
+esac
 
 dnl split version into separate numbers
 major=`echo "$VERSION" | $SED 's/^\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*.*$/\1/'`

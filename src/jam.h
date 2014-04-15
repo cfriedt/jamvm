@@ -632,7 +632,7 @@ typedef struct refs_offsets_entry {
 } RefsOffsetsEntry;
 
 typedef struct classblock {
-   uintptr_t pad[CLASSLIB_CLASS_PAD_SIZE];
+   char pad[CLASSLIB_CLASS_PAD_SIZE];
    u1 state;
    u2 flags;
    u2 access_flags;

@@ -21,7 +21,13 @@
 #define JTHREAD                 512
 #define CLASSLIB_CLASS_SPECIAL  JTHREAD
 
-#define CLASSLIB_CLASS_PAD_SIZE 19
+#if OPENJDK_VERSION == 8
+#define CLASSLIB_CLASS_PAD_SIZE 10*sizeof(Object*)+1*sizeof(int)
+#elif OPENJDK_VERSION == 7
+#define CLASSLIB_CLASS_PAD_SIZE 18*sizeof(Object*)+2*sizeof(int)
+#else
+#define CLASSLIB_CLASS_PAD_SIZE 17*sizeof(Object*)+2*sizeof(int)
+#endif
 
 #define CLASSLIB_CLASS_EXTRA_FIELDS  \
    Object *protection_domain;        \
