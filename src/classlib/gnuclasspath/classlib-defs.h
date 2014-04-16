@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2011, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -23,7 +23,7 @@
 
 #define CLASSLIB_CLASS_SPECIAL (VMTHREAD | VMTHROWABLE)
 
-#define CLASSLIB_CLASS_PAD_SIZE 4
+#define CLASSLIB_CLASS_PAD_SIZE 4*sizeof(Object*)
 
 #define CLASSLIB_CLASS_EXTRA_FIELDS \
     /* NONE */
