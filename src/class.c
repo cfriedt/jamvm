@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <stddef.h>
 
 #include "jam.h"
 #include "sig.h"
@@ -2362,11 +2363,22 @@ int initialiseClassStage1(InitArgs *args) {
 }
 
 int initialiseClassStage2() {
+    int padding = offsetof(ClassBlock, state);
+    int fields = CLASS_CB(java_lang_Class)->object_size - sizeof(Object);
+
+    if(padding < fields) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseClassStage2)\n"
+                            "ClassBlock padding is less than java.lang.Class "
+                            "fields!\n");
+        return FALSE;
+    }
+
     /* Ensure that java.lang.Class is initialised.  We can't do it in
        stage1 (above) as it is too early in the initialisation process
        to run Java code */
     if(initClass(java_lang_Class) == NULL) {
-        jam_fprintf(stderr, "Error initialising VM (initialiseClassStage2)\n");
+        jam_fprintf(stderr, "Error initialising VM (initialiseClassStage2)\n"
+                            "java.lang.Class could not be initialised!\n");
         return FALSE;
     }
 
