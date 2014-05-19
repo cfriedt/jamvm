@@ -755,6 +755,94 @@ retry:
     return mt;
 }
 
+static PolyMethodBlock *findMethodHandleInvoker(Class *class,
+                                                Class *accessing_class,
+                                                char *methodname, char *type) {
+
+    Object *name_str = findInternedString(createString(methodname));
+    Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
+    PolyMethodBlock *pmb;
+    Object *appendix_box;
+    Object *member_name;
+    Object *method_type;
+
+    if(name_str == NULL || obj_array_class == NULL)
+        return NULL;
+
+    appendix_box = allocArray(obj_array_class, 1, sizeof(Object*));
+    if(appendix_box == NULL)
+        return NULL;
+
+    method_type = findMethodHandleType(type, accessing_class);
+    if(method_type == NULL)
+        return NULL;
+
+    member_name = *(Object**)executeStaticMethod(MHN_linkMethod_mb->class,
+                                                 MHN_linkMethod_mb,
+                                                 accessing_class,
+                                                 REF_invokeVirtual,
+                                                 class,
+                                                 name_str,
+                                                 method_type,
+                                                 appendix_box);
+
+    if(exceptionOccurred())
+        return NULL;
+
+    pmb = sysMalloc(sizeof(PolyMethodBlock));
+
+    pmb->type = type;
+    pmb->name = methodname;
+    pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
+    pmb->mb = INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
+
+    return pmb;
+}
+
+PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index) {
+    ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
+    PolyMethodBlock *pmb = NULL;
+
+retry:
+    switch(CP_TYPE(cp, cp_index)) {
+        case CONSTANT_Locked:
+            goto retry;
+
+        case CONSTANT_ResolvedPolyMethod:
+            pmb = (PolyMethodBlock *)CP_INFO(cp, cp_index);
+            break;
+
+        case CONSTANT_Methodref: {
+            char *methodname, *methodtype;
+            int cl_idx = CP_METHOD_CLASS(cp, cp_index);
+            int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
+
+            MBARRIER();
+            if(CP_TYPE(cp, cp_index) != CONSTANT_Methodref)
+                goto retry;
+
+            methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
+            methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
+
+            pmb = findMethodHandleInvoker((Class*)CP_INFO(cp, cl_idx),
+                                          class, methodname, methodtype);
+
+            if(pmb == NULL)
+                return NULL;
+
+            CP_TYPE(cp, cp_index) = CONSTANT_Locked;
+            MBARRIER();
+            CP_INFO(cp, cp_index) = (uintptr_t)pmb;
+            MBARRIER();
+            CP_TYPE(cp, cp_index) = CONSTANT_ResolvedPolyMethod;
+
+            break;
+        }
+    }
+
+    return pmb;
+}
+
 static Object *findMethodHandleConstant(Class *class, int ref_kind,
                                         Class *defining_class,
                                         char *name, Object *type) {
@@ -791,7 +879,7 @@ retry:
 
         case CONSTANT_MethodHandle: {
             char *name;
-            Object *type;
+            Object *type_obj;
             Class *resolved_class;
             int ref_idx = CP_METHOD_HANDLE_REF(cp, cp_index);
             int ref_kind = CP_METHOD_HANDLE_KIND(cp, cp_index);
@@ -802,18 +890,36 @@ retry:
 
             if(ref_kind >= REF_invokeVirtual) {
                 MethodBlock *mb;
+                char *type;
 
                 if(ref_kind == REF_invokeInterface)
                     mb = resolveInterfaceMethod(class, ref_idx);
                 else
                     mb = resolveMethod(class, ref_idx);
 
-                if(mb == NULL)
-                    return NULL;
+                if(mb == NULL) {
+                    if(ref_kind == REF_invokeVirtual &&
+                             isPolymorphicRef(class, ref_idx)) {
+                        PolyMethodBlock *pmb;
 
-                name = mb->name;
-                resolved_class = mb->class;
-                type = findMethodHandleType(mb->type, resolved_class);
+                        clearException();
+                        pmb = resolvePolyMethod(class, ref_idx);
+
+                        if(pmb == NULL)
+                            return NULL;
+
+                        name = pmb->name;
+                        type = pmb->type;
+                        resolved_class = method_handle_class;
+                    } else
+                        return NULL;
+                } else {
+                    name = mb->name;
+                    type = mb->type;
+                    resolved_class = mb->class;
+                }
+
+                type_obj = findMethodHandleType(type, resolved_class);
             } else {
                 FieldBlock *fb = resolveField(class, ref_idx);
 
@@ -822,14 +928,14 @@ retry:
 
                 name = fb->name;
                 resolved_class = fb->class;
-                type = findClassFromSignature(fb->type, resolved_class);
+                type_obj = findClassFromSignature(fb->type, resolved_class);
             }
 
-            if(type == NULL)
+            if(type_obj == NULL)
                 return NULL;
 
             mh = findMethodHandleConstant(class, ref_kind, resolved_class,
-                                          name, type);
+                                          name, type_obj);
 
             if(mh == NULL)
                 return NULL;
@@ -942,6 +1048,9 @@ static PolyMethodBlock *findInvokeDynamicInvoker(Class *class,
     }
 
     pmb = sysMalloc(sizeof(PolyMethodBlock));
+
+    pmb->type = type;
+    pmb->name = methodname;
     pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
     pmb->mb = INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
 
@@ -988,47 +1097,6 @@ retry:
             break;
         }
     }
-
-    return pmb;
-}
-
-static PolyMethodBlock *findMethodHandleInvoker(Class *class,
-                                                Class *accessing_class,
-                                                char *methodname, char *type) {
-
-    Object *name_str = findInternedString(createString(methodname));
-    Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
-    PolyMethodBlock *pmb;
-    Object *appendix_box;
-    Object *member_name;
-    Object *method_type;
-
-    if(name_str == NULL || obj_array_class == NULL)
-        return NULL;
-
-    appendix_box = allocArray(obj_array_class, 1, sizeof(Object*));
-    if(appendix_box == NULL)
-        return NULL;
-
-    method_type = findMethodHandleType(type, accessing_class);
-    if(method_type == NULL)
-        return NULL;
-
-    member_name = *(Object**)executeStaticMethod(MHN_linkMethod_mb->class,
-                                                 MHN_linkMethod_mb,
-                                                 accessing_class,
-                                                 REF_invokeVirtual,
-                                                 class,
-                                                 name_str,
-                                                 method_type,
-                                                 appendix_box);
-
-    if(exceptionOccurred())
-        return NULL;
-
-    pmb = sysMalloc(sizeof(PolyMethodBlock));
-    pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
-    pmb->mb = INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
 
     return pmb;
 }
@@ -1139,50 +1207,6 @@ retry:
     }
 
     return FALSE;
-}
-
-PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index) {
-    ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
-    PolyMethodBlock *pmb = NULL;
-
-retry:
-    switch(CP_TYPE(cp, cp_index)) {
-        case CONSTANT_Locked:
-            goto retry;
-
-        case CONSTANT_ResolvedPolyMethod:
-            pmb = (PolyMethodBlock *)CP_INFO(cp, cp_index);
-            break;
-
-        case CONSTANT_Methodref: {
-            char *methodname, *methodtype;
-            int cl_idx = CP_METHOD_CLASS(cp, cp_index);
-            int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
-
-            MBARRIER();
-            if(CP_TYPE(cp, cp_index) != CONSTANT_Methodref)
-                goto retry;
-
-            methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
-            methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
-
-            pmb = findMethodHandleInvoker((Class*)CP_INFO(cp, cl_idx),
-                                          class, methodname, methodtype);
-
-            if(pmb == NULL)
-                return NULL;
-
-            CP_TYPE(cp, cp_index) = CONSTANT_Locked;
-            MBARRIER();
-            CP_INFO(cp, cp_index) = (uintptr_t)pmb;
-            MBARRIER();
-            CP_TYPE(cp, cp_index) = CONSTANT_ResolvedPolyMethod;
-
-            break;
-        }
-    }
-
-    return pmb;
 }
 
 Object *resolveMemberName(Class *mh_class, Object *mname) {

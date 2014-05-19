@@ -598,6 +598,8 @@ struct methodblock {
 };
 
 typedef struct polymethodblock  {
+    char *name;
+    char *type;
     MethodBlock *mb;
     Object *appendix;
 } PolyMethodBlock;
