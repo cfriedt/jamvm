@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2010, 2011, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012, 2013, 2014
+ * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -34,7 +35,7 @@ extern Object *classlibMarkThreadTerminated(Object *jThread);
 #define classlibThreadIdName() SYMBOL(tid)
 #define classlibAddThreadName() SYMBOL(add)
 #define classlibThreadNameType() SYMBOL(array_C)
-#define classlibRemoveThreadName() SYMBOL(remove)
+#define classlibRemoveThreadName() SYMBOL(threadTerminated)
 #define classlibExceptionHandlerName() SYMBOL(uncaughtExceptionHandler)
 
 extern int classlibGetThreadState(Thread *thread);
