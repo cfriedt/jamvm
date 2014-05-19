@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011,
- * 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * 2012, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -618,7 +618,7 @@ void *detachThread(Thread *thread) {
 
     /* Don't do anything if this is the main thread */
     if(thread->prev == NULL)
-        return;
+        return NULL;
 
     /* remove thread from thread group */
     executeMethod(group, (CLASS_CB(group->class))->
