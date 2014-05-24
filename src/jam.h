@@ -308,12 +308,12 @@
 #define CONSTANT_Locked                100
 #define CONSTANT_Resolved              101
 #define CONSTANT_ResolvedMethod        102
-#define CONSTANT_ResolvedClass         103
-#define CONSTANT_ResolvedString        104
-#define CONSTANT_ResolvedMethodType    105
-#define CONSTANT_ResolvedMethodHandle  106
-#define CONSTANT_ResolvedPolyMethod    107
-#define CONSTANT_ResolvedInvokeDynamic 108
+#define CONSTANT_ResolvedInvokeDynamic 103
+#define CONSTANT_ResolvedClass         104
+#define CONSTANT_ResolvedString        105
+#define CONSTANT_ResolvedMethodType    106
+#define CONSTANT_ResolvedMethodHandle  107
+#define CONSTANT_ResolvedPolyMethod    108
 
 #define ACC_PUBLIC              0x0001
 #define ACC_PRIVATE             0x0002
@@ -602,7 +602,15 @@ typedef struct polymethodblock  {
     char *type;
     MethodBlock *mb;
     Object *appendix;
+    struct polymethodblock *next;
 } PolyMethodBlock;
+
+typedef struct resolved_inv_dyn_cp_entry {
+    char *name;
+    char *type;
+    int boot_method_cp_idx;
+    PolyMethodBlock *pmb_list;
+} ResolvedInvDynCPEntry;
 
 typedef struct fieldblock {
    Class *class;

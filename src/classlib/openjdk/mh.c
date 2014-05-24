@@ -61,6 +61,8 @@ extern int fld_slot_offset, fld_class_offset;
 #define CACHE_SIZE 1<<7
 static HashTable intrinsic_cache;
 
+VMLock resolve_lock;
+
 void initialiseMethodHandles() {
     Class *member_name;
     FieldBlock *clazz_fb, *name_fb, *type_fb, *flags_fb;
@@ -227,6 +229,8 @@ void initialiseMethodHandles() {
 
     /* Init hash table and create lock */
     initHashTable(intrinsic_cache, CACHE_SIZE, TRUE);
+
+    initVMLock(resolve_lock);
 }
 
 void cachePolyOffsets(CachedPolyOffsets *cpo) {
@@ -1057,9 +1061,23 @@ static PolyMethodBlock *findInvokeDynamicInvoker(Class *class,
     return pmb;
 }
 
-PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index) {
+void resolveLock(Thread *self) {
+    if(!tryLockVMLock(resolve_lock, self)) {
+        disableSuspend(self);
+        lockVMLock(resolve_lock, self);
+        enableSuspend(self);
+    }
+    fastDisableSuspend(self);
+}
+
+void resolveUnlock(Thread *self) {
+    fastEnableSuspend(self);
+    unlockVMLock(resolve_lock, self);
+}
+
+ResolvedInvDynCPEntry *resolveInvokeDynamic0(Class *class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
-    PolyMethodBlock *pmb = NULL;
+    ResolvedInvDynCPEntry *entry = NULL;
 
 retry:
     switch(CP_TYPE(cp, cp_index)) {
@@ -1067,36 +1085,55 @@ retry:
             goto retry;
 
         case CONSTANT_ResolvedInvokeDynamic:
-            pmb = (PolyMethodBlock *)CP_INFO(cp, cp_index);
+            entry = (ResolvedInvDynCPEntry *)CP_INFO(cp, cp_index);
             break;
 
         case CONSTANT_InvokeDynamic: {
-            char *methodname, *methodtype;
-            int boot_mthd_idx = CP_INVDYN_BOOT_MTHD(cp, cp_index);
-            int name_type_idx = CP_INVDYN_NAME_TYPE(cp, cp_index);
+            Thread *self = threadSelf();
+            int boot_mthd_idx, name_type_idx;
 
-            MBARRIER();
-            if(CP_TYPE(cp, cp_index) != CONSTANT_InvokeDynamic)
+            resolveLock(self);
+            if(CP_TYPE(cp, cp_index) != CONSTANT_InvokeDynamic) {
+                resolveUnlock(self);
                 goto retry;
-
-            methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
-            methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
-
-            pmb = findInvokeDynamicInvoker(class, methodname, methodtype,
-                                           boot_mthd_idx);
-
-            if(pmb == NULL)
-                return NULL;
+            }
 
             CP_TYPE(cp, cp_index) = CONSTANT_Locked;
-            MBARRIER();
-            CP_INFO(cp, cp_index) = (uintptr_t)pmb;
+            resolveUnlock(self);
+
+            boot_mthd_idx = CP_INVDYN_BOOT_MTHD(cp, cp_index);
+            name_type_idx = CP_INVDYN_NAME_TYPE(cp, cp_index);
+
+            entry = sysMalloc(sizeof(ResolvedInvDynCPEntry));
+
+            entry->pmb_list = NULL;
+            entry->boot_method_cp_idx = boot_mthd_idx;
+            entry->name = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
+            entry->type = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
+
+            CP_INFO(cp, cp_index) = (uintptr_t)entry;
             MBARRIER();
             CP_TYPE(cp, cp_index) = CONSTANT_ResolvedInvokeDynamic;
 
             break;
         }
     }
+
+    return entry;
+}
+
+PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index) {
+    Thread *self = threadSelf();
+    ResolvedInvDynCPEntry *entry = resolveInvokeDynamic0(class, cp_index);
+
+    PolyMethodBlock *pmb = findInvokeDynamicInvoker(class, entry->name,
+                                   entry->type,
+                                   entry->boot_method_cp_idx);
+
+    resolveLock(self);
+    pmb->next = entry->pmb_list;
+    entry->pmb_list = pmb;
+    resolveUnlock(self);
 
     return pmb;
 }

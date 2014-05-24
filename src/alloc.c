@@ -515,8 +515,10 @@ void markClassData(Class *class, int mark) {
     TRACE_GC("Marking constant pool resolved objects for class %s\n", cb->name);
 
     /* Scan the constant pool and mark all resolved object references */
-    for(i = 1; i < cb->constant_pool_count; i++)
-        if(CP_TYPE(cp, i) >= CONSTANT_ResolvedString) {
+    for(i = 1; i < cb->constant_pool_count; i++) {
+        int type = CP_TYPE(cp, i);
+
+        if(type >= CONSTANT_ResolvedString) {
             Object *ob;
 
             if(CP_TYPE(cp, i) >= CONSTANT_ResolvedPolyMethod)
@@ -527,7 +529,17 @@ void markClassData(Class *class, int mark) {
             TRACE_GC("Resolved object @ constant pool idx %d @%p\n", i, ob);
             if(ob != NULL && mark > IS_MARKED(ob))
                 MARK_AND_PUSH(ob, mark);
+        } else if(type == CONSTANT_ResolvedInvokeDynamic) {
+            ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)CP_INFO(cp, i);
+            PolyMethodBlock *pmb;
+
+            for(pmb = entry->pmb_list; pmb != NULL; pmb = pmb->next) {
+                Object *ob = pmb->appendix;
+                if(ob != NULL && mark > IS_MARKED(ob))
+                    MARK_AND_PUSH(ob, mark);
+            }
         }
+    }
 }
 
 void markChildren(Object *ob, int mark, int mark_soft_refs) {
@@ -1195,8 +1207,10 @@ static void threadClassData(Class *class, Class *new_addr) {
     TRACE_COMPACT("Threading constant pool references for class %s\n",
                   cb->name);
 
-    for(i = 1; i < cb->constant_pool_count; i++)
-        if(CP_TYPE(cp, i) >= CONSTANT_ResolvedClass) {
+    for(i = 1; i < cb->constant_pool_count; i++) {
+        int type = CP_TYPE(cp, i);
+
+        if(type >= CONSTANT_ResolvedClass) {
             Object **ob;
 
             if(CP_TYPE(cp, i) >= CONSTANT_ResolvedPolyMethod)
@@ -1208,7 +1222,17 @@ static void threadClassData(Class *class, Class *new_addr) {
                           i, CP_TYPE(cp, i), *ob);
             if(*ob != NULL)
                 THREAD_REFERENCE(ob);
+        } else if(type == CONSTANT_ResolvedInvokeDynamic) {
+            ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)CP_INFO(cp, i);
+            PolyMethodBlock *pmb;
+
+            for(pmb = entry->pmb_list; pmb != NULL; pmb = pmb->next) {
+                Object **ob = &pmb->appendix;
+                if(*ob != NULL)
+                    THREAD_REFERENCE(ob);
+            }
         }
+    }
 
     /* Don't bother threading the references to the class from within the
        classes own method and field blocks.  As we know the new address we
