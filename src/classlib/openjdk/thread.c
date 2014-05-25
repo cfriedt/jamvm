@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -105,9 +105,19 @@ Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
     return main;
 }
 
-int classlibThreadPostInit() {
-    Class *system = findSystemClass(SYMBOL(java_lang_System));
+extern VMLock resolve_lock;
 
+int classlibThreadPostInit() {
+    Class *system;
+
+#ifdef JSR292
+    /* Initialise lock used in Method Handle resolution - this
+       must be done before any invokedynamic instruction is executed */
+    initVMLock(resolve_lock);
+#endif
+
+    /* Initialise System class */
+    system = findSystemClass(SYMBOL(java_lang_System));
     if(system != NULL) {
         MethodBlock *init = findMethod(system, SYMBOL(initializeSystemClass),
                                                SYMBOL(___V));

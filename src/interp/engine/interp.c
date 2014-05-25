@@ -1566,18 +1566,29 @@ uintptr_t *executeJava() {
     DEF_OPC_RW(OPC_INVOKEDYNAMIC, ({
         int idx, cache;
         Operand operand;
-        PolyMethodBlock *pmb;
+        MethodBlock *invoker;
+        Object *appendix_box;
+        Thread *self = threadSelf();
+        ResolvedInvDynCPEntry *entry;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_INVOKEDYNAMIC, idx, cache);
 
         frame->last_pc = pc;
-        pmb = resolveInvokeDynamic(mb->class, idx);
+        entry = resolveInvokeDynamic(mb->class, idx);
  
-        if(pmb == NULL)
+        appendix_box = findInvokeDynamicInvoker(mb->class, entry, &invoker);
+
+        if(appendix_box == NULL)
             goto throwException;
 
-        operand.pntr = pmb;
-        OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK, cache, operand);
+        resolveLock(self);
+        if(!OPCODE_CHANGED(OPC_INVOKEDYNAMIC)) {
+            PolyMethodBlock *pmb = resolveCallSite(entry, invoker, appendix_box);
+
+            operand.pntr = pmb;
+            OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK, cache, operand);
+        }
+        resolveUnlock(self);
         REDISPATCH
     });)
 #endif

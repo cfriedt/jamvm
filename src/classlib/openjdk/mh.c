@@ -229,8 +229,6 @@ void initialiseMethodHandles() {
 
     /* Init hash table and create lock */
     initHashTable(intrinsic_cache, CACHE_SIZE, TRUE);
-
-    initVMLock(resolve_lock);
 }
 
 void cachePolyOffsets(CachedPolyOffsets *cpo) {
@@ -972,21 +970,19 @@ static int cpType2PrimIdx(int type) {
     }
 }
 
-static PolyMethodBlock *findInvokeDynamicInvoker(Class *class,
-                                                 char *methodname,
-                                                 char *type,
-                                                 int boot_mthd_idx) {
+Object *findInvokeDynamicInvoker(Class *class, ResolvedInvDynCPEntry *entry,
+                                 MethodBlock **invoker) {
     Object *exception;
     Object *boot_mthd;
     Object *method_type;
     Object *member_name;
     Object *appendix_box;
-    PolyMethodBlock *pmb;
     Object *args_array = NULL;
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
+    int boot_mthd_idx = entry->boot_method_cp_idx;
     Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
-    Object *name_str = findInternedString(createString(methodname));
+    Object *name_str = findInternedString(createString(entry->name));
     int mthd_idx = BOOTSTRAP_METHOD_REF(cb->bootstrap_methods, boot_mthd_idx);
     int args = BOOTSTRAP_METHOD_ARG_COUNT(cb->bootstrap_methods, boot_mthd_idx);
 
@@ -1025,7 +1021,7 @@ static PolyMethodBlock *findInvokeDynamicInvoker(Class *class,
     if(appendix_box == NULL)
         return NULL;
 
-    method_type = findMethodHandleType(type, class);
+    method_type = findMethodHandleType(entry->type, class);
     if(method_type == NULL)
         return NULL;
 
@@ -1051,31 +1047,21 @@ static PolyMethodBlock *findInvokeDynamicInvoker(Class *class,
         return NULL;
     }
 
-    pmb = sysMalloc(sizeof(PolyMethodBlock));
-
-    pmb->type = type;
-    pmb->name = methodname;
-    pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
-    pmb->mb = INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
-
-    return pmb;
+    *invoker = INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
+    return appendix_box;
 }
 
 void resolveLock(Thread *self) {
-    if(!tryLockVMLock(resolve_lock, self)) {
-        disableSuspend(self);
-        lockVMLock(resolve_lock, self);
-        enableSuspend(self);
-    }
-    fastDisableSuspend(self);
+    disableSuspend(self);
+    lockVMLock(resolve_lock, self);
 }
 
 void resolveUnlock(Thread *self) {
-    fastEnableSuspend(self);
     unlockVMLock(resolve_lock, self);
+    enableSuspend(self);
 }
 
-ResolvedInvDynCPEntry *resolveInvokeDynamic0(Class *class, int cp_index) {
+ResolvedInvDynCPEntry *resolveInvokeDynamic(Class *class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
     ResolvedInvDynCPEntry *entry = NULL;
 
@@ -1122,18 +1108,16 @@ retry:
     return entry;
 }
 
-PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index) {
-    Thread *self = threadSelf();
-    ResolvedInvDynCPEntry *entry = resolveInvokeDynamic0(class, cp_index);
+PolyMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
+                                 MethodBlock *invoker, Object *appendix_box) {
 
-    PolyMethodBlock *pmb = findInvokeDynamicInvoker(class, entry->name,
-                                   entry->type,
-                                   entry->boot_method_cp_idx);
+    PolyMethodBlock *pmb = sysMalloc(sizeof(PolyMethodBlock));
 
-    resolveLock(self);
+    pmb->mb = invoker;
+    pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
+
     pmb->next = entry->pmb_list;
     entry->pmb_list = pmb;
-    resolveUnlock(self);
 
     return pmb;
 }
