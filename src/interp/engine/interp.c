@@ -1583,9 +1583,10 @@ uintptr_t *executeJava() {
 
         resolveLock(self);
         if(!OPCODE_CHANGED(OPC_INVOKEDYNAMIC)) {
-            PolyMethodBlock *pmb = resolveCallSite(entry, invoker, appendix_box);
+            InvDynMethodBlock *idmb = resolveCallSite(entry, invoker,
+                                                      appendix_box);
 
-            operand.pntr = pmb;
+            operand.pntr = idmb;
             OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK, cache, operand);
         }
         resolveUnlock(self);
@@ -2215,12 +2216,12 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_INVOKEDYNAMIC_QUICK, {
-        PolyMethodBlock *pmb = RESOLVED_POLYMETHOD(pc);
+        InvDynMethodBlock *idmb = RESOLVED_INVDYNMETHOD(pc);
 
-        if(pmb->appendix)
-            *ostack++ = (uintptr_t)pmb->appendix;
+        if(idmb->appendix)
+            *ostack++ = (uintptr_t)idmb->appendix;
 
-        new_mb = pmb->mb;
+        new_mb = idmb->mb;
         arg1 = ostack - new_mb->args_count;
 
         goto invokeMethod;

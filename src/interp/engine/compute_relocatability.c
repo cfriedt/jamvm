@@ -123,8 +123,9 @@ ResolvedInvDynCPEntry *resolveInvokeDynamic(Class *class, int cp_index) {
     return NULL;
 }
 
-PolyMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
-                                 MethodBlock *invoker, Object *appendix_box) {
+InvDynMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
+                                   MethodBlock *invoker,
+                                   Object *appendix_box) {
     return NULL;
 }
 

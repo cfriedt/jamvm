@@ -1092,7 +1092,7 @@ retry:
 
             entry = sysMalloc(sizeof(ResolvedInvDynCPEntry));
 
-            entry->pmb_list = NULL;
+            entry->idmb_list = NULL;
             entry->boot_method_cp_idx = boot_mthd_idx;
             entry->name = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
             entry->type = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
@@ -1108,18 +1108,19 @@ retry:
     return entry;
 }
 
-PolyMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
-                                 MethodBlock *invoker, Object *appendix_box) {
+InvDynMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
+                                   MethodBlock *invoker,
+                                   Object *appendix_box) {
 
-    PolyMethodBlock *pmb = sysMalloc(sizeof(PolyMethodBlock));
+    InvDynMethodBlock *idmb = sysMalloc(sizeof(InvDynMethodBlock));
 
-    pmb->mb = invoker;
-    pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
+    idmb->mb = invoker;
+    idmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
 
-    pmb->next = entry->pmb_list;
-    entry->pmb_list = pmb;
+    idmb->next = entry->idmb_list;
+    entry->idmb_list = idmb;
 
-    return pmb;
+    return idmb;
 }
 
 /* Intrinsic cache hashtable definitions */

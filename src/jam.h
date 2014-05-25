@@ -597,19 +597,24 @@ struct methodblock {
 #endif
 };
 
-typedef struct polymethodblock  {
+typedef struct poly_methodblock  {
     char *name;
     char *type;
     MethodBlock *mb;
     Object *appendix;
-    struct polymethodblock *next;
 } PolyMethodBlock;
+
+typedef struct invdyn_methodblock  {
+    MethodBlock *mb;
+    Object *appendix;
+    struct invdyn_methodblock *next;
+} InvDynMethodBlock;
 
 typedef struct resolved_inv_dyn_cp_entry {
     char *name;
     char *type;
     int boot_method_cp_idx;
-    PolyMethodBlock *pmb_list;
+    InvDynMethodBlock *idmb_list;
 } ResolvedInvDynCPEntry;
 
 typedef struct fieldblock {

@@ -531,10 +531,10 @@ void markClassData(Class *class, int mark) {
                 MARK_AND_PUSH(ob, mark);
         } else if(type == CONSTANT_ResolvedInvokeDynamic) {
             ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)CP_INFO(cp, i);
-            PolyMethodBlock *pmb;
+            InvDynMethodBlock *idmb;
 
-            for(pmb = entry->pmb_list; pmb != NULL; pmb = pmb->next) {
-                Object *ob = pmb->appendix;
+            for(idmb = entry->idmb_list; idmb != NULL; idmb = idmb->next) {
+                Object *ob = idmb->appendix;
                 if(ob != NULL && mark > IS_MARKED(ob))
                     MARK_AND_PUSH(ob, mark);
             }
@@ -1224,10 +1224,10 @@ static void threadClassData(Class *class, Class *new_addr) {
                 THREAD_REFERENCE(ob);
         } else if(type == CONSTANT_ResolvedInvokeDynamic) {
             ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)CP_INFO(cp, i);
-            PolyMethodBlock *pmb;
+            InvDynMethodBlock *idmb;
 
-            for(pmb = entry->pmb_list; pmb != NULL; pmb = pmb->next) {
-                Object **ob = &pmb->appendix;
+            for(idmb = entry->idmb_list; idmb != NULL; idmb = idmb->next) {
+                Object **ob = &idmb->appendix;
                 if(*ob != NULL)
                     THREAD_REFERENCE(ob);
             }

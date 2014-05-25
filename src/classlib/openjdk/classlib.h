@@ -163,8 +163,9 @@ extern Object *findInvokeDynamicInvoker(Class *class,
 extern void resolveLock(Thread *self);
 extern void resolveUnlock(Thread *self);
 extern ResolvedInvDynCPEntry *resolveInvokeDynamic(Class *class, int cp_index);
-extern PolyMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
-                                 MethodBlock *invoker, Object *appendix_box);
+extern InvDynMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
+                                          MethodBlock *invoker,
+                                          Object *appendix_box);
 
 extern MethodBlock *lookupPolymorphicMethod(Class *class,
                                             Class *accessing_class,
