@@ -174,31 +174,6 @@ d##X: {                \
 
 /* Macros for handler/bytecode rewriting */
 
-#ifdef USE_CACHE
-#define OPCODE_CHANGED(opcode)                             \
-(                                                          \
-    pc->handler != L(opcode, 0, ENTRY) &&                  \
-    pc->handler != L(opcode, 1, ENTRY) &&                  \
-    pc->handler != L(opcode, 2, ENTRY)                     \
-)
-
-#else /* USE_CACHE */
-
-#define OPCODE_CHANGED(opcode)                             \
-(                                                          \
-    pc->handler != L(opcode, 0, ENTRY)                     \
-)
-#endif
-
-#define WITH_OPCODE_CHANGE_CP_DINDEX(opcode, index, cache) \
-{                                                          \
-    index = pc->operand.uui.u1;                            \
-    cache = pc->operand.uui.i;                             \
-    MBARRIER();                                            \
-    if(OPCODE_CHANGED(opcode))                             \
-        goto *pc->handler;                                 \
-}
-
 #define OPCODE_REWRITE(opcode, cache, new_operand)         \
 {                                                          \
     pc->handler = &&rewrite_lock;                          \

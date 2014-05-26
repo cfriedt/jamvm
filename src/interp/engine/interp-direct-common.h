@@ -22,6 +22,33 @@
     if(mb->state < MB_PREPARED)               \
         prepare(mb, handlers)
 
+/* Macros for handler/bytecode rewriting */
+
+#ifdef USE_CACHE
+#define OPCODE_CHANGED(opcode)                             \
+(                                                          \
+    pc->handler != L(opcode, 0, ENTRY) &&                  \
+    pc->handler != L(opcode, 1, ENTRY) &&                  \
+    pc->handler != L(opcode, 2, ENTRY)                     \
+)
+
+#else /* USE_CACHE */
+
+#define OPCODE_CHANGED(opcode)                             \
+(                                                          \
+    pc->handler != L(opcode, 0, ENTRY)                     \
+)
+#endif
+
+#define WITH_OPCODE_CHANGE_CP_DINDEX(opcode, index, cache) \
+{                                                          \
+    index = pc->operand.uui.u1;                            \
+    cache = pc->operand.uui.i;                             \
+    MBARRIER();                                            \
+    if(OPCODE_CHANGED(opcode))                             \
+        goto *pc->handler;                                 \
+}
+
 #define ARRAY_TYPE(pc)            pc->operand.i
 #define SINGLE_INDEX(pc)          pc->operand.i
 #define DOUBLE_INDEX(pc)          pc->operand.i
