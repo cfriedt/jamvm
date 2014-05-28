@@ -1575,7 +1575,6 @@ uintptr_t *executeJava() {
 
         frame->last_pc = pc;
         entry = resolveInvokeDynamic(mb->class, idx);
- 
         appendix_box = findInvokeDynamicInvoker(mb->class, entry, &invoker);
 
         if(appendix_box == NULL)
@@ -1985,15 +1984,26 @@ uintptr_t *executeJava() {
 
 #ifdef JSR292
     DEF_OPC_210(OPC_INVOKEDYNAMIC, {
-        PolyMethodBlock *pmb;
+        MethodBlock *invoker;
+        Object *appendix_box;
+        Thread *self = threadSelf();
+        ResolvedInvDynCPEntry *entry;
 
         frame->last_pc = pc;
-        pmb = resolveInvokeDynamic(mb->class, DOUBLE_INDEX(pc));
- 
-        if(pmb == NULL)
+        entry = resolveInvokeDynamic(mb->class, DOUBLE_INDEX(pc));
+        appendix_box = findInvokeDynamicInvoker(mb->class, entry, &invoker);
+
+        if(appendix_box == NULL)
             goto throwException;
 
-        OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK);
+        resolveLock(self);
+        if(!OPCODE_CHANGED(OPC_INVOKEDYNAMIC)) {
+            resolveCallSite(entry, invoker, appendix_box);
+
+            pc[3] = entry->num_idmb;
+            OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK);
+        }
+        resolveUnlock(self);
         DISPATCH(0, 0);
     })
 #endif

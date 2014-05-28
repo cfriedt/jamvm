@@ -615,6 +615,9 @@ typedef struct resolved_inv_dyn_cp_entry {
     char *type;
     int boot_method_cp_idx;
     InvDynMethodBlock *idmb_list;
+#ifndef DIRECT
+    int num_idmb;
+#endif
 } ResolvedInvDynCPEntry;
 
 typedef struct fieldblock {

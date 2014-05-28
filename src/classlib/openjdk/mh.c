@@ -1092,6 +1092,9 @@ retry:
 
             entry = sysMalloc(sizeof(ResolvedInvDynCPEntry));
 
+#ifndef DIRECT
+            entry->num_idmb = 0;
+#endif
             entry->idmb_list = NULL;
             entry->boot_method_cp_idx = boot_mthd_idx;
             entry->name = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
@@ -1117,8 +1120,22 @@ InvDynMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
     idmb->mb = invoker;
     idmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
 
+#ifdef DIRECT
     idmb->next = entry->idmb_list;
     entry->idmb_list = idmb;
+#else
+    idmb->next = NULL;
+    if(entry->idmb_list == NULL)
+        entry->idmb_list = idmb;
+    else {
+        InvDynMethodBlock *list;
+
+        for(list = entry->idmb_list; list->next; list = list->next);
+        list->next = idmb;
+    }
+
+    entry->num_idmb++;
+#endif
 
     return idmb;
 }
