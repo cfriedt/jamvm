@@ -166,6 +166,8 @@ extern ResolvedInvDynCPEntry *resolveInvokeDynamic(Class *class, int cp_index);
 extern InvDynMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
                                           MethodBlock *invoker,
                                           Object *appendix_box);
+extern InvDynMethodBlock *resolvedCallSite(ResolvedInvDynCPEntry *entry,
+                                           int id);
 
 extern MethodBlock *lookupPolymorphicMethod(Class *class,
                                             Class *accessing_class,

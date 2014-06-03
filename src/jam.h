@@ -605,6 +605,9 @@ typedef struct poly_methodblock  {
 } PolyMethodBlock;
 
 typedef struct invdyn_methodblock  {
+#ifndef DIRECT
+    int id;
+#endif
     MethodBlock *mb;
     Object *appendix;
     struct invdyn_methodblock *next;
@@ -616,7 +619,7 @@ typedef struct resolved_inv_dyn_cp_entry {
     int boot_method_cp_idx;
     InvDynMethodBlock *idmb_list;
 #ifndef DIRECT
-    int num_idmb;
+    InvDynMethodBlock *cache;
 #endif
 } ResolvedInvDynCPEntry;
 

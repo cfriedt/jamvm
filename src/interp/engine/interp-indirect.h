@@ -300,10 +300,9 @@ opc##x##_##y##_##z:
 ({                                                          \
     ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*) \
                              CP_INFO(cp, DOUBLE_INDEX(pc)); \
-    InvDynMethodBlock *idmb = entry->idmb_list;             \
-    int index = pc[3];                                      \
-    while(--index)                                          \
-        idmb = idmb->next;                                  \
+    InvDynMethodBlock *idmb = entry->cache;                 \
+    if(idmb->id != pc[3])                                   \
+        idmb = resolvedCallSite(entry, pc[3]);              \
     idmb;                                                   \
 })
 

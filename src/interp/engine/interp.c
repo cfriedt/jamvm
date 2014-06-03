@@ -1998,9 +1998,10 @@ uintptr_t *executeJava() {
 
         resolveLock(self);
         if(!OPCODE_CHANGED(OPC_INVOKEDYNAMIC)) {
-            resolveCallSite(entry, invoker, appendix_box);
+            InvDynMethodBlock *idmb = resolveCallSite(entry, invoker,
+                                                      appendix_box);
 
-            pc[3] = entry->num_idmb;
+            pc[3] = idmb->id;
             OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK);
         }
         resolveUnlock(self);
