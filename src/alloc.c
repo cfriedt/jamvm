@@ -521,20 +521,23 @@ void markClassData(Class *class, int mark) {
         if(type >= CONSTANT_ResolvedString) {
             Object *ob;
 
-            if(CP_TYPE(cp, i) >= CONSTANT_ResolvedPolyMethod)
+            if(type == CONSTANT_ResolvedPolyMethod)
                 ob = ((PolyMethodBlock*)CP_INFO(cp, i))->appendix;
             else
                 ob = (Object *)CP_INFO(cp, i);
-
-            TRACE_GC("Resolved object @ constant pool idx %d @%p\n", i, ob);
+            TRACE_GC("Resolved object @ constant pool idx %d type %d @%p\n",
+                     i, type, ob);
             if(ob != NULL && mark > IS_MARKED(ob))
                 MARK_AND_PUSH(ob, mark);
         } else if(type == CONSTANT_ResolvedInvokeDynamic) {
-            ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)CP_INFO(cp, i);
+            ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)
+                                           CP_INFO(cp, i);
             InvDynMethodBlock *idmb;
 
             for(idmb = entry->idmb_list; idmb != NULL; idmb = idmb->next) {
                 Object *ob = idmb->appendix;
+                TRACE_GC("InvokeDynamic appendix @ constant pool idx %d @%p\n",
+                         i, ob);
                 if(ob != NULL && mark > IS_MARKED(ob))
                     MARK_AND_PUSH(ob, mark);
             }
@@ -1213,21 +1216,23 @@ static void threadClassData(Class *class, Class *new_addr) {
         if(type >= CONSTANT_ResolvedClass) {
             Object **ob;
 
-            if(CP_TYPE(cp, i) >= CONSTANT_ResolvedPolyMethod)
+            if(type == CONSTANT_ResolvedPolyMethod)
                 ob = &((PolyMethodBlock*)CP_INFO(cp, i))->appendix;
             else
                 ob = (Object**)&(CP_INFO(cp, i));
-
             TRACE_COMPACT("Constant pool ref idx %d type %d object @%p\n",
-                          i, CP_TYPE(cp, i), *ob);
+                          i, type, *ob);
             if(*ob != NULL)
                 THREAD_REFERENCE(ob);
         } else if(type == CONSTANT_ResolvedInvokeDynamic) {
-            ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)CP_INFO(cp, i);
+            ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)
+                                           CP_INFO(cp, i);
             InvDynMethodBlock *idmb;
 
             for(idmb = entry->idmb_list; idmb != NULL; idmb = idmb->next) {
                 Object **ob = &idmb->appendix;
+                TRACE_COMPACT("InvokeDynamic appendix cp idx %d object @%p\n",
+                               i, *ob);
                 if(*ob != NULL)
                     THREAD_REFERENCE(ob);
             }
