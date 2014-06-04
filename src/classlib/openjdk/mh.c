@@ -1350,13 +1350,33 @@ void freeResolvedPolyData(Class *class) {
     int i;
 
     for(i = 1; i < cb->constant_pool_count; i++)
-        if(CP_TYPE(cp, i) >= CONSTANT_ResolvedPolyMethod)
-            gcPendingFree((void*)CP_INFO(cp, i));
+        switch(CP_TYPE(cp, i)) {
+            default:
+                break;
 
-        else if(CP_TYPE(cp, i) == CONSTANT_ResolvedMethod) {
-            MethodBlock *mb = (MethodBlock*)CP_INFO(cp, i);
-            if(mbPolymorphicNameID(mb) >= ID_invokeGeneric)
-                mb->ref_count--;
+            case CONSTANT_ResolvedPolyMethod:
+                gcPendingFree((void*)CP_INFO(cp, i));
+                break;
+
+            case CONSTANT_ResolvedMethod: {
+                MethodBlock *mb = (MethodBlock*)CP_INFO(cp, i);
+
+                if(mbPolymorphicNameID(mb) >= ID_invokeGeneric)
+                    mb->ref_count--;
+                break;
+            }
+
+            case CONSTANT_ResolvedInvokeDynamic: {
+                ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)
+                                               CP_INFO(cp, i);
+                InvDynMethodBlock *idmb;
+
+                for(idmb = entry->idmb_list; idmb != NULL; idmb = idmb->next)
+                    gcPendingFree(idmb);
+
+                gcPendingFree(entry);
+                break;
+            }
         }
 }
 #endif
