@@ -608,8 +608,8 @@ typedef struct invdyn_methodblock  {
 #ifndef DIRECT
     int id;
 #endif
-    MethodBlock *mb;
     Object *appendix;
+    MethodBlock *invoker;
     struct invdyn_methodblock *next;
 } InvDynMethodBlock;
 

@@ -2232,7 +2232,7 @@ uintptr_t *executeJava() {
         if(idmb->appendix)
             *ostack++ = (uintptr_t)idmb->appendix;
 
-        new_mb = idmb->mb;
+        new_mb = idmb->invoker;
         arg1 = ostack - new_mb->args_count;
 
         goto invokeMethod;

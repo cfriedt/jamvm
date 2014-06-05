@@ -1115,7 +1115,7 @@ InvDynMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
 
     InvDynMethodBlock *idmb = sysMalloc(sizeof(InvDynMethodBlock));
 
-    idmb->mb = invoker;
+    idmb->invoker = invoker;
     idmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
 
 #ifndef DIRECT
