@@ -600,8 +600,8 @@ struct methodblock {
 typedef struct poly_methodblock  {
     char *name;
     char *type;
-    MethodBlock *mb;
     Object *appendix;
+    MethodBlock *invoker;
 } PolyMethodBlock;
 
 typedef struct invdyn_methodblock  {

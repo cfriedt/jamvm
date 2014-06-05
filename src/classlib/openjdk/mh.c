@@ -795,8 +795,9 @@ static PolyMethodBlock *findMethodHandleInvoker(Class *class,
 
     pmb->type = type;
     pmb->name = methodname;
+    pmb->invoker = INST_DATA(member_name, MethodBlock*,
+                             mem_name_vmtarget_offset);
     pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
-    pmb->mb = INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
 
     return pmb;
 }

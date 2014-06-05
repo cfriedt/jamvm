@@ -2219,7 +2219,7 @@ uintptr_t *executeJava() {
         if(pmb->appendix)
             *ostack++ = (uintptr_t)pmb->appendix;
 
-        new_mb = pmb->mb;
+        new_mb = pmb->invoker;
         arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
 
