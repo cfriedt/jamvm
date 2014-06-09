@@ -993,8 +993,9 @@ static int cpType2PrimIdx(int type) {
     }
 }
 
-Object *findInvokeDynamicInvoker(Class *class, ResolvedInvDynCPEntry *entry,
-                                 MethodBlock **invoker) {
+MethodBlock *findInvokeDynamicInvoker(Class *class,
+                                      ResolvedInvDynCPEntry *entry,
+                                      Object **appendix) {
     Object *exception;
     Object *boot_mthd;
     Object *method_type;
@@ -1070,8 +1071,8 @@ Object *findInvokeDynamicInvoker(Class *class, ResolvedInvDynCPEntry *entry,
         return NULL;
     }
 
-    *invoker = INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
-    return appendix_box;
+    *appendix = ARRAY_DATA(appendix_box, Object*)[0];
+    return INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
 }
 
 ResolvedInvDynCPEntry *resolveInvokeDynamic(Class *class, int cp_index) {
@@ -1123,12 +1124,12 @@ retry:
 
 InvDynMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
                                    MethodBlock *invoker,
-                                   Object *appendix_box) {
+                                   Object *appendix) {
 
     InvDynMethodBlock *idmb = sysMalloc(sizeof(InvDynMethodBlock));
 
     idmb->invoker = invoker;
-    idmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
+    idmb->appendix = appendix;
 
 #ifndef DIRECT
     idmb->id = entry->idmb_list == NULL ? 0 : entry->idmb_list->id + 1;

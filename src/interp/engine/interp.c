@@ -1566,8 +1566,8 @@ uintptr_t *executeJava() {
     DEF_OPC_RW(OPC_INVOKEDYNAMIC, ({
         int idx, cache;
         Operand operand;
+        Object *appendix;
         MethodBlock *invoker;
-        Object *appendix_box;
         Thread *self = threadSelf();
         ResolvedInvDynCPEntry *entry;
 
@@ -1575,15 +1575,15 @@ uintptr_t *executeJava() {
 
         frame->last_pc = pc;
         entry = resolveInvokeDynamic(mb->class, idx);
-        appendix_box = findInvokeDynamicInvoker(mb->class, entry, &invoker);
+        invoker = findInvokeDynamicInvoker(mb->class, entry, &appendix);
 
-        if(appendix_box == NULL)
+        if(invoker == NULL)
             goto throwException;
 
         resolveLock(self);
         if(!OPCODE_CHANGED(OPC_INVOKEDYNAMIC)) {
             InvDynMethodBlock *idmb = resolveCallSite(entry, invoker,
-                                                      appendix_box);
+                                                      appendix);
 
             operand.pntr = idmb;
             OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK, cache, operand);
@@ -1984,22 +1984,22 @@ uintptr_t *executeJava() {
 
 #ifdef JSR292
     DEF_OPC_210(OPC_INVOKEDYNAMIC, {
+        Object *appendix;
         MethodBlock *invoker;
-        Object *appendix_box;
         Thread *self = threadSelf();
         ResolvedInvDynCPEntry *entry;
 
         frame->last_pc = pc;
         entry = resolveInvokeDynamic(mb->class, DOUBLE_INDEX(pc));
-        appendix_box = findInvokeDynamicInvoker(mb->class, entry, &invoker);
+        invoker = findInvokeDynamicInvoker(mb->class, entry, &appendix);
 
-        if(appendix_box == NULL)
+        if(invoker == NULL)
             goto throwException;
 
         resolveLock(self);
         if(!OPCODE_CHANGED(OPC_INVOKEDYNAMIC)) {
             InvDynMethodBlock *idmb = resolveCallSite(entry, invoker,
-                                                      appendix_box);
+                                                      appendix);
 
             pc[3] = idmb->id;
             OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK);

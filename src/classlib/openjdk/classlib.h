@@ -157,9 +157,9 @@ extern Object *resolveMethodType(Class *class, int cp_index);
 extern Object *resolveMethodHandle(Class *class, int cp_index);
 extern PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index);
 
-extern Object *findInvokeDynamicInvoker(Class *class,
-                                        ResolvedInvDynCPEntry *entry,
-                                        MethodBlock **invoker);
+extern MethodBlock *findInvokeDynamicInvoker(Class *class,
+                                             ResolvedInvDynCPEntry *entry,
+                                             Object **appendix);
 extern void resolveLock(Thread *self);
 extern void resolveUnlock(Thread *self);
 extern ResolvedInvDynCPEntry *resolveInvokeDynamic(Class *class, int cp_index);
