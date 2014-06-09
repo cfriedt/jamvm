@@ -757,13 +757,14 @@ retry:
     return mt;
 }
 
-static PolyMethodBlock *findMethodHandleInvoker(Class *class,
-                                                Class *accessing_class,
-                                                char *methodname, char *type) {
+static MethodBlock *findMethodHandleInvoker(Class *class,
+                                            Class *accessing_class,
+                                            char *methodname,
+                                            char *type,
+                                            Object **appendix) {
 
     Object *name_str = findInternedString(createString(methodname));
     Class *obj_array_class = findArrayClass("[Ljava/lang/Object;");
-    PolyMethodBlock *pmb;
     Object *appendix_box;
     Object *member_name;
     Object *method_type;
@@ -791,15 +792,18 @@ static PolyMethodBlock *findMethodHandleInvoker(Class *class,
     if(exceptionOccurred())
         return NULL;
 
-    pmb = sysMalloc(sizeof(PolyMethodBlock));
+    *appendix = ARRAY_DATA(appendix_box, Object*)[0];
+    return INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
+}
 
-    pmb->type = type;
-    pmb->name = methodname;
-    pmb->invoker = INST_DATA(member_name, MethodBlock*,
-                             mem_name_vmtarget_offset);
-    pmb->appendix = ARRAY_DATA(appendix_box, Object*)[0];
+void resolveLock(Thread *self) {
+    disableSuspend(self);
+    lockVMLock(resolve_lock, self);
+}
 
-    return pmb;
+void resolveUnlock(Thread *self) {
+    unlockVMLock(resolve_lock, self);
+    enableSuspend(self);
 }
 
 PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index) {
@@ -816,6 +820,9 @@ retry:
             break;
 
         case CONSTANT_Methodref: {
+            Thread *self;
+            Object *appendix;
+            MethodBlock *invoker;
             char *methodname, *methodtype;
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
             int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
@@ -827,11 +834,25 @@ retry:
             methodname = CP_UTF8(cp, CP_NAME_TYPE_NAME(cp, name_type_idx));
             methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp, name_type_idx));
 
-            pmb = findMethodHandleInvoker((Class*)CP_INFO(cp, cl_idx),
-                                          class, methodname, methodtype);
+            invoker = findMethodHandleInvoker((Class*)CP_INFO(cp, cl_idx),
+                                              class, methodname,
+                                              methodtype, &appendix);
 
-            if(pmb == NULL)
+            if(invoker == NULL)
                 return NULL;
+
+            resolveLock(self = threadSelf());
+            if(CP_TYPE(cp, cp_index) != CONSTANT_Methodref) {
+                resolveUnlock(self);
+                goto retry;
+            }
+
+            pmb = sysMalloc(sizeof(PolyMethodBlock));
+
+            pmb->name = methodname;
+            pmb->type = methodtype;
+            pmb->invoker = invoker;
+            pmb->appendix = appendix;
 
             CP_TYPE(cp, cp_index) = CONSTANT_Locked;
             MBARRIER();
@@ -839,6 +860,7 @@ retry:
             MBARRIER();
             CP_TYPE(cp, cp_index) = CONSTANT_ResolvedPolyMethod;
 
+            resolveUnlock(self);
             break;
         }
     }
@@ -1050,16 +1072,6 @@ Object *findInvokeDynamicInvoker(Class *class, ResolvedInvDynCPEntry *entry,
 
     *invoker = INST_DATA(member_name, MethodBlock*, mem_name_vmtarget_offset);
     return appendix_box;
-}
-
-void resolveLock(Thread *self) {
-    disableSuspend(self);
-    lockVMLock(resolve_lock, self);
-}
-
-void resolveUnlock(Thread *self) {
-    unlockVMLock(resolve_lock, self);
-    enableSuspend(self);
 }
 
 ResolvedInvDynCPEntry *resolveInvokeDynamic(Class *class, int cp_index) {
