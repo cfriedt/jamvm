@@ -56,9 +56,9 @@ char classlibCreateJavaThread(Thread *thread, Object *jThread) {
 }
 
 Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
-    MethodBlock *system_init_mb, *main_init_mb;
+    MethodBlock *system_grp_init_mb, *main_grp_init_mb;
+    Object *system_grp, *main_grp, *main_grp_name;
     FieldBlock *thread_status_fb, *eetop_fb;
-    Object *system, *main, *main_name;
 
     init_mb_with_name = findMethod(thread_class, SYMBOL(object_init),
                            SYMBOL(_java_lang_ThreadGroup_java_lang_String__V));
@@ -71,15 +71,15 @@ Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
 
     eetop_fb = findField(thread_class, SYMBOL(eetop), SYMBOL(J));
 
-    system_init_mb = findMethod(thrdGrp_class, SYMBOL(object_init),
-                                               SYMBOL(___V));
+    system_grp_init_mb = findMethod(thrdGrp_class, SYMBOL(object_init),
+                                                   SYMBOL(___V));
 
-    main_init_mb = findMethod(thrdGrp_class, SYMBOL(object_init),
-                           SYMBOL(_java_lang_ThreadGroup_java_lang_String__V));
+    main_grp_init_mb = findMethod(thrdGrp_class, SYMBOL(object_init),
+                          SYMBOL(_java_lang_ThreadGroup_java_lang_String__V));
 
-    if(init_mb_with_name   == NULL || init_mb_no_name == NULL ||
-          system_init_mb   == NULL || main_init_mb    == NULL ||
-          thread_status_fb == NULL || eetop_fb        == NULL)
+    if(init_mb_with_name  == NULL || init_mb_no_name  == NULL ||
+       system_grp_init_mb == NULL || main_grp_init_mb == NULL ||
+       thread_status_fb   == NULL || eetop_fb         == NULL)
         return NULL;
 
     CLASS_CB(thread_class)->flags |= JTHREAD;
@@ -87,22 +87,22 @@ Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
     thread_status_offset = thread_status_fb->u.offset;
     eetop_offset = eetop_fb->u.offset;
 
-    if((system = allocObject(thrdGrp_class)) == NULL)
+    if((system_grp = allocObject(thrdGrp_class)) == NULL)
         return NULL;
 
-    executeMethod(system, system_init_mb);
+    executeMethod(system_grp, system_grp_init_mb);
     if(exceptionOccurred())
         return NULL;
 
-    if((main = allocObject(thrdGrp_class)) == NULL ||
-       (main_name = Cstr2String("main")) == NULL)
+    if((main_grp = allocObject(thrdGrp_class)) == NULL ||
+       (main_grp_name = Cstr2String("main")) == NULL)
         return NULL;
 
-    executeMethod(main, main_init_mb, system, main_name);
+    executeMethod(main_grp, main_grp_init_mb, system_grp, main_grp_name);
     if(exceptionOccurred())
         return NULL;
 
-    return main;
+    return main_grp;
 }
 
 extern VMLock resolve_lock;
