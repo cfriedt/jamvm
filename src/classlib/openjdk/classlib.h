@@ -28,6 +28,7 @@ extern char classlibInitJavaThread(Thread *thread, Object *jlthread,
 extern Object *classlibThreadPreInit(Class *thread_class,
                                      Class *thrdGrp_class);
 
+extern int classlibThreadPostInit();
 extern char classlibCreateJavaThread(Thread *thread, Object *jThread);
 extern Thread *classlibJThread2Thread(Object *jThread);
 extern Object *classlibMarkThreadTerminated(Object *jThread);
@@ -174,7 +175,7 @@ extern MethodBlock *lookupPolymorphicMethod(Class *class,
                                             char *methodname, char *type);
 extern void cachePolyOffsets(CachedPolyOffsets *cpo);
 extern void freeResolvedPolyData(Class *class);
-extern updateIntrinsicCache();
+extern void updateIntrinsicCache();
 
 #define CACHED_POLY_OFFSETS                      \
     static CachedPolyOffsets cpo = {-1, -1, -1};

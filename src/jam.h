@@ -1209,6 +1209,7 @@ extern char *getCwd();
 
 /* access */
 
+extern int initialiseAccess();
 extern int checkClassAccess(Class *class1, Class *class2);
 extern int checkMethodAccess(MethodBlock *mb, Class *class);
 extern int checkFieldAccess(FieldBlock *fb, Class *class);
