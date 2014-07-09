@@ -216,7 +216,7 @@ void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb,
 #endif
 
 static void setIndexedAttributeData(AttributeData ***attributes,
-                                    int index, char *data, int len,
+                                    int index, u1 *data, int len,
                                     int size) {
     if(*attributes == NULL) {
         *attributes = sysMalloc(size * sizeof(AttributeData*));
@@ -243,8 +243,8 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
     u2 major_version, minor_version, this_idx, super_idx, attr_count;
     int cp_count, intf_count, injected_fields_count, i, j;
-    unsigned char *ptr = (unsigned char *)data + offset;
     ExtraAttributes extra_attributes;
+    u1 *ptr = (u1 *)data + offset;
     ConstantPool *constant_pool;
     Class **interfaces, *class;
     ClassBlock *classblock;
