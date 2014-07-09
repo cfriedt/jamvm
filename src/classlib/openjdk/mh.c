@@ -33,6 +33,7 @@
 #include "symbol.h"
 #include "reflect.h"
 #include "openjdk.h"
+#include "classlib.h"
 
 static int mem_name_clazz_offset, mem_name_name_offset,
            mem_name_type_offset, mem_name_flags_offset,
