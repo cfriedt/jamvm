@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -37,8 +37,8 @@ extern int name_offset;
 extern int group_offset;
 extern MethodBlock *addThread_mb;
 
-char classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
-                            Object *group, char is_daemon, int priority) {
+int classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
+                           Object *group, char is_daemon, int priority) {
 
     Object *vmthread;
 
@@ -63,7 +63,7 @@ char classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
     return TRUE;
 }
 
-char classlibCreateJavaThread(Thread *thread, Object *jThread) {
+int classlibCreateJavaThread(Thread *thread, Object *jThread) {
     Object *vmthread = allocObject(vmthread_class);
 
     if(vmthread == NULL)
