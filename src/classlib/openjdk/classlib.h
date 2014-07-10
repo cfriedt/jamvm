@@ -21,15 +21,15 @@
 
 /* Thread */
 
-extern char classlibInitJavaThread(Thread *thread, Object *jlthread,
-                                   Object *name, Object *group,
-                                   char is_daemon, int priority);
+extern int classlibInitJavaThread(Thread *thread, Object *jlthread,
+                                  Object *name, Object *group,
+                                  char is_daemon, int priority);
 
 extern Object *classlibThreadPreInit(Class *thread_class,
                                      Class *thrdGrp_class);
 
 extern int classlibThreadPostInit();
-extern char classlibCreateJavaThread(Thread *thread, Object *jThread);
+extern int classlibCreateJavaThread(Thread *thread, Object *jThread);
 extern Thread *classlibJThread2Thread(Object *jThread);
 extern Object *classlibMarkThreadTerminated(Object *jThread);
 

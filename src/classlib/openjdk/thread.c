@@ -35,8 +35,8 @@ static int thread_status_offset = -1;
 static MethodBlock *init_mb_no_name;
 static MethodBlock *init_mb_with_name;
 
-char classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
-                            Object *group, char is_daemon, int priority) {
+int classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
+                           Object *group, char is_daemon, int priority) {
 
     INST_DATA(jlthread, Thread*, eetop_offset) = thread;
     INST_DATA(jlthread, int, daemon_offset) = is_daemon;
@@ -50,7 +50,7 @@ char classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
     return !exceptionOccurred();
 }
 
-char classlibCreateJavaThread(Thread *thread, Object *jThread) {
+int classlibCreateJavaThread(Thread *thread, Object *jThread) {
     INST_DATA(jThread, Thread*, eetop_offset) = thread;
     return TRUE;
 }
