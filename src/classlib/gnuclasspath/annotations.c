@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012, 2013
- * Robert Lougher <rob@jamvm.org.uk>.
+ * 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -135,7 +135,8 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
             READ_TYPE_INDEX(const_val_idx, cp, cp_tag, *data_ptr, *data_len);
 
             return createWrapperObject(prim_type_no,
-                                &CP_INFO(cp, const_val_idx), REF_SRC_OSTACK);
+                                       &CP_INFO(cp, const_val_idx),
+                                       REF_SRC_OSTACK);
         }
 
         case 's': {
@@ -152,15 +153,19 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
             Object *const_name, *enum_obj;
             Class *type_class;
 
-            READ_TYPE_INDEX(type_name_idx, cp, CONSTANT_Utf8, *data_ptr, *data_len);
-            READ_TYPE_INDEX(const_name_idx, cp, CONSTANT_Utf8, *data_ptr, *data_len);
-            type_class = findClassFromSignature(CP_UTF8(cp, type_name_idx), class);
+            READ_TYPE_INDEX(type_name_idx, cp, CONSTANT_Utf8, *data_ptr,
+                            *data_len);
+            READ_TYPE_INDEX(const_name_idx, cp, CONSTANT_Utf8, *data_ptr,
+                            *data_len);
+            type_class = findClassFromSignature(CP_UTF8(cp, type_name_idx),
+                                                class);
             const_name = createString(CP_UTF8(cp, const_name_idx));
 
             if(type_class == NULL || const_name == NULL)
                 return NULL;
 
-            enum_obj = *(Object**)executeStaticMethod(enum_class, enum_valueof_mb,
+            enum_obj = *(Object**)executeStaticMethod(enum_class,
+                                                      enum_valueof_mb,
                                                       type_class, const_name);
             if(exceptionOccurred())
                 return NULL;
@@ -170,7 +175,8 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
 
         case 'c': {
             int class_info_idx;
-            READ_TYPE_INDEX(class_info_idx, cp, CONSTANT_Utf8, *data_ptr, *data_len);
+            READ_TYPE_INDEX(class_info_idx, cp, CONSTANT_Utf8, *data_ptr,
+                            *data_len);
             return findClassFromSignature(CP_UTF8(cp, class_info_idx), class);
         }
 
