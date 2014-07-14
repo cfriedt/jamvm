@@ -80,6 +80,7 @@ extern Object *classlibSkipReflectionLoader(Object *loader);
 }
 #else
 #define classlibInjectedFieldsCount(classname) 0
+#define classlibFillInInjectedFields(classname, field) {}
 #endif
 
 /* Reflection */
