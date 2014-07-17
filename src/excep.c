@@ -302,8 +302,8 @@ Object *stackTrace(ExecEnv *ee, int max_depth) {
 
 Object *stackTraceElement(MethodBlock *mb, CodePntr pc) {
     ClassBlock *cb = CLASS_CB(mb->class);
-    char *dot_name = slash2DotsDup(cb->name);
     int is_native = mb->access_flags & ACC_NATIVE;
+    char *dot_name = classlibExternalClassName(mb->class);
 
     Object *methodname = createString(mb->name);
     Object *classname = createString(dot_name);

@@ -67,6 +67,7 @@ extern char *classlibDefaultExtDirs();
 
 extern void classlibNewLibraryUnloader(Object *class_loader, void *entry);
 extern Object *classlibSkipReflectionLoader(Object *loader);
+extern char *classlibExternalClassName(Class *class);
 
 #ifdef JSR292
 #define classlibInjectedFieldsCount(classname) \
