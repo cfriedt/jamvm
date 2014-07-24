@@ -1699,8 +1699,8 @@ void JVM_ResumeThread(JNIEnv* env, jobject jthread) {
 
 /* JVM_SetNativeThreadName */
 
-void JVM_SetNativeThreadName(JNIEnv *env, jclass cls, jobject name) {
-    UNIMPLEMENTED("JVM_SetNativeThreadName");
+void JVM_SetNativeThreadName(JNIEnv *env, jobject jthread, jobject name) {
+    IGNORED("JVM_SetNativeThreadName");
 }
 
 
