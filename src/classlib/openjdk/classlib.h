@@ -36,7 +36,7 @@ extern Object *classlibMarkThreadTerminated(Object *jThread);
 #define classlibThreadIdName() SYMBOL(tid)
 #define classlibAddThreadName() SYMBOL(add)
 #define classlibThreadNameType() SYMBOL(array_C)
-#define classlibRemoveThreadName() SYMBOL(threadTerminated)
+#define classlibRemoveThreadName() SYMBOL(removeThreadName)
 #define classlibExceptionHandlerName() SYMBOL(uncaughtExceptionHandler)
 
 extern int classlibGetThreadState(Thread *thread);
