@@ -1,3 +1,131 @@
+JamVM 2.0.0 released on 30th July 2014
+======================================
+
+JamVM 2.0.0 is the first release of JamVM with support for OpenJDK.  Although
+IcedTea already includes JamVM with OpenJDK support, this has been based on
+periodic snapshots of the development tree.
+
+This release supports OpenJDK 6, 7 and 8 (the latest).  With OpenJDK 7 and 8
+this includes full support for JSR 292 (invokedynamic).  JamVM 2.0.0
+with OpenJDK 8 also includes full support for Lambda expressions (JSR 335),
+type annotations (JSR 308) and method parameter reflection.
+
+In addition to OpenJDK support, JamVM 2.0.0 also includes many bug-fixes,
+performance improvements and improved compatibility (from running the OpenJDK
+jtreg tests).  The following is an edited list of the top ~100 commits (out
+of 300+) in date order (most recent first).  The list has been categorised
+into those affecting OpenJDK only, GNU Classpath only, and both OpenJDK and
+GNU Classpath (All).
+
+- OpenJDK: JSR 292: show full anonymous/lamdba class name in stack trace
+- OpenJDK: JSR 292: resolvePolyMethod race-conditions
+- OpenJDK: JSR 292: Free callsite linked-list on class GC
+- OpenJDK: JSR 292: Fix for invokedynamic resolution (must be per callsite)
+- OpenJDK: JSR 292: constant method handle can be signature polymorphic
+- All: More command-line compatibility options
+- OpenJDK: Use correct thread group function when thread dies
+- GNU Classpath: update JamVM's version of VMAccessController
+- All: Check ClassBlock padding at VM initialisation
+- GNU Classpath: Update GNU Classpath ClassBlock padding
+- OpenJDK: Make ClassBlock padding dependent on OpenJDK version
+- OpenJDK: JSR 292: Fix RepetitiveLambdaSerialization jtreg test
+- OpenJDK: Fix compatibility issues on different Unixes
+- All: Explicitly initialise java.lang.Class
+- All: Optimise ClassBlock structure
+- OpenJDK: JSR 292: anonymous class resolution to itself
+- OpenJDK: JSR 292: anonymous classes should use host_class permissions
+- OpenJDK: JSR 292: findInvokeDynamicInvoker fix exception handling
+- OpenJDK: JSR 292: Fix CallStaticInitOrder jtreg test
+- OpenJDK: JVM_NewMultiArray: element class may be an array
+- OpenJDK: jtreg test java/lang/reflect/Array/ExceedMaxDim
+- OpenJDK: Fix Local/Anonymous class checks
+- All: Fix race-condition in constant-pool resolution code
+- OpenJDK: JSR 292: MethodHandle constant-pool refs may be resolved
+- OpenJDK: JSR 292: bootstrap method args error handling
+- GNU Classpath: race-condition in thread detach
+- GNU Classpath: fix threading issue in lookupLoadedDlls0
+- All: Race condition in setting up imethod table
+- All: GC: Several minor performance improvements
+- OpenJDK: Add support for CallerSensitive
+- OpenJDK: JSR 335: handle interfaces when resolving a method
+- OpenJDK: sun.misc.Unsafe: additional methods get/putAddress
+- OpenJDK: JSR 292: enable for OpenJDK 7/IcedTea 2
+- OpenJDK: JSR 335: invokeinterface check in method resolution
+- OpenJDK: JSR 335: implement "bridge" methods for Mirandas
+- OpenJDK: JSR 335: interface methods - handle multiple defaults and conflicts
+- All: Fix invokesuper check in invokespecial opcode
+- OpenJDK: JSR 901: VM support for method parameter reflection
+- OpenJDK: JSR 335: VM support for lambda expressions
+- OpenJDK: Implement JSR 308: Type Annotations
+- All: Re-work internal storage of annotation data
+- OpenJDK: JSR 292: update intrinsic cache after GC compaction
+- OpenJDK: JSR 292: initMemberName: handle constructor
+- OpenJDK: JSR 292: implement MethodHandleNatives::expand
+- OpenJDK: JSR 292: resolveMemberName: throw LinkageError
+- OpenJDK: JSR 292: intercept LinkageError when linking callsite
+- OpenJDK: JSR 292: handle fields in findMethodHandleConstant
+- OpenJDK: JSR 292: enable only when configuring for OpenJDK8
+- OpenJDK: Implement fence methods in sun.misc.Unsafe
+- OpenJDK: JSR 292: implement intrinsic cache
+- OpenJDK: JSR 292: use internal opcodes for intrinsics
+- OpenJDK: Very simple field injection framework
+- OpenJDK: JSR 292 Lambda access control jtreg tests
+- OpenJDK: Garbage collector changes for JSR 292
+- OpenJDK: Yet more JSR 292 jtreg tests
+- OpenJDK: Set anonymous class protection domain
+- OpenJDK: JSR 292: all jtreg tests now pass
+- OpenJDK: First commit of OpenJDK8 JSR292 support (invokedynamic)
+- OpenJDK: Do not put version number in libjvm.so SONAME
+- All: Changes for Raspbian (Raspberry Pi)
+- All: Add extra compatibility options
+- All: When suspending, ignore detached threads that have died
+- All: Update stubs generator to handle ref returns
+- All: Ref return values from JNI methods need to handled specially
+- OpenJDK: Implement classlibCheckIfOnLoad() on OpenJDK
+- OpenJDK: OpenJDK 7: make thread states JVMTI compatible
+- All: Add OpenBSD/sparc to list of recognised hosts
+- All: Make command line compatibility options table-driven
+- OpenJDK: Skip Java-reflection-related DelegatingClassLoaders
+- All: Generic JNI stubs for common JNI method signatures
+- All: Add support for armhf
+- OpenJDK: Fix OpenJDK enclosingMethodInfo()
+- All: "Fix" handling of CLI bootclasspath options
+- All: Correct thrown exception by bootstrap loader
+- All: Fix threading of references list during compaction
+- All: Fix class GC with classes containing Miranda methods
+- All: Propogate initialisation errors to top-level
+- OpenJDK: Extra sun.misc.Unsafe functions
+- GNU Classpath: Fix VMThread.join
+- OpenJDK: Initial implementation of JVM_FindClassFromBootLoader
+- All: Fix callJNIMethod on i386 with -fomit-frame-pointer
+- All: Fix backwards cache conflict resolution code
+- All: Unify command line options parsing
+- OpenJDK: Implement remaining OpenJDK Array reflection interface
+- All: Base default min and max heap size on physical memory
+- OpenJDK: Fix reflective array access
+- All: Rewrite integer divide overflow check
+- OpenJDK: First set of changes to support JamVM/OpenJDK on MacOS X
+- All: Handle integer overflow on i386/amd64
+- All: On ARM, force interpreter to be built in ARM mode
+- All: MIPS: 64-bit and interpreter inlining by default
+- OpenJDK: Fix bug in JVM_NewMultiArray
+- All: JNI compatibility options and error printing
+- OpenJDK: Nasty compaction bug with OpenJDK classloader tables
+- All: Native return types smaller than an int must be handled specially
+- All: Add MIPS support for inlining
+- All: Update arm.h for ARMv7-A
+- All: Linux implementation of nativeJVMPath()
+- OpenJDK: Changes to VM to support different class-libraries
+- All: Fix for LNEG with stack-caching enabled on 32 bit machines (seen on ARM)
+- All: Fix for I2L on MIPS
+- All: Fix getMethodParameterAnnotations when there are no annotations
+- All: Fix constructorParameterAnnotations
+- All: Initial version of JNI stubs generator
+- All: Support for JNI stubs (signature specific fast invoke)
+- OpenJDK: Implement JNI RegisterNatives (first change for OpenJDK)
+- All: Add JNI 1.6 to supported versions returned by JNI onload
+
+
 JamVM 1.5.4 released on 1st January 2010
 ========================================
 

@@ -1,141 +1,88 @@
-JamVM 1.5.4
+JamVM 2.0.0
 ===========
 
-Welcome to the twenty-seventh release of JamVM!
+Welcome to the twenty-eighth release of JamVM!
 
-JamVM is a Java Virtual Machine which conforms to the JVM
-specification version 2 (blue book).  In comparison to most other
-VM's (free and commercial) it is extremely small, with a stripped
-executable on PowerPC of only ~220K, and Intel 200K.  However, unlike
-other small VMs (e.g. KVM) it is designed to support the full
-specification, and includes support for object finalisation, 
-soft/weak/phantom references, the Java Native Interface (JNI) and
-the Reflection API.
-
-Supported Architectures
-=======================
-
-JamVM is easy to port to new architectures as most of the code
-is written in C (only a small amount of assembler code is required).
-So far, JamVM has been built and tested on :
-
-Linux
------
-
-- PowerPC: for many years my main platform, so this was well tested.
-           Built and tested on G3 and G4 systems.
-
-- i386: built and tested on i586, i686 (Pentium III), Pentium 4,
-        Athlon and Core 2 Duo.  At least an i486 is needed because
-        JamVM uses the cmpxchg instruction, which was first introduced
-        on the i486.
-
-- ARM: Originally ported and tested on the iPAQ running Linux (3950,
-       with xscale PXA250 processor, though it should work on StrongARM).
-       Later development on Neo1973 (ARM920T core), and Beagle Board
-       (Cortex A8).  Little and Big Endian machines are supported,
-       soft/kernel FP emulation, and OABI or EABI.
-
-- AMD64: built and tested on AMD Athlon 64, Phenom, Phenom II, Pentium 4
-         and Core 2 Duo (using EM64T).
-
-- MIPS: built and tested on mipsel using the O32 ABI.  The system
-        was an embedded wireless router.
-
-Mac OS X/Darwin
----------------
-
-- PowerPC: built and tested on Mac OS X 10.3 (Panther) and 10.4
-           (Tiger) on G3, G4 and G5 systems.  It should also work
-           on 10.2, but you may need to install Fink.  Note, gcc-3.3
-           gives better performance than gcc-4.0.
-
-- PowerPC64 (a.k.a G5):
-           to build a 64-bit executable CFLAGS must include
-           the flag -arch ppc64.  If no option is given a 32-bit
-           executable is built by default.
-
-- i386: JamVM has been built and tested on the Apple MacBook Pro
-        (Intel Core Duo and Core 2 Duo), running Mac OS X 10.4 and
-        10.5.
-
-- ARM: iPhone (jailbroken)
-
-BSD Variants
-------------
-  
-FreeBSD  : i386, powerpc, ARM, AMD64 (x86_64), Sparc.
-OpenBSD  : i386, powerpc, ARM, AMD64 (x86_64).
-KFreeBSD : i386
-
-Solaris/OpenSolaris
--------------------
-
-x86 : Solaris/OpenSolaris on x86 is combined, with only one OS for both
-      i386 and AMD64.  By default, JamVM will be built in 32-bit mode.
-      To build in 64-bit mode, you must specify CFLAGS when configuring
-      and include -m64.
+JamVM is an open-source Java Virtual Machine that aims to support the
+latest version of the JVM specification, while at the same time being
+compact and easy to understand.
 
 Class Libraries
 ===============
 
-JamVM is designed to use the GNU classpath Java class library (see
-http://www.gnu.org/software/classpath).  A number of classes are
-reference classes which must be modified for a particular VM.  These are
-provided and built along with JamVM (see INSTALL).  JamVM 1.5.4 works with
-Classpath version 0.98 (the latest development snapshot).  It should also
-work with the latest version direct from CVS (but check the Classpath
-mailing lists for possible patches).  Later snapshots of Classpath may
-also work, if no modifications have been made to the VM interface.
+JamVM must be used in conjunction with a Java class-library to make
+a full Java Runtime Environment.  Compatible class-libraries are GNU
+Classpath or the class-library from OpenJDK.
 
-Note, JamVM 1.5.4 will not work with versions of Classpath earlier than
-0.98, nor will it work with the class library from Sun or IBM's Virtual
-Machines, or OpenJDK.
+GNU Classpath
+-------------
 
-Building and Installing
-=======================
+GNU Classpath is a community-driven reimplementation of the Java
+class-libraries.  For many years it was the only library supported by
+JamVM.  Since the open-sourcing of Java, development of GNU Classpath
+has slowed but it is still active and maintained.  The latest release
+is 0.99, released on 16th March 2012.
 
-Please see the INSTALL file for full instructions.
+When configured for GNU Classpath, JamVM provides a shared library
+(libjvm.so) for use with the JNI Invocation API, and a standalone
+executable (jamvm) to run Java programs.
 
-Running
-=======
+GNU Classpath is mostly Java 1.5 compliant, with some APIs from Java 1.6.
+Although JamVM supports Java 7 and Java 8, these features are disabled
+when used with GNU Classpath.  GNU Classpath, however, is much smaller
+than OpenJDK, which makes it suitable for embedded systems.
 
-You don't need to setup any environment variables to run JamVM.  By default,
-JamVM installs in /usr/local/jamvm/bin (see INSTALL for how to change it).
-Add /usr/local/jamvm/bin to your path, and you should be able to simply run
-`jamvm'.
+By default, if no class-library is specified when configuring JamVM,
+JamVM is built to use GNU Classpath. 
 
-CLASSPATH, -classpath, -bootclasspath and LD_LIBRARY_PATH variables
--------------------------------------------------------------------
+OpenJDK/IcedTea
+---------------
 
-The location of user classes can be specified on the JamVM command line using
--classpath (or -cp) or via the CLASSPATH environment variable.  If neither is
-specified, the classpath defaults to '.', i.e. the current directory.  The
--classpath option takes priority -- if this is specified, CLASSPATH is ignored.
+OpenJDK is the official open-source implementation of the JDK resulting
+from the open-sourcing of Java in 2007.  It consists of a class-library,
+a virtual machine (HotSpot) and a java compiler (plus other tools).
 
-The system classes (GNU Classpath and JamVM's VM classes) are loaded via the
-system class loader.  By default it searches the GNU Classpath installation
-directory and JamVM's installation location.  This can be overridden using the
--Xbootclasspath command line option, or the BOOTCLASSPATH variable.
+JamVM is compatible with the class-library from OpenJDK 6, 7 and 8 (the
+latest).  When configured for use with OpenJDK, JamVM provides a
+shared library (libjvm.so) which can be used to replace the libjvm.so
+containing HotSpot.  The existing OpenJDK launcher (java) is used, which
+now runs JamVM.
 
-By default JamVM searches the GNU Classpath installation directory and the
-current directory ('.') for native libraries.  Extra directories can be
-specified using the LD_LIBRARY_PATH environment variable.
+IcedTea is a build harness for OpenJDK that initially replaced encumbered
+parts of OpenJDK with free components.  In addition to HotSpot, IcedTea
+also packages and supports alternative virtual machines such as JamVM.  To
+use JamVM, the -jamvm option is given on the java command line.  This
+directs the launcher to load the libjvm.so from the jamvm directory rather
+than the standard server or client directory.
 
-Testing
-=======
+The easiest way to get OpenJDK/IcedTea is to install a pre-built package
+for your system.  You can then replace HotSpot or the existing JamVM library
+with the library you have built.
 
-Currently JamVM has been used to run fairly major command-line programs
-including Javac, SPECJvm 98 benchmark suite, jBYTEmark and Mauve.  It has
-also been successfully used with Jetty (a Java-based web server and servlet
-container, Tomcat, JEdit and Eclipse.
+Supported Platforms/Architectures
+=================================
 
-FEEDBACK
-========
+JamVM has been written for a Unix/Posix-compliant system.  Unfortunately,
+incompatibilities between Unixes still exist, and JamVM needs to use several
+non-portable calls (mostly threading related).  In addition, some architecture
+specific definitions are required (memory barriers, etc.).  Finally, the
+native calling convention (or ABI) is both platform and architecture
+dependent.  This is needed by JamVM when constructing a call frame to invoke
+a native method.  For most platform/architectures this is provided by
+highly-efficient hand-written native assembler, although libffi is also
+supported for all platforms (specified by --with-libffi when configuring).
+Libffi is less efficient than the hand-written assembler although recent
+versions of JamVM also includes stubs for common method signatures.
 
-I welcome feedback of any kind, e.g. bug reports, suggestions, etc.  I'm always
-interested to hear how and if people are using JamVM so even if you don't have
-a problem drop me an email (email address at the bottom).
+The following platforms/architectures are recognised by configure.  Those
+marked with * must be configured to use libffi.
+
+- Linux: x86, x86_64, ARM, PowerPC, PowerPC64(*), MIPS, HPPA
+- FreeBSD: x86, x86_64, ARM, PowerPC, PowerPC64(*), SPARC(*)
+- OpenBSD: x86, x86_64, ARM, PowerPC, PowerPC64(*), SPARC(*)
+- Mac OS X/Darwin: x86, x86_64, ARM, PowerPC, PowerPC64
+- Solaris/OpenSolaris: x86, x86_64
+- KFreeBSD: x86
 
 JamVM "Features"
 ================
@@ -189,6 +136,11 @@ particular order, is given below.
 - Uses its own lightweight native interface for internal native methods
   without overhead of JNI 
 
+- VM support for invokedynamic (JSR 292)
+- VM support for type annotations (JSR 308)
+- VM support for lambda expressions (JSR 335)
+- VM support for method parameter reflection
+
 - JamVM is written in C, with a small amount of platform dependent
   assembler, and is easily portable to other architectures.
 
@@ -196,4 +148,4 @@ particular order, is given below.
 That's it!
 
 Robert Lougher <rob@jamvm.org.uk>
-1st January 2010.
+30th July 2014.
