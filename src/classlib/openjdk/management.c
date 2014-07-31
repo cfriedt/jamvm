@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -116,6 +116,9 @@ jboolean jmm_GetBoolAttribute(JNIEnv *env, jmmBoolAttribute att) {
     switch (att) {
         case JMM_VERBOSE_GC:
         case JMM_VERBOSE_CLASS:
+        case JMM_THREAD_CONTENTION_MONITORING:
+        case JMM_THREAD_CPU_TIME:
+        case JMM_THREAD_ALLOCATED_MEMORY:
             break;
 
         default:
@@ -134,6 +137,9 @@ jboolean jmm_SetBoolAttribute(JNIEnv *env, jmmBoolAttribute att,
     switch (att) {
         case JMM_VERBOSE_GC:
         case JMM_VERBOSE_CLASS:
+        case JMM_THREAD_CONTENTION_MONITORING:
+        case JMM_THREAD_CPU_TIME:
+        case JMM_THREAD_ALLOCATED_MEMORY:
             break;
 
         default:
