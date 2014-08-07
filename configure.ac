@@ -21,7 +21,7 @@
 
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT(jamvm, 2.0.0)
+AC_INIT(jamvm, 2.0.1-devel)
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(src/jam.c)
 AC_CONFIG_HEADERS([src/config.h])
