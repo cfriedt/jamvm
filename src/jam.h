@@ -671,26 +671,28 @@ typedef struct classblock {
    int imethod_table_size;
    int initing_tid;
    union {
-       int dim;
-       int refs_offsets_size;
+       struct {
+           int dim;
+           Class *element_class;
+       };
+       struct {
+           int refs_offsets_size;
+           u2 *inner_classes;
+           FieldBlock *fields;
+           MethodBlock *methods;
+           RefsOffsetsEntry *refs_offsets_table;
+       };
    };
    char *name;
    char *signature;
    char *source_file_name;
    Class *super;
-   FieldBlock *fields;
-   MethodBlock *methods;
    Class **interfaces;
    MethodBlock **method_table;
    ITableEntry *imethod_table;
    Object *class_loader;
-   u2 *inner_classes;
    char *bootstrap_methods;
    ExtraAttributes *extra_attributes;
-   union {
-       Class *element_class;
-       RefsOffsetsEntry *refs_offsets_table;
-   };
    ConstantPool constant_pool;
    CLASSLIB_CLASS_EXTRA_FIELDS
 } ClassBlock;
