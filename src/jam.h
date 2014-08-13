@@ -674,6 +674,7 @@ typedef struct classblock {
        struct {
            int dim;
            Class *element_class;
+           Class *component_class;
        };
        struct {
            int refs_offsets_size;

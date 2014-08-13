@@ -1185,8 +1185,10 @@ static void threadClassData(Class *class, Class *new_addr) {
         if(cb->interfaces[i] != NULL)
             THREAD_REFERENCE(&cb->interfaces[i]);
 
-    if(IS_ARRAY(cb))
+    if(IS_ARRAY(cb)) {
+        THREAD_REFERENCE(&cb->component_class);
         THREAD_REFERENCE(&cb->element_class);
+    }
 
     for(i = 0; i < cb->imethod_table_size; i++)
         THREAD_REFERENCE(&cb->imethod_table[i].interface);
