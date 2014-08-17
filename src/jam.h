@@ -653,7 +653,7 @@ typedef struct refs_offsets_entry {
 } RefsOffsetsEntry;
 
 typedef struct classblock {
-   char pad[CLASSLIB_CLASS_PAD_SIZE];
+   CLASSLIB_CLASS_PAD
    u1 state;
    u2 flags;
    u2 access_flags;
@@ -674,7 +674,7 @@ typedef struct classblock {
        struct {
            int dim;
            Class *element_class;
-           Class *component_class;
+           CLASSLIB_ARRAY_CLASS_EXTRA_FIELDS
        };
        struct {
            int refs_offsets_size;
@@ -691,7 +691,6 @@ typedef struct classblock {
    Class **interfaces;
    MethodBlock **method_table;
    ITableEntry *imethod_table;
-   Object *class_loader;
    char *bootstrap_methods;
    ExtraAttributes *extra_attributes;
    ConstantPool constant_pool;

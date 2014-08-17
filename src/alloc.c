@@ -491,9 +491,6 @@ void markClassData(Class *class, int mark) {
 
     TRACE_GC("Marking class %s\n", cb->name);
 
-    /* Mark the class's classloader object */
-    MARK_CLASSBLOCK_FIELD(cb, class_loader, mark);
-
     /* Mark the classlib specific object references */
     CLASSLIB_CLASSBLOCK_REFS_DO(MARK_CLASSBLOCK_FIELD, cb, mark);
 
@@ -1176,7 +1173,6 @@ static void threadClassData(Class *class, Class *new_addr) {
 
     /* Thread object references within the class data */
     THREAD_CLASSBLOCK_FIELD(cb, super);
-    THREAD_CLASSBLOCK_FIELD(cb, class_loader);
 
     /* Thread the classlib specific references */
     CLASSLIB_CLASSBLOCK_REFS_DO(THREAD_CLASSBLOCK_FIELD, cb);
@@ -1186,8 +1182,8 @@ static void threadClassData(Class *class, Class *new_addr) {
             THREAD_REFERENCE(&cb->interfaces[i]);
 
     if(IS_ARRAY(cb)) {
-        THREAD_REFERENCE(&cb->component_class);
         THREAD_REFERENCE(&cb->element_class);
+        CLASSLIB_CLASSBLOCK_ARRAY_REFS_DO(THREAD_CLASSBLOCK_FIELD, cb);
     }
 
     for(i = 0; i < cb->imethod_table_size; i++)
