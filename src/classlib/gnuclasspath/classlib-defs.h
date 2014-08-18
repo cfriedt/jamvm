@@ -23,13 +23,22 @@
 
 #define CLASSLIB_CLASS_SPECIAL (VMTHREAD | VMTHROWABLE)
 
-#define CLASSLIB_CLASS_PAD_SIZE 4*sizeof(Object*)
+#define CLASSLIB_CLASS_PAD char pad[4*sizeof(Object*)];
 
-#define CLASSLIB_CLASS_EXTRA_FIELDS \
-    /* NONE */
+/* In OpenJDK 9 the class loader and array component type fields have been
+   moved to the Java-level class object.  To support this in JamVM, the
+   class_loader and component_class fields have been removed from ClassBlock
+   and made part of the classlib. */
+
+#define CLASSLIB_CLASS_EXTRA_FIELDS Object *class_loader;
+
+#define CLASSLIB_CLASSBLOCK_REFS_DO(action, cb, ...) \
+    action(cb, class_loader, ## __VA_ARGS__)
+
+#define CLASSLIB_ARRAY_CLASS_EXTRA_FIELDS Class *component_class;
+
+#define CLASSLIB_CLASSBLOCK_ARRAY_REFS_DO(action, cb, ...) \
+    action(cb, component_class, ## __VA_ARGS__)
 
 #define CLASSLIB_THREAD_EXTRA_FIELDS \
     unsigned short state;
-
-#define CLASSLIB_CLASSBLOCK_REFS_DO(action, cb, ...) \
-    /* NONE */
