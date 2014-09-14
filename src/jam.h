@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -309,12 +309,12 @@
 #define CONSTANT_Locked                100
 #define CONSTANT_Resolved              101
 #define CONSTANT_ResolvedMethod        102
-#define CONSTANT_ResolvedClass         103
-#define CONSTANT_ResolvedString        104
-#define CONSTANT_ResolvedMethodType    105
-#define CONSTANT_ResolvedMethodHandle  106
-#define CONSTANT_ResolvedPolyMethod    107
-#define CONSTANT_ResolvedInvokeDynamic 108
+#define CONSTANT_ResolvedInvokeDynamic 103
+#define CONSTANT_ResolvedClass         104
+#define CONSTANT_ResolvedString        105
+#define CONSTANT_ResolvedMethodType    106
+#define CONSTANT_ResolvedMethodHandle  107
+#define CONSTANT_ResolvedPolyMethod    108
 
 #define ACC_PUBLIC              0x0001
 #define ACC_PRIVATE             0x0002
@@ -614,10 +614,31 @@ struct methodblock {
 #endif
 };
 
-typedef struct polymethodblock  {
-    MethodBlock *mb;
+typedef struct poly_methodblock  {
+    char *name;
+    char *type;
     Object *appendix;
+    MethodBlock *invoker;
 } PolyMethodBlock;
+
+typedef struct invdyn_methodblock  {
+#ifndef DIRECT
+    int id;
+#endif
+    Object *appendix;
+    MethodBlock *invoker;
+    struct invdyn_methodblock *next;
+} InvDynMethodBlock;
+
+typedef struct resolved_inv_dyn_cp_entry {
+    char *name;
+    char *type;
+    int boot_method_cp_idx;
+    InvDynMethodBlock *idmb_list;
+#ifndef DIRECT
+    InvDynMethodBlock *cache;
+#endif
+} ResolvedInvDynCPEntry;
 
 typedef struct fieldblock {
    Class *class;
@@ -649,42 +670,47 @@ typedef struct refs_offsets_entry {
 } RefsOffsetsEntry;
 
 typedef struct classblock {
-   uintptr_t pad[CLASSLIB_CLASS_PAD_SIZE];
-   char *name;
-   char *signature;
-   char *super_name;
-   char *source_file_name;
-   Class *super;
+   CLASSLIB_CLASS_PAD
    u1 state;
    u2 flags;
    u2 access_flags;
-   u2 interfaces_count;
-   u2 fields_count;
-   u2 methods_count;
-   u2 constant_pool_count;
-   int object_size;
-   FieldBlock *fields;
-   MethodBlock *methods;
-   Class **interfaces;
-   ConstantPool constant_pool;
-   int method_table_size;
-   MethodBlock **method_table;
-   int imethod_table_size;
-   ITableEntry *imethod_table;
-   Class *element_class;
-   int initing_tid;
-   int dim;
-   Object *class_loader;
    u2 declaring_class;
-   u2 inner_access_flags;
-   u2 inner_class_count;
-   u2 *inner_classes;
-   int refs_offsets_size;
-   RefsOffsetsEntry *refs_offsets_table;
    u2 enclosing_class;
    u2 enclosing_method;
+   u2 inner_access_flags;
+   u2 fields_count;
+   u2 methods_count;
+   u2 interfaces_count;
+   u2 inner_class_count;
+   u2 constant_pool_count;
+   int object_size;
+   int method_table_size;
+   int imethod_table_size;
+   int initing_tid;
+   union {
+       struct {
+           int dim;
+           Class *element_class;
+           CLASSLIB_ARRAY_CLASS_EXTRA_FIELDS
+       };
+       struct {
+           int refs_offsets_size;
+           u2 *inner_classes;
+           FieldBlock *fields;
+           MethodBlock *methods;
+           RefsOffsetsEntry *refs_offsets_table;
+       };
+   };
+   char *name;
+   char *signature;
+   char *source_file_name;
+   Class *super;
+   Class **interfaces;
+   MethodBlock **method_table;
+   ITableEntry *imethod_table;
    char *bootstrap_methods;
    ExtraAttributes *extra_attributes;
+   ConstantPool constant_pool;
    CLASSLIB_CLASS_EXTRA_FIELDS
 } ClassBlock;
 
@@ -833,20 +859,34 @@ typedef struct InitArgs {
 #define KB 1024
 #define MB (KB*KB)
 
-/* minimum allowable size of object heap */
+/* minimum allowable size of object heap specified on command line */
 #define MIN_HEAP 4*KB
 
-/* minimum allowable size of the Java stack */
+/* minimum allowable size of the Java stack specified on command line */
 #define MIN_STACK 2*KB
 
-/* default minimum size of object heap */
+/* minimum size of object heap used when size of physical memory
+   is not available */
 #ifndef DEFAULT_MIN_HEAP
 #define DEFAULT_MIN_HEAP 16*MB
 #endif
 
-/* default maximum size of object heap */
+/* maximum size of object heap used when size of physical memory
+   is not available */
 #ifndef DEFAULT_MAX_HEAP
-#define DEFAULT_MAX_HEAP 1024*MB
+#define DEFAULT_MAX_HEAP 256*MB
+#endif
+
+/* the mimimum heap size is a ratio of the size of physical memory
+   (when available) but it must be at least min min heap size */
+#ifndef MIN_MIN_HEAP
+#define MIN_MIN_HEAP 16*MB
+#endif
+
+/* the maximum heap size is a ratio of the size of physical memory
+   (when available) but it can't be more than max max heap size */
+#ifndef MAX_MAX_HEAP
+#define MAX_MAX_HEAP 1024*MB
 #endif
 
 /* default size of the Java stack */
@@ -941,14 +981,15 @@ extern Class *defineClass(char *classname, char *data, int offset, int len,
                           Object *class_loader);
 extern void linkClass(Class *class);
 extern Class *initClass(Class *class);
-extern Class *findSystemClass(char *);
-extern Class *findSystemClass0(char *);
-extern Class *loadSystemClass(char *);
+extern Class *findSystemClass(char *name);
+extern Class *findSystemClass0(char *name);
+extern Class *loadSystemClass(char *name);
 
-extern Class *findHashedClass(char *, Object *);
-extern Class *findPrimitiveClass(char);
-extern Class *findPrimitiveClassByName(char *);
-extern Class *findArrayClassFromClassLoader(char *, Object *);
+extern Class *findPrimitiveClass(char name);
+extern Class *findPrimitiveClassByName(char *name);
+extern Class *findHashedClass(char *name, Object *loader);
+extern Class *findClassFromClassLoader(char *name, Object *loader);
+extern Class *findArrayClassFromClassLoader(char *name, Object *loader);
 
 extern Object *getSystemClassLoader();
 
@@ -958,14 +999,15 @@ extern Object *bootClassPathResource(char *filename, int index);
 
 #define findArrayClassFromClass(name, class) \
              findArrayClassFromClassLoader(name, CLASS_CB(class)->class_loader)
+
 #define findArrayClass(name) findArrayClassFromClassLoader(name, NULL)
 
-extern Class *findClassFromClassLoader(char *, Object *);
-#define findClassFromClass(name, class) \
-             findClassFromClassLoader(name, CLASS_CB(class)->class_loader)
+#define findClassFromClass(classname, class)                               \
+    (CLASS_CB(class)->name == classname ? class :                          \
+        findClassFromClassLoader(classname, CLASS_CB(class)->class_loader))
 
-extern void freeClassData(Class *class);
 extern void freeClassLoaderData(Object *class_loader);
+extern void freeClassData(Class *class);
 
 extern char *getClassPath();
 extern char *getBootClassPath();
@@ -976,7 +1018,8 @@ extern void markLoaderClasses(Object *loader, int mark);
 extern void threadBootClasses();
 extern void threadLoaderClasses(Object *class_loader);
 extern void newLibraryUnloader(Object *class_loader, void *entry);
-extern int initialiseClass(InitArgs *args);
+extern int initialiseClassStage1(InitArgs *args);
+extern int initialiseClassStage2();
 
 extern Object *bootPackage(char *package_name);
 extern Object *bootPackages();
@@ -1140,6 +1183,7 @@ extern void *nativeLibSym(void *handle, char *symbol);
 extern void *nativeStackBase();
 extern char *nativeJVMPath();
 extern int nativeAvailableProcessors();
+extern long long nativePhysicalMemory();
 
 extern char *convertSig2Simple(char *sig);
 
@@ -1185,6 +1229,7 @@ extern char *getCwd();
 
 /* access */
 
+extern int initialiseAccess();
 extern int checkClassAccess(Class *class1, Class *class2);
 extern int checkMethodAccess(MethodBlock *mb, Class *class);
 extern int checkFieldAccess(FieldBlock *fb, Class *class);

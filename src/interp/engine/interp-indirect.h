@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2012, 2013
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2012, 2013, 2014
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -56,10 +56,12 @@ unused:
 
 /* Macros for handler/bytecode rewriting */
 
+#define OPCODE_CHANGED(opcode) (pc[0] != opcode)
+
 #define WITH_OPCODE_CHANGE_CP_DINDEX(opcode, index)        \
     index = DOUBLE_INDEX(pc);                              \
     MBARRIER();                                            \
-    if(pc[0] != opcode)                                    \
+    if(OPCODE_CHANGED(opcode))                             \
         DISPATCH(0, 0);
 
 #define OPCODE_REWRITE(opcode)                             \
@@ -293,6 +295,16 @@ opc##x##_##y##_##z:
 #define RESOLVED_POLYMETHOD(pc)  ((PolyMethodBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
 #define RESOLVED_CLASS(pc)       ((Class *)CP_INFO(cp, DOUBLE_INDEX(pc)))
 #define INTRINSIC_ARGS(pc)       (RESOLVED_METHOD(pc)->args_count)
+
+#define RESOLVED_INVDYNMETHOD(pc)                           \
+({                                                          \
+    ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*) \
+                             CP_INFO(cp, DOUBLE_INDEX(pc)); \
+    InvDynMethodBlock *idmb = entry->cache;                 \
+    if(idmb->id != pc[3])                                   \
+        idmb = resolvedCallSite(entry, pc[3]);              \
+    idmb;                                                   \
+})
 
 /* Macros for checking for common exceptions */
 

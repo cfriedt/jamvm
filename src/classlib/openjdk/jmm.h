@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -32,8 +32,11 @@ typedef enum {
 } jmmLongAttribute;
 
 typedef enum {
-    JMM_VERBOSE_GC             = 21,
-    JMM_VERBOSE_CLASS          = 22
+    JMM_VERBOSE_GC                   = 21,
+    JMM_VERBOSE_CLASS                = 22,
+    JMM_THREAD_CONTENTION_MONITORING = 23,
+    JMM_THREAD_CPU_TIME              = 24,
+    JMM_THREAD_ALLOCATED_MEMORY      = 25
 } jmmBoolAttribute;
 
 typedef enum {

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011,
- * 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * 2012, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <stddef.h>
 
 #include "jam.h"
 #include "sig.h"
@@ -215,7 +216,7 @@ void parseMethodAnnotations(ConstantPool *cp, MethodBlock *mb,
 #endif
 
 static void setIndexedAttributeData(AttributeData ***attributes,
-                                    int index, char *data, int len,
+                                    int index, u1 *data, int len,
                                     int size) {
     if(*attributes == NULL) {
         *attributes = sysMalloc(size * sizeof(AttributeData*));
@@ -242,8 +243,8 @@ Class *parseClass(char *classname, char *data, int offset, int len,
 
     u2 major_version, minor_version, this_idx, super_idx, attr_count;
     int cp_count, intf_count, injected_fields_count, i, j;
-    unsigned char *ptr = (unsigned char *)data + offset;
     ExtraAttributes extra_attributes;
+    u1 *ptr = (u1 *)data + offset;
     ConstantPool *constant_pool;
     Class **interfaces, *class;
     ClassBlock *classblock;
@@ -373,11 +374,8 @@ Class *parseClass(char *classname, char *data, int offset, int len,
            signalException(java_lang_ClassFormatError, "Object has super");
            return NULL;
         }
-        classblock->super_name = NULL;
     } else {
         READ_TYPE_INDEX(super_idx, constant_pool, CONSTANT_Class, ptr, len);
-        classblock->super_name = CP_UTF8(constant_pool,
-                                         CP_CLASS(constant_pool, super_idx));
     }
 
     classblock->class_loader = class_loader;
@@ -631,12 +629,7 @@ Class *parseClass(char *classname, char *data, int offset, int len,
                     if(inner == this_idx) {
                         int inner_name_idx;
 
-                        /* A member class doesn't have an EnclosingMethod
-                           attribute, so set the enclosing class to be the
-                           same as the declaring class */
-                        if(outer)
-                            classblock->declaring_class =
-                                       classblock->enclosing_class = outer;
+                        classblock->declaring_class = outer;
 
                         READ_TYPE_INDEX(inner_name_idx, constant_pool,
                                         CONSTANT_Utf8, ptr, len);
@@ -761,17 +754,17 @@ Class *defineClass(char *classname, char *data, int offset, int len,
 }
 
 Class *createArrayClass(char *classname, Object *class_loader) {
+    Class *comp_class, *elem_class, *class, *found = NULL;
     ClassBlock *elem_cb, *classblock;
-    Class *class, *found = NULL;
-    int len = strlen(classname);
+    int dim;
 
-    if((class = allocClass()) == NULL)
+    class = allocClass();
+    if(class == NULL)
         return NULL;
 
     classblock = CLASS_CB(class);
 
     classblock->name = copyUtf8(classname);
-    classblock->super_name = SYMBOL(java_lang_Object);
     classblock->super = findSystemClass0(SYMBOL(java_lang_Object));
     classblock->method_table = CLASS_CB(classblock->super)->method_table;
 
@@ -786,33 +779,38 @@ Class *createArrayClass(char *classname, Object *class_loader) {
        this is used to speed up type checking (instanceof) */
 
     if(classname[1] == '[') {
-        Class *comp_class =
-                  findArrayClassFromClassLoader(classname + 1, class_loader);
+        comp_class = findArrayClassFromClassLoader(classname + 1,
+                                                   class_loader);
 
         if(comp_class == NULL)
             goto error;
 
-        classblock->element_class = CLASS_CB(comp_class)->element_class;
-        classblock->dim = CLASS_CB(comp_class)->dim + 1;
+        elem_class = CLASS_CB(comp_class)->element_class;
+        dim = CLASS_CB(comp_class)->dim + 1;
     } else { 
         if(classname[1] == 'L') {
+            int len = strlen(classname);
             char element_name[len - 2];
 
             memcpy(element_name, classname + 2, len - 3);
             element_name[len - 3] = '\0';
 
-            classblock->element_class =
-                      findClassFromClassLoader(element_name, class_loader);
+            elem_class = findClassFromClassLoader(element_name, class_loader);
         } else
-            classblock->element_class = findPrimitiveClass(classname[1]);
+            elem_class = findPrimitiveClass(classname[1]);
 
-        if(classblock->element_class == NULL)
+        if(elem_class == NULL)
             goto error;
 
-        classblock->dim = 1;
+        comp_class = elem_class;
+        dim = 1;
     }
 
-    elem_cb = CLASS_CB(classblock->element_class);
+    classblock->component_class = comp_class;
+    classblock->element_class = elem_class;
+    classblock->dim = dim;
+
+    elem_cb = CLASS_CB(elem_class);
 
     /* The array's classloader is the loader of the element class */
     classblock->class_loader = elem_cb->class_loader;
@@ -823,7 +821,8 @@ Class *createArrayClass(char *classname, Object *class_loader) {
 
     prepareClass(class);
 
-    if((found = addClassToHash(class, classblock->class_loader)) == class) {
+    found = addClassToHash(class, classblock->class_loader);
+    if(found == class) {
         if(verbose)
             jam_printf("[Created array class %s]\n", classname);
         return class;
@@ -2344,7 +2343,7 @@ out:
     return res;
 }
 
-int initialiseClass(InitArgs *args) {
+int initialiseClassStage1(InitArgs *args) {
     verbose = args->verboseclass;
 
     setClassPath(args);
@@ -2363,10 +2362,32 @@ int initialiseClass(InitArgs *args) {
 
     /* Do classlib specific class initialisation */
     if(!classlibInitialiseClass()) {
-        jam_fprintf(stderr, "Error initialising VM (initialiseClass)\n");
+        jam_fprintf(stderr, "Error initialising VM (initialiseClassStage1)\n");
         return FALSE;
     }
 
     return TRUE;
 }
 
+int initialiseClassStage2() {
+    int padding = offsetof(ClassBlock, state);
+    int fields = CLASS_CB(java_lang_Class)->object_size - sizeof(Object);
+
+    if(padding < fields) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseClassStage2)\n"
+                            "ClassBlock padding is less than java.lang.Class "
+                            "fields!\n");
+        return FALSE;
+    }
+
+    /* Ensure that java.lang.Class is initialised.  We can't do it in
+       stage1 (above) as it is too early in the initialisation process
+       to run Java code */
+    if(initClass(java_lang_Class) == NULL) {
+        jam_fprintf(stderr, "Error initialising VM (initialiseClassStage2)\n"
+                            "java.lang.Class could not be initialised!\n");
+        return FALSE;
+    }
+
+    return TRUE;
+}

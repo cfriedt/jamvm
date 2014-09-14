@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -160,4 +160,22 @@ char *classlibDefaultEndorsedDirs() {
                                     sizeof("/lib/endorsed"));
 
     return strcat(strcpy(endorsed_dirs, java_home), "/lib/endorsed");
+}
+
+char *classlibExternalClassName(Class *class) {
+    ClassBlock *cb = CLASS_CB(class);
+    char *dot_name = slash2DotsDup(cb->name);
+
+    if(cb->host_class != NULL) {
+        char buff[21];
+        int len = strlen(dot_name);
+        uint64_t hash = getObjectHashcode(class);
+        int hash_len = sprintf(buff, "%llu", hash);
+
+        dot_name = sysRealloc(dot_name, len + hash_len + 2);
+        memcpy(dot_name + len + 1, buff, hash_len + 1);
+        dot_name[len] = '/';
+    }
+
+    return dot_name;
 }

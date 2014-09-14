@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2012, 2013
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2012, 2013, 2014
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -173,30 +173,6 @@ d##X: {                \
 #endif
 
 /* Macros for handler/bytecode rewriting */
-
-#ifdef USE_CACHE
-#define WITH_OPCODE_CHANGE_CP_DINDEX(opcode, index, cache) \
-{                                                          \
-    index = pc->operand.uui.u1;                            \
-    cache = pc->operand.uui.i;                             \
-    MBARRIER();                                            \
-    if(pc->handler != L(opcode, 0, ENTRY) &&               \
-       pc->handler != L(opcode, 1, ENTRY) &&               \
-       pc->handler != L(opcode, 2, ENTRY))                 \
-        goto *pc->handler;                                 \
-}
-
-#else /* USE_CACHE */
-
-#define WITH_OPCODE_CHANGE_CP_DINDEX(opcode, index, cache) \
-{                                                          \
-    index = pc->operand.uui.u1;                            \
-    cache = pc->operand.uui.i;                             \
-    MBARRIER();                                            \
-    if(pc->handler != L(opcode, 0, ENTRY))                 \
-        goto *pc->handler;                                 \
-}
-#endif
 
 #define OPCODE_REWRITE(opcode, cache, new_operand)         \
 {                                                          \

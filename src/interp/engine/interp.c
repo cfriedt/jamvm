@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -1332,6 +1332,9 @@ uintptr_t *executeJava() {
         frame->last_pc = pc;
         fb = resolveField(mb->class, idx);
 
+        if(fb != NULL)
+            initClass(fb->class);
+
         if(exceptionOccurred0(ee))
             goto throwException;
 
@@ -1358,6 +1361,9 @@ uintptr_t *executeJava() {
 
         frame->last_pc = pc;
         fb = resolveField(mb->class, idx);
+
+        if(fb != NULL)
+            initClass(fb->class);
 
         if(exceptionOccurred0(ee))
             goto throwException;
@@ -1508,6 +1514,9 @@ uintptr_t *executeJava() {
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, idx);
  
+        if(new_mb != NULL)
+            initClass(new_mb->class);
+
         if(exceptionOccurred0(ee))
             goto throwException;
 
@@ -1558,18 +1567,29 @@ uintptr_t *executeJava() {
     DEF_OPC_RW(OPC_INVOKEDYNAMIC, ({
         int idx, cache;
         Operand operand;
-        PolyMethodBlock *pmb;
+        Object *appendix;
+        MethodBlock *invoker;
+        Thread *self = threadSelf();
+        ResolvedInvDynCPEntry *entry;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_INVOKEDYNAMIC, idx, cache);
 
         frame->last_pc = pc;
-        pmb = resolveInvokeDynamic(mb->class, idx);
- 
-        if(pmb == NULL)
+        entry = resolveInvokeDynamic(mb->class, idx);
+        invoker = findInvokeDynamicInvoker(mb->class, entry, &appendix);
+
+        if(invoker == NULL)
             goto throwException;
 
-        operand.pntr = pmb;
-        OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK, cache, operand);
+        resolveLock(self);
+        if(!OPCODE_CHANGED(OPC_INVOKEDYNAMIC)) {
+            InvDynMethodBlock *idmb = resolveCallSite(entry, invoker,
+                                                      appendix);
+
+            operand.pntr = idmb;
+            OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK, cache, operand);
+        }
+        resolveUnlock(self);
         REDISPATCH
     });)
 #endif
@@ -1674,6 +1694,9 @@ uintptr_t *executeJava() {
         frame->last_pc = pc;
         fb = resolveField(mb->class, DOUBLE_INDEX(pc));
 
+        if(fb != NULL)
+            initClass(fb->class);
+
         if(exceptionOccurred0(ee))
             goto throwException;
 
@@ -1696,6 +1719,9 @@ uintptr_t *executeJava() {
                
         frame->last_pc = pc;
         fb = resolveField(mb->class, DOUBLE_INDEX(pc));
+
+        if(fb != NULL)
+            initClass(fb->class);
 
         if(exceptionOccurred0(ee))
             goto throwException;
@@ -1918,6 +1944,9 @@ uintptr_t *executeJava() {
         frame->last_pc = pc;
         new_mb = resolveMethod(mb->class, DOUBLE_INDEX(pc));
  
+        if(new_mb != NULL)
+            initClass(new_mb->class);
+
         if(exceptionOccurred0(ee))
             goto throwException;
 
@@ -1954,18 +1983,32 @@ uintptr_t *executeJava() {
         DISPATCH(0, 0);
     })
 
+#ifdef JSR292
     DEF_OPC_210(OPC_INVOKEDYNAMIC, {
-        PolyMethodBlock *pmb;
+        Object *appendix;
+        MethodBlock *invoker;
+        Thread *self = threadSelf();
+        ResolvedInvDynCPEntry *entry;
 
         frame->last_pc = pc;
-        pmb = resolveInvokeDynamic(mb->class, DOUBLE_INDEX(pc));
- 
-        if(pmb == NULL)
+        entry = resolveInvokeDynamic(mb->class, DOUBLE_INDEX(pc));
+        invoker = findInvokeDynamicInvoker(mb->class, entry, &appendix);
+
+        if(invoker == NULL)
             goto throwException;
 
-        OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK);
+        resolveLock(self);
+        if(!OPCODE_CHANGED(OPC_INVOKEDYNAMIC)) {
+            InvDynMethodBlock *idmb = resolveCallSite(entry, invoker,
+                                                      appendix);
+
+            pc[3] = idmb->id;
+            OPCODE_REWRITE(OPC_INVOKEDYNAMIC_QUICK);
+        }
+        resolveUnlock(self);
         DISPATCH(0, 0);
     })
+#endif
 
 #define REWRITE_RESOLVE_CLASS(opcode)                                     \
     DEF_OPC_210(opcode, {                                                 \
@@ -2177,7 +2220,7 @@ uintptr_t *executeJava() {
         if(pmb->appendix)
             *ostack++ = (uintptr_t)pmb->appendix;
 
-        new_mb = pmb->mb;
+        new_mb = pmb->invoker;
         arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
 
@@ -2185,12 +2228,12 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_INVOKEDYNAMIC_QUICK, {
-        PolyMethodBlock *pmb = RESOLVED_POLYMETHOD(pc);
+        InvDynMethodBlock *idmb = RESOLVED_INVDYNMETHOD(pc);
 
-        if(pmb->appendix)
-            *ostack++ = (uintptr_t)pmb->appendix;
+        if(idmb->appendix)
+            *ostack++ = (uintptr_t)idmb->appendix;
 
-        new_mb = pmb->mb;
+        new_mb = idmb->invoker;
         arg1 = ostack - new_mb->args_count;
 
         goto invokeMethod;

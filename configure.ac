@@ -1,6 +1,6 @@
 ##
 ## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-## 2013 Robert Lougher <rob@jamvm.org.uk>.
+## 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
 ##
@@ -21,7 +21,7 @@
 
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT(jamvm, 1.6.0-devel)
+AC_INIT(jamvm, 2.0.1-devel)
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(src/jam.c)
 AC_CONFIG_HEADERS([src/config.h])
@@ -212,37 +212,14 @@ AC_ARG_ENABLE(profile-stubs,
     [AS_HELP_STRING(--enable-profile-stubs,JNI stubs support profiling)],,)
 
 AC_ARG_WITH(java-runtime-library,
-    [AS_HELP_STRING(--with-java-runtime-library=[[[gnuclasspath|openjdk6|openjdk7|openjdk8]]],
+    [AS_HELP_STRING(--with-java-runtime-library=[[[gnuclasspath|openjdk6|openjdk7|openjdk8|openjdk9]]],
                     which Java runtime library interface to use (default gnuclasspath))],
     [if test "$withval" != gnuclasspath -a "$withval" != openjdk6 -a \
-             "$withval" != openjdk7 -a "$withval" != openjdk8; then
+             "$withval" != openjdk7 -a "$withval" != openjdk8 -a \
+             "$withval" != openjdk9; then
         AC_MSG_ERROR($withval Java runtime library is not supported)
      fi],
     [with_java_runtime_library=gnuclasspath])
-
-if test "$with_java_runtime_library" != gnuclasspath; then
-    classlib=openjdk
-else
-    classlib=gnuclasspath
-fi
-
-AC_SUBST(classlib)
-
-if test "$with_java_runtime_library" = gnuclasspath -o \
-        "$with_java_runtime_library" = openjdk6; then
-    AC_DEFINE([SHARED_CHAR_BUFFERS],1,[java.lang.String uses shared char buffers])
-fi
-
-if test "$with_java_runtime_library" = openjdk7; then
-    AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)])
-fi
-
-if test "$with_java_runtime_library" = openjdk8; then
-    AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)])
-    AC_DEFINE([JSR308],1,[VM support for JSR308 (type annotations)])
-    AC_DEFINE([JSR335],1,[VM support for JSR335 (lambda expressions)])
-    AC_DEFINE([JSR901],1,[VM support for JSR901 (method parameter reflection)])
-fi
 
 AC_ARG_WITH(classpath-install-dir,
     [AS_HELP_STRING(--with-classpath-install-dir=<dir>,installation directory of GNU classpath
@@ -364,6 +341,33 @@ if test "$enable_tls" != no; then
          AC_MSG_RESULT([yes])],
         [AC_MSG_RESULT([no])])
 fi
+
+dnl configure class-library support
+
+if test "$with_java_runtime_library" != gnuclasspath; then
+    ver=`echo "$with_java_runtime_library" | $SED 's/^openjdk\([[0-9]]\)$/\1/'`
+    AC_DEFINE_UNQUOTED([OPENJDK_VERSION],$ver,[OpenJDK class-library])
+    classlib=openjdk
+else
+    classlib=gnuclasspath
+fi
+
+AC_SUBST(classlib)
+
+case "$with_java_runtime_library" in
+    gnuclasspath | openjdk6 )
+        AC_DEFINE([SHARED_CHAR_BUFFERS],1,
+                  [java.lang.String uses shared char buffers]) ;;
+
+    openjdk7 )
+        AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)]) ;;
+
+    openjdk8 | openjdk9 )
+        AC_DEFINE([JSR292],1,[VM support for JSR292 (invokedynamic)])
+        AC_DEFINE([JSR308],1,[VM support for JSR308 (type annotations)])
+        AC_DEFINE([JSR335],1,[VM support for JSR335 (lambda expressions)])
+        AC_DEFINE([JSR901],1,[VM support for JSR901 (method parameter reflection)]) ;;
+esac
 
 dnl split version into separate numbers
 major=`echo "$VERSION" | $SED 's/^\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*.*$/\1/'`

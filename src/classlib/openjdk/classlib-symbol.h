@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2010, 2011, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012, 2013, 2014
+ * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -18,6 +19,12 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#if OPENJDK_VERSION == 6
+#define REMOVE_THREAD_NAME "remove"
+#else
+#define REMOVE_THREAD_NAME "threadTerminated"
+#endif
+
 #define CLASSLIB_SYMBOLS_DO(action) \
     action(tid, "tid"), \
     action(add, "add"), \
@@ -28,7 +35,6 @@
     action(rtype, "rtype"), \
     action(_JI__V, "(JI)V"), \
     action(ptypes, "ptypes"), \
-    action(remove, "remove"), \
     action(invoke, "invoke"), \
     action(target, "target"), \
     action(array_J, "[J"), \
@@ -53,6 +59,7 @@
     action(getFromClass, "getFromClass"), \
     action(constantPoolOop, "constantPoolOop"), \
     action(sun_misc_Signal, "sun/misc/Signal"), \
+    action(removeThreadName, REMOVE_THREAD_NAME), \
     action(java_lang_Shutdown, "java/lang/Shutdown"), \
     action(___java_lang_Class, "()Ljava/lang/Class;"), \
     action(___java_lang_Object, "()Ljava/lang/Object;"), \

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -134,6 +134,7 @@ retry:
             char *classname;
             int name_idx = CP_CLASS(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_Class)
                 goto retry;
 
@@ -199,6 +200,7 @@ retry:
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
             int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != tag)
                 goto retry;
 
@@ -241,9 +243,6 @@ retry:
                     return NULL;
                 }
 
-                if(initClass(mb->class) == NULL)
-                    return NULL;
-
                 CP_TYPE(cp, cp_index) = CONSTANT_Locked;
                 MBARRIER();
                 CP_INFO(cp, cp_index) = (uintptr_t)mb;
@@ -278,6 +277,7 @@ retry:
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
             int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_InterfaceMethodref)
                 goto retry;
 
@@ -330,6 +330,7 @@ retry:
             int cl_idx = CP_FIELD_CLASS(cp, cp_index);
             int name_type_idx = CP_FIELD_NAME_TYPE(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_Fieldref)
                 goto retry;
 
@@ -342,15 +343,12 @@ retry:
 
             fb = lookupField(resolved_class, fieldname, fieldtype);
 
-            if(fb) {
+            if(fb != NULL) {
                 if(!checkFieldAccess(fb, class)) {
                     signalException(java_lang_IllegalAccessError,
                                     "field is not accessible");
                     return NULL;
                 }
-
-                if(initClass(fb->class) == NULL)
-                    return NULL;
 
                 CP_TYPE(cp, cp_index) = CONSTANT_Locked;
                 MBARRIER();
@@ -393,6 +391,7 @@ retry:
             Object *string;
             int idx = CP_STRING(cp, cp_index);
 
+            MBARRIER();
             if(CP_TYPE(cp, cp_index) != CONSTANT_String)
                 goto retry;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -362,7 +362,7 @@ Object *getMethodParameters(Object *method) {
     AttributeData *attr = METHOD_EXTRA_ATTRIBUTES(mb, method_parameters);
 
     if(attr != NULL) {
-        char *data = attr->data;
+        u1 *data = attr->data;
         int len = attr->len;
         int no_params;
 

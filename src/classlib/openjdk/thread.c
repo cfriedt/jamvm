@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -35,8 +35,8 @@ static int thread_status_offset = -1;
 static MethodBlock *init_mb_no_name;
 static MethodBlock *init_mb_with_name;
 
-char classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
-                            Object *group, char is_daemon, int priority) {
+int classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
+                           Object *group, char is_daemon, int priority) {
 
     INST_DATA(jlthread, Thread*, eetop_offset) = thread;
     INST_DATA(jlthread, int, daemon_offset) = is_daemon;
@@ -50,15 +50,15 @@ char classlibInitJavaThread(Thread *thread, Object *jlthread, Object *name,
     return !exceptionOccurred();
 }
 
-char classlibCreateJavaThread(Thread *thread, Object *jThread) {
+int classlibCreateJavaThread(Thread *thread, Object *jThread) {
     INST_DATA(jThread, Thread*, eetop_offset) = thread;
     return TRUE;
 }
 
 Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
-    MethodBlock *system_init_mb, *main_init_mb;
+    MethodBlock *system_grp_init_mb, *main_grp_init_mb;
+    Object *system_grp, *main_grp, *main_grp_name;
     FieldBlock *thread_status_fb, *eetop_fb;
-    Object *system, *main, *main_name;
 
     init_mb_with_name = findMethod(thread_class, SYMBOL(object_init),
                            SYMBOL(_java_lang_ThreadGroup_java_lang_String__V));
@@ -71,15 +71,15 @@ Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
 
     eetop_fb = findField(thread_class, SYMBOL(eetop), SYMBOL(J));
 
-    system_init_mb = findMethod(thrdGrp_class, SYMBOL(object_init),
-                                               SYMBOL(___V));
+    system_grp_init_mb = findMethod(thrdGrp_class, SYMBOL(object_init),
+                                                   SYMBOL(___V));
 
-    main_init_mb = findMethod(thrdGrp_class, SYMBOL(object_init),
-                           SYMBOL(_java_lang_ThreadGroup_java_lang_String__V));
+    main_grp_init_mb = findMethod(thrdGrp_class, SYMBOL(object_init),
+                          SYMBOL(_java_lang_ThreadGroup_java_lang_String__V));
 
-    if(init_mb_with_name   == NULL || init_mb_no_name == NULL ||
-          system_init_mb   == NULL || main_init_mb    == NULL ||
-          thread_status_fb == NULL || eetop_fb        == NULL)
+    if(init_mb_with_name  == NULL || init_mb_no_name  == NULL ||
+       system_grp_init_mb == NULL || main_grp_init_mb == NULL ||
+       thread_status_fb   == NULL || eetop_fb         == NULL)
         return NULL;
 
     CLASS_CB(thread_class)->flags |= JTHREAD;
@@ -87,27 +87,37 @@ Object *classlibThreadPreInit(Class *thread_class, Class *thrdGrp_class) {
     thread_status_offset = thread_status_fb->u.offset;
     eetop_offset = eetop_fb->u.offset;
 
-    if((system = allocObject(thrdGrp_class)) == NULL)
+    if((system_grp = allocObject(thrdGrp_class)) == NULL)
         return NULL;
 
-    executeMethod(system, system_init_mb);
+    executeMethod(system_grp, system_grp_init_mb);
     if(exceptionOccurred())
         return NULL;
 
-    if((main = allocObject(thrdGrp_class)) == NULL ||
-       (main_name = Cstr2String("main")) == NULL)
+    if((main_grp = allocObject(thrdGrp_class)) == NULL ||
+       (main_grp_name = Cstr2String("main")) == NULL)
         return NULL;
 
-    executeMethod(main, main_init_mb, system, main_name);
+    executeMethod(main_grp, main_grp_init_mb, system_grp, main_grp_name);
     if(exceptionOccurred())
         return NULL;
 
-    return main;
+    return main_grp;
 }
 
-int classlibThreadPostInit() {
-    Class *system = findSystemClass(SYMBOL(java_lang_System));
+extern VMLock resolve_lock;
 
+int classlibThreadPostInit() {
+    Class *system;
+
+#ifdef JSR292
+    /* Initialise lock used in Method Handle resolution - this
+       must be done before any invokedynamic instruction is executed */
+    initVMLock(resolve_lock);
+#endif
+
+    /* Initialise System class */
+    system = findSystemClass(SYMBOL(java_lang_System));
     if(system != NULL) {
         MethodBlock *init = findMethod(system, SYMBOL(initializeSystemClass),
                                                SYMBOL(___V));
@@ -129,7 +139,7 @@ int jThreadIsAlive(Object *jThread) {
     return state != CREATING && state != TERMINATED;
 }
 
-void *classlibMarkThreadTerminated(Object *jThread) {
+Object *classlibMarkThreadTerminated(Object *jThread) {
     INST_DATA(jThread, int, thread_status_offset) = TERMINATED;
     return jThread;
 }

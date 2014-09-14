@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2010, 2011, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012, 2013, 2014
+ * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -20,21 +21,22 @@
 
 /* Thread */
 
-extern char classlibInitJavaThread(Thread *thread, Object *jlthread,
-                                   Object *name, Object *group,
-                                   char is_daemon, int priority);
+extern int classlibInitJavaThread(Thread *thread, Object *jlthread,
+                                  Object *name, Object *group,
+                                  char is_daemon, int priority);
 
 extern Object *classlibThreadPreInit(Class *thread_class,
                                      Class *thrdGrp_class);
 
-extern char classlibCreateJavaThread(Thread *thread, Object *jThread);
+extern int classlibThreadPostInit();
+extern int classlibCreateJavaThread(Thread *thread, Object *jThread);
 extern Thread *classlibJThread2Thread(Object *jThread);
 extern Object *classlibMarkThreadTerminated(Object *jThread);
 
 #define classlibThreadIdName() SYMBOL(tid)
 #define classlibAddThreadName() SYMBOL(add)
 #define classlibThreadNameType() SYMBOL(array_C)
-#define classlibRemoveThreadName() SYMBOL(remove)
+#define classlibRemoveThreadName() SYMBOL(removeThreadName)
 #define classlibExceptionHandlerName() SYMBOL(uncaughtExceptionHandler)
 
 extern int classlibGetThreadState(Thread *thread);
@@ -65,6 +67,7 @@ extern char *classlibDefaultExtDirs();
 
 extern void classlibNewLibraryUnloader(Object *class_loader, void *entry);
 extern Object *classlibSkipReflectionLoader(Object *loader);
+extern char *classlibExternalClassName(Class *class);
 
 #ifdef JSR292
 #define classlibInjectedFieldsCount(classname) \
@@ -78,6 +81,7 @@ extern Object *classlibSkipReflectionLoader(Object *loader);
 }
 #else
 #define classlibInjectedFieldsCount(classname) 0
+#define classlibFillInInjectedFields(classname, field) {}
 #endif
 
 /* Reflection */
@@ -155,14 +159,25 @@ extern int isPolymorphicRef(Class *class, int cp_index);
 extern Object *resolveMethodType(Class *class, int cp_index);
 extern Object *resolveMethodHandle(Class *class, int cp_index);
 extern PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index);
-extern PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index);
+
+extern MethodBlock *findInvokeDynamicInvoker(Class *class,
+                                             ResolvedInvDynCPEntry *entry,
+                                             Object **appendix);
+extern void resolveLock(Thread *self);
+extern void resolveUnlock(Thread *self);
+extern ResolvedInvDynCPEntry *resolveInvokeDynamic(Class *class, int cp_index);
+extern InvDynMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
+                                          MethodBlock *invoker,
+                                          Object *appendix_box);
+extern InvDynMethodBlock *resolvedCallSite(ResolvedInvDynCPEntry *entry,
+                                           int id);
 
 extern MethodBlock *lookupPolymorphicMethod(Class *class,
                                             Class *accessing_class,
                                             char *methodname, char *type);
 extern void cachePolyOffsets(CachedPolyOffsets *cpo);
 extern void freeResolvedPolyData(Class *class);
-extern updateIntrinsicCache();
+extern void updateIntrinsicCache();
 
 #define CACHED_POLY_OFFSETS                      \
     static CachedPolyOffsets cpo = {-1, -1, -1};

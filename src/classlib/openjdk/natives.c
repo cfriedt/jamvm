@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2010, 2011, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012, 2013, 2014
+ * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -430,13 +431,18 @@ uintptr_t *defineAnonymousClass(Class *class, MethodBlock *mb,
                         signalException(java_lang_InternalError,
                                         "defineAnonymousClass: "
                                         "unimplemented patch type");
+                        goto out;
                 }
             }
         }
 
         cb->protection_domain = host_cb->protection_domain;
+        cb->host_class = host_class;
+
+        linkClass(class);
     }
 
+out:
     *ostack++ = (uintptr_t) class;
     return ostack;
 }

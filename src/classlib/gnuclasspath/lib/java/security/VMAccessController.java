@@ -74,7 +74,7 @@ final class VMAccessController
     Permissions permissions = new Permissions();
     permissions.add(new AllPermission());
     ProtectionDomain[] domain = new ProtectionDomain[] {
-      new ProtectionDomain(source, permissions)
+      new ProtectionDomain(source, permissions, null, null)
     };
     DEFAULT_CONTEXT = new AccessControlContext(domain);
   }
@@ -185,11 +185,12 @@ final class VMAccessController
       {
         Class clazz = classes[i];
         String method = methods[i];
+        ClassLoader loader = clazz.getClassLoader();
 
         if (DEBUG)
           {
             debug(">>> checking " + clazz + "." + method);
-            debug(">>> loader = " + clazz.getClassLoader());
+            debug(">>> loader = " + loader);
           }
 
         // If the previous frame was a call to doPrivileged, then this is
@@ -219,7 +220,8 @@ final class VMAccessController
         // Create a static snapshot of this domain, which may change over time
         // if the current policy changes.
         domains.add(new ProtectionDomain(domain.getCodeSource(),
-                                         domain.getPermissions()));
+                                         domain.getPermissions(),
+                                         loader, null));
       }
 
     if (DEBUG)

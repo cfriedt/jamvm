@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2010, 2011, 2012, 2013  Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2012, 2013, 2014
+ * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -20,7 +21,8 @@
 
 #include "config.h"
 
-#define _LARGEFILE64_SOURCE
+#define BSD_COMP
+#define _FILE_OFFSET_BITS 64
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -55,13 +57,10 @@
 
 #define JVM_INTERFACE_VERSION 4
 
-/* have_monotonic_clock determines whether to use the monotonic clock or
-   fallback to using gettimeofday.  If the clock is supported, we
-   check on startup if it is working */
+/* We use the monotonic clock if it is available.  As the clock_id may be
+   present but not actually supported, we check it on startup */
 #if defined(HAVE_LIBRT) && defined(CLOCK_MONOTONIC)
 static int have_monotonic_clock;
-#else
-#define have_monotonic_clock FALSE
 #endif
 
 static Class *cloneable_class, *constant_pool_class;
@@ -173,12 +172,15 @@ jlong JVM_CurrentTimeMillis(JNIEnv *env, jclass ignored) {
 jlong JVM_NanoTime(JNIEnv *env, jclass ignored) {
     TRACE("JVM_NanoTime(env=%p, ignored=%p)", env, ignored);
 
+#if defined(HAVE_LIBRT) && defined(CLOCK_MONOTONIC)
     if(have_monotonic_clock) {
         struct timespec ts;
 
         clock_gettime(CLOCK_MONOTONIC, &ts);
         return (jlong) ts.tv_sec * 1000000000 + ts.tv_nsec;
-    } else {
+    }
+#endif
+    {
         struct timeval tv;
 
         gettimeofday(&tv, NULL);
@@ -523,21 +525,22 @@ jclass JVM_FindClassFromClassLoader(JNIEnv *env, const char *name,
     Class *class;
 
     TRACE("JVM_FindClassFromClassLoader(env=%p, name=%s, init=%d, loader=%p,"
-          " throwError=%d)", env, name, init, loader, throwError);
+          " throw_error=%d)", env, name, init, loader, throw_error);
 
     class = findClassFromClassLoader((char *)name, loader);
 
-    if(class == NULL && !throw_error) {
-        Object *excep = exceptionOccurred();
-        char *dot_name = slash2DotsDup((char*)name);
+    if(class == NULL) {
+        if(!throw_error) {
+            Object *excep = exceptionOccurred();
+            char *dot_name = slash2DotsDup((char*)name);
 
-        clearException();
-        signalChainedException(java_lang_ClassNotFoundException,
-                               dot_name, excep);
-        sysFree(dot_name);
-    } else
-        if(init)
-            initClass(class);
+            clearException();
+            signalChainedException(java_lang_ClassNotFoundException,
+                                   dot_name, excep);
+            sysFree(dot_name);
+        }
+    } else if(init)
+        initClass(class);
 
     return class;
 }
@@ -603,13 +606,15 @@ jclass JVM_FindLoadedClass(JNIEnv *env, jobject loader, jstring name) {
 
 /* JVM_GetClassName */
 
-jstring JVM_GetClassName(JNIEnv *env, jclass cls) {
-    char *dot_name = slash2DotsDup(CLASS_CB((Class*)cls)->name);
-    Object *string = createString(dot_name);
+jstring JVM_GetClassName(JNIEnv *env, jclass class) {
+    Object *string;
+    char *dot_name = classlibExternalClassName(class);
 
     TRACE("JVM_GetClassName(env=%p, cls=%p)", env, cls);
 
+    string = createString(dot_name);
     sysFree(dot_name);
+
     return string;
 }
 
@@ -1598,7 +1603,7 @@ jint JVM_Available(jint fd, jlong *bytes) {
         case S_IFSOCK: {
             int n;
 
-            if(ioctl(fd, TIOCINQ, &n) == -1)
+            if(ioctl(fd, FIONREAD, &n) == -1)
                 return 0;
 
             *bytes = n;
@@ -1606,15 +1611,15 @@ jint JVM_Available(jint fd, jlong *bytes) {
         }
 
         default: {
-            off64_t cur, end;
+            off_t cur, end;
 
-            if((cur = lseek64(fd, 0, SEEK_CUR)) == -1)
+            if((cur = lseek(fd, 0, SEEK_CUR)) == -1)
                 return 0;
 
-            if((end = lseek64(fd, 0, SEEK_END)) == -1)
+            if((end = lseek(fd, 0, SEEK_END)) == -1)
                 return 0;
 
-            if(lseek64(fd, cur, SEEK_SET) == -1)
+            if(lseek(fd, cur, SEEK_SET) == -1)
                 return 0;
 
             *bytes = end - cur;
@@ -1629,7 +1634,7 @@ jint JVM_Available(jint fd, jlong *bytes) {
 jlong JVM_Lseek(jint fd, jlong offset, jint whence) {
     TRACE("JVM_Lseek(fd=%d, offset=%ld, whence=%d)", fd, offset, whence);
 
-    return lseek64(fd, offset, whence);
+    return lseek(fd, offset, whence);
 }
 
 
@@ -1638,7 +1643,7 @@ jlong JVM_Lseek(jint fd, jlong offset, jint whence) {
 jint JVM_SetLength(jint fd, jlong length) {
     TRACE("JVM_SetLength(fd=%d, length=%ld)", length);
 
-    if(ftruncate64(fd, length) == -1)
+    if(ftruncate(fd, length) == -1)
         return 0;
 
     return 1;
@@ -1695,8 +1700,8 @@ void JVM_ResumeThread(JNIEnv* env, jobject jthread) {
 
 /* JVM_SetNativeThreadName */
 
-void JVM_SetNativeThreadName(JNIEnv *env, jclass cls, jobject name) {
-    UNIMPLEMENTED("JVM_SetNativeThreadName");
+void JVM_SetNativeThreadName(JNIEnv *env, jobject jthread, jobject name) {
+    IGNORED("JVM_SetNativeThreadName");
 }
 
 
@@ -2143,6 +2148,11 @@ jobject JVM_NewArray(JNIEnv *env, jclass eltClass, jint length) {
             return allocTypeArray(type_map[type - 1], length);
         }
 
+        if(cb->dim == 255) {
+            signalException(java_lang_IllegalArgumentException, NULL);
+            return NULL;
+        }
+
         return allocObjectArray(eltClass, length);
     }
 }
@@ -2166,6 +2176,11 @@ jobject JVM_NewMultiArray(JNIEnv *env, jclass eltClass, jintArray dim) {
         int *dim_data = ARRAY_DATA((Class*)dim, int);
         ClassBlock *cb = CLASS_CB((Class*)eltClass);
 
+        if(len == 0 || cb->dim + len > 255) {
+            signalException(java_lang_IllegalArgumentException, NULL);
+            return NULL;
+        }
+
         if(IS_PRIMITIVE(cb)) {
             /* If the element is a primitive class, we
                need to convert from primitive class name
@@ -2188,11 +2203,18 @@ jobject JVM_NewMultiArray(JNIEnv *env, jclass eltClass, jintArray dim) {
         } else {
             /* Construct object array name, e.g. "[[Ljava/lang/String;" */
             int name_len = strlen(cb->name);
-            array_name = alloca(len + name_len + 3);
-            array_name[len] = 'L';
-            memcpy(array_name + len + 1, cb->name, name_len);
-            array_name[len + name_len + 1] = ';';
-            array_name[len + name_len + 2] = '\0';
+
+            if(IS_ARRAY(cb)) {
+                array_name = alloca(len + name_len + 1);
+                memcpy(array_name + len, cb->name, name_len);
+                array_name[len + name_len] = '\0';
+            } else {
+                array_name = alloca(len + name_len + 3);
+                array_name[len] = 'L';
+                memcpy(array_name + len + 1, cb->name, name_len);
+                array_name[len + name_len + 1] = ';';
+                array_name[len + name_len + 2] = '\0';
+            }
         }
 
         /* Add a [ for each dimension */
@@ -2363,7 +2385,7 @@ jint JVM_SendTo(jint fd, char *buf, int len, int flags, struct sockaddr *to,
 jint JVM_SocketAvailable(jint fd, jint *pbytes) {
     TRACE("JVM_SocketAvailable(fd=%d, pbytes=%p)", fd, pbytes);
 
-    if(ioctl(fd, TIOCINQ, pbytes) == -1)
+    if(ioctl(fd, FIONREAD, pbytes) == -1)
         return JNI_FALSE;
 
     return JNI_TRUE;

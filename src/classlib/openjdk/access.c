@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2012, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2012, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -23,32 +23,25 @@
 
 static Class *magic_accessor;
 
-#ifdef JSR335
-static Class *magic_lambda;
-#endif
-
 int classlibInitialiseAccess() {
     magic_accessor = findSystemClass0(SYMBOL(sun_reflect_MagicAccessorImpl));
     if(magic_accessor == NULL)
         return FALSE;
-
-#ifdef JSR335
-    magic_lambda = findSystemClass0(SYMBOL(java_lang_invoke_MagicLambdaImpl));
-    if(magic_lambda == NULL)
-        return FALSE;
-
-    registerStaticClassRef(&magic_lambda);
-#endif
 
     registerStaticClassRef(&magic_accessor);
     return TRUE;
 }
 
 int classlibAccessCheck(Class *class, Class *referrer) {
-#ifdef JSR335
-    if(isSubClassOf(magic_lambda, referrer))
-        return TRUE;
-#endif
+    Class *host_class = CLASS_CB(referrer)->host_class;
+
+    if(host_class != NULL) {
+        while(CLASS_CB(host_class)->host_class != NULL)
+            host_class = CLASS_CB(host_class)->host_class;
+
+        if(host_class == class)
+            return TRUE;
+    }
 
     return isSubClassOf(magic_accessor, referrer);
 }

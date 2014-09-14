@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2013
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2010, 2013, 2014
  * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
@@ -88,6 +88,10 @@ char *symbol_values[] = {};
 void clearException() {
 }
 
+Class *initClass(Class *class) {
+    return NULL;
+}
+
 MethodBlock *lookupVirtualMethod(Class *class, MethodBlock *mb) {
     return NULL;
 }
@@ -100,7 +104,28 @@ PolyMethodBlock *resolvePolyMethod(Class *class, int cp_index) {
     return NULL;
 }
 
-PolyMethodBlock *resolveInvokeDynamic(Class *class, int cp_index) {
+Object *findInvokeDynamicInvoker(Class *class, ResolvedInvDynCPEntry *entry,
+                                 MethodBlock **invoker) {
+    return NULL;
+}
+
+void *threadSelf() {
+    return NULL;
+}
+
+void resolveLock(void *self) {
+}
+
+void resolveUnlock(void *self) {
+}
+
+ResolvedInvDynCPEntry *resolveInvokeDynamic(Class *class, int cp_index) {
+    return NULL;
+}
+
+InvDynMethodBlock *resolveCallSite(ResolvedInvDynCPEntry *entry,
+                                   MethodBlock *invoker,
+                                   Object *appendix_box) {
     return NULL;
 }
 

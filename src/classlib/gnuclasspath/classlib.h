@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011, 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2010, 2011, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -21,14 +21,14 @@
 
 /* Thread */
 
-extern char classlibInitJavaThread(Thread *thread, Object *jlthread,
-                                   Object *name, Object *group,
-                                   char is_daemon, int priority);
+extern int classlibInitJavaThread(Thread *thread, Object *jlthread,
+                                  Object *name, Object *group,
+                                  char is_daemon, int priority);
 
 extern Object *classlibThreadPreInit(Class *thread_class,
                                      Class *thrdGrp_class);
 
-extern char classlibCreateJavaThread(Thread *thread, Object *jThread);
+extern int classlibCreateJavaThread(Thread *thread, Object *jThread);
 extern Object *classlibMarkThreadTerminated(Object *jThread);
 
 extern Thread *classlibJThread2Thread(Object *jThread);
@@ -77,6 +77,10 @@ extern void classlibNewLibraryUnloader(Object *class_loader, void *entry);
     loader
 
 #define classlibInjectedFieldsCount(classname) 0
+#define classlibFillInInjectedFields(classname, field) {}
+
+#define classlibExternalClassName(class) \
+    slash2DotsDup(CLASS_CB(class)->name);
 
 
 /* Reflection */

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
- * Robert Lougher <rob@jamvm.org.uk>.
+ * 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -348,7 +348,7 @@ Class *getDeclaringClass(Class *class) {
 }
 
 int getWrapperPrimTypeIndex(Object *arg) {
-    if(arg != NULL)  {
+    if(arg != NULL) {
         ClassBlock *cb = CLASS_CB(arg->class);
 
         if(cb->name == SYMBOL(java_lang_Boolean))
@@ -357,26 +357,23 @@ int getWrapperPrimTypeIndex(Object *arg) {
         if(cb->name == SYMBOL(java_lang_Character))
             return PRIM_IDX_CHAR;
 
-        if(cb->super_name == SYMBOL(java_lang_Number)) {
+        if(cb->name == SYMBOL(java_lang_Byte))
+            return PRIM_IDX_BYTE;
 
-            if(cb->name == SYMBOL(java_lang_Byte))
-                return PRIM_IDX_BYTE;
+        if(cb->name == SYMBOL(java_lang_Short))
+            return PRIM_IDX_SHORT;
 
-            if(cb->name == SYMBOL(java_lang_Short))
-                return PRIM_IDX_SHORT;
+        if(cb->name == SYMBOL(java_lang_Integer))
+            return PRIM_IDX_INT;
 
-            if(cb->name == SYMBOL(java_lang_Integer))
-                return PRIM_IDX_INT;
+        if(cb->name == SYMBOL(java_lang_Float))
+            return PRIM_IDX_FLOAT;
 
-            if(cb->name == SYMBOL(java_lang_Float))
-                return PRIM_IDX_FLOAT;
+        if(cb->name == SYMBOL(java_lang_Long))
+            return PRIM_IDX_LONG;
 
-            if(cb->name == SYMBOL(java_lang_Long))
-                return PRIM_IDX_LONG;
-
-            if(cb->name == SYMBOL(java_lang_Double))
-                return PRIM_IDX_DOUBLE;
-        }
+        if(cb->name == SYMBOL(java_lang_Double))
+            return PRIM_IDX_DOUBLE;
     }
 
     return PRIM_IDX_VOID;

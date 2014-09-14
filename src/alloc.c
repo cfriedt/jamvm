@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
- * 2013 Robert Lougher <rob@jamvm.org.uk>.
+ * 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -491,9 +491,6 @@ void markClassData(Class *class, int mark) {
 
     TRACE_GC("Marking class %s\n", cb->name);
 
-    /* Mark the class's classloader object */
-    MARK_CLASSBLOCK_FIELD(cb, class_loader, mark);
-
     /* Mark the classlib specific object references */
     CLASSLIB_CLASSBLOCK_REFS_DO(MARK_CLASSBLOCK_FIELD, cb, mark);
 
@@ -515,19 +512,34 @@ void markClassData(Class *class, int mark) {
     TRACE_GC("Marking constant pool resolved objects for class %s\n", cb->name);
 
     /* Scan the constant pool and mark all resolved object references */
-    for(i = 1; i < cb->constant_pool_count; i++)
-        if(CP_TYPE(cp, i) >= CONSTANT_ResolvedString) {
+    for(i = 1; i < cb->constant_pool_count; i++) {
+        int type = CP_TYPE(cp, i);
+
+        if(type >= CONSTANT_ResolvedString) {
             Object *ob;
 
-            if(CP_TYPE(cp, i) >= CONSTANT_ResolvedPolyMethod)
+            if(type == CONSTANT_ResolvedPolyMethod)
                 ob = ((PolyMethodBlock*)CP_INFO(cp, i))->appendix;
             else
                 ob = (Object *)CP_INFO(cp, i);
-
-            TRACE_GC("Resolved object @ constant pool idx %d @%p\n", i, ob);
+            TRACE_GC("Resolved object @ constant pool idx %d type %d @%p\n",
+                     i, type, ob);
             if(ob != NULL && mark > IS_MARKED(ob))
                 MARK_AND_PUSH(ob, mark);
+        } else if(type == CONSTANT_ResolvedInvokeDynamic) {
+            ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)
+                                           CP_INFO(cp, i);
+            InvDynMethodBlock *idmb;
+
+            for(idmb = entry->idmb_list; idmb != NULL; idmb = idmb->next) {
+                Object *ob = idmb->appendix;
+                TRACE_GC("InvokeDynamic appendix @ constant pool idx %d @%p\n",
+                         i, ob);
+                if(ob != NULL && mark > IS_MARKED(ob))
+                    MARK_AND_PUSH(ob, mark);
+            }
         }
+    }
 }
 
 void markChildren(Object *ob, int mark, int mark_soft_refs) {
@@ -1161,7 +1173,6 @@ static void threadClassData(Class *class, Class *new_addr) {
 
     /* Thread object references within the class data */
     THREAD_CLASSBLOCK_FIELD(cb, super);
-    THREAD_CLASSBLOCK_FIELD(cb, class_loader);
 
     /* Thread the classlib specific references */
     CLASSLIB_CLASSBLOCK_REFS_DO(THREAD_CLASSBLOCK_FIELD, cb);
@@ -1170,8 +1181,10 @@ static void threadClassData(Class *class, Class *new_addr) {
         if(cb->interfaces[i] != NULL)
             THREAD_REFERENCE(&cb->interfaces[i]);
 
-    if(IS_ARRAY(cb))
+    if(IS_ARRAY(cb)) {
         THREAD_REFERENCE(&cb->element_class);
+        CLASSLIB_CLASSBLOCK_ARRAY_REFS_DO(THREAD_CLASSBLOCK_FIELD, cb);
+    }
 
     for(i = 0; i < cb->imethod_table_size; i++)
         THREAD_REFERENCE(&cb->imethod_table[i].interface);
@@ -1195,20 +1208,34 @@ static void threadClassData(Class *class, Class *new_addr) {
     TRACE_COMPACT("Threading constant pool references for class %s\n",
                   cb->name);
 
-    for(i = 1; i < cb->constant_pool_count; i++)
-        if(CP_TYPE(cp, i) >= CONSTANT_ResolvedClass) {
+    for(i = 1; i < cb->constant_pool_count; i++) {
+        int type = CP_TYPE(cp, i);
+
+        if(type >= CONSTANT_ResolvedClass) {
             Object **ob;
 
-            if(CP_TYPE(cp, i) >= CONSTANT_ResolvedPolyMethod)
+            if(type == CONSTANT_ResolvedPolyMethod)
                 ob = &((PolyMethodBlock*)CP_INFO(cp, i))->appendix;
             else
                 ob = (Object**)&(CP_INFO(cp, i));
-
             TRACE_COMPACT("Constant pool ref idx %d type %d object @%p\n",
-                          i, CP_TYPE(cp, i), *ob);
+                          i, type, *ob);
             if(*ob != NULL)
                 THREAD_REFERENCE(ob);
+        } else if(type == CONSTANT_ResolvedInvokeDynamic) {
+            ResolvedInvDynCPEntry *entry = (ResolvedInvDynCPEntry*)
+                                           CP_INFO(cp, i);
+            InvDynMethodBlock *idmb;
+
+            for(idmb = entry->idmb_list; idmb != NULL; idmb = idmb->next) {
+                Object **ob = &idmb->appendix;
+                TRACE_COMPACT("InvokeDynamic appendix cp idx %d object @%p\n",
+                               i, *ob);
+                if(*ob != NULL)
+                    THREAD_REFERENCE(ob);
+            }
         }
+    }
 
     /* Don't bother threading the references to the class from within the
        classes own method and field blocks.  As we know the new address we
