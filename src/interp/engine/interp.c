@@ -658,14 +658,15 @@ uintptr_t *executeJava() {
 #define ARRAY_LOAD_ARY *--ostack
 #endif
 
-#define ARRAY_LOAD(TYPE)                       \
-{                                              \
-    int idx = ARRAY_LOAD_IDX;                  \
-    Object *array = (Object *)ARRAY_LOAD_ARY;  \
-                                               \
-    NULL_POINTER_CHECK(array);                 \
-    ARRAY_BOUNDS_CHECK(array, idx);            \
-    PUSH_0(ARRAY_DATA(array, TYPE)[idx], 1);   \
+#define ARRAY_LOAD(TYPE)                         \
+{                                                \
+    int idx = ARRAY_LOAD_IDX;                    \
+    Object *array = (Object *)ARRAY_LOAD_ARY;    \
+                                                 \
+    NULL_POINTER_CHECK(array);                   \
+    NULL_POINTER_CHECK(ARRAY_DATA(array, TYPE)); \
+    ARRAY_BOUNDS_CHECK(array, idx);              \
+    PUSH_0(ARRAY_DATA(array, TYPE)[idx], 1);     \
 }
 
     DEF_OPC_012_2(
