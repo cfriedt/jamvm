@@ -1235,6 +1235,10 @@ extern uintptr_t *putLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
 extern uintptr_t *getLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
 extern uintptr_t *putObject(Class *class, MethodBlock *mb, uintptr_t *ostack);
 
+extern uintptr_t *addressSize(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack);
+extern uintptr_t *allocateInstance(Class *class, MethodBlock *mb,
+                                   uintptr_t *ostack);
 extern uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb,
                                     uintptr_t *ostack);
 extern uintptr_t *compareAndSwapInt(Class *class, MethodBlock *mb,
