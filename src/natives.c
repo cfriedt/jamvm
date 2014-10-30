@@ -314,7 +314,7 @@ uintptr_t *putObject(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *arrayBaseOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-    *ostack++ = (uintptr_t)ARRAY_DATA((Object*)NULL, void);
+	*ostack++ = offsetof( ArrayObject, contig_data );
     return ostack;
 }
 
