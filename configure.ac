@@ -212,6 +212,9 @@ AC_ARG_ENABLE(vm-flexarray,
     esac],
     [ENABLE_VM_FLEXARRAY=false])
 AC_SUBST(ENABLE_VM_FLEXARRAY)
+if test "x${ENABLE_VM_FLEXARRAY}" = "xtrue" ; then
+    AC_DEFINE([VM_FLEXARRAY],1,[flexible vm arrays])
+fi
 
 AC_ARG_ENABLE(md-stubs,
     [AS_HELP_STRING(--enable-md-stubs,use machine-dependent JNI stubs rather than generic 
