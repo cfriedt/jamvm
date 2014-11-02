@@ -146,6 +146,9 @@ char *getExecutionEngineName() {
 #else /* THREADED */
     "switch-based interpreter"
 #endif /*THREADED */
+#ifdef VM_FLEXARRAY
+    " with flexarray"
+#endif
 ;
 }
 
