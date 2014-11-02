@@ -201,6 +201,18 @@ AC_ARG_ENABLE(ffi,
         enable_ffi=no
      fi])
 
+ENABLE_VM_FLEXARRAY=false
+AC_ARG_ENABLE(vm-flexarray,
+    [AS_HELP_STRING(--enable-vm-flexarray,enable VM flexible arrays
+                                 (disabled by default))],
+    [case "${enableval}" in
+        yes) ENABLE_VM_FLEXARRAY=true ;;
+        no) ENABLE_VM_FLEXARRAY=false ;;
+        *) ENABLE_VM_FLEXARRAY=false ;;
+    esac],
+    [ENABLE_VM_FLEXARRAY=false])
+AC_SUBST(ENABLE_VM_FLEXARRAY)
+
 AC_ARG_ENABLE(md-stubs,
     [AS_HELP_STRING(--enable-md-stubs,use machine-dependent JNI stubs rather than generic 
                                  (enabled by default on i386))],,
