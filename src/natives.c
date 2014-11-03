@@ -314,7 +314,11 @@ uintptr_t *putObject(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 uintptr_t *arrayBaseOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
-	*ostack++ = offsetof( ArrayObject, contig_data );
+#ifdef VM_FLEXARRAY
+	*ostack++ = offsetof( VMFlexArrayObject, contig_data );
+#else
+	*ostack++ = (uintptr_t)ARRAY_DATA((Object*)NULL, void);
+#endif
     return ostack;
 }
 
