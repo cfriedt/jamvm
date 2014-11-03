@@ -2137,7 +2137,7 @@ Object *allocArray(Class *class, int size, int el_size) {
 #ifdef VM_FLEXARRAY
         ob->size  = size;
         if ( size > 0 ) {
-        	ob->data = ob->contig_data;
+            ob->data = ob->contig_data;
         }
 #else
         ob->size  = size;
