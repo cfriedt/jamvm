@@ -2169,7 +2169,7 @@ Object *allocObjectArray(Class *element_class, int length) {
 
 Object *allocTypeArray(int type, int size) {
     static char *array_names[] = {"[Z", "[C", "[F", "[D", "[B",
-            "[S", "[I", "[J"};
+                                  "[S", "[I", "[J"};
     static int element_sizes[] = {1, 2, 4, 8, 1, 2, 4, 8};
     static Class *array_classes[8];
 
