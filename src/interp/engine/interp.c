@@ -658,6 +658,7 @@ uintptr_t *executeJava() {
 #define ARRAY_LOAD_ARY *--ostack
 #endif
 
+#ifdef VM_FLEXARRAY
 #define ARRAY_LOAD(TYPE)                         \
 {                                                \
     int idx = ARRAY_LOAD_IDX;                    \
@@ -668,6 +669,17 @@ uintptr_t *executeJava() {
     ARRAY_BOUNDS_CHECK(array, idx);              \
     PUSH_0(ARRAY_DATA(array, TYPE)[idx], 1);     \
 }
+#else
+#define ARRAY_LOAD(TYPE)                         \
+{                                                \
+    int idx = ARRAY_LOAD_IDX;                    \
+    Object *array = (Object *)ARRAY_LOAD_ARY;    \
+                                                 \
+    NULL_POINTER_CHECK(array);                   \
+    ARRAY_BOUNDS_CHECK(array, idx);              \
+    PUSH_0(ARRAY_DATA(array, TYPE)[idx], 1);     \
+}
+#endif
 
     DEF_OPC_012_2(
             OPC_IALOAD,

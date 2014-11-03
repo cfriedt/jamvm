@@ -2114,7 +2114,11 @@ Object *allocObject(Class *class) {
 }
     
 Object *allocArray(Class *class, int size, int el_size) {
-    ArrayObject *ob;
+#ifdef VM_FLEXARRAY
+    VMFlexArrayObject *ob;
+#else
+    Object *ob;
+#endif
 
     /* Special check to protect against integer overflow */
     if(size > (INT_MAX - sizeof(uintptr_t) - sizeof(Object)) / el_size) {
@@ -2122,14 +2126,22 @@ Object *allocArray(Class *class, int size, int el_size) {
         return NULL;
     }
 
-    ob = gcMalloc(size * el_size + sizeof(ArrayObject));
+#ifdef VM_FLEXARRAY
+    ob = gcMalloc(size * el_size + sizeof(VMFlexArrayObject));
+#else
+    ob = gcMalloc(size * el_size + sizeof(uintptr_t) + sizeof(Object));
+#endif
 
     if(ob != NULL) {
         ob->class = class;
+#ifdef VM_FLEXARRAY
         ob->size  = size;
         if ( size > 0 ) {
-            ob->data = ob->contig_data;
+        	ob->data = ob->contig_data;
         }
+#else
+        ob->size  = size;
+#endif
         TRACE_ALLOC("<ALLOC: allocated %s array object @%p>\n",
                     CLASS_CB(class)->name, ob);
     }

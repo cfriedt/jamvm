@@ -421,13 +421,15 @@ typedef struct line_no_table_entry {
 
 typedef struct object Class;
 
+#ifdef VM_FLEXARRAY
 typedef struct array_object {
    uintptr_t lock;
    Class *class;
    uintptr_t size;
    uintptr_t data;
    char contig_data[];
-} ArrayObject;
+} VMFlexArrayObject;
+#endif
 
 typedef struct object {
    uintptr_t lock;
@@ -793,7 +795,11 @@ typedef struct InitArgs {
 #define INST_DATA(obj, type, offset) *(type*)&((char*)obj)[offset]
 #define INST_BASE(obj, type)         ((type*)(obj+1))
 
+#ifdef VM_FLEXARRAY
 #define ARRAY_DATA(arrayRef, type)   (*((type**)(((uintptr_t*)(arrayRef+1))+1)))
+#else
+#define ARRAY_DATA(arrayRef, type)   ((type*)(((uintptr_t*)(arrayRef+1))+1))
+#endif
 #define ARRAY_LEN(arrayRef)          *(uintptr_t*)(arrayRef+1)
 
 #define IS_CLASS(object)             (object->class && IS_CLASS_CLASS( \
