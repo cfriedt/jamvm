@@ -925,7 +925,6 @@ extern int initialiseGC(InitArgs *args);
 extern Class *allocClass();
 extern Object *allocObject(Class *class);
 extern Object *allocTypeArray(int type, int size);
-extern Object *allocTypeArrayFromClassName(const char *className, int size);
 extern Object *allocObjectArray(Class *element_class, int size);
 extern Object *allocArray(Class *class, int size, int el_size);
 extern Object *allocMultiArray(Class *array_class, int dim, intptr_t *count);
