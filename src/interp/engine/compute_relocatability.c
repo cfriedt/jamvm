@@ -140,6 +140,10 @@ Object *allocArray(Class *class, int size, int el_size) {
     return NULL;
 }
 
+Object *allocObjectArray(Class *class, int size) {
+    return NULL;
+}
+
 Object *allocTypeArray(int type, int size) {
     return NULL;
 }
