@@ -2178,27 +2178,31 @@ Object *allocTypeArray(int type, int size) {
 }
 
 Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
-    int i;
     Object *array;
-    char *element_name = CLASS_CB(array_class)->name + 1;
 
     if(dim > 1) {
-        Class *aclass = findArrayClassFromClass(element_name, array_class);
+        Class *comp_class = CLASS_CB(array_class)->component_class;
         Object **body;
+        int i;
 
         array = allocArray(array_class, *count, sizeof(Object*));
-
         if(array == NULL)
             return NULL;
 
         body = ARRAY_DATA(array, Object*);
 
-        for(i = 0; i < *count; i++)
-            if((*body++ = allocMultiArray(aclass, dim - 1, count + 1)) == NULL)
+        for(i = 0; i < *count; i++) {
+            Object *comp_array = allocMultiArray(comp_class, dim - 1,
+                                                 count + 1);
+            if(comp_array == NULL)
                 return NULL;
-    } else
-        array = allocArray(array_class, *count,
-                           sigElement2Size(*element_name));
+
+            *body++ = comp_array;
+        }
+    } else {
+        int el_size = sigElement2Size(CLASS_CB(array_class)->name[1]);
+        array = allocArray(array_class, *count, el_size);
+    }
 
     return array;
 }
