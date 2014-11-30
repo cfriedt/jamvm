@@ -781,7 +781,6 @@ Class *createArrayClass(char *classname, Object *class_loader) {
     if(classname[1] == '[') {
         comp_class = findArrayClassFromClassLoader(classname + 1,
                                                    class_loader);
-
         if(comp_class == NULL)
             goto error;
 
