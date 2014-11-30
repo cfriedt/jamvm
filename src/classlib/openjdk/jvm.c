@@ -522,27 +522,23 @@ jclass JVM_FindClassFromBootLoader(JNIEnv *env, const char *name) {
 jclass JVM_FindClassFromClassLoader(JNIEnv *env, const char *name,
                                     jboolean init, jobject loader,
                                     jboolean throw_error) {
-    Class *class;
 
     TRACE("JVM_FindClassFromClassLoader(env=%p, name=%s, init=%d, loader=%p,"
           " throw_error=%d)", env, name, init, loader, throw_error);
 
-    class = findClassFromClassLoader((char *)name, loader);
+    return findClassFromLoader((char *)name, init, loader, throw_error);
+}
 
-    if(class == NULL) {
-        if(!throw_error) {
-            Object *excep = exceptionOccurred();
-            char *dot_name = slash2DotsDup((char*)name);
 
-            clearException();
-            signalChainedException(java_lang_ClassNotFoundException,
-                                   dot_name, excep);
-            sysFree(dot_name);
-        }
-    } else if(init)
-        initClass(class);
+/* JVM_FindClassFromCaller */
 
-    return class;
+jclass JVM_FindClassFromCaller(JNIEnv *env, const char *name, jboolean init,
+                               jobject loader, jclass caller) {
+
+    TRACE("JVM_FindClassFromCaller(env=%p, name=%s, init=%d, loader=%p,"
+          " caller=%p)", env, name, init, loader, caller);
+
+    return findClassFromLoader((char *)name, init, loader, FALSE);
 }
 
 
