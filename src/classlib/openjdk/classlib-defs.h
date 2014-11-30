@@ -34,7 +34,10 @@
 #if OPENJDK_VERSION == 9
 #define CLASSLIB_CLASS_PAD                     \
     char pad1[7*sizeof(Object*)];              \
-    Class *component_class;                    \
+    union {                                    \
+        Class *component_class;                \
+        Object *host_class;                    \
+    };                                         \
     Object *class_loader;                      \
     char pad2[3*sizeof(Object*)+1*sizeof(int)];
 #elif OPENJDK_VERSION == 8
@@ -48,12 +51,10 @@
 #if OPENJDK_VERSION == 9
 #define CLASSLIB_CLASS_EXTRA_FIELDS  \
    Object *protection_domain;        \
-   Object *host_class;               \
    Object *signers;
 
 #define CLASSLIB_CLASSBLOCK_REFS_DO(action, cb, ...) \
     action(cb, protection_domain, ## __VA_ARGS__);   \
-    action(cb, host_class, ## __VA_ARGS__);          \
     action(cb, signers, ## __VA_ARGS__)
 
 #define CLASSLIB_ARRAY_CLASS_EXTRA_FIELDS
