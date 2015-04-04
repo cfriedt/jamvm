@@ -924,6 +924,7 @@ extern int initialiseAlloc(InitArgs *args);
 extern int initialiseGC(InitArgs *args);
 extern Class *allocClass();
 extern Object *allocObject(Class *class);
+Object *allocTypeArrayFromClassName(const char *className, int size);
 extern Object *allocTypeArray(int type, int size);
 extern Object *allocObjectArray(Class *element_class, int size);
 extern Object *allocArray(Class *class, int size, int el_size);
@@ -1250,6 +1251,10 @@ extern uintptr_t *putLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
 extern uintptr_t *getLong(Class *class, MethodBlock *mb, uintptr_t *ostack);
 extern uintptr_t *putObject(Class *class, MethodBlock *mb, uintptr_t *ostack);
 
+extern uintptr_t *addressSize(Class *class, MethodBlock *mb,
+                              uintptr_t *ostack);
+extern uintptr_t *allocateInstance(Class *class, MethodBlock *mb,
+                                   uintptr_t *ostack);
 extern uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb,
                                     uintptr_t *ostack);
 extern uintptr_t *compareAndSwapInt(Class *class, MethodBlock *mb,

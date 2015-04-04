@@ -110,6 +110,25 @@ void unlockSpinLock() {
     LOCKWORD_WRITE(&spinlock, 0);
 }
 
+uintptr_t *addressSize(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    *ostack++ = sizeof( uintptr_t );
+    return ostack;
+}
+
+uintptr_t *allocateInstance(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+    class = (Class*)ostack[1];
+    ClassBlock *cb = CLASS_CB(class);
+    if(initClass(class) == NULL) {
+        return NULL;
+    }
+    Object *ob = allocTypeArrayFromClassName(cb->name, 0);
+    if ( NULL == ob ) {
+        ob = allocObject(class);
+    }
+    *ostack++ = ob;
+    return ostack;
+}
+
 uintptr_t *objectFieldOffset(Class *class, MethodBlock *mb, uintptr_t *ostack) {
     FieldBlock *fb = fbFromReflectObject((Object*)ostack[1]);
 

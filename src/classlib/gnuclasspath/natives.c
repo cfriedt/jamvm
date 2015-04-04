@@ -1416,6 +1416,8 @@ VMMethod vm_stack_walker[] = {
 };
 
 VMMethod sun_misc_unsafe[] = {
+    {"addressSize",                 NULL, addressSize},
+    {"allocateInstance",            NULL, allocateInstance},
     {"objectFieldOffset",           NULL, objectFieldOffset},
     {"compareAndSwapInt",           NULL, compareAndSwapInt},
     {"compareAndSwapLong",          NULL, compareAndSwapLong},

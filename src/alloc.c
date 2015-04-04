@@ -2167,9 +2167,35 @@ Object *allocObjectArray(Class *element_class, int length) {
     return NULL;
 }
 
+static char *array_names[] = {"[Z", "[C", "[F", "[D", "[B",
+                              "[S", "[I", "[J"};
+
+Object *allocTypeArrayFromClassName(const char *className, int size) {
+	Object *r = NULL;
+	int type;
+	char t;
+
+	if ( NULL == className || strlen(className) != 2 || *className != '[' )
+		goto out;
+	t = *(className+1);
+
+	for(type = 0; type < 8; type++) {
+		if ( t == array_names[type][1] ) {
+			break;
+		}
+	}
+	if ( type > 8 )
+		goto out;
+
+	type += T_BOOLEAN;
+
+	r = allocTypeArray(type, size);
+
+out:
+	return r;
+}
+
 Object *allocTypeArray(int type, int size) {
-    static char *array_names[] = {"[Z", "[C", "[F", "[D", "[B",
-                                  "[S", "[I", "[J"};
     static int element_sizes[] = {1, 2, 4, 8, 1, 2, 4, 8};
     static Class *array_classes[8];
 
