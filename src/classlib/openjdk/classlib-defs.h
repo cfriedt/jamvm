@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2011, 2013, 2014 Robert Lougher <rob@jamvm.org.uk>.
+ * Copyright (C) 2011, 2013, 2014, 2015
+ * Robert Lougher <rob@jamvm.org.uk>.
  *
  * This file is part of JamVM.
  *
@@ -41,7 +42,7 @@
     Object *class_loader;                      \
     char pad2[3*sizeof(Object*)+1*sizeof(int)];
 #elif OPENJDK_VERSION == 8
-#define CLASSLIB_CLASS_PAD char pad[10*sizeof(Object*)+1*sizeof(int)];
+#define CLASSLIB_CLASS_PAD char pad[11*sizeof(Object*)+1*sizeof(int)];
 #elif OPENJDK_VERSION == 7
 #define CLASSLIB_CLASS_PAD char pad[18*sizeof(Object*)+2*sizeof(int)];
 #else
